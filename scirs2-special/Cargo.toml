@@ -24,7 +24,7 @@ thiserror = { workspace = true }
 approx = { workspace = true }
 lazy_static = { workspace = true }
 regex = { workspace = true, optional = true }
-plotters = { workspace = true, optional = true }
+plotters = { workspace = true, default-features = false, optional = true }
 # Pure Rust PDF generation for plot export (scirs2-special::visualization::export PDF arm).
 # default-features = false avoids the heavy `html` feature (azul-layout, kuchiki, rust-fontconfig,
 # svg2pdf) which is not needed for our chart rendering — we only emit lines/text via Op codes.

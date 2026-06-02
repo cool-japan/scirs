@@ -1,4 +1,4 @@
-# scirs2-symbolic TODO — v0.4.4 and Beyond
+# scirs2-symbolic TODO — v0.5.0 and Beyond
 
 **Subtitle.** Position `scirs2-symbolic` as the world's first **general-purpose computer algebra system whose canonical form is the EML uniform binary tree** for SciRS2, guided by the [oxieml](https://github.com/cool-japan/oxieml) reference implementation (Odrzywolek 2026, [arXiv:2603.21852](https://arxiv.org/abs/2603.21852), v2 published 2026-04-04). oxieml proved the substrate; `scirs2-symbolic` builds the computer algebra system on top.
 
@@ -8,7 +8,7 @@ This file tracks every work item from v0.4.4 onward. The item template (Why / De
 
 ---
 
-## Status as of 2026-05-15 (v0.4.4, post Waves 59–67)
+## Status as of 2026-05-15 (v0.5.0, post Waves 59–67)
 
 - **Phase 0** (substrate): COMPLETE (13/13 items) — Wave 53
 - **Phase 1** (native API): 11/13 items complete — Waves 54–56
@@ -712,7 +712,7 @@ Every item in this TODO must be implemented under the following COOLJAPAN polici
 - [ ] **Refactoring policy.** No source file > 2000 lines. Use `splitrs` (installed at `~/work/splitrs`) when a file approaches the limit. Run `rslines 50 src/` to find candidates.
 - [ ] **Naming convention.** `snake_case` for variables and functions; `CamelCase` for types and traits; `SCREAMING_SNAKE_CASE` for constants. No exceptions.
 - [ ] **f64 default precision.** No `f32` in scope unless a downstream user explicitly requests it (out-of-scope for this TODO).
-- [ ] **Branch-name-driven version bumps.** Cargo.toml version follows the active git branch (e.g. `0.4.4`). Never publish without explicit user permission. `cargo publish` is forbidden in automation; use `--dry-run` only.
+- [ ] **Branch-name-driven version bumps.** Cargo.toml version follows the active git branch (e.g. `0.5.0`). Never publish without explicit user permission. `cargo publish` is forbidden in automation; use `--dry-run` only.
 - [ ] **No git commits without permission.** Every commit must be explicitly requested by the user. CI/local testing uses uncommitted working tree.
 - [ ] **No new GitHub Actions workflows** beyond `pypi-publish.yml` and `npm-publish.yml`. Existing CI is the only allowed CI surface.
 - [ ] **Use `rtk` for development commands.** All `cargo`, `git`, `rustup` invocations route through the `rtk` proxy for token analytics (handled by hook).
@@ -741,7 +741,7 @@ The following items are explicitly out of scope for `scirs2-symbolic`. Future ag
 
 ---
 
-*Last updated: 2026-05-15 (Waves 59–70 + plan blocks 2026-05-06). Branch: `0.4.4`. Maintainer: COOLJAPAN OU (Team Kitasan). Architecture: clean-room, SciRS2-native EML implementation. Substrate guidance: oxieml v0.1.1 (pinned in `[dev-dependencies]` for parity testing only); paper reference arXiv:2603.21852 v2 (2026-04-04). Phase 2: 15/15. Phase 3: 15/12+. Phase 4: 9/N.*
+*Last updated: 2026-05-15 (Waves 59–70 + plan blocks 2026-05-06). Branch: `0.5.0`. Maintainer: COOLJAPAN OU (Team Kitasan). Architecture: clean-room, SciRS2-native EML implementation. Substrate guidance: oxieml v0.1.1 (pinned in `[dev-dependencies]` for parity testing only); paper reference arXiv:2603.21852 v2 (2026-04-04). Phase 2: 15/15. Phase 3: 15/12+. Phase 4: 9/N.*
 
 *Note: as of 2026-05-03, oxieml's `Cargo.toml` has hardcoded absolute paths for `tensorlogic-ir`, `scirs2-core`, `oxicode` — this is an upstream oxieml issue, separate from this crate.*
 

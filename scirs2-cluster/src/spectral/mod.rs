@@ -486,18 +486,21 @@ where
         n_clusters
     };
 
-    // Step 4: Choose the appropriate eigenvectors
-    // For the normalized Laplacian, we take the eigenvectors corresponding to the smallest eigenvalues
-    let embedding = if opts.normalized_laplacian {
-        // Extract n_clusters eigenvectors corresponding to the smallest eigenvalues
-        // Note: eigenvalues should already be sorted in ascending order
-        eigenvectors.slice(s![.., ..actual_n_clusters]).to_owned()
-    } else {
-        // For the unnormalized Laplacian, we skip the constant eigenvector (smallest eigenvalue)
-        eigenvectors
-            .slice(s![.., 1..(actual_n_clusters + 1)])
-            .to_owned()
-    };
+    // Step 4: Choose the spectral embedding — the first `actual_n_clusters`
+    // eigenvectors (the smallest eigenvalues), which is the standard choice for
+    // both the normalized (Ng–Jordan–Weiss) and unnormalized (von Luxburg)
+    // formulations.  Eigenvalues/eigenvectors are already sorted ascending above.
+    //
+    // The leading (near-)constant eigenvector (eigenvalue ≈ 0) carries no
+    // clustering information, but it is inert under Euclidean k-means — an
+    // identical coordinate for every sample cancels out of all pairwise
+    // distances — so keeping it is harmless and preserves the documented
+    // (n_samples, n_clusters) embedding shape.  We must NOT instead take
+    // `1..n_clusters+1`: for k well-separated clusters only the first k
+    // eigenvalues lie below the spectral gap, so reaching to index k drags a
+    // high-eigenvalue "noise" mode into the embedding whose spread can dominate
+    // the Fiedler direction and mislead the downstream k-means.
+    let embedding = eigenvectors.slice(s![.., ..actual_n_clusters]).to_owned();
 
     // Step 5: Row normalization (optional for some algorithms)
     let normalized_embedding = if opts.normalized_laplacian {
@@ -765,12 +768,15 @@ mod tests {
     }
 
     /// Test that spectral_clustering correctly handles n>4 matrices (exercises the
-    /// fixed `eigh` path with ascending-sort correction) and that the output shapes
-    /// and label ranges are valid.
+    /// `eigh` QR-iteration path with the ascending-eigenvalue sort) and that the
+    /// output shapes and label ranges are valid.
     ///
-    /// We also verify that the spectral embedding is well-conditioned: the two
-    /// embedding-dimension centroids must be further apart than the within-group
-    /// spread, confirming the ascending eigenvalue sort is correct.
+    /// The two input groups are spatially well separated, so a correctly ordered
+    /// embedding must let k-means recover them exactly.  We therefore assert the
+    /// end-to-end invariant — each true group is mapped onto a single, distinct
+    /// cluster label — which fails if the ascending sort or eigenvector selection
+    /// is wrong.  This is robust to k-means initialisation, unlike a check that
+    /// inspects a single embedding column.
     #[test]
     fn test_eigh_large_matrix_n_gt4_path() {
         // 8 points in 2-D, two clearly separated groups.
@@ -827,36 +833,29 @@ mod tests {
             "both clusters must be non-empty, got n0={n0} n1={n1}"
         );
 
-        // Verify the spectral embedding separates the groups: compute
-        // centroid distance along the first embedding dimension and compare
-        // it against the within-group variance.  A well-ascending-sorted
-        // eigenvector set produces clearly separated embeddings.
-        let emb0: Vec<f64> = labels
-            .iter()
-            .enumerate()
-            .filter(|(_, &l)| l == 0)
-            .map(|(i, _)| embedding[[i, 0]])
-            .collect();
-        let emb1: Vec<f64> = labels
-            .iter()
-            .enumerate()
-            .filter(|(_, &l)| l == 1)
-            .map(|(i, _)| embedding[[i, 0]])
-            .collect();
-
-        let mean0 = emb0.iter().sum::<f64>() / emb0.len() as f64;
-        let mean1 = emb1.iter().sum::<f64>() / emb1.len() as f64;
-        let var0: f64 = emb0.iter().map(|x| (x - mean0).powi(2)).sum::<f64>() / emb0.len() as f64;
-        let var1: f64 = emb1.iter().map(|x| (x - mean1).powi(2)).sum::<f64>() / emb1.len() as f64;
-
-        let centroid_dist = (mean0 - mean1).abs();
-        let within_spread = (var0 + var1).sqrt();
-
-        // Centroid distance must exceed within-group spread — confirms eigh
-        // returned a well-ordered set of eigenvectors (ascending eigenvalues).
-        assert!(
-            centroid_dist > within_spread,
-            "spectral embedding must separate groups: centroid_dist={centroid_dist:.4} must exceed within_spread={within_spread:.4}"
+        // The two groups are spatially well separated (within-group affinity ≈ 1,
+        // cross-group ≈ 0), so a correctly ordered spectral embedding must let
+        // k-means recover them exactly.  Group A is samples 0..4 and group B is
+        // samples 4..8; we check recovery up to a label permutation.  This is the
+        // end-to-end signal that the n>4 `eigh` path returned eigenvectors in the
+        // right (ascending-eigenvalue) order.
+        let label_a = labels[0];
+        let label_b = labels[4];
+        assert_ne!(
+            label_a, label_b,
+            "the two well-separated groups must get different labels, got {labels:?}"
         );
+        for i in 0..4 {
+            assert_eq!(
+                labels[i], label_a,
+                "group A sample {i} must share group A's label, got {labels:?}"
+            );
+        }
+        for i in 4..8 {
+            assert_eq!(
+                labels[i], label_b,
+                "group B sample {i} must share group B's label, got {labels:?}"
+            );
+        }
     }
 }

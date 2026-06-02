@@ -586,10 +586,27 @@ mod tests {
         let lengths = vec![64, 128, 256, 512];
         let result = benchmark_lookup_table("hann", &lengths, &[], 100).expect("Operation failed");
 
-        assert!(result.cold_duration.as_nanos() > 0);
-        // warm_duration may be 0 on very fast systems with cache hits
-        // Just verify the benchmark completes and warm is not slower than cold
-        assert!(result.warm_duration <= result.cold_duration);
+        // Verify the benchmark did meaningful work using deterministic functional
+        // invariants on the cache statistics. Wall-clock duration ordering is NOT
+        // asserted here because it is inherently flaky under heavy parallel load:
+        // scheduler noise can momentarily make the warm pass slower than the cold
+        // pass, causing non-deterministic failures.
+        //
+        // `benchmark_lookup_table` clears the cache, then runs a cold pass (each of
+        // the `lengths.len()` distinct lengths is computed once -> a miss, all
+        // subsequent accesses -> hits) followed by a warm pass (all hits). Therefore:
+        //   - exactly one miss per distinct length,
+        //   - a large number of hits,
+        //   - the cache holds exactly one entry per distinct length,
+        //   - the hit ratio is very close to 1.0.
+        assert_eq!(result.cache_stats.misses, lengths.len() as u64);
+        assert!(result.cache_stats.hits > 0);
+        assert_eq!(result.cache_stats.cache_size, lengths.len());
+        assert!(result.cache_stats.hit_ratio > 0.9);
+
+        // Non-timing sanity check: speedup is computed from durations and must be a
+        // valid number. We do NOT assert any ordering/magnitude of the speedup.
+        assert!(!result.speedup.is_nan());
     }
 
     #[test]

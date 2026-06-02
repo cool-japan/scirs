@@ -54,7 +54,7 @@ pyo3 = { workspace = true, optional = true }
 numpy = { workspace = true, optional = true }
 
 # Optional visualization libraries
-plotters = { workspace = true, optional = true }
+plotters = { workspace = true, default-features = false, optional = true }
 egui = { workspace = true, optional = true }
 eframe = { workspace = true, optional = true }
 

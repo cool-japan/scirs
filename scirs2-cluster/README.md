@@ -8,7 +8,7 @@ Comprehensive clustering algorithms for unsupervised learning in Rust, part of t
 
 ## Overview
 
-`scirs2-cluster` provides production-ready implementations of classical and modern clustering algorithms with SciPy/scikit-learn compatible APIs. v0.4.4 significantly expands beyond the core algorithms with Gaussian Mixture Models, Self-Organizing Maps, topological clustering, streaming/online methods, fuzzy clustering, deep clustering, Bayesian nonparametric methods, and advanced validation tools.
+`scirs2-cluster` provides production-ready implementations of classical and modern clustering algorithms with SciPy/scikit-learn compatible APIs. v0.5.0 significantly expands beyond the core algorithms with Gaussian Mixture Models, Self-Organizing Maps, topological clustering, streaming/online methods, fuzzy clustering, deep clustering, Bayesian nonparametric methods, and advanced validation tools.
 
 ## Features
 
@@ -109,14 +109,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-cluster = "0.4.4"
+scirs2-cluster = "0.5.0"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-cluster = { version = "0.4.4", features = ["parallel"] }
+scirs2-cluster = { version = "0.5.0", features = ["parallel"] }
 ```
 
 ### K-means Clustering

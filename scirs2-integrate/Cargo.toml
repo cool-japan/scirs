@@ -42,7 +42,7 @@ scirs2-symbolic = { workspace = true, optional = true }
 [dev-dependencies]
 approx = { workspace = true }
 criterion = { workspace = true }
-plotters = { workspace = true }
+plotters = { workspace = true, default-features = false }
 
 [[bench]]
 name = "integrator_bench"

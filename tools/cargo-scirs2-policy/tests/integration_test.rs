@@ -4,7 +4,7 @@
 //! tests remain self-contained and do not depend on the real workspace layout.
 
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -26,20 +26,20 @@ fn temp_dir(suffix: &str) -> PathBuf {
 }
 
 /// Write `content` to `<dir>/src/<filename>`, creating `src/` if needed.
-fn write_src(dir: &PathBuf, filename: &str, content: &str) {
+fn write_src(dir: &Path, filename: &str, content: &str) {
     let src = dir.join("src");
     fs::create_dir_all(&src).expect("create src dir");
     fs::write(src.join(filename), content).expect("write file");
 }
 
 /// Write a minimal `Cargo.toml` in `dir`.
-fn write_cargo_toml(dir: &PathBuf, content: &str) {
+fn write_cargo_toml(dir: &Path, content: &str) {
     fs::write(dir.join("Cargo.toml"), content).expect("write Cargo.toml");
 }
 
 /// Build a [`WorkspaceInfo`] with a single crate at `dir`.
 fn single_crate_workspace(
-    dir: &PathBuf,
+    dir: &Path,
     name: &str,
     is_core: bool,
 ) -> cargo_scirs2_policy::workspace::WorkspaceInfo {
@@ -47,7 +47,7 @@ fn single_crate_workspace(
         root: dir.parent().unwrap_or(dir).to_path_buf(),
         crates: vec![cargo_scirs2_policy::workspace::CrateInfo {
             name: name.to_string(),
-            path: dir.clone(),
+            path: dir.to_path_buf(),
             is_core,
         }],
     }
@@ -107,7 +107,11 @@ fn test_detect_banned_dep_flate2() {
         "Should detect banned dep 'flate2'"
     );
     assert_eq!(
-        violations.iter().find(|v| v.message.contains("flate2")).unwrap().severity,
+        violations
+            .iter()
+            .find(|v| v.message.contains("flate2"))
+            .unwrap()
+            .severity,
         Severity::Error,
         "Non-optional flate2 should be Error severity"
     );
@@ -130,7 +134,10 @@ fn test_allowed_optional_dep_is_warning_not_error() {
     let ws = single_crate_workspace(&dir, "my-crate", false);
 
     let violations = BannedDepCheck.run(&ws);
-    let v = violations.iter().find(|v| v.message.contains("flate2")).expect("flate2 violation");
+    let v = violations
+        .iter()
+        .find(|v| v.message.contains("flate2"))
+        .expect("flate2 violation");
     assert_eq!(
         v.severity,
         Severity::Warning,
@@ -191,11 +198,18 @@ fn test_workspace_discovery() {
 #[test]
 fn test_unwrap_in_prod() {
     let dir = temp_dir("unwrap_prod");
-    write_src(&dir, "lib.rs", "fn foo() {\n    let x = bar().unwrap();\n}\n");
+    write_src(
+        &dir,
+        "lib.rs",
+        "fn foo() {\n    let x = bar().unwrap();\n}\n",
+    );
     let ws = single_crate_workspace(&dir, "my-crate", false);
 
     let violations = UnwrapCheck.run(&ws);
-    assert!(!violations.is_empty(), "Should detect .unwrap() in production code");
+    assert!(
+        !violations.is_empty(),
+        "Should detect .unwrap() in production code"
+    );
     assert_eq!(violations[0].line, 2, "Violation should be on line 2");
 
     let _ = fs::remove_dir_all(&dir);
@@ -249,9 +263,15 @@ fn test_violation_format() {
     };
     let formatted = format_violation(&v);
     assert!(formatted.contains("[ERROR]"), "Should contain severity");
-    assert!(formatted.contains("[my-crate]"), "Should contain crate name");
+    assert!(
+        formatted.contains("[my-crate]"),
+        "Should contain crate name"
+    );
     assert!(formatted.contains(":42"), "Should contain line number");
-    assert!(formatted.contains("some violation"), "Should contain message");
+    assert!(
+        formatted.contains("some violation"),
+        "Should contain message"
+    );
 }
 
 // ===========================================================================
@@ -279,12 +299,24 @@ fn test_json_report_valid() {
 
     let json = json_report(&violations);
     // Basic structural checks — not a full JSON parser
-    assert!(json.trim_start().starts_with('['), "JSON should start with [");
+    assert!(
+        json.trim_start().starts_with('['),
+        "JSON should start with ["
+    );
     assert!(json.trim_end().ends_with(']'), "JSON should end with ]");
-    assert!(json.contains("\"crate_name\":\"crate-a\""), "Should contain crate-a");
-    assert!(json.contains("\"crate_name\":\"crate-b\""), "Should contain crate-b");
+    assert!(
+        json.contains("\"crate_name\":\"crate-a\""),
+        "Should contain crate-a"
+    );
+    assert!(
+        json.contains("\"crate_name\":\"crate-b\""),
+        "Should contain crate-b"
+    );
     assert!(json.contains("\"line\":5"), "Should contain line 5");
-    assert!(json.contains("\"severity\":\"ERROR\""), "Should contain ERROR severity");
+    assert!(
+        json.contains("\"severity\":\"ERROR\""),
+        "Should contain ERROR severity"
+    );
 }
 
 // ===========================================================================
@@ -293,16 +325,18 @@ fn test_json_report_valid() {
 
 #[test]
 fn test_exit_code_errors() {
-    let violations = vec![
-        PolicyViolation {
-            crate_name: "c".to_string(),
-            file: PathBuf::from("/f.rs"),
-            line: 1,
-            message: "error".to_string(),
-            severity: Severity::Error,
-        },
-    ];
-    assert_eq!(exit_code(&violations), 1, "Should return 1 for Error violations");
+    let violations = vec![PolicyViolation {
+        crate_name: "c".to_string(),
+        file: PathBuf::from("/f.rs"),
+        line: 1,
+        message: "error".to_string(),
+        severity: Severity::Error,
+    }];
+    assert_eq!(
+        exit_code(&violations),
+        1,
+        "Should return 1 for Error violations"
+    );
 }
 
 // ===========================================================================
@@ -347,7 +381,11 @@ fn test_walk_rust_files_finds_nested_files() {
 #[test]
 fn test_json_report_empty_array() {
     let json = json_report(&[]);
-    assert_eq!(json.trim(), "[]", "Empty violations should produce empty JSON array");
+    assert_eq!(
+        json.trim(),
+        "[]",
+        "Empty violations should produce empty JSON array"
+    );
 }
 
 #[test]
@@ -399,7 +437,11 @@ fn test_globally_banned_import_zip_in_any_crate() {
         "Should detect 'use zip::' globally"
     );
     assert_eq!(
-        violations.iter().find(|v| v.message.contains("zip")).unwrap().severity,
+        violations
+            .iter()
+            .find(|v| v.message.contains("zip"))
+            .unwrap()
+            .severity,
         Severity::Error,
         "'use zip::' is globally banned — Error severity"
     );

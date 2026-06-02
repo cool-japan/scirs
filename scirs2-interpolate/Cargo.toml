@@ -21,6 +21,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
 scirs2-core = { workspace = true, features = ["simd", "parallel", "random", "array"] }
 scirs2-linalg = { workspace = true }
+scirs2-spatial = { workspace = true }
 thiserror = { workspace = true }
 num_cpus = { workspace = true }
 ordered-float = { workspace = true }
@@ -31,11 +32,13 @@ statrs = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 numpy = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
+wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
 criterion = { workspace = true }
-plotters = { workspace = true }
+plotters = { workspace = true, default-features = false }
 
 [features]
 # Default features
@@ -60,6 +63,10 @@ scipy-comparison = ["pyo3", "numpy"]
 
 # Enable GPU-accelerated k-d tree queries via wgpu linear-scan backend
 gpu_kdtree = []
+
+# Enable real wgpu RBF kernel-matrix + evaluation dispatch.
+# Requires a wgpu-compatible GPU adapter at runtime; falls back to CPU when absent.
+wgpu_rbf = ["dep:wgpu", "dep:pollster"]
 
 # Enable serialization support for data structures
 serde = ["dep:serde"]

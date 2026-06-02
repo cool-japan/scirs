@@ -480,7 +480,8 @@ fn benchmark_startup(_: &mut Criterion) {
 }
 
 fn benchmark_teardown(_: &mut Criterion) {
-    save_results("/tmp/scirs2_v020_python_comparison_rust.json");
+    let output_path = std::env::temp_dir().join("scirs2_v020_python_comparison_rust.json");
+    save_results(&output_path.to_string_lossy());
     println!("\n╔════════════════════════════════════════════════════════════╗");
     println!("║  Next: Run Python comparison script                       ║");
     println!("║  $ python benches/v020_python_comparison.py               ║");

@@ -255,7 +255,8 @@ fn compute_grad_exact(
 
 /// PCA-based initialisation, scaled to std ≈ 1e-4
 fn pca_init(data: &Array2<f64>, n_components: usize) -> Result<Array2<f64>> {
-    let nc = n_components.min(data.shape()[1]);
+    // Bound by both dimensions: PCA can return at most min(n_samples, n_features) components.
+    let nc = n_components.min(data.shape()[0]).min(data.shape()[1]);
     let mut pca = PCA::new(nc, true, false);
     let mut x = pca.fit_transform(data)?;
     // Scale first column std → 1e-4

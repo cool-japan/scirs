@@ -155,11 +155,18 @@ impl SemVer {
         let mut parts = version.split('.');
         let major = parts.next()?.parse().ok()?;
         let minor = parts.next()?.parse().ok()?;
-        let patch = parts.next().and_then(|p| {
-            // Handle pre-release suffixes like "0.4.0-rc1"
-            p.split('-').next().and_then(|s| s.parse().ok())
-        }).unwrap_or(0);
-        Some(Self { major, minor, patch })
+        let patch = parts
+            .next()
+            .and_then(|p| {
+                // Handle pre-release suffixes like "0.4.0-rc1"
+                p.split('-').next().and_then(|s| s.parse().ok())
+            })
+            .unwrap_or(0);
+        Some(Self {
+            major,
+            minor,
+            patch,
+        })
     }
 
     /// Returns the number of minor versions between `self` and `other`.
@@ -236,28 +243,63 @@ mod tests {
     #[test]
     fn test_semver_parse() {
         let v = SemVer::parse("0.4.0");
-        assert_eq!(v, Some(SemVer { major: 0, minor: 4, patch: 0 }));
+        assert_eq!(
+            v,
+            Some(SemVer {
+                major: 0,
+                minor: 4,
+                patch: 0
+            })
+        );
 
         let v = SemVer::parse("1.2.3");
-        assert_eq!(v, Some(SemVer { major: 1, minor: 2, patch: 3 }));
+        assert_eq!(
+            v,
+            Some(SemVer {
+                major: 1,
+                minor: 2,
+                patch: 3
+            })
+        );
     }
 
     #[test]
     fn test_semver_parse_with_prefix() {
         let v = SemVer::parse("v0.4.0");
-        assert_eq!(v, Some(SemVer { major: 0, minor: 4, patch: 0 }));
+        assert_eq!(
+            v,
+            Some(SemVer {
+                major: 0,
+                minor: 4,
+                patch: 0
+            })
+        );
     }
 
     #[test]
     fn test_semver_parse_with_prerelease() {
         let v = SemVer::parse("0.4.0-rc1");
-        assert_eq!(v, Some(SemVer { major: 0, minor: 4, patch: 0 }));
+        assert_eq!(
+            v,
+            Some(SemVer {
+                major: 0,
+                minor: 4,
+                patch: 0
+            })
+        );
     }
 
     #[test]
     fn test_semver_parse_two_parts() {
         let v = SemVer::parse("1.2");
-        assert_eq!(v, Some(SemVer { major: 1, minor: 2, patch: 0 }));
+        assert_eq!(
+            v,
+            Some(SemVer {
+                major: 1,
+                minor: 2,
+                patch: 0
+            })
+        );
     }
 
     #[test]
@@ -268,22 +310,42 @@ mod tests {
 
     #[test]
     fn test_minor_distance_same_major() {
-        let a = SemVer { major: 0, minor: 2, patch: 0 };
-        let b = SemVer { major: 0, minor: 4, patch: 0 };
+        let a = SemVer {
+            major: 0,
+            minor: 2,
+            patch: 0,
+        };
+        let b = SemVer {
+            major: 0,
+            minor: 4,
+            patch: 0,
+        };
         assert_eq!(a.minor_distance(&b), 2);
         assert_eq!(b.minor_distance(&a), 2);
     }
 
     #[test]
     fn test_minor_distance_different_major() {
-        let a = SemVer { major: 0, minor: 4, patch: 0 };
-        let b = SemVer { major: 1, minor: 0, patch: 0 };
+        let a = SemVer {
+            major: 0,
+            minor: 4,
+            patch: 0,
+        };
+        let b = SemVer {
+            major: 1,
+            minor: 0,
+            patch: 0,
+        };
         assert_eq!(a.minor_distance(&b), u32::MAX);
     }
 
     #[test]
     fn test_semver_display() {
-        let v = SemVer { major: 0, minor: 4, patch: 0 };
+        let v = SemVer {
+            major: 0,
+            minor: 4,
+            patch: 0,
+        };
         assert_eq!(v.to_string(), "0.4.0");
     }
 

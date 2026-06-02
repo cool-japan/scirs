@@ -52,6 +52,9 @@ indexmap = { workspace = true }
 
 # v0.4.3: HDF5 reader (Item 7) — links libhdf5 (C), must be feature-gated
 hdf5 = { workspace = true, optional = true }
+# Pure-Rust HDF5 reader (noffi migration; read-only at M1)
+oxih5-core = { workspace = true, optional = true }
+oxih5-format = { workspace = true, optional = true }
 
 # v0.4.3: NetCDF3 reader (Item 8) — pure Rust, always available
 netcdf3 = { workspace = true }
@@ -80,7 +83,9 @@ v0_2_0 = ["lazy-loading", "augmentation", "formats", "distributed", "parallel"]
 # Native Parquet read (Item 6) — activates parquet + arrow crates
 parquet_io = ["dep:parquet", "dep:arrow"]
 # HDF5 dataset containers (Item 7) — activates hdf5 C-linked crate
-hdf5_io = ["dep:hdf5"]
+hdf5_io = ["dep:hdf5", "dep:oxih5-core", "dep:oxih5-format"]
+# Keep the C-linked hdf5 crate available for write paths until oxih5 write support ships (M2+)
+hdf5_io-legacy = ["dep:hdf5"]
 
 # [[bench]]
 # name = "pytorch_comparison"

@@ -10,7 +10,7 @@ license = "Apache-2.0"
 crate-type = ["cdylib", "rlib"]
 
 # Declare this crate as its own workspace root so Cargo does not absorb
-# it into the parent workspace at /Users/kitasan/work/scirs/.
+# it into the parent workspace (scirs/).
 [workspace]
 
 [dependencies]

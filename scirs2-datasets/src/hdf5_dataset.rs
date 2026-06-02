@@ -22,6 +22,27 @@
 //! let valid = Hdf5Dataset::is_valid_hdf5("/non/existent/file.h5");
 //! assert!(!valid);
 //! ```
+//!
+//! # noffi migration status
+//!
+//! TODO(noffi-migration): Replace `hdf5` with `oxih5-core` / `oxih5-format` (Pure Rust HDF5).
+//!
+//! The `read_dataset` and `dataset_names` methods under `#[cfg(feature = "hdf5_io")]`
+//! can be migrated to `oxih5`:
+//!
+//! - `hdf5::File::open(path)` → `oxih5::File::open(path)`
+//! - `file.dataset(name)` → `file.dataset(name)` (same method name)
+//! - `ds.read_raw::<f64>()` → `dataset.data` field (pre-typed `Vec<T>`)
+//! - `ds.shape()` → `dataset.shape` field (`Vec<usize>`)
+//! - `file.member_names()` → `file.dataset_names()` (oxih5 API)
+//!
+//! **Write path** (in `hdf5_io_tests::write_hdf5_1d` test helper):
+//! `hdf5::File::create` / `new_dataset` / `write_raw` — blocked at oxih5 M1 (read-only).
+//! Keep under `#[cfg(feature = "hdf5_io")]` until oxih5 write support ships.
+//!
+//! The `hdf5_io-legacy` feature is available to enable only the C-linked `hdf5` crate
+//! without pulling in oxih5 deps, e.g. for write-only paths.
+//! See `~/work/noffi/oxih5/` for reference API.
 
 use crate::error::{DatasetsError, Result};
 use std::io::Read;

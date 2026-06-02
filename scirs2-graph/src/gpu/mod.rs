@@ -1,17 +1,18 @@
 //! GPU-accelerated and parallel graph algorithms.
 //!
 //! This module provides parallel graph traversal and shortest-path algorithms
-//! designed with a GPU-ready interface. Current implementations use CPU-parallel
-//! execution via Rayon-compatible patterns and are ready to be backed by actual
-//! GPU kernels in future releases.
+//! designed with a GPU-ready interface. When the `gpu` feature is enabled and
+//! a compatible wgpu adapter is present, BFS and Bellman-Ford SSSP dispatch to
+//! real GPU compute shaders. Otherwise, all operations fall back to
+//! CPU-parallel implementations using atomic compare-and-swap.
 //!
 //! # Algorithms
 //!
 //! - [`algorithms::gpu_bfs`] — Parallel BFS (level-synchronous, frontier-based)
 //! - [`algorithms::gpu_sssp_bellman_ford`] — Bellman-Ford SSSP (GPU-friendly, detects
-//!   negative cycles)
-//! - [`algorithms::gpu_sssp_delta_stepping`] — Delta-stepping SSSP (highly parallel,
-//!   better cache behavior than Dijkstra)
+//!   negative cycles in CPU path)
+//! - [`algorithms::gpu_sssp_delta_stepping`] — Delta-stepping SSSP (dispatches
+//!   Bellman-Ford GPU kernel; true bucket-based delta-stepping planned for Wave 76)
 //!
 //! # Graph Format
 //!
@@ -33,6 +34,10 @@
 //! ```
 
 pub mod algorithms;
+pub(crate) mod parallel;
+
+#[cfg(feature = "gpu")]
+pub(crate) mod wgpu_shaders;
 
 pub use algorithms::{
     gpu_bfs, gpu_sssp_bellman_ford, gpu_sssp_delta_stepping, GpuBfsConfig, GpuGraphBackend,

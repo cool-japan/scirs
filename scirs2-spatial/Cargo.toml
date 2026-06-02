@@ -21,14 +21,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Core dependencies
 scirs2-core = { workspace = true, features = ["simd", "parallel", "linalg", "random", "types"] }
 # Removed ndarray, num-complex, rand - use scirs2-core abstractions per SciRS2 policy
-num-traits = { workspace = true }
+num-traits = { workspace = true, default-features = false }
 thiserror = { workspace = true }
 num = { workspace = true }
 statrs = { workspace = true }
 approx = { workspace = true }
 
 # Temporary: num_complex needed for compatibility until scirs2_core::Complex64 is fully compatible
-num-complex = { workspace = true }
+num-complex = { workspace = true, default-features = false }
 
 # Temporary: rand needed for compatibility during migration to scirs2_core::random
 rand = { workspace = true }
@@ -58,7 +58,7 @@ vulkan = []
 approx = { workspace = true }
 criterion = { workspace = true }
 # Removed rand_chacha - use scirs2-core random abstractions per SciRS2 policy
-plotters = { workspace = true }
+plotters = { workspace = true, default-features = false }
 num_cpus = { workspace = true }
 tokio-test = { workspace = true }
 proptest = { workspace = true }

@@ -23,8 +23,8 @@ pub use structure_preserving::{
     StructurePreservingIntegrator, StructurePreservingMethod,
 };
 pub use volume_preserving::{
-    ABCFlow, CircularFlow2D, DiscreteGradientIntegrator, DivergenceFreeFlow, DoubleGyre,
-    HamiltonianFlow, IncompressibleFlow, ModifiedMidpointIntegrator, StreamFunction, StuartVortex,
-    TaylorGreenVortex, VariationalIntegrator, VolumeChecker, VolumePreservingIntegrator,
-    VolumePreservingMethod,
+    gauss_legendre_quadrature, ABCFlow, CircularFlow2D, DiscreteGradientIntegrator,
+    DivergenceFreeFlow, DoubleGyre, HamiltonianFlow, IncompressibleFlow,
+    ModifiedMidpointIntegrator, StreamFunction, StuartVortex, TaylorGreenVortex,
+    VariationalIntegrator, VolumeChecker, VolumePreservingIntegrator, VolumePreservingMethod,
 };

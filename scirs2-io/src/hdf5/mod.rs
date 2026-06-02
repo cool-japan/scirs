@@ -14,6 +14,32 @@
 //! - Enhanced functionality with compression and parallel I/O (see `enhanced` module)
 //! - Extended data type support including complex numbers and boolean types
 //! - Performance optimizations for large datasets
+//!
+//! # noffi migration status
+//!
+//! TODO(noffi-migration): Replace `hdf5` with `oxih5-core` / `oxih5-format` (Pure Rust HDF5).
+//!
+//! **Read operations** can map to the `oxih5` API:
+//! - `hdf5::File::open(path)` → `oxih5::File::open(path)` (returns `oxih5::File`)
+//! - `file.dataset(name)` → `file.dataset(name)` (returns `oxih5_core::Dataset`)
+//! - `Dataset::read_raw::<T>()` → `Dataset.data` field (pre-typed `Vec<T>`)
+//! - Attribute reads → `Dataset.attributes` field (`Vec<oxih5_core::Attribute>`)
+//!
+//! **Blockers for full migration (remaining after M1):**
+//! - `file.datasets()` / `file.groups()` tree enumeration: oxih5 exposes `file.root()?`
+//!   then `Group::datasets()` / `Group::groups()`, but the internal `Group` type in oxih5
+//!   uses a different traversal model — needs adapter code.
+//! - `TypeDescriptor` / `Datatype::from_descriptor`: oxih5 uses `oxih5_core::Dtype` enum
+//!   instead. The `convert_hdf5_datatype` and `read_dataset_data` helpers need rewriting
+//!   against `Dtype` variants.
+//! - `hdf5::types::VarLenUnicode` / `VarLenAscii`: no equivalent in oxih5 (pure byte slices).
+//! - **Write operations** (`File::create`, `new_dataset`, `new_attr`, `write_raw`, etc.):
+//!   oxih5 is read-only at M1. Keep under `#[cfg(feature = "hdf5")]` until M2+ ships.
+//!   See `~/work/noffi/oxih5/` for reference API.
+
+// TODO(noffi-migration): hdf5 reads can map to oxih5-format; writes blocked (oxih5 read-only at M1).
+// rusqlite → oxisql-sqlite-compat (alpha; ROLLBACK/savepoints incomplete).
+// See ~/work/noffi/ for reference API.
 
 use crate::error::{IoError, Result};
 use scirs2_core::ndarray::{ArrayBase, ArrayD, IxDyn};

@@ -135,11 +135,14 @@ fn extract_workspace_members(content: &str, root: &Path) -> Vec<PathBuf> {
             continue;
         }
         // Any other top-level section ends the workspace block
-        if trimmed.starts_with('[') && !trimmed.starts_with("[[") && in_workspace && trimmed != "[workspace]" {
-            if !trimmed.starts_with("[workspace.") {
-                in_workspace = false;
-                in_members = false;
-            }
+        if trimmed.starts_with('[')
+            && !trimmed.starts_with("[[")
+            && in_workspace
+            && trimmed != "[workspace]"
+            && !trimmed.starts_with("[workspace.")
+        {
+            in_workspace = false;
+            in_members = false;
         }
 
         if !in_workspace {
@@ -232,7 +235,10 @@ fn find_crates_by_walk(root: &Path) -> Vec<CrateInfo> {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                let name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
                 if name == "target" || name.starts_with('.') {
                     continue;
                 }
@@ -364,9 +370,17 @@ mod tests {
         write_crate(&dir, "scirs2-linalg");
 
         let ws = discover_workspace(&dir);
-        let core = ws.crates.iter().find(|c| c.name == "scirs2-core").expect("core");
+        let core = ws
+            .crates
+            .iter()
+            .find(|c| c.name == "scirs2-core")
+            .expect("core");
         assert!(core.is_core, "scirs2-core should have is_core=true");
-        let linalg = ws.crates.iter().find(|c| c.name == "scirs2-linalg").expect("linalg");
+        let linalg = ws
+            .crates
+            .iter()
+            .find(|c| c.name == "scirs2-linalg")
+            .expect("linalg");
         assert!(!linalg.is_core, "scirs2-linalg should have is_core=false");
 
         let _ = fs::remove_dir_all(&dir);

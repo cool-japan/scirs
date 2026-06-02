@@ -153,7 +153,11 @@ fn scan_file_for_import(
                 crate_name: crate_name.to_string(),
                 file: file.to_path_buf(),
                 line: line_idx + 1,
-                message: format!("banned import '{}': {}", pattern.trim_end_matches("::"), reason),
+                message: format!(
+                    "banned import '{}': {}",
+                    pattern.trim_end_matches("::"),
+                    reason
+                ),
                 severity: severity.clone(),
             });
         }
@@ -180,7 +184,7 @@ mod tests {
     use super::*;
     use crate::workspace::{CrateInfo, WorkspaceInfo};
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     fn temp_dir(suffix: &str) -> PathBuf {
         let base = std::env::temp_dir().join(format!(
@@ -196,18 +200,18 @@ mod tests {
         base
     }
 
-    fn workspace_with_crate(crate_path: &PathBuf, name: &str, is_core: bool) -> WorkspaceInfo {
+    fn workspace_with_crate(crate_path: &Path, name: &str, is_core: bool) -> WorkspaceInfo {
         WorkspaceInfo {
             root: crate_path.parent().unwrap_or(crate_path).to_path_buf(),
             crates: vec![CrateInfo {
                 name: name.to_string(),
-                path: crate_path.clone(),
+                path: crate_path.to_path_buf(),
                 is_core,
             }],
         }
     }
 
-    fn write_src_file(crate_dir: &PathBuf, filename: &str, content: &str) {
+    fn write_src_file(crate_dir: &Path, filename: &str, content: &str) {
         let src = crate_dir.join("src");
         fs::create_dir_all(&src).expect("src dir");
         fs::write(src.join(filename), content).expect("write file");
@@ -221,7 +225,10 @@ mod tests {
 
         let violations = BannedImportCheck.run(&ws);
         assert!(!violations.is_empty(), "Should detect use rand:: violation");
-        assert!(violations[0].message.contains("rand"), "Message should mention rand");
+        assert!(
+            violations[0].message.contains("rand"),
+            "Message should mention rand"
+        );
         assert_eq!(violations[0].line, 1, "Should be on line 1");
 
         let _ = fs::remove_dir_all(&dir);
@@ -234,7 +241,10 @@ mod tests {
         let ws = workspace_with_crate(&dir, "my-crate", false);
 
         let violations = BannedImportCheck.run(&ws);
-        assert!(!violations.is_empty(), "Should detect use ndarray:: violation");
+        assert!(
+            !violations.is_empty(),
+            "Should detect use ndarray:: violation"
+        );
         assert_eq!(violations[0].line, 2, "ndarray on line 2");
 
         let _ = fs::remove_dir_all(&dir);
@@ -247,9 +257,16 @@ mod tests {
         let ws = workspace_with_crate(&dir, "any-crate", false);
 
         let violations = BannedImportCheck.run(&ws);
-        let flate2_v: Vec<_> = violations.iter().filter(|v| v.message.contains("flate2")).collect();
+        let flate2_v: Vec<_> = violations
+            .iter()
+            .filter(|v| v.message.contains("flate2"))
+            .collect();
         assert!(!flate2_v.is_empty(), "Should detect flate2");
-        assert_eq!(flate2_v[0].severity, Severity::Error, "flate2 is Error severity");
+        assert_eq!(
+            flate2_v[0].severity,
+            Severity::Error,
+            "flate2 is Error severity"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -262,8 +279,14 @@ mod tests {
         let ws = workspace_with_crate(&dir, "scirs2-core", true);
 
         let violations = BannedImportCheck.run(&ws);
-        let bincode_v: Vec<_> = violations.iter().filter(|v| v.message.contains("bincode")).collect();
-        assert!(!bincode_v.is_empty(), "Even core is checked for globally banned imports");
+        let bincode_v: Vec<_> = violations
+            .iter()
+            .filter(|v| v.message.contains("bincode"))
+            .collect();
+        assert!(
+            !bincode_v.is_empty(),
+            "Even core is checked for globally banned imports"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -276,8 +299,14 @@ mod tests {
         let ws = workspace_with_crate(&dir, "scirs2-core", true);
 
         let violations = BannedImportCheck.run(&ws);
-        let rand_v: Vec<_> = violations.iter().filter(|v| v.message.contains("rand")).collect();
-        assert!(rand_v.is_empty(), "scirs2-core should be exempt from rand check");
+        let rand_v: Vec<_> = violations
+            .iter()
+            .filter(|v| v.message.contains("rand"))
+            .collect();
+        assert!(
+            rand_v.is_empty(),
+            "scirs2-core should be exempt from rand check"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -293,7 +322,10 @@ mod tests {
         let ws = workspace_with_crate(&dir, "my-crate", false);
 
         let violations = BannedImportCheck.run(&ws);
-        let rand_v: Vec<_> = violations.iter().filter(|v| v.message.contains("rand")).collect();
+        let rand_v: Vec<_> = violations
+            .iter()
+            .filter(|v| v.message.contains("rand"))
+            .collect();
         assert!(rand_v.is_empty(), "tests/ should be excluded");
 
         let _ = fs::remove_dir_all(&dir);
@@ -302,11 +334,18 @@ mod tests {
     #[test]
     fn test_comments_not_matched() {
         let dir = temp_dir("comments");
-        write_src_file(&dir, "lib.rs", "// use rand::Rng; -- this is a comment\n// use flate2;\n");
+        write_src_file(
+            &dir,
+            "lib.rs",
+            "// use rand::Rng; -- this is a comment\n// use flate2;\n",
+        );
         let ws = workspace_with_crate(&dir, "my-crate", false);
 
         let violations = BannedImportCheck.run(&ws);
-        assert!(violations.is_empty(), "Commented-out imports should not trigger violations");
+        assert!(
+            violations.is_empty(),
+            "Commented-out imports should not trigger violations"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -314,11 +353,18 @@ mod tests {
     #[test]
     fn test_clean_file_no_violations() {
         let dir = temp_dir("clean_import");
-        write_src_file(&dir, "lib.rs", "use scirs2_core::ndarray::Array2;\nfn foo() {}\n");
+        write_src_file(
+            &dir,
+            "lib.rs",
+            "use scirs2_core::ndarray::Array2;\nfn foo() {}\n",
+        );
         let ws = workspace_with_crate(&dir, "my-crate", false);
 
         let violations = BannedImportCheck.run(&ws);
-        assert!(violations.is_empty(), "Clean imports should produce no violations");
+        assert!(
+            violations.is_empty(),
+            "Clean imports should produce no violations"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }

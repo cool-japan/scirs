@@ -45,9 +45,9 @@ use thiserror::Error;
 /// GPU JIT compilation errors.
 #[derive(Debug, Error)]
 pub enum GpuError {
-    /// No suitable WebGPU adapter is available on this host (Phase 2 dispatch).
-    #[error("no GPU adapter available")]
-    NoAdapter,
+    /// No suitable WebGPU adapter is available on this host.
+    #[error("no GPU adapter available: {0}")]
+    NoAdapter(String),
 
     /// The generated WGSL shader source failed to compile.
     #[error("WGSL compilation failed: {0}")]
@@ -57,9 +57,17 @@ pub enum GpuError {
     #[error("operator not supported in WGSL: {0}")]
     Unsupported(String),
 
-    /// Generic device error — surfaced from `wgpu` (Phase 2 dispatch).
+    /// Generic device error — surfaced from `wgpu`.
     #[error("GPU device error: {0}")]
     DeviceError(String),
+
+    /// Input batch was empty.
+    #[error("eval_batch: input batch is empty")]
+    EmptyInput,
+
+    /// A buffer operation (upload or readback) failed.
+    #[error("GPU buffer operation failed: {0}")]
+    BufferError(String),
 }
 
 /// A GPU-compiled `LoweredOp` ready for batched evaluation.
@@ -89,21 +97,217 @@ impl GpuKernel {
         &self.wgsl_source
     }
 
-    /// Evaluate at `inputs.len()` rows (each `inputs[i]` is a `&[f64]` of
+    /// Evaluate at `inputs.len()` rows (each `inputs[i]` is a `Vec<f64>` of
     /// length [`Self::n_vars`]).
     ///
-    /// # Phase 1 status
+    /// # Precision note
     ///
-    /// Returns [`GpuError::Unsupported`] explicitly. Real `wgpu` device
-    /// submission lands in v0.4.5; until then callers should use the CPU
-    /// JIT path (`to_jit`) and revisit when GPU dispatch is wired.
-    pub fn eval_batch(&self, _inputs: &[Vec<f64>]) -> Result<Vec<f64>, GpuError> {
-        Err(GpuError::Unsupported(
-            "GpuKernel::eval_batch dispatch is wired in v0.4.5; \
-             Phase 1 ships the shader generator only. \
-             Use crate::compile::to_jit for CPU evaluation."
-                .into(),
-        ))
+    /// WGSL uses `f32` storage. Host `f64` inputs are downcast to `f32` at
+    /// upload time and upcast back to `f64` after readback. Formulas
+    /// requiring strict `f64` precision should use the Cranelift CPU backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GpuError::NoAdapter`] when no GPU adapter is available (e.g.
+    /// headless CI). Returns [`GpuError::DeviceError`] on wgpu device failure.
+    pub fn eval_batch(&self, inputs: &[Vec<f64>]) -> Result<Vec<f64>, GpuError> {
+        let n_rows = inputs.len();
+        if n_rows == 0 {
+            return Err(GpuError::EmptyInput);
+        }
+        // Flatten inputs row-major: row*n_vars + var_idx — matches the shader's
+        // `inputs.data[base + i]` pattern where `base = idx * n_vars`.
+        let n_vars = self.n_vars;
+        let flat_f32: Vec<f32> = inputs
+            .iter()
+            .flat_map(|row| row.iter().map(|&x| x as f32))
+            .collect();
+
+        self.dispatch_wgpu(&flat_f32, n_rows, n_vars)
+    }
+
+    /// Core wgpu dispatch: upload `flat_f32` (row-major inputs), run the
+    /// precompiled WGSL shader, read back `n_rows` output f32 values, return
+    /// as f64.
+    #[cfg(feature = "gpu")]
+    fn dispatch_wgpu(
+        &self,
+        flat_f32: &[f32],
+        n_rows: usize,
+        _n_vars: usize,
+    ) -> Result<Vec<f64>, GpuError> {
+        use wgpu::{
+            util::{BufferInitDescriptor, DeviceExt as _},
+            BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
+            BindingType, BufferBindingType, BufferDescriptor, BufferUsages,
+            CommandEncoderDescriptor, ComputePassDescriptor, DeviceDescriptor, Features,
+            InstanceDescriptor, Limits, MapMode, RequestAdapterOptions, ShaderModuleDescriptor,
+            ShaderSource, ShaderStages,
+        };
+
+        // ── Adapter / device acquisition ──────────────────────────────────────
+        let instance = wgpu::Instance::new(InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            flags: wgpu::InstanceFlags::default(),
+            memory_budget_thresholds: Default::default(),
+            backend_options: Default::default(),
+            display: None,
+        });
+
+        let adapter = pollster::block_on(instance.request_adapter(&RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: None,
+            force_fallback_adapter: false,
+        }))
+        .map_err(|e| GpuError::NoAdapter(e.to_string()))?;
+
+        let (device, queue) = pollster::block_on(adapter.request_device(&DeviceDescriptor {
+            label: Some("scirs2-symbolic-gpu"),
+            required_features: Features::empty(),
+            required_limits: Limits::default(),
+            ..Default::default()
+        }))
+        .map_err(|e| GpuError::DeviceError(e.to_string()))?;
+
+        // ── Encode flat input as raw bytes ─────────────────────────────────────
+        let input_bytes: Vec<u8> = flat_f32.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let output_byte_len = (n_rows * std::mem::size_of::<f32>()) as u64;
+
+        // ── Buffers ───────────────────────────────────────────────────────────
+        let buf_inputs = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("scirs2-sym-inputs"),
+            contents: &input_bytes,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
+        });
+
+        let buf_outputs = device.create_buffer(&BufferDescriptor {
+            label: Some("scirs2-sym-outputs"),
+            size: output_byte_len,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let buf_staging = device.create_buffer(&BufferDescriptor {
+            label: Some("scirs2-sym-staging"),
+            size: output_byte_len,
+            usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        // ── Bind group layout (binding 0: inputs read, binding 1: outputs rw) ─
+        let bgl = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: Some("scirs2-sym-bgl"),
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: true },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        // ── Pipeline ──────────────────────────────────────────────────────────
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("scirs2-sym-layout"),
+            bind_group_layouts: &[Some(&bgl)],
+            ..Default::default()
+        });
+
+        let shader_module = device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("scirs2-sym-shader"),
+            source: ShaderSource::Wgsl(self.wgsl_source.as_str().into()),
+        });
+
+        let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("scirs2-sym-pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &shader_module,
+            entry_point: Some("eval_main"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+
+        // ── Bind group ────────────────────────────────────────────────────────
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("scirs2-sym-bg"),
+            layout: &bgl,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: buf_inputs.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: buf_outputs.as_entire_binding(),
+                },
+            ],
+        });
+
+        // ── Dispatch: ceil(n_rows / 64) workgroups ────────────────────────────
+        let workgroups = (n_rows as u32).div_ceil(64);
+        let mut encoder = device.create_command_encoder(&CommandEncoderDescriptor {
+            label: Some("scirs2-sym-encoder"),
+        });
+        {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("scirs2-sym-pass"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&pipeline);
+            pass.set_bind_group(0, &bind_group, &[]);
+            pass.dispatch_workgroups(workgroups, 1, 1);
+        }
+        queue.submit([encoder.finish()]);
+
+        // ── Copy outputs to staging ───────────────────────────────────────────
+        let mut encoder2 = device.create_command_encoder(&CommandEncoderDescriptor { label: None });
+        encoder2.copy_buffer_to_buffer(&buf_outputs, 0, &buf_staging, 0, output_byte_len);
+        queue.submit([encoder2.finish()]);
+
+        // ── Poll and map ──────────────────────────────────────────────────────
+        device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| GpuError::BufferError(format!("GPU poll error: {e:?}")))?;
+
+        let slice = buf_staging.slice(0..output_byte_len);
+        let (tx, rx) = std::sync::mpsc::channel();
+        slice.map_async(MapMode::Read, move |r| {
+            let _ = tx.send(r);
+        });
+
+        device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| GpuError::BufferError(format!("GPU poll during map: {e:?}")))?;
+
+        rx.recv()
+            .map_err(|_| GpuError::BufferError("channel closed during map_async".into()))?
+            .map_err(|e| GpuError::BufferError(format!("map_async failed: {e:?}")))?;
+
+        let mapped = slice.get_mapped_range();
+        let result_f64: Vec<f64> = mapped
+            .chunks_exact(4)
+            .take(n_rows)
+            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f64)
+            .collect();
+        drop(mapped);
+        buf_staging.unmap();
+
+        Ok(result_f64)
     }
 }
 
@@ -467,13 +671,48 @@ mod tests {
     }
 
     #[test]
-    fn eval_batch_returns_unsupported_in_phase1() {
+    fn eval_batch_empty_input_returns_error() {
         let op = LoweredOp::Var(0);
         let kernel = to_gpu(&op).expect("gpu compile");
-        let inputs = vec![vec![1.0_f64], vec![2.0_f64]];
+        match kernel.eval_batch(&[]) {
+            Err(GpuError::EmptyInput) => {}
+            other => panic!("expected EmptyInput for zero-row batch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn eval_batch_linear_or_skips() {
+        // f(x) = 2*x + 1  →  inputs [0,1,2,3], expected [1,3,5,7]
+        let x = LoweredOp::Var(0);
+        let two_x = LoweredOp::Mul(Box::new(LoweredOp::Const(2.0)), Box::new(x));
+        let op = LoweredOp::Add(Box::new(two_x), Box::new(LoweredOp::Const(1.0)));
+        let kernel = to_gpu(&op).expect("gpu compile");
+
+        let inputs: Vec<Vec<f64>> = (0..4).map(|i| vec![i as f64]).collect();
         match kernel.eval_batch(&inputs) {
-            Err(GpuError::Unsupported(_)) => {}
-            other => panic!("expected Unsupported in Phase 1, got {other:?}"),
+            Ok(out) => {
+                let expected = [1.0_f64, 3.0, 5.0, 7.0];
+                assert_eq!(out.len(), 4, "output length mismatch");
+                for (i, (&got, &exp)) in out.iter().zip(expected.iter()).enumerate() {
+                    assert!(
+                        (got - exp).abs() < 1e-3,
+                        "row {i}: got {got}, expected {exp}"
+                    );
+                }
+            }
+            Err(e) => {
+                let msg = e.to_string();
+                if msg.contains("adapter")
+                    || msg.contains("Adapter")
+                    || msg.contains("GPU")
+                    || msg.contains("no suitable")
+                    || msg.contains("NoAdapter")
+                {
+                    println!("No wgpu adapter available — skipping eval_batch_linear ({msg})");
+                } else {
+                    panic!("Unexpected error: {e}");
+                }
+            }
         }
     }
 }

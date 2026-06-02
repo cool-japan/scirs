@@ -150,11 +150,7 @@ mod tests {
         let dir = temp_dir("rand_found");
         let src_dir = dir.join("src");
         fs::create_dir_all(&src_dir).expect("create src");
-        fs::write(
-            src_dir.join("lib.rs"),
-            "use rand::Rng;\nfn foo() {}\n",
-        )
-        .expect("write lib.rs");
+        fs::write(src_dir.join("lib.rs"), "use rand::Rng;\nfn foo() {}\n").expect("write lib.rs");
 
         let rule = DirectRandUsageRule;
         let violations = rule.check(&dir);
@@ -249,11 +245,7 @@ mod tests {
         let dir = temp_dir("examples_skip");
         let ex_dir = dir.join("examples");
         fs::create_dir_all(&ex_dir).expect("create examples dir");
-        fs::write(
-            ex_dir.join("demo.rs"),
-            "use ndarray::arr2;\n",
-        )
-        .expect("write example file");
+        fs::write(ex_dir.join("demo.rs"), "use ndarray::arr2;\n").expect("write example file");
 
         let rule = DirectNdarrayUsageRule;
         let violations = rule.check(&dir);

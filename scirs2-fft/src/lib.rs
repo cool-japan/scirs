@@ -41,7 +41,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-fft = "0.4.4"
+//! scirs2-fft = "0.5.0"
 //! ```
 //!
 //!
@@ -157,7 +157,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.4
+//! - **Version**: 0.5.0
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-fft](https://docs.rs/scirs2-fft)

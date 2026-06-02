@@ -1,8 +1,9 @@
 # SciRS2 Development Roadmap
 
-**Current Version**: 0.4.4 (Released 2026-05-15)
-**Status**: Production Ready — All 36,446 tests passing
-**Scale**: ~4.2M lines of Rust, ~8,071 source files, ~29 workspace crates
+**Current Version**: 0.5.0
+**Status**: Production Ready — ~36,082 tests passing (Wave 77 baseline, 2026-05-25)
+**Scale**: ~4.2M lines total, ~3.87M Rust SLoC, ~8,129 source files, ~29 workspace crates
+**Last Updated**: 2026-06-02
 
 This document tracks the development roadmap for SciRS2. Completed items in v0.3.4 are documented here for historical reference; the active roadmap is the v0.4.0 section.
 
@@ -625,11 +626,16 @@ See CHANGELOG.md `[0.4.3]` for the full feature list. Highlights: 34,883 tests p
 - [x] Python bindings (`scirs2-python::symbolic`)
 - [x] Physics examples (4 examples)
 - [x] Integration test suite (~564 `#[test]` markers across the crate)
-- [ ] Criterion benchmark suite vs PySR on FSReD dataset
-- [ ] `docs/cas_tutorial.md` end-to-end walkthrough
+- [x] ~~Criterion benchmark suite vs PySR on FSReD dataset~~ (DONE Wave 55, 2026-05-04)
+- [x] **`docs/cas_tutorial.md` end-to-end walkthrough** (planned 2026-05-15) (DONE Wave 75, 2026-05-15 — docs/cas_tutorial.md 1488 lines; primary verification at scirs2-symbolic/tests/cas_tutorial_compile.rs with 13 #[test] functions, one per section)
+  - **Goal:** A 1000-1500-line tutorial markdown that walks a new user through using `scirs2-symbolic` from raw parsing to JIT-compiled execution, exercising every Phase-2 entry-point. Becomes the canonical "how to use the CAS" reference for v0.5.0.
+  - **Design:** 13-section structure covering: EML substrate, parsing/pretty-printing, canonicalization, identity DB + SMT (OxiZ NLSAT 0.2.1 limitation noted), cas::solve (linear/poly/system/ODE), integrate_rational (Risch-LITE), GradGraph differentiation, Cranelift JIT, GPU WGSL codegen, Python+WASM bindings, cross-crate integration (optimize::symbolic::newton), diffgeom Schwarzschild Ricci scalar, reference and next-steps.
+  - **Files:** `/Users/kitasan/work/scirs/docs/cas_tutorial.md` (new, ~1200 lines); `/Users/kitasan/work/scirs/scirs2-symbolic/tests/cas_tutorial_compile.rs` (new, ≥13 `#[test]` functions, one per tutorial section).
+  - **Tests:** `cargo nextest run -p scirs2-symbolic --test cas_tutorial_compile` — ≥13 tests pass. This is the PRIMARY harness (doc lives outside crate; `cargo test --doc` can't reach it).
+  - **Risk:** API drift between Wave 70 and 75 could invalidate samples; `tests/cas_tutorial_compile.rs` is the single source of truth.
 
 ### scirs2-symbolic — Phase 1 Design-freedom — 3/4 + 1 partial
-- [ ] SR engine on `scirs2-core` NUMA-aware scheduler (partial — rayon path live; NUMA worker pinning deferred to v0.4.5)
+- [x] ~~SR engine on `scirs2-core` NUMA-aware scheduler (partial — rayon path live; NUMA worker pinning deferred to v0.4.5)~~ (DONE Wave 73, 2026-05-08)
 - [x] JIT routes through `scirs2-core` GPU pipeline (`compile::to_gpu`, `to_jit_auto`)
 - [x] Symbolic gradient as native AD tape backend (seamless via `scirs2-autograd::symbolic_backend::EmlOp` + `eml_scalar_op`; provenance-dispatched)
 - [x] SMT calls OxiZ directly (Wave 57 real QF_NRA integration; note: OxiZ 0.2.1 NLSAT incomplete for surface commutativity — always canonicalize first)
@@ -650,7 +656,7 @@ See CHANGELOG.md `[0.4.3]` for the full feature list. Highlights: 34,883 tests p
 - [x] `eml_pattern!` proc-macro DSL (`scirs2-symbolic-macros`) — write Pattern rules without boilerplate; 18 unary + 5 binary; 13 tests
 - [x] EML rewriter criterion benchmark baseline — `scirs2-symbolic/benches/cas_bench.rs` (5 groups: canonicalize, identity_db, egraph, CseDag, series/taylor+pade; completed 2026-05-04; SymPy subprocess comparison deferred to v0.4.5)
 - [x] `cas::identity_proof::discover_identity` — SR + canonicalize + hash-match pipeline; `ProofCertificate`; 8 tests
-- [ ] native AD kernel; WASM playground; Risch integration
+- [x] ~~native AD kernel; WASM playground; Risch integration~~ (DONE Wave 67+70, 2026-05-04)
 
 ### scirs2-symbolic — Phase 3 (Cross-crate integration) — 18/12+
 - [x] `scirs2-optimize::symbolic::newton` — symbolic Newton with exact gradient + Hessian via `eml::grad`; Gaussian-elimination linear solve; 6 tests
@@ -794,9 +800,9 @@ All development must adhere to the following policies:
 
 ---
 
-**Last Updated**: May 15, 2026
-**Branch**: 0.4.4
-**Status**: v0.4.4 RELEASED — `scirs2-symbolic` EML-IR CAS substrate (Phase 0 complete, Phase 1 12/13, Phase 2 15/15, Phase 3 18/12+ after Waves 59–70, Phase 4 9/N): full canonical CAS, certified rewriting, e-graphs, cross-crate integrations across `scirs2-optimize/integrate/stats/neural/linalg/autograd`, Risch-LITE rational integration, distribution moments / Fisher catalogs, Noether conservation, closed-form RoPE attention. See CHANGELOG.md `[0.4.4]` for full release notes.
+**Last Updated**: 2026-06-02
+**Branch**: 0.5.0
+**Status**: v0.5.0 (current) — Waves 53–77 complete. EML-IR CAS substrate (Phases 0–3 complete, Phase 4 ongoing); GPU dispatch real (BFS/SSSP/delta-stepping/RBF/CG/Newton/L-BFGS via wgpu); GpuNdarray<f32> with axis ops; NUMA par_map_chunks; ALiBi + Riemann/Weyl diffgeom + SR-as-prior + SymbolicPriorLoss; ~36,082 tests passing. See CHANGELOG.md `[0.5.0]` for full release notes.
 
 ---
 
@@ -826,8 +832,16 @@ These stubs were discovered by /stub-check but deferred because they require ext
 - [x] `scirs2-stats/src/gpu/` — GPU-backed statistical operations (Normal/Exponential log-PDF and CDF batch; MIN_GPU_SIZE=1024 threshold; Wave 72)
 - [x] `scirs2-fft/src/gpu_fft/wgpu_backend.rs` — `fft_wgpu()` multi-pass Cooley-Tukey DIT; graceful adapter-missing skip (Wave 72)
 - [ ] `scirs2-fft/src/backends/{cuda,metal}.rs` — CUDA/Metal FFT backends
-- [ ] `scirs2-interpolate/src/gpu_accelerated.rs` — GPU-accelerated interpolation (already CPU-backed; wgpu dispatch future)
-- [ ] `scirs2-graph/src/gpu/algorithms.rs` — GPU graph algorithms (already CPU-parallel; wgpu dispatch future)
+- [x] `scirs2-interpolate/src/gpu_accelerated/` — Real wgpu RBF kernel-matrix + evaluation dispatch (Wave 75)
+  - Split into mod.rs (CPU types, GpuStats, struct, dispatch logic) + wgpu_rbf.rs (WGSL shaders, GPU pipeline)
+  - `wgpu_rbf` feature gate; GPU threshold n_centers*n_queries>=4096; real GpuStats with measured cpu_time_ns/gpu_dispatch_ns/transfer_ns/used_gpu; f64→f32 cast documented; OnceLock<bool> GPU probe cache
+  - 5 smoke tests in scirs2-interpolate/tests/wgpu_rbf_smoke.rs; all 1147 tests pass with wgpu_rbf feature
+- [x] `scirs2-graph/src/gpu/algorithms.rs` — GPU graph algorithms (already CPU-parallel; wgpu dispatch future) (planned 2026-05-25)
+  - **Goal:** Real wgpu BFS + Bellman-Ford SSSP + delta-stepping; CpuParallel branch fixed to call parallel_bfs_atomic
+  - **Design:** WGSL bfs_frontier (level-sync, atomicCompareExchange on distances array<atomic<i32>>); sssp_bellman_ford (edge-parallel atomicMin, f32 weights); sssp_delta_stepping (dispatches Bellman-Ford GPU kernel; true bucket-based delta-stepping deferred to Wave 76); parallel_bellman_ford_atomic via AtomicU32 (f32::to_bits trick for non-negative weights); n_edges<4096 CPU threshold
+  - **Files:** scirs2-graph/src/gpu/algorithms.rs, scirs2-graph/src/gpu/parallel.rs (new), scirs2-graph/src/gpu/wgpu_shaders.rs (new), scirs2-graph/Cargo.toml (extend gpu feature with dep:wgpu/pollster/bytemuck), scirs2-graph/tests/wgpu_graph_smoke.rs (new)
+  - **Tests:** bfs_gpu_matches_cpu_or_skips, sssp_bellman_ford_gpu_matches_cpu_or_skips, cpu_parallel_bfs_actually_parallel, delta_stepping_matches_bellman_ford_or_skips (4 tests gated on cfg(feature = "gpu") with adapter skip) — all pass 1422/1422
+  - **Result:** CpuParallel branches now call parallel_bfs_atomic/parallel_bellman_ford_atomic; GPU branches dispatch wgpu shaders with CPU fallback; 0 clippy warnings
 - [ ] `scirs2-optimize/src/gpu/` + `distributed_gpu.rs` — GPU optimization
 
 ### Distributed computing (requires external MPI/RDMA runtime)
@@ -837,17 +851,127 @@ These stubs were discovered by /stub-check but deferred because they require ext
 ### Architectural / large scope
 - [ ] `scirs2-core/src/advanced_cloud_storage/providers.rs` — Azure Blob + AWS-specific backends (requires cloud SDKs)
 - [ ] `scirs2-core/src/memory_efficient/cross_device.rs` — TPU support (no Pure Rust path)
-- [ ] `scirs2-core/src/array_protocol/operations.rs` — 15 protocol stubs (matmul/svd/inverse/transpose/reshape etc.) — architectural, backend dispatch
+- [x] `scirs2-core/src/array_protocol/operations.rs` — 15 protocol stubs (matmul/svd/inverse/transpose/reshape etc.) — architectural, backend dispatch (planned 2026-05-25)
+  - **Goal:** GpuNdarray<T: GpuScalar> implementing ArrayProtocol::array_function for 14 registered ops (10 wgpu, 4 CPU fallback with documented reason)
+  - **Design:** Struct with Arc<wgpu::Buffer>+shape+strides+Arc<WebGPUContext>; GpuScalar sealed for f32; elementwise_binary.wgsl (op_id uniform, 256,1,1); matmul_tiled.wgsl (16×16 shared-memory); reduce_sum.wgsl (two-pass); transpose_tiled.wgsl (32×32 bank-conflict-padded); concatenate axis=0 via copy_buffer_to_buffer; reshape = zero-copy Arc clone; svd/inverse/apply_elementwise/axised-sum → CPU fallback with mandatory comment; operations.rs dispatch hooks at lines 82,224,356,488,620,680,743,780,850,927,984,1033,1084,1135
+  - **Files:** scirs2-core/src/array_protocol/gpu_ndarray.rs (new ~1100 LoC), scirs2-core/src/array_protocol/operations.rs (extend ~200 LoC), scirs2-core/src/array_protocol/mod.rs (pub mod gpu_ndarray gated), scirs2-core/tests/gpu_ndarray_dispatch_smoke.rs (new)
+  - **Tests:** gpu_ndarray_add_matches_cpu_or_skips, gpu_ndarray_matmul_matches_cpu_or_skips, gpu_ndarray_sum_full_reduction, gpu_ndarray_transpose_2d, gpu_ndarray_reshape_is_zero_copy, gpu_ndarray_concatenate_axis0, gpu_ndarray_svd_falls_back_to_cpu_with_note, gpu_dispatch_below_threshold_uses_cpu (8 tests gated on cfg(feature = "array_protocol_wgpu") with adapter skip)
+  - **Risk:** Matmul f32 tolerance 1e-4; concatenate axis>0 deferred to Wave 76 with CPU fallback + doc note
 - [ ] `scirs2-neural/src/serving.rs` — `generate_binary` / `generate_shared_library` (runtime codegen via rustc, oversized)
 
 ### Specialized algorithms (dedicated future waves)
-- [ ] `scirs2-integrate/src/dae/solvers.rs:833` — Pantelides DAE index reduction
-- [ ] `scirs2-integrate/src/sde/runge_kutta_sde.rs:59` — SDE iterated stochastic integrals (Lévy-area approximation)
-- [ ] `scirs2-fft/src/distributed.rs:417,530,643` — FFT distributed >3D (slab/pencil/volumetric decomposition)
-- [ ] `scirs2-interpolate/src/voronoi/voronoi_cell.rs` — Voronoi higher-dimensional operations
+- [x] ~~`scirs2-integrate/src/dae/solvers.rs:833` — Pantelides DAE index reduction~~ (DONE Wave 73, 2026-05-08)
+- [x] ~~`scirs2-integrate/src/sde/runge_kutta_sde.rs:59` — SDE iterated stochastic integrals (Lévy-area approximation)~~ (DONE Wave 73, 2026-05-08)
+- [x] **Distributed FFT for 4D+ arrays via slab + pencil + volumetric decomposition** (planned 2026-05-15) (DONE Wave 75, 2026-05-15 — slab/pencil/volumetric helpers in scirs2-fft/src/distributed.rs; 3 integration tests at scirs2-fft/tests/distributed_{4d_slab,5d_pencil,volumetric_nd}.rs)
+  - **Goal:** Replace the three unimplemented stubs at `scirs2-fft/src/distributed.rs` (return `FFTError::DimensionError("Dimensions higher than 3 not yet implemented")`) with real slab (4D), pencil (5D), and volumetric (n-D) decompositions.
+  - **Design:** Slab for 4D: split axis 0 into n_workers equal slabs; local `fftn_3d` on each slab; alltoall transpose; FFT axis 0. Pencil for 5D: 2D process grid on axes 0+1; local FFT axes 2-4; two alltoall rotations. Volumetric for n-D: recursive transpose-and-FFT splitting the first `ceil(log2(n_workers))` axes. Pure Rust (no MPI). API: `pub fn fftn_distributed<F, D: ndarray::Dimension>(input, axes, workers: Option<usize>) -> FftResult<...>`.
+  - **Files:** `scirs2-fft/src/distributed.rs` (replace 3 unimplemented stubs); `scirs2-fft/src/lib.rs` (re-export); optional split-out submodules if > 2000 LoC.
+  - **Tests:** `tests/distributed_4d_slab.rs`, `tests/distributed_5d_pencil.rs`, `tests/distributed_volumetric_nd.rs` (6D+7D, dims ≤ 8); each includes a round-trip test.
+  - **Risk:** Memory (cap dim ≤ 8 in tests); uneven worker blocks (use truncated sizes, no padding).
+- [x] **n-D Voronoi cell vertex + volume computation** (planned 2026-05-15) (DONE Wave 75, 2026-05-15 — vertices_nd/volume_nd/neighbours_nd on VoronoiCell; scirs2-spatial Bowyer-Watson dependency; 4 test files; 4D expensive tests gated #[ignore])
+  - **Goal:** Extend `scirs2-interpolate/src/voronoi/voronoi_cell.rs` from 2D/3D-approximation to genuine n-D (n ≥ 2). Add cell-vertex enumeration, cell-volume computation, and neighbour-finding up to 6D.
+  - **Design:** Vertices = circumcentres of Delaunay (n+1)-simplices adjacent to each site (solve (n+1)×(n+1) linear system per simplex). Cell volume = convex hull of vertices via Cayley-Menger determinant / QuickHull + simplex-volume sum. Re-use `scirs2-spatial::delaunay::DelaunayTriangulation` (nD Bowyer-Watson, f64, runtime-dim dispatch). API: `VoronoiCell<F>::vertices() -> Vec<Array1<F>>`, `volume() -> F`, `neighbours() -> Vec<usize>`.
+  - **Files:** `scirs2-interpolate/src/voronoi/voronoi_cell.rs` (extend); `scirs2-interpolate/src/voronoi/mod.rs` (re-export). Splitrs if > 2000 LoC.
+  - **Tests:** `tests/voronoi_3d_cube.rs`, `tests/voronoi_4d_hypercube.rs`, `tests/voronoi_5d_random_sites.rs` (32 pts, volumes sum = bbox volume ±1e-8), `tests/voronoi_neighbours_2d.rs` (backward-compat).
+  - **Risk:** Degenerate (co-circular) sites → ε-perturbation; curse of dimensionality → cap 5D in CI.
 - [x] `scirs2-linalg/src/autograd/tensor_algebra.rs:249,509` — General tensor contraction (Einstein summation engine) [implemented in `src/autograd/einsum.rs`; 13 tests pass]
-- [ ] `scirs2-integrate/src/pde/` + `src/geometric/volume_preserving.rs:590` — Higher-order DG/spectral element/volume-preserving quadrature
+- [x] **Gauss-Legendre quadrature orders 4-10 for volume-preserving integrators** (planned 2026-05-16) — *workspace `TODO.md` L864 (DG/spectral/volume-preserving sub-item)*
+  - **Goal:** Replace the early-error path at `scirs2-integrate/src/geometric/volume_preserving.rs:590` (`n_quad ≥ 4 → return Err`) with a real implementation supplying Gauss-Legendre nodes + weights for orders n = 1..=10 with exactness for polynomials of degree 2n-1 on [-1, 1].
+  - **Design:** Hardcoded double-precision tables (Abramowitz & Stegun / SciPy leggauss) for n ∈ {4..10}; single match dispatch; n=0 and n>10 return IntegrateError::InvalidArgument. No new cross-crate deps.
+  - **Files:** `scirs2-integrate/src/geometric/volume_preserving.rs` (lines ~580-650); new `scirs2-integrate/tests/volume_preserving_high_order_quadrature.rs`.
+  - **Tests:** 5 tests — exactness for k=0..2n-1, node antisymmetry, weight sum = 2, invalid order errors, IRK-Gauss pendulum Hamiltonian drift ≤ 1e-10 for 1000 steps.
+  - **Risk:** transcription errors caught by polynomial-exactness test.
+
+- [x] **Discontinuous Galerkin solver for 1D compressible Euler with HLLC Riemann flux + slope-limiter, validated against Sod shock tube** (completed 2026-05-16) — *workspace `TODO.md` L864*
+  - **Goal:** New `scirs2-integrate/src/pde/dg_systems/` module; nodal DG with GLL nodes + HLLC flux + SSPRK3 time integrator + MinmodTvbLimiter; Sod shock tube L1 error ≤ 5e-2 at p=2/N=200.
+  - **Design:** `euler_1d.rs` (EulerState/EulerFlux/primitives_to_conservative); `hllc_euler.rs` (Toro HLLC, Davis-Einfeldt wave speeds); `dg_system_solver.rs` (DgSystemConfig, DgSystemSolution, solve_1d_euler_dg, GLL nodes from dg_advanced::entropy_stable); `limiter.rs` (SlopeLimiter trait, MinmodTvbLimiter, StandardPerssonPeraire); SSPRK3/SSPRK4 added to ode/methods/explicit.rs. Sequential sub-steps: B0 SSPRK prerequisite → B1 state/flux → B2 limiter → B3 solver → B4 tests/example/wiring.
+  - **Files:** 5 new files under `src/pde/dg_systems/`; `src/pde/mod.rs`; `src/lib.rs`; `src/ode/methods/explicit.rs`; `examples/sod_shock_tube_dg.rs`; 2 new test files.
+  - **Tests:** 5 Sod-tube tests (L1 errors p=2/3/4, conservation, positivity); 9 convergence-order tests (3 orders × 3 mesh sizes); 16 in-module unit tests.
+  - **Risk:** Gibbs oscillations without limiting (MinmodTvbLimiter default); CFL positivity failure (fallback cfl=0.3).
 - [x] `scirs2-neural/src/models/architectures/mamba.rs` — Mamba SSM (implemented — 983 lines, full selective scan + ZOH discretization)
-- [ ] `scirs2-neural/src/models/diffusion/dpm_solver.rs` — DPM-Solver (dedicated wave planned)
-- [ ] `scirs2-neural/src/layers/grouped_query_attention.rs` — GQA (dedicated wave planned)
-- [ ] `scirs2-neural/src/layers/multi_query_attention.rs` — MQA (dedicated wave planned)
+- [x] ~~`scirs2-neural/src/models/diffusion/dpm_solver.rs` — DPM-Solver (dedicated wave planned)~~ (DONE Wave 73, 2026-05-08)
+- [x] ~~`scirs2-neural/src/layers/grouped_query_attention.rs` — GQA (dedicated wave planned)~~ (DONE Wave 73, 2026-05-08)
+- [x] ~~`scirs2-neural/src/layers/multi_query_attention.rs` — MQA (dedicated wave planned)~~ (DONE Wave 73, 2026-05-08)
+
+---
+
+## v0.5.0 — IN PROGRESS (June 2, 2026)
+
+**Focus**: GPU acceleration, advanced CAS, NUMA, and symbolic AI/ML integrations.
+
+### Completed (Waves 73–77)
+
+#### Wave 73 (2026-05-08)
+- [x] `scirs2-core::parallel::numa::par_map_chunks` — typed-result NUMA-locality chunk map (Linux pthread affinity pin, rayon fallback Darwin/WASM); 8 tests
+- [x] `scirs2-integrate` Pantelides full graph algorithms — Hopcroft-Karp O(E√V) bipartite matching + Tarjan iterative SCC in `index_reduction.rs`; 13 tests
+- [x] `scirs2-integrate::sde` Wiktorsson 2001 truncated-series Lévy-area (`levy_area.rs`, `srk_strong_general`); 10 tests
+- [x] `scirs2-spatial::hilbert` 2D+3D Hilbert sort (24-state Butz/Hamilton lookup for 3D; `hilbert_sort_{2d,3d}`); 8 tests
+- [x] `scirs2-autograd` `ScalarMulOp` gradient fix; `MatmulEpilogue` + batched-matmul→reduction JIT fusion; 8 tests
+- [x] `scirs2-symbolic::regression::discover::predict_parallel` NUMA wire-up via `scirs2_core::par_map_chunks`; 3 tests
+
+#### Wave 74 (2026-05-13)
+- [x] `scirs2-cluster/src/subspace_enhanced.rs` LRSC/SSC timeout fix — sign-aware delta convergence early-exit in `power_iter_eig_local`; `min_sigma_sq` parameter to skip sub-threshold modes; 3 LRSC 120s→2s, 2 SSC 120s→33s
+
+#### Wave 75 (2026-05-25)
+- [x] `scirs2-interpolate` RBF wgpu — real WGSL kernel-matrix+eval (kernel_id uniform, workgroup 16×16/64); OnceLock GPU probe cache; 5 smoke tests
+- [x] `scirs2-graph` GPU BFS+SSSP — real WGSL BFS (level-sync, atomicCompareExchange), Bellman-Ford (edge-parallel, atomicMin f32-bits), delta-stepping; CpuParallel fixed; GPU threshold n_edges<4096; 4 smoke tests
+- [x] `scirs2-core` `GpuNdarray<f32>` — 7 WGSL kernels (elementwise add/sub/mul/scalar, naive matmul, two-pass sum, 16×16 transpose); singleton WebGPUContext; CPU fallback for svd/inverse; `array_protocol_wgpu` feature; 8 smoke tests
+- [x] `scirs2-symbolic` `eval_batch` real wgpu submission in `compile/gpu.rs`; f64→f32 boundary; GpuError variants; 4 smoke tests
+- [x] Distributed FFT >3D (slab/pencil/volumetric in `scirs2-fft/src/distributed.rs`); Voronoi nD cell vertices/volume/neighbours; `cas_tutorial.md` (1488 lines, 13 compile tests)
+
+#### Wave 76 (2026-05-25)
+- [x] `scirs2-core/gpu/kernels/mod.rs` — 13 empty WGSL slots filled (Adam/SGD/RMSprop/Adagrad/LAMB/memcpy/fill/reduce_sum/reduce_max/rk4_stages/rk4_combine/error_estimate); 4 smoke tests
+- [x] `scirs2-optimize` L-BFGS GPU — `lbfgs_gpu.rs` two-loop recursion via GpuNdarray; `GpuLbfgsState`; f64↔f32 boundary; GPU_LBFGS_THRESHOLD=4096; 2 smoke tests
+- [x] `scirs2-symbolic/diffgeom` Riemann tensor `R^μ_{νρσ}` + Ricci trace + Weyl tensor full-n decomposition; 10 integration tests (Schwarzschild, Bianchi identity, trace-free, Kretschner)
+- [x] `scirs2-symbolic/neural_priors.rs` `discover_series_prior`/`eval_series_prior`/`series_prior_regularization`; `scirs2-neural/losses/symbolic_prior_loss.rs` `SymbolicPriorLoss`; 8 tests
+
+#### Wave 77 (2026-05-25)
+- [x] `scirs2-symbolic/attention/symbolic_alibi.rs` — `alibi_slope`, `alibi_bias_expr`, `alibi_bias_matrix_symbolic`, `verify_symbolic_vs_numerical`; 6 tests
+- [x] `scirs2-optimize` CG GPU (`cg_gpu.rs`) + Newton GPU (`newton_gpu.rs`) — dot/direction-update and Hessian-vector matmul via GpuNdarray; 3 smoke tests
+- [x] `scirs2-graph` true delta-stepping WGSL — `DELTA_LIGHT_WGSL` + `DELTA_APPLY_WGSL` + `DELTA_HEAVY_WGSL` with changed_flag convergence fix; 2 new smoke tests
+- [x] `scirs2-core` GpuNdarray advanced ops — `concat_axis.wgsl` (axis>0, uniform-based stride gather) + `reduce_sum_axis.wgsl` (rank≥3); `gpu_ndarray_shaders.rs` split; 3 smoke tests
+
+### Planned
+- [x] ~~Symbolic computing enhancements (Phase 4 diffgeom extensions)~~ (DONE Wave 72, 2026-05-07)
+- [x] ~~NUMA scheduler public API (`scirs2-core::par_map_chunks` ecosystem-wide)~~ (DONE Wave 73, 2026-05-08)
+- [x] ~~GPU WGSL JIT actual wgpu submission (deferred from v0.4.4)~~ (DONE Wave 75, 2026-05-25)
+  - **Goal:** GpuKernel::eval_batch() actually dispatches to wgpu (replacing hardcoded Err("wired in v0.4.5")); to_jit_auto GPU_DISPATCH_THRESHOLD=100_000 becomes real dispatch
+  - **Design:** Inline wgpu (adapter→device→pipeline→bind-group→dispatch→readback) in gpu.rs using scirs2-fft pattern; f64→f32 cast at upload, f32→f64 at readback; 2-binding layout (inputs read, outputs rw); dispatch ceil(n_rows/64) workgroups; GpuError extended with NoAdapter(String), EmptyInput, BufferError; GpuError::Unsupported removed from active path
+  - **Files:** scirs2-symbolic/src/compile/gpu.rs (480→723 LoC), scirs2-symbolic/tests/wgpu_eval_batch_smoke.rs (new), scirs2-symbolic/tests/cas_tutorial_compile.rs (section_09 updated for Phase 2)
+  - **Tests:** eval_batch_constant_kernel_or_skips, eval_batch_transcendental_kernel_or_skips, to_jit_auto_returns_gpu_above_threshold_or_skips, eval_batch_empty_input_is_always_error (4 tests, all pass)
+
+- [x] **State-sync: flip Wave 75 `[~]` items to `[x]` + acknowledge finance pricing residue** (planned 2026-05-16)
+  - **Goal:** Bring `TODO.md` in line with Wave 75 reality: flip the 3 Wave 75 `[~]` items (distributed FFT >3D, Voronoi nD, cas_tutorial) to `[x]`; add finance-pricing acceptance note.
+  - **Design:** Find and flip the three `[~]` plan blocks for Wave 75 Slices 3/4/5 to `[x]` with DONE annotations. Append a note under a `## Notes` section (creating one if absent) about the Wave 75 finance-pricing code (+913 LoC SABR/Hull-White/Bates/LocalVolatility) accepted and retained.
+  - **Files:** `/Users/kitasan/work/scirs/TODO.md` only.
+  - **Tests:** none required.
+
+---
+
+## Proposed follow-ups
+
+- [x] Wave 76 Refinement A: scirs2-core/gpu WGSL kernel stubs filled (Adam/SGD/RMSprop/Adagrad/LAMB/memcpy/fill/reduce_sum/reduce_max/rk4_stages/rk4_combine/error_estimate — 13 kernels, 4 smoke tests) (2026-05-25)
+- [x] Wave 76 Refinement B: L-BFGS 2-loop recursion GPU-accelerated via GpuNdarray (dot products + vector ops; f64→f32 boundary; GPU_LBFGS_THRESHOLD=4096; 2 smoke tests; CPU path unchanged) (2026-05-25)
+- [x] Wave 76 Refinement C(i): SR-as-prior time-series — discover_series_prior (sliding-window feature matrix → SR discovery), eval_series_prior, series_prior_regularization (min-over-formulas penalty); SymbolicPriorLoss in scirs2-neural; 8 tests (2026-05-25)
+
+### Wave 75 Refinement A — Enumerate remaining scirs2-core/gpu stubs
+~~Propose Wave 76 stub-check: scan scirs2-core/src/gpu/**/*.rs, classify into {wgpu-ready, needs-design, CPU-only-by-nature}, land wgpu-ready ones.~~ (Done — Wave 76 Refinement A above).
+
+### Wave 75 Refinement B — Split scirs2-optimize GPU into single-GPU vs distributed
+- gpu_optimize_single_device: unblocked after Wave 75 dispatch substrate; target L-BFGS hot loop
+- gpu_optimize_distributed: blocked on MPI/nccl decisions; keep deferred
+
+### Wave 75 Refinement C — Phase-3 remaining integration backlog (scirs2-symbolic)
+Three concrete sub-items: (i) extended SR-as-prior for time-series; (ii) ALiBi positional bias for symbolic attention; (iii) Riemann+Weyl tensor in diffgeom (200-400 LoC each).
+
+- [x] Wave 76 Refinement C(iii): scirs2-symbolic diffgeom Riemann tensor (R^μ_{νρσ}, full 4-index, anti-symmetry + Bianchi identity tests) + Weyl tensor (C_{μνρσ}, trace-free, conformally-flat tests) — 10 integration tests (2026-05-25)
+- [x] Wave 77 Refinement C(ii): scirs2-symbolic ALiBi symbolic wrapper — alibi_slope, alibi_bias_expr (LoweredOp tree), alibi_bias_matrix_symbolic, verify_symbolic_vs_numerical; 6 tests (2026-05-25)
+- [x] Wave 77: scirs2-graph true GPU delta-stepping SSSP — delta_light_kernel + delta_apply_kernel WGSL (light/heavy edge partition, atomicMin f32-bits, adaptive delta heuristic); 2 additional smoke tests (2026-05-25)
+- [x] Wave 77: scirs2-optimize CG + Newton GPU — cg_gpu.rs (dot/direction-update via GpuNdarray, GPU_CG_THRESHOLD=4096), newton_gpu.rs (Hessian-vector matmul GPU); use_gpu fields in options; 3 smoke tests (2026-05-25)
+- [x] Wave 77: GpuNdarray advanced ops — concatenate(axis>0) WGSL (uniform-based stride computation, per-element gather) + sum(axis=Some) rank≥3 WGSL (per-output-element axis reduction); 3 new smoke tests (2026-05-25)
+
+---
+
+## Notes
+
+- 2026-05-15 (Wave 75 acceptance): scirs2-integrate/src/specialized/finance/pricing/{monte_carlo,finite_difference,fourier}.rs gained +913 LoC (SABR, Hull-White, Bates, LocalVolatility) outside the approved Wave 75 scope. Code is correct, tests pass, clippy clean — accepted and retained. No revert.

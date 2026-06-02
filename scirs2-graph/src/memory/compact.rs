@@ -523,6 +523,15 @@ impl HybridGraph {
 }
 
 /// Memory-mapped graph for extremely large graphs that don't fit in RAM
+///
+/// # Wire format (portable across 32-bit and 64-bit targets)
+///
+/// All integer fields are serialised as little-endian `u64` (8 bytes each), even
+/// though they are held in memory as `usize`. This keeps the on-disk layout
+/// identical on 32-bit (e.g. `wasm32-unknown-unknown`) and 64-bit hosts so a
+/// graph written on one can be read on the other. The conversion is checked:
+/// reading a value that does not fit in this target's `usize` returns
+/// `io::ErrorKind::InvalidData` rather than truncating. See issue #125.
 #[derive(Debug)]
 pub struct MemmapGraph {
     /// Number of nodes
@@ -532,7 +541,7 @@ pub struct MemmapGraph {
     /// File handle for the graph data
     file: File,
     /// CSR format stored on disk
-    /// Format: [n_nodes:8][n_edges:8][row_ptr:(n_nodes+1)*8][col, _idx:n_edges*8][weights:n_edges*8]
+    /// Format: [n_nodes:u64][n_edges:u64][row_ptr:(n_nodes+1)*u64][col_idx:n_edges*u64][weights:n_edges*f64]
     #[allow(dead_code)]
     header_size: usize,
     row_ptr_offset: usize,
@@ -541,26 +550,48 @@ pub struct MemmapGraph {
 }
 
 impl MemmapGraph {
+    /// Size of one serialised `usize`/`u64` field in the on-disk format.
+    /// Hardcoded to 8 (size of `u64`) so the format is architecture-independent
+    /// — do NOT replace with `size_of::<usize>()`, that would break wasm32.
+    const FIELD_BYTES: usize = 8;
+    /// Header is two u64 fields: n_nodes and n_edges.
+    const HEADER_BYTES: usize = 2 * Self::FIELD_BYTES;
+
+    /// Helper: read a little-endian u64 from a byte slice and convert to usize.
+    /// Returns `InvalidData` if the value exceeds `usize::MAX` on this target
+    /// (only possible on 32-bit targets reading a file written on 64-bit).
+    fn read_usize_le(bytes: &[u8]) -> io::Result<usize> {
+        let mut buf = [0u8; 8];
+        buf.copy_from_slice(&bytes[..8]);
+        let value = u64::from_le_bytes(buf);
+        usize::try_from(value).map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "MemmapGraph: value exceeds usize range on this target (file written on 64-bit, read on 32-bit?)",
+            )
+        })
+    }
+
     /// Create a new memory-mapped graph from an existing CSR graph
     pub fn from_csr<P: AsRef<Path>>(csr: &CSRGraph, path: P) -> io::Result<Self> {
         let mut file = File::create(&path)?;
         let mut writer = BufWriter::new(&mut file);
 
-        // Write header
-        writer.write_all(&csr.n_nodes.to_le_bytes())?;
-        writer.write_all(&csr.n_edges.to_le_bytes())?;
+        // Write header (cast through u64 for cross-platform wire format)
+        writer.write_all(&(csr.n_nodes as u64).to_le_bytes())?;
+        writer.write_all(&(csr.n_edges as u64).to_le_bytes())?;
 
         // Write row pointers
         for &ptr in &csr.row_ptr {
-            writer.write_all(&ptr.to_le_bytes())?;
+            writer.write_all(&(ptr as u64).to_le_bytes())?;
         }
 
         // Write column indices
         for &idx in &csr.col_idx {
-            writer.write_all(&idx.to_le_bytes())?;
+            writer.write_all(&(idx as u64).to_le_bytes())?;
         }
 
-        // Write weights
+        // Write weights (f64 is already a fixed 8-byte format)
         for &weight in &csr.weights {
             writer.write_all(&weight.to_le_bytes())?;
         }
@@ -571,10 +602,10 @@ impl MemmapGraph {
         // Reopen for reading
         let file = File::open(path)?;
 
-        let header_size = 16; // n_nodes + n_edges
+        let header_size = Self::HEADER_BYTES;
         let row_ptr_offset = header_size;
-        let col_idx_offset = row_ptr_offset + (csr.n_nodes + 1) * 8;
-        let weights_offset = col_idx_offset + csr.n_edges * 8;
+        let col_idx_offset = row_ptr_offset + (csr.n_nodes + 1) * Self::FIELD_BYTES;
+        let weights_offset = col_idx_offset + csr.n_edges * Self::FIELD_BYTES;
 
         Ok(MemmapGraph {
             n_nodes: csr.n_nodes,
@@ -590,22 +621,17 @@ impl MemmapGraph {
     /// Load an existing memory-mapped graph
     pub fn from_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let mut file = File::open(path)?;
-        let mut buffer = [0u8; 16];
+        let mut buffer = [0u8; Self::HEADER_BYTES];
 
         // Read header
         file.read_exact(&mut buffer)?;
-        let n_nodes = usize::from_le_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
-        ]);
-        let n_edges = usize::from_le_bytes([
-            buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14],
-            buffer[15],
-        ]);
+        let n_nodes = Self::read_usize_le(&buffer[0..8])?;
+        let n_edges = Self::read_usize_le(&buffer[8..16])?;
 
-        let header_size = 16;
+        let header_size = Self::HEADER_BYTES;
         let row_ptr_offset = header_size;
-        let col_idx_offset = row_ptr_offset + (n_nodes + 1) * 8;
-        let weights_offset = col_idx_offset + n_edges * 8;
+        let col_idx_offset = row_ptr_offset + (n_nodes + 1) * Self::FIELD_BYTES;
+        let weights_offset = col_idx_offset + n_edges * Self::FIELD_BYTES;
 
         Ok(MemmapGraph {
             n_nodes,
@@ -624,19 +650,14 @@ impl MemmapGraph {
             return Ok((0, 0));
         }
 
-        let mut buffer = [0u8; 16];
-        let offset = self.row_ptr_offset + node * 8;
+        let mut buffer = [0u8; 2 * Self::FIELD_BYTES];
+        let offset = self.row_ptr_offset + node * Self::FIELD_BYTES;
 
         self.file.seek(SeekFrom::Start(offset as u64))?;
         self.file.read_exact(&mut buffer)?;
 
-        let start = usize::from_le_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
-        ]);
-        let end = usize::from_le_bytes([
-            buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13], buffer[14],
-            buffer[15],
-        ]);
+        let start = Self::read_usize_le(&buffer[0..8])?;
+        let end = Self::read_usize_le(&buffer[8..16])?;
 
         Ok((start, end))
     }
@@ -650,44 +671,28 @@ impl MemmapGraph {
             return Ok(Vec::new());
         }
 
-        // Read column indices
-        let mut col_buffer = vec![0u8; degree * 8];
-        let col_offset = self.col_idx_offset + start * 8;
+        // Read column indices (each u64 = 8 bytes)
+        let mut col_buffer = vec![0u8; degree * Self::FIELD_BYTES];
+        let col_offset = self.col_idx_offset + start * Self::FIELD_BYTES;
         self.file.seek(SeekFrom::Start(col_offset as u64))?;
         self.file.read_exact(&mut col_buffer)?;
 
-        // Read weights
-        let mut weight_buffer = vec![0u8; degree * 8];
-        let weight_offset = self.weights_offset + start * 8;
+        // Read weights (each f64 = 8 bytes)
+        let mut weight_buffer = vec![0u8; degree * Self::FIELD_BYTES];
+        let weight_offset = self.weights_offset + start * Self::FIELD_BYTES;
         self.file.seek(SeekFrom::Start(weight_offset as u64))?;
         self.file.read_exact(&mut weight_buffer)?;
 
         // Parse neighbors
         let mut neighbors = Vec::with_capacity(degree);
         for i in 0..degree {
-            let col_bytes = &col_buffer[i * 8..(i + 1) * 8];
-            let weight_bytes = &weight_buffer[i * 8..(i + 1) * 8];
+            let col_bytes = &col_buffer[i * Self::FIELD_BYTES..(i + 1) * Self::FIELD_BYTES];
+            let weight_bytes = &weight_buffer[i * Self::FIELD_BYTES..(i + 1) * Self::FIELD_BYTES];
 
-            let col_idx = usize::from_le_bytes([
-                col_bytes[0],
-                col_bytes[1],
-                col_bytes[2],
-                col_bytes[3],
-                col_bytes[4],
-                col_bytes[5],
-                col_bytes[6],
-                col_bytes[7],
-            ]);
-            let weight = f64::from_le_bytes([
-                weight_bytes[0],
-                weight_bytes[1],
-                weight_bytes[2],
-                weight_bytes[3],
-                weight_bytes[4],
-                weight_bytes[5],
-                weight_bytes[6],
-                weight_bytes[7],
-            ]);
+            let col_idx = Self::read_usize_le(col_bytes)?;
+            let mut weight_buf = [0u8; 8];
+            weight_buf.copy_from_slice(&weight_bytes[..8]);
+            let weight = f64::from_le_bytes(weight_buf);
 
             neighbors.push((col_idx, weight));
         }
@@ -817,5 +822,78 @@ mod tests {
             "Uncompressed: {} bytes, Compressed: {} bytes",
             uncompressed_size, compressed_size
         );
+    }
+
+    /// Regression test for issue #125 — `MemmapGraph` failed to build on
+    /// `wasm32-unknown-unknown` because the wire format used
+    /// `usize::{to,from}_le_bytes` directly, which produces `[u8; 4]` on
+    /// 32-bit targets and `[u8; 8]` on 64-bit, conflicting with the
+    /// hardcoded 16-byte buffer reads.
+    ///
+    /// The fix casts all `usize` values through `u64` for the on-disk format.
+    /// This test verifies:
+    /// 1. Compile-time format constants (`FIELD_BYTES == 8`,
+    ///    `HEADER_BYTES == 16`) — documents the wire format. Note: this
+    ///    cannot catch a regression to `size_of::<usize>()` on x86_64 since
+    ///    they happen to be equal there, but it does document the intent.
+    /// 2. A round-trip write→read produces correct data.
+    /// 3. The on-disk file size exactly matches the documented format —
+    ///    this *does* catch any regression that changes field width on a
+    ///    32-bit target (where `usize == 4` would shrink the file).
+    #[test]
+    fn test_issue_125_memmap_wasm32_portability() {
+        // Compile-time format invariants: the wire format must use u64
+        // (8 bytes), not usize (varies by target).
+        const _: () = assert!(MemmapGraph::FIELD_BYTES == 8);
+        const _: () = assert!(MemmapGraph::HEADER_BYTES == 16);
+        const _: () = assert!(MemmapGraph::FIELD_BYTES == core::mem::size_of::<u64>());
+
+        // Functional round-trip: build CSR, persist, reload, compare.
+        let edges = vec![
+            (0usize, 1usize, 1.5_f64),
+            (0, 2, 2.5),
+            (1, 2, 3.5),
+            (2, 3, 4.5),
+        ];
+        let csr = CSRGraph::from_edges(4, edges).expect("CSR construction");
+
+        // Use std::env::temp_dir() per project policy.
+        let mut path = std::env::temp_dir();
+        path.push(format!("scirs2_graph_issue125_{}.bin", std::process::id()));
+
+        // Write via from_csr, then reload via from_file.
+        let _written = MemmapGraph::from_csr(&csr, &path).expect("write memmap");
+        let metadata = std::fs::metadata(&path).expect("file metadata");
+
+        // Documented format:
+        //   header (2 * u64) + row_ptr ((n_nodes+1) * u64)
+        //   + col_idx (n_edges * u64) + weights (n_edges * f64)
+        // All eight-byte fields, so total is always:
+        let n_nodes = 4_u64;
+        // Access private n_edges field directly (test is in same module).
+        let n_edges = csr.n_edges as u64;
+        let expected_bytes = 8 * (2 + (n_nodes + 1) + n_edges + n_edges);
+        assert_eq!(
+            metadata.len(),
+            expected_bytes,
+            "on-disk file size must match documented portable format"
+        );
+
+        let mut loaded = MemmapGraph::from_file(&path).expect("read memmap");
+        assert_eq!(loaded.node_count(), 4);
+        assert_eq!(loaded.edge_count(), csr.n_edges);
+
+        // Verify neighbors match. CSRGraph is directed-ish: from_edges stores
+        // each (src,dst) once. We compare the union of neighbor sets.
+        for node in 0..4 {
+            let mut roundtrip = loaded.neighbors(node).expect("neighbors");
+            let mut original: Vec<(usize, f64)> = csr.neighbors(node).collect();
+            roundtrip.sort_by_key(|a| a.0);
+            original.sort_by_key(|a| a.0);
+            assert_eq!(roundtrip, original, "node {node} neighbors must round-trip");
+        }
+
+        // Cleanup
+        let _ = std::fs::remove_file(&path);
     }
 }

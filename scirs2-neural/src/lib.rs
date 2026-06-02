@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-neural = "0.4.4"
+//! scirs2-neural = "0.5.0"
 //! ```
 //!
 //! ### Building a Simple Neural Network
@@ -261,7 +261,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.4.4**
+//! Current version: **0.5.0**
 
 pub mod activations;
 pub mod activations_minimal;
@@ -332,6 +332,8 @@ pub use activations_minimal::{Activation, ReLU, Sigmoid, Softmax, Tanh, GELU};
 pub use error::{Error, NeuralError, Result};
 #[cfg(feature = "symbolic")]
 pub use losses::SymbolicLoss;
+#[cfg(feature = "symbolic")]
+pub use losses::SymbolicPriorLoss;
 #[cfg(feature = "symbolic")]
 pub mod symbolic;
 pub use layers::{

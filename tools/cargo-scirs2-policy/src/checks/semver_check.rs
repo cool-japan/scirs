@@ -204,8 +204,8 @@ fn collect_attribute_text(lines: &[&str], idx: &mut usize) -> String {
     let mut bracket_depth: i32 = 0;
     let start = *idx;
 
-    for j in start..lines.len() {
-        let line = lines[j].trim();
+    for (j, line) in lines.iter().enumerate().skip(start) {
+        let line = line.trim();
         text.push_str(line);
         text.push(' ');
 
@@ -235,15 +235,12 @@ fn collect_attribute_text(lines: &[&str], idx: &mut usize) -> String {
 /// Looks for patterns like `since = "0.4.0"` or `note = "use X instead"`.
 fn extract_field(attr_text: &str, field_name: &str) -> Option<String> {
     // Find `field_name` followed by `=` and a quoted string
-    let search = format!("{field_name}");
+    let search = field_name.to_string();
     let mut pos = 0;
 
     while pos < attr_text.len() {
         let remaining = &attr_text[pos..];
-        let field_pos = match remaining.find(&search) {
-            Some(p) => p,
-            None => return None,
-        };
+        let field_pos = remaining.find(&search)?;
 
         let after_field = &remaining[field_pos + search.len()..];
         let after_field = after_field.trim_start();
@@ -302,9 +299,12 @@ fn extract_quoted_string(input: &str) -> Option<String> {
 /// Scans forward from `start_line` (exclusive) for the next `pub fn`, `pub struct`,
 /// `pub enum`, `pub trait`, `fn`, `struct`, `enum`, or `trait` declaration.
 fn find_item_name(lines: &[&str], start_line: usize) -> String {
-    for j in (start_line + 1)..lines.len().min(start_line + 10) {
-        let trimmed = lines[j].trim();
-
+    for trimmed in lines
+        .iter()
+        .take(lines.len().min(start_line + 10))
+        .skip(start_line + 1)
+        .map(|l| l.trim())
+    {
         // Skip other attributes, comments, and empty lines
         if trimmed.is_empty()
             || trimmed.starts_with('#')
@@ -315,11 +315,24 @@ fn find_item_name(lines: &[&str], start_line: usize) -> String {
         }
 
         // Try to extract the item name from declaration keywords
-        for keyword in &["pub fn ", "fn ", "pub struct ", "struct ", "pub enum ",
-                         "enum ", "pub trait ", "trait ", "pub type ", "type ",
-                         "pub const ", "const ", "pub static ", "static ",
-                         "pub mod ", "mod "]
-        {
+        for keyword in &[
+            "pub fn ",
+            "fn ",
+            "pub struct ",
+            "struct ",
+            "pub enum ",
+            "enum ",
+            "pub trait ",
+            "trait ",
+            "pub type ",
+            "type ",
+            "pub const ",
+            "const ",
+            "pub static ",
+            "static ",
+            "pub mod ",
+            "mod ",
+        ] {
             if let Some(rest) = find_after_keyword(trimmed, keyword) {
                 // Name is the next identifier (up to '(' '<' ':' '{' ';' ' ')
                 let name: String = rest
@@ -349,7 +362,8 @@ fn find_item_name(lines: &[&str], start_line: usize) -> String {
 /// Check if a line contains a keyword and return the text after it.
 fn find_after_keyword<'a>(line: &'a str, keyword: &str) -> Option<&'a str> {
     // Handle visibility modifiers like `pub(crate) fn`
-    let line_stripped = line.trim_start_matches("pub(crate) ")
+    let line_stripped = line
+        .trim_start_matches("pub(crate) ")
         .trim_start_matches("pub(super) ");
 
     if let Some(pos) = line.find(keyword) {
@@ -389,7 +403,9 @@ fn read_crate_version(crate_path: &Path) -> Option<String> {
             let ws_toml = dir.join("Cargo.toml");
             if ws_toml.exists() {
                 if let Ok(ws_content) = std::fs::read_to_string(&ws_toml) {
-                    if ws_content.contains("[workspace.package]") || ws_content.contains("[workspace]") {
+                    if ws_content.contains("[workspace.package]")
+                        || ws_content.contains("[workspace]")
+                    {
                         if let Some(version) = extract_workspace_version(&ws_content) {
                             return Some(version);
                         }
@@ -563,11 +579,13 @@ pub fn func_b() {}
         fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"test-crate\"\nversion = \"0.4.0\"\n",
-        ).ok();
+        )
+        .ok();
         fs::write(
             src_dir.join("lib.rs"),
             "#[deprecated(since = \"0.4.0\", note = \"use new_fn\")]\npub fn old_fn() {}\n",
-        ).ok();
+        )
+        .ok();
 
         let ws = WorkspaceInfo {
             root: dir.clone(),
@@ -582,12 +600,18 @@ pub fn func_b() {}
         let violations = check_deprecation_policy(&ws, &policy);
 
         // No warnings for current-version deprecation
-        let errors: Vec<_> = violations.iter().filter(|v| {
-            v.message.contains("DEPRECATION_001")
-                || v.message.contains("DEPRECATION_002")
-                || v.message.contains("DEPRECATION_004")
-        }).collect();
-        assert!(errors.is_empty(), "Current-version deprecation should have no issues: {errors:?}");
+        let errors: Vec<_> = violations
+            .iter()
+            .filter(|v| {
+                v.message.contains("DEPRECATION_001")
+                    || v.message.contains("DEPRECATION_002")
+                    || v.message.contains("DEPRECATION_004")
+            })
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "Current-version deprecation should have no issues: {errors:?}"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -600,11 +624,13 @@ pub fn func_b() {}
         fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"test-crate\"\nversion = \"0.6.0\"\n",
-        ).ok();
+        )
+        .ok();
         fs::write(
             src_dir.join("lib.rs"),
             "#[deprecated(since = \"0.4.0\", note = \"use new_fn\")]\npub fn old_fn() {}\n",
-        ).ok();
+        )
+        .ok();
 
         let ws = WorkspaceInfo {
             root: dir.clone(),
@@ -618,7 +644,8 @@ pub fn func_b() {}
         let policy = VersionPolicy::default();
         let violations = check_deprecation_policy(&ws, &policy);
 
-        let removal_ready: Vec<_> = violations.iter()
+        let removal_ready: Vec<_> = violations
+            .iter()
             .filter(|v| v.message.contains("DEPRECATION_003"))
             .collect();
         assert_eq!(removal_ready.len(), 1, "Should flag item for removal");
@@ -635,11 +662,13 @@ pub fn func_b() {}
         fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"test-crate\"\nversion = \"0.4.0\"\n",
-        ).ok();
+        )
+        .ok();
         fs::write(
             src_dir.join("lib.rs"),
             "#[deprecated(note = \"use new_fn\")]\npub fn old_fn() {}\n",
-        ).ok();
+        )
+        .ok();
 
         let ws = WorkspaceInfo {
             root: dir.clone(),
@@ -653,7 +682,8 @@ pub fn func_b() {}
         let policy = VersionPolicy::default();
         let violations = check_deprecation_policy(&ws, &policy);
 
-        let missing_since: Vec<_> = violations.iter()
+        let missing_since: Vec<_> = violations
+            .iter()
             .filter(|v| v.message.contains("DEPRECATION_001"))
             .collect();
         assert_eq!(missing_since.len(), 1, "Should warn about missing since");
@@ -669,11 +699,13 @@ pub fn func_b() {}
         fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"test-crate\"\nversion = \"0.4.0\"\n",
-        ).ok();
+        )
+        .ok();
         fs::write(
             src_dir.join("lib.rs"),
             "#[deprecated(since = \"0.4.0\")]\npub fn old_fn() {}\n",
-        ).ok();
+        )
+        .ok();
 
         let ws = WorkspaceInfo {
             root: dir.clone(),
@@ -687,7 +719,8 @@ pub fn func_b() {}
         let policy = VersionPolicy::default();
         let violations = check_deprecation_policy(&ws, &policy);
 
-        let missing_note: Vec<_> = violations.iter()
+        let missing_note: Vec<_> = violations
+            .iter()
             .filter(|v| v.message.contains("DEPRECATION_002"))
             .collect();
         assert_eq!(missing_note.len(), 1, "Should warn about missing note");
@@ -703,11 +736,13 @@ pub fn func_b() {}
         fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"test-crate\"\nversion = \"0.4.0\"\n",
-        ).ok();
+        )
+        .ok();
         fs::write(
             src_dir.join("lib.rs"),
             "#[deprecated(since = \"0.9.0\", note = \"future\")]\npub fn future_fn() {}\n",
-        ).ok();
+        )
+        .ok();
 
         let ws = WorkspaceInfo {
             root: dir.clone(),
@@ -721,10 +756,15 @@ pub fn func_b() {}
         let policy = VersionPolicy::default();
         let violations = check_deprecation_policy(&ws, &policy);
 
-        let future_warns: Vec<_> = violations.iter()
+        let future_warns: Vec<_> = violations
+            .iter()
             .filter(|v| v.message.contains("DEPRECATION_004"))
             .collect();
-        assert_eq!(future_warns.len(), 1, "Should warn about future since version");
+        assert_eq!(
+            future_warns.len(),
+            1,
+            "Should warn about future since version"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -745,8 +785,14 @@ pub fn func_b() {}
 
     #[test]
     fn test_extract_quoted_string() {
-        assert_eq!(extract_quoted_string("\"hello world\""), Some("hello world".to_string()));
-        assert_eq!(extract_quoted_string("\"with \\\"escaped\\\" quotes\""), Some("with \"escaped\" quotes".to_string()));
+        assert_eq!(
+            extract_quoted_string("\"hello world\""),
+            Some("hello world".to_string())
+        );
+        assert_eq!(
+            extract_quoted_string("\"with \\\"escaped\\\" quotes\""),
+            Some("with \"escaped\" quotes".to_string())
+        );
         assert_eq!(extract_quoted_string("no quotes"), None);
         assert_eq!(extract_quoted_string(""), None);
     }
@@ -766,6 +812,9 @@ pub fn func_b() {}
     #[test]
     fn test_extract_workspace_version() {
         let content = "[workspace.package]\nversion = \"0.4.0\"\nedition = \"2021\"\n";
-        assert_eq!(extract_workspace_version(content), Some("0.4.0".to_string()));
+        assert_eq!(
+            extract_workspace_version(content),
+            Some("0.4.0".to_string())
+        );
     }
 }

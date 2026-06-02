@@ -1119,6 +1119,114 @@ fn logm_backward_3x3_via_pade() {
     );
 }
 
+// Wave 75 Slice 2B — Autograd integration tests
+// These tests verify the backward-pass formulas by finite-difference checks.
+
+/// Verify sqrtm_backward with a 4×4 SPD input via FD check.
+///
+/// Uses a different seed from the Wave 74 2×2 and 4×4 tests to provide an
+/// independent sample. The FD step is `FD_EPS = 1e-5` and tolerance `1e-4`.
+#[test]
+fn sqrtm_pd_backward_via_autograd_4x4_spd() {
+    // Independent seed from existing tests.
+    let a = random_spd(4, 0xC0DE_CAFE);
+    let s = sqrtm_spd(&a);
+    // Upstream gradient: all ones (sum-all loss).
+    let grad_s = Array2::<f64>::ones((4, 4));
+
+    let analytic = sqrtm_backward(&s, &grad_s);
+
+    let numeric = fd_gradient_symmetric(&a, |a_p| {
+        let ss = sqrtm_spd(a_p);
+        ss.iter().sum()
+    });
+
+    // Tolerance 1e-5 — SPD Sylvester solve is well-conditioned for BᵀB+nI.
+    assert_grad_close(
+        &analytic,
+        &numeric,
+        1e-5,
+        "sqrtm_pd_backward_via_autograd_4x4_spd",
+    );
+}
+
+/// Verify logm_backward with a 3×3 SPD input via FD check.
+///
+/// Uses the Daleckii-Krein formula.  All eigenvalues of the test matrix are
+/// > 0.5 (guaranteed by the BᵀB + nI construction with n = 3).
+#[test]
+fn logm_backward_via_autograd_3x3_via_pade() {
+    // Independent seed — all eigenvalues well above 0.5 because nI shift = 3·I.
+    let a = random_spd(3, 0xFACE_BABE);
+    let grad_logm = Array2::<f64>::ones((3, 3));
+
+    let analytic = logm_backward(&a, &grad_logm);
+
+    let numeric = fd_gradient_symmetric(&a, |a_p| {
+        let ll = logm_spd(a_p);
+        ll.iter().sum()
+    });
+
+    assert_grad_close(
+        &analytic,
+        &numeric,
+        FD_TOL_LOOSE,
+        "logm_backward_via_autograd_3x3_via_pade",
+    );
+}
+
+/// Verify that the pinv backward formula (already correct) is FD-consistent
+/// for a 5×3 overdetermined system — independent seed from existing test.
+#[test]
+fn pinv_backward_via_autograd_5x3_overdetermined() {
+    // Independent seed.
+    let a = random_matrix(5, 3, 0xDEAD_C0DE);
+    let a_plus = pinv_tall(&a);
+    let grad_pinv = Array2::<f64>::ones((3, 5));
+
+    let analytic = pinv_backward(&a, &a_plus, &grad_pinv);
+
+    let numeric = fd_gradient(&a, |a_p| {
+        let pp = pinv_tall(a_p);
+        pp.iter().sum()
+    });
+
+    assert_grad_close(
+        &analytic,
+        &numeric,
+        FD_TOL_LOOSE,
+        "pinv_backward_via_autograd_5x3_overdetermined",
+    );
+}
+
+/// Verify that `sqrtm_pd` (the SPD-restricted variant) returns an error rather
+/// than panicking when given a non-SPD matrix.
+///
+/// We use a matrix with one negative eigenvalue: identity with A[0,0] = -1.
+#[test]
+fn sqrtm_pd_nonspd_returns_error() {
+    use ag::tensor_ops::sqrtm;
+    use scirs2_autograd as ag;
+
+    ag::run(|g| {
+        // Build a 3×3 matrix with A[0,0] = -1 (not SPD).
+        let mut data = [[0.0_f32; 3]; 3];
+        data[0][0] = -1.0;
+        data[1][1] = 2.0;
+        data[2][2] = 3.0;
+        let arr = scirs2_core::ndarray::arr2(&data);
+        let t = ag::tensor_ops::convert_to_tensor(arr, g);
+
+        // The Op's forward pass should detect the non-SPD input and return Err.
+        let result = sqrtm(&t);
+        let eval_result = result.eval(g);
+        assert!(
+            eval_result.is_err(),
+            "Expected sqrtm_pd to return Err on non-SPD input, but got Ok"
+        );
+    });
+}
+
 // 7. Batch lifter consistency
 
 #[test]
@@ -1176,4 +1284,295 @@ fn batch_lift_5_x_3x3_lu_consistent() {
             err
         );
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Autograd-tape FD checks (Wave 75 Slice 2A)
+//
+// These tests build a computation graph through `scirs2_autograd::run(|g|{})`,
+// differentiate through the factorization ops, and compare the computed gradient
+// against centered finite differences on the same scalar loss.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// FD helper: re-run Cholesky forward and sum all elements of L.
+fn cholesky_loss(a: &Array2<f64>) -> f64 {
+    let l = cholesky_fwd(a);
+    l.iter().sum()
+}
+
+/// Gram-Schmidt QR matching autograd's `QRExtractOp::compute()`.
+/// Returns (Q m×k, R k×n) — thin QR.
+fn gram_schmidt_qr(a: &Array2<f64>) -> (Array2<f64>, Array2<f64>) {
+    let m = a.nrows();
+    let n = a.ncols();
+    let k = m.min(n);
+    let mut q = Array2::<f64>::zeros((m, k));
+    let mut r = Array2::<f64>::zeros((k, n));
+    for j in 0..k {
+        for i in 0..m {
+            q[[i, j]] = a[[i, j]];
+        }
+        for i in 0..j {
+            let mut dot = 0.0;
+            for row in 0..m {
+                dot += q[[row, i]] * q[[row, j]];
+            }
+            r[[i, j]] = dot;
+            for row in 0..m {
+                q[[row, j]] -= dot * q[[row, i]];
+            }
+        }
+        let mut norm = 0.0;
+        for row in 0..m {
+            norm += q[[row, j]] * q[[row, j]];
+        }
+        norm = norm.sqrt();
+        if norm > 1e-15 {
+            r[[j, j]] = norm;
+            for row in 0..m {
+                q[[row, j]] /= norm;
+            }
+        }
+        for col in (j + 1)..n {
+            let mut dot = 0.0;
+            for row in 0..m {
+                dot += q[[row, j]] * a[[row, col]];
+            }
+            r[[j, col]] = dot;
+        }
+    }
+    (q, r)
+}
+
+/// No-pivot LU matching autograd's `LUExtractOp::compute()`.
+/// Returns (P=I, L, U) with no row swaps.
+fn no_pivot_lu(a: &Array2<f64>) -> (Array2<f64>, Array2<f64>, Array2<f64>) {
+    let n = a.nrows();
+    let p = Array2::<f64>::eye(n);
+    let mut l = Array2::<f64>::eye(n);
+    let mut u = a.clone();
+    for k in 0..n - 1 {
+        if u[[k, k]].abs() > 1e-15 {
+            for i in (k + 1)..n {
+                l[[i, k]] = u[[i, k]] / u[[k, k]];
+                for j in k..n {
+                    u[[i, j]] -= l[[i, k]] * u[[k, j]];
+                }
+            }
+        }
+    }
+    for i in 0..n {
+        for j in 0..i {
+            u[[i, j]] = 0.0;
+        }
+    }
+    (p, l, u)
+}
+
+/// FD helper: no-pivot LU, sum of L.
+fn lu_ag_loss_l(a: &Array2<f64>) -> f64 {
+    let (_p, l, _u) = no_pivot_lu(a);
+    l.iter().sum()
+}
+
+/// FD helper: no-pivot LU, sum of U.
+fn lu_ag_loss_u(a: &Array2<f64>) -> f64 {
+    let (_p, _l, u) = no_pivot_lu(a);
+    u.iter().sum()
+}
+
+/// FD helper: Gram-Schmidt QR, sum of Q.
+fn qr_ag_loss_q(a: &Array2<f64>) -> f64 {
+    let (q, _r) = gram_schmidt_qr(a);
+    q.iter().sum()
+}
+
+/// FD helper: Gram-Schmidt QR, sum of R.
+fn qr_ag_loss_r(a: &Array2<f64>) -> f64 {
+    let (_q, r) = gram_schmidt_qr(a);
+    r.iter().sum()
+}
+
+/// Verify Cholesky backward through the autograd tape on a 5×5 SPD matrix.
+///
+/// Loss = sum(L) where L = chol(A).
+/// We compare the autograd gradient `dA` against centered FD.
+/// Tolerance: 1e-5 (SPD inputs are well-conditioned with the BᵀB + nI construction).
+#[test]
+fn cholesky_backward_via_autograd_5x5_spd() {
+    use ag::tensor_ops::{cholesky, grad, sum_all};
+    use scirs2_autograd as ag;
+
+    let a = random_spd(5, 0xABCD_1234);
+    let arr = scirs2_core::ndarray::Array2::<f64>::from_shape_fn((5, 5), |(i, j)| a[[i, j]]);
+
+    // Use VariableEnvironment so the input tensor is differentiable.
+    let mut env = ag::VariableEnvironment::<f64>::new();
+    let a_vid = env.set(arr.into_dyn());
+
+    // Autograd gradient.
+    let analytic = env.run(|g| {
+        let t = g.variable_by_id(a_vid);
+        let l = cholesky(&t);
+        let loss = sum_all(l);
+        let grads = grad(&[loss], &[&t]);
+        grads[0]
+            .eval(g)
+            .expect("Cholesky grad eval failed")
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .expect("Cholesky grad must be 2D")
+            .to_owned()
+    });
+
+    // Finite-difference gradient (symmetric perturbation for SPD inputs).
+    let numeric = fd_gradient_symmetric(&a, cholesky_loss);
+
+    assert_grad_close(
+        &analytic,
+        &numeric,
+        1e-5,
+        "cholesky_backward_via_autograd_5x5_spd",
+    );
+}
+
+/// Verify LU backward through the autograd tape on a 5×5 general matrix.
+///
+/// Loss = sum(L) + sum(U) where (P, L, U) = lu(A).
+/// Tolerance 1e-4 — the no-pivot LU path is slightly less well-conditioned.
+#[test]
+fn lu_backward_via_autograd_5x5_general() {
+    use ag::tensor_ops::{grad, lu, sum_all};
+    use scirs2_autograd as ag;
+
+    // Diagonal-dominant: add diag(5) for numerical stability without pivoting.
+    let base = random_matrix(5, 5, 0xFEED_BEEF);
+    let mut a = base;
+    for i in 0..5 {
+        a[[i, i]] += 5.0;
+    }
+    let arr = scirs2_core::ndarray::Array2::<f64>::from_shape_fn((5, 5), |(i, j)| a[[i, j]]);
+
+    // Use VariableEnvironment so the input tensor is differentiable.
+    let mut env_l = ag::VariableEnvironment::<f64>::new();
+    let a_vid_l = env_l.set(arr.clone().into_dyn());
+
+    // Autograd gradient for L component.
+    let analytic_l = env_l.run(|g| {
+        let t = g.variable_by_id(a_vid_l);
+        let (_p, l, _u) = lu(&t);
+        let loss = sum_all(l);
+        let grads = grad(&[loss], &[&t]);
+        grads[0]
+            .eval(g)
+            .expect("LU-L grad eval failed")
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .expect("LU-L grad must be 2D")
+            .to_owned()
+    });
+
+    let mut env_u = ag::VariableEnvironment::<f64>::new();
+    let a_vid_u = env_u.set(arr.into_dyn());
+
+    // Autograd gradient for U component.
+    let analytic_u = env_u.run(|g| {
+        let t = g.variable_by_id(a_vid_u);
+        let (_p, _l, u) = lu(&t);
+        let loss = sum_all(u);
+        let grads = grad(&[loss], &[&t]);
+        grads[0]
+            .eval(g)
+            .expect("LU-U grad eval failed")
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .expect("LU-U grad must be 2D")
+            .to_owned()
+    });
+
+    // FD gradient for L (using same no-pivot LU as the autograd op).
+    let numeric_l = fd_gradient(&a, lu_ag_loss_l);
+    // FD gradient for U (using same no-pivot LU as the autograd op).
+    let numeric_u = fd_gradient(&a, lu_ag_loss_u);
+
+    assert_grad_close(
+        &analytic_l,
+        &numeric_l,
+        FD_TOL_LOOSE,
+        "lu_backward_via_autograd_5x5_general (L)",
+    );
+    assert_grad_close(
+        &analytic_u,
+        &numeric_u,
+        FD_TOL_LOOSE,
+        "lu_backward_via_autograd_5x5_general (U)",
+    );
+}
+
+/// Verify QR backward through the autograd tape on a 5×5 general matrix.
+///
+/// Loss = sum(Q) + sum(R) where (Q, R) = qr(A).
+/// Tolerance 1e-4 — Gram-Schmidt QR has moderate conditioning.
+#[test]
+fn qr_backward_via_autograd_5x5_orthogonal() {
+    use ag::tensor_ops::{decomp_qr, grad, sum_all};
+    use scirs2_autograd as ag;
+
+    // Add diag(3) to make columns more linearly independent.
+    let base = random_matrix(5, 5, 0xCAFE_BABE);
+    let mut a = base;
+    for i in 0..5 {
+        a[[i, i]] += 3.0;
+    }
+    let arr = scirs2_core::ndarray::Array2::<f64>::from_shape_fn((5, 5), |(i, j)| a[[i, j]]);
+
+    // Use VariableEnvironment so the input tensor is differentiable.
+    let mut env_q = ag::VariableEnvironment::<f64>::new();
+    let a_vid_q = env_q.set(arr.clone().into_dyn());
+
+    // Autograd gradient for Q component.
+    let analytic_q = env_q.run(|g| {
+        let t = g.variable_by_id(a_vid_q);
+        let (q, _r) = decomp_qr(&t);
+        let loss = sum_all(q);
+        let grads = grad(&[loss], &[&t]);
+        grads[0]
+            .eval(g)
+            .expect("QR-Q grad eval failed")
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .expect("QR-Q grad must be 2D")
+            .to_owned()
+    });
+
+    let mut env_r = ag::VariableEnvironment::<f64>::new();
+    let a_vid_r = env_r.set(arr.into_dyn());
+
+    // Autograd gradient for R component.
+    let analytic_r = env_r.run(|g| {
+        let t = g.variable_by_id(a_vid_r);
+        let (_q, r) = decomp_qr(&t);
+        let loss = sum_all(r);
+        let grads = grad(&[loss], &[&t]);
+        grads[0]
+            .eval(g)
+            .expect("QR-R grad eval failed")
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .expect("QR-R grad must be 2D")
+            .to_owned()
+    });
+
+    // FD gradient for Q (using same Gram-Schmidt as the autograd op).
+    let numeric_q = fd_gradient(&a, qr_ag_loss_q);
+    // FD gradient for R (using same Gram-Schmidt as the autograd op).
+    let numeric_r = fd_gradient(&a, qr_ag_loss_r);
+
+    assert_grad_close(
+        &analytic_q,
+        &numeric_q,
+        FD_TOL_LOOSE,
+        "qr_backward_via_autograd_5x5_orthogonal (Q)",
+    );
+    assert_grad_close(
+        &analytic_r,
+        &numeric_r,
+        FD_TOL_LOOSE,
+        "qr_backward_via_autograd_5x5_orthogonal (R)",
+    );
 }

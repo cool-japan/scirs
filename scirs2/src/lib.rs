@@ -89,14 +89,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2 = { version = "0.4.4", features = ["linalg", "stats"] }
+//! scirs2 = { version = "0.5.0", features = ["linalg", "stats"] }
 //! ```
 //!
 //! Or install all features:
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2 = { version = "0.4.4", features = ["full"] }
+//! scirs2 = { version = "0.5.0", features = ["full"] }
 //! ```
 //!
 //! ### Linear Algebra Example
@@ -253,7 +253,7 @@
 //! - **Deprecation Policy**: 2-release deprecation cycle
 //! - **Production Features**: Enterprise-grade error handling and diagnostics
 //!
-//! Current version: **0.4.4**
+//! Current version: **0.5.0**
 //!
 //! ## 🤝 Ecosystem Integration
 //!

@@ -2,6 +2,7 @@
 name = "scirs2-benchmarks"
 version.workspace = true
 edition.workspace = true
+publish = false
 authors.workspace = true
 description = "Comprehensive performance benchmarks for SciRS2 against SciPy"
 readme = "README.md"
@@ -104,7 +105,10 @@ scirs2-metrics = { workspace = true }
 criterion = { workspace = true, features = ["html_reports"] }
 
 # Array operations
-ndarray = { workspace = true }
+ndarray = { workspace = true, default-features = false }
+# `default-features` is intentionally not overridden here: the workspace entries
+# for ndarray-rand / ndarray-stats do not pin `default-features`, so a member
+# override is ignored by Cargo (and warns).  Inherit the workspace defaults.
 ndarray-rand = { workspace = true }
 ndarray-stats = { workspace = true }
 
@@ -117,8 +121,8 @@ rand_distr = { workspace = true }
 rayon = { workspace = true }
 
 # Scientific computing utilities
-num-traits = { workspace = true }
-num-complex = { workspace = true }
+num-traits = { workspace = true, default-features = false }
+num-complex = { workspace = true, default-features = false }
 approx = { workspace = true }
 
 # Serialization for results

@@ -28,10 +28,12 @@ pub mod adaptive_convergence;
 pub mod advanced_line_search;
 pub mod bfgs;
 pub mod callback_diagnostics;
+pub(crate) mod cg_gpu;
 pub mod conjugate_gradient;
 pub mod convergence_diagnostics;
 pub mod efficient_sparse;
 pub mod lbfgs;
+pub(crate) mod lbfgs_gpu;
 pub mod lbfgsb;
 pub mod line_search;
 pub mod memory_efficient;
@@ -39,6 +41,7 @@ pub mod memory_efficient_sparse;
 pub mod nelder_mead;
 pub mod newton;
 pub mod newton_cg;
+pub(crate) mod newton_gpu;
 pub mod powell;
 pub mod quasi_newton;
 pub mod result;
@@ -194,6 +197,18 @@ pub struct Options {
     pub trust_eta: Option<f64>,
     /// Bounds constraints for variables
     pub bounds: Option<Bounds>,
+    /// Enable GPU acceleration in L-BFGS, Conjugate Gradient, and Newton-CG when
+    /// `n_params >= threshold` and a wgpu adapter is present.  Per-method thresholds:
+    /// L-BFGS: 4096 (`GPU_LBFGS_THRESHOLD`), CG: 4096 (`GPU_CG_THRESHOLD`),
+    /// Newton-CG: 4096 (`GPU_NEWTON_THRESHOLD`).
+    ///
+    /// Requires the `gpu` feature.  Defaults to `true` (auto-detect). Set to `false` to force
+    /// the CPU path regardless of hardware.
+    pub use_gpu: bool,
+    /// Override the GPU threshold for testing purposes.  When `Some(n)`, GPU dispatch is
+    /// attempted if `n_params >= n` (and `use_gpu` is `true` and an adapter is present).
+    /// `None` uses the per-method default threshold (4096 for L-BFGS, CG, and Newton-CG).
+    pub gpu_threshold_override: Option<usize>,
 }
 
 // Implement Display for Method
@@ -239,6 +254,8 @@ impl Default for Options {
             trust_max_iter: Some(100),
             trust_eta: Some(0.1),
             bounds: None,
+            use_gpu: true,
+            gpu_threshold_override: None,
         }
     }
 }

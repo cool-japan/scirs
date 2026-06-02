@@ -17,7 +17,7 @@ pub mod symplectic;
 pub use adaptive::{dop853_method, rk23_method, rk45_method};
 pub use enhanced_bdf::enhanced_bdf_method;
 pub use enhanced_lsoda::enhanced_lsoda_method;
-pub use explicit::{euler_method, rk4_method};
+pub use explicit::{euler_method, rk4_method, ssprk3_step, ssprk4_step};
 pub use implicit::{bdf_method, radau_method};
 pub use local_extrapolation::{
     gragg_bulirsch_stoer_method, richardson_extrapolation_step, ExtrapolationBaseMethod,

@@ -79,3 +79,10 @@ threads-required = 2
 filter = 'test(compile_fail_harness)'
 slow-timeout = { period = "600s", terminate-after = 3 }
 threads-required = 4
+
+[[profile.default.overrides]]
+# 4D hypercube Voronoi tests (Bowyer-Watson 16-point triangulation) are slow;
+# ignored by default — run with --run-ignored. Give them extra time when invoked.
+filter = 'test(test_4d_hypercube)'
+slow-timeout = { period = "300s", terminate-after = 2 }
+threads-required = 1

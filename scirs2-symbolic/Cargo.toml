@@ -48,12 +48,12 @@ gpu = [
 
 [dependencies]
 thiserror = { workspace = true }
-num-complex = { workspace = true }
+num-complex = { workspace = true, default-features = false }
 ahash = { workspace = true }
 hashbrown = { workspace = true }
 once_cell = { workspace = true }
 tracing = { workspace = true }
-ndarray = { workspace = true }
+ndarray = { workspace = true, default-features = false }
 rayon = { workspace = true, optional = true }
 scirs2-core = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["rc"] }
@@ -83,6 +83,10 @@ required-features = ["macros"]
 [[test]]
 name = "regression_numa_tests"
 required-features = ["numa", "parallel"]
+
+[[test]]
+name = "wgpu_eval_batch_smoke"
+required-features = ["gpu"]
 
 [[bench]]
 name = "eval"

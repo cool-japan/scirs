@@ -50,7 +50,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-integrate = "0.4.4"
+//! scirs2-integrate = "0.5.0"
 //! ```
 
 //!
@@ -232,7 +232,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.4
+//! - **Version**: 0.5.0
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-integrate](https://docs.rs/scirs2-integrate)
@@ -453,6 +453,16 @@ pub use pde::spectral::{
 pub use pde::{
     BoundaryCondition, BoundaryConditionType, BoundaryLocation, Domain, PDEError, PDEResult,
     PDESolution, PDESolverInfo, PDEType,
+};
+// DG Euler system exports
+pub use pde::dg_systems::{
+    euler_1d::{
+        conservative_to_primitives, euler_flux, max_wave_speed, pressure_eos,
+        primitives_to_conservative, sound_speed, EulerFlux, EulerState,
+    },
+    limiter::{MinmodTvbLimiter, PerssonPeraireIndicator, SlopeLimiter, StandardPerssonPeraire},
+    sod_exact, solve_1d_euler_dg, BoundaryCondition as DgBoundaryCondition, DgSystemConfig,
+    DgSystemSolution, TimeIntegrator as DgTimeIntegrator,
 };
 // Enhanced PDE solver exports (v0.3.0)
 pub use pde::fd_solvers::{

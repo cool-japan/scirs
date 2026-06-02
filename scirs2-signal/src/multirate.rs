@@ -22,7 +22,6 @@ use scirs2_core::ndarray::s;
 // systems by operating at the lowest possible sampling rate.
 
 #[allow(unused_imports)]
-#[allow(non_snake_case)]
 #[allow(clippy::needless_range_loop)]
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1};
@@ -133,26 +132,26 @@ impl PerfectReconstructionFilterBank {
     fn design_orthogonal_filters(
         config: &PerfectReconstructionConfig,
     ) -> SignalResult<(Array2<f64>, Array2<f64>)> {
-        let M = config.num_channels;
-        let L = config.filter_length;
+        let num_ch = config.num_channels;
+        let filter_len = config.filter_length;
 
-        let mut analysis_filters = Array2::zeros((M, L));
-        let mut synthesis_filters = Array2::zeros((M, L));
+        let mut analysis_filters = Array2::zeros((num_ch, filter_len));
+        let mut synthesis_filters = Array2::zeros((num_ch, filter_len));
 
         // Design prototype lowpass filter
-        let prototype = Self::design_prototype_lowpass(L, M)?;
+        let prototype = Self::design_prototype_lowpass(filter_len, num_ch)?;
 
         // Generate orthogonal filter bank using DFT modulation
-        for k in 0..M {
-            for n in 0..L {
-                let phase = 2.0 * PI * k as f64 * (n as f64 - (L - 1) as f64 / 2.0) / M as f64;
+        for k in 0..num_ch {
+            for n in 0..filter_len {
+                let phase = 2.0 * PI * k as f64 * (n as f64 - (filter_len - 1) as f64 / 2.0) / num_ch as f64;
                 let modulation = phase.cos();
 
                 // Analysis filters
                 analysis_filters[[k, n]] = prototype[n] * modulation;
 
                 // Synthesis filters (time-reversed for perfect reconstruction)
-                synthesis_filters[[k, L - 1 - n]] = analysis_filters[[k, n]];
+                synthesis_filters[[k, filter_len - 1 - n]] = analysis_filters[[k, n]];
             }
         }
 
@@ -163,22 +162,22 @@ impl PerfectReconstructionFilterBank {
     fn design_biorthogonal_filters(
         config: &PerfectReconstructionConfig,
     ) -> SignalResult<(Array2<f64>, Array2<f64>)> {
-        let M = config.num_channels;
-        let L = config.filter_length;
+        let num_ch = config.num_channels;
+        let filter_len = config.filter_length;
 
-        let mut analysis_filters = Array2::zeros((M, L));
-        let mut synthesis_filters = Array2::zeros((M, L));
+        let mut analysis_filters = Array2::zeros((num_ch, filter_len));
+        let mut synthesis_filters = Array2::zeros((num_ch, filter_len));
 
         // Design analysis prototype
-        let analysis_prototype = Self::design_prototype_lowpass(L, M)?;
+        let analysis_prototype = Self::design_prototype_lowpass(filter_len, num_ch)?;
 
         // Design synthesis prototype (can be different for biorthogonal case)
-        let synthesis_prototype = Self::design_dual_prototype(&analysis_prototype, M)?;
+        let synthesis_prototype = Self::design_dual_prototype(&analysis_prototype, num_ch)?;
 
         // Generate biorthogonal filter bank
-        for k in 0..M {
-            for n in 0..L {
-                let phase = PI * k as f64 * (2.0 * n as f64 + 1.0) / (2.0 * M as f64);
+        for k in 0..num_ch {
+            for n in 0..filter_len {
+                let phase = PI * k as f64 * (2.0 * n as f64 + 1.0) / (2.0 * num_ch as f64);
 
                 // Analysis filters
                 analysis_filters[[k, n]] = analysis_prototype[n] * phase.cos();
@@ -195,19 +194,19 @@ impl PerfectReconstructionFilterBank {
     fn design_linear_phase_filters(
         config: &PerfectReconstructionConfig,
     ) -> SignalResult<(Array2<f64>, Array2<f64>)> {
-        let M = config.num_channels;
-        let L = config.filter_length;
+        let num_ch = config.num_channels;
+        let filter_len = config.filter_length;
 
-        let mut analysis_filters = Array2::zeros((M, L));
-        let mut synthesis_filters = Array2::zeros((M, L));
+        let mut analysis_filters = Array2::zeros((num_ch, filter_len));
+        let mut synthesis_filters = Array2::zeros((num_ch, filter_len));
 
         // Design symmetric prototype for linear phase
-        let prototype = Self::design_linear_phase_prototype(L, M)?;
+        let prototype = Self::design_linear_phase_prototype(filter_len, num_ch)?;
 
-        for k in 0..M {
-            for n in 0..L {
-                let center = (L - 1) as f64 / 2.0;
-                let phase = PI * k as f64 * (n as f64 - center) / M as f64;
+        for k in 0..num_ch {
+            for n in 0..filter_len {
+                let center = (filter_len - 1) as f64 / 2.0;
+                let phase = PI * k as f64 * (n as f64 - center) / num_ch as f64;
 
                 // Analysis filters (ensure linear phase)
                 analysis_filters[[k, n]] = prototype[n] * phase.cos();
@@ -224,25 +223,25 @@ impl PerfectReconstructionFilterBank {
     fn design_modulated_dft_filters(
         config: &PerfectReconstructionConfig,
     ) -> SignalResult<(Array2<f64>, Array2<f64>)> {
-        let M = config.num_channels;
-        let L = config.filter_length;
+        let num_ch = config.num_channels;
+        let filter_len = config.filter_length;
 
-        let mut analysis_filters = Array2::zeros((M, L));
-        let mut synthesis_filters = Array2::zeros((M, L));
+        let mut analysis_filters = Array2::zeros((num_ch, filter_len));
+        let mut synthesis_filters = Array2::zeros((num_ch, filter_len));
 
         // Extended DFT filter bank design
-        let prototype = Self::design_extended_prototype(L, M)?;
+        let prototype = Self::design_extended_prototype(filter_len, num_ch)?;
 
-        for k in 0..M {
-            for n in 0..L {
+        for k in 0..num_ch {
+            for n in 0..filter_len {
                 // Phase with proper offset for DFT filter bank
-                let phase = 2.0 * PI * k as f64 * (n as f64 + 0.5) / M as f64;
+                let phase = 2.0 * PI * k as f64 * (n as f64 + 0.5) / num_ch as f64;
 
                 // Analysis filters
                 analysis_filters[[k, n]] = prototype[n] * phase.cos();
 
                 // Synthesis filters (complex conjugate relationship)
-                synthesis_filters[[k, n]] = (2.0 / M as f64) * analysis_filters[[k, n]];
+                synthesis_filters[[k, n]] = (2.0 / num_ch as f64) * analysis_filters[[k, n]];
             }
         }
 
@@ -254,25 +253,25 @@ impl PerfectReconstructionFilterBank {
         config: &PerfectReconstructionConfig,
         prototype: &Array1<f64>,
     ) -> SignalResult<(Array2<f64>, Array2<f64>)> {
-        let M = config.num_channels;
-        let L = prototype.len();
+        let num_ch = config.num_channels;
+        let filter_len = prototype.len();
 
-        if L != config.filter_length {
+        if filter_len != config.filter_length {
             return Err(SignalError::ValueError(
                 "Prototype length must match filter length".to_string(),
             ));
         }
 
-        let mut analysis_filters = Array2::zeros((M, L));
-        let mut synthesis_filters = Array2::zeros((M, L));
+        let mut analysis_filters = Array2::zeros((num_ch, filter_len));
+        let mut synthesis_filters = Array2::zeros((num_ch, filter_len));
 
         // Use prototype with cosine modulation
-        for k in 0..M {
-            for n in 0..L {
-                let phase = PI * (k as f64 + 0.5) * (n as f64 - (L - 1) as f64 / 2.0) / M as f64;
+        for k in 0..num_ch {
+            for n in 0..filter_len {
+                let phase = PI * (k as f64 + 0.5) * (n as f64 - (filter_len - 1) as f64 / 2.0) / num_ch as f64;
 
                 analysis_filters[[k, n]] = prototype[n] * phase.cos();
-                synthesis_filters[[k, n]] = (2.0 / M as f64) * analysis_filters[[k, n]];
+                synthesis_filters[[k, n]] = (2.0 / num_ch as f64) * analysis_filters[[k, n]];
             }
         }
 
@@ -280,14 +279,14 @@ impl PerfectReconstructionFilterBank {
     }
 
     /// Design prototype lowpass filter
-    fn design_prototype_lowpass(_length: usize, numchannels: usize) -> SignalResult<Array1<f64>> {
-        let mut prototype = Array1::zeros(_length);
+    fn design_prototype_lowpass(filter_len: usize, num_channels: usize) -> SignalResult<Array1<f64>> {
+        let mut prototype = Array1::zeros(filter_len);
         let cutoff = PI / num_channels as f64;
 
         // Design using windowed sinc function
-        let center = (_length - 1) as f64 / 2.0;
+        let center = (filter_len - 1) as f64 / 2.0;
 
-        for n in 0.._length {
+        for n in 0..filter_len {
             let t = n as f64 - center;
             let sinc_val = if t == 0.0 {
                 cutoff / PI
@@ -297,7 +296,7 @@ impl PerfectReconstructionFilterBank {
 
             // Apply Kaiser window
             let beta = 8.0; // Kaiser window parameter
-            let window_val = Self::kaiser_window(n, length, beta);
+            let window_val = Self::kaiser_window(n, filter_len, beta);
 
             prototype[n] = sinc_val * window_val;
         }
@@ -362,13 +361,13 @@ impl PerfectReconstructionFilterBank {
     }
 
     /// Design extended prototype for DFT filter bank
-    fn design_extended_prototype(_length: usize, numchannels: usize) -> SignalResult<Array1<f64>> {
-        let mut prototype = Array1::zeros(_length);
-        let overlap = _length / num_channels;
+    fn design_extended_prototype(filter_len: usize, num_channels: usize) -> SignalResult<Array1<f64>> {
+        let mut prototype = Array1::zeros(filter_len);
+        let overlap = filter_len / num_channels;
 
-        // Design with extended _length for better frequency selectivity
-        for n in 0.._length {
-            let t = n as f64 - (_length - 1) as f64 / 2.0;
+        // Design with extended filter_len for better frequency selectivity
+        for n in 0..filter_len {
+            let t = n as f64 - (filter_len - 1) as f64 / 2.0;
             let normalized_t = t / overlap as f64;
 
             // Modified Kaiser-Bessel derived window
@@ -434,17 +433,17 @@ impl PerfectReconstructionFilterBank {
         filters: &Array2<f64>,
         config: &PerfectReconstructionConfig,
     ) -> SignalResult<Array3<f64>> {
-        let M = config.num_channels;
-        let L = config.filter_length;
-        let polyphase_length = L / M;
+        let num_ch = config.num_channels;
+        let filter_len = config.filter_length;
+        let polyphase_length = filter_len / num_ch;
 
-        let mut polyphase_matrix = Array3::zeros((M, M, polyphase_length));
+        let mut polyphase_matrix = Array3::zeros((num_ch, num_ch, polyphase_length));
 
-        for k in 0..M {
-            for m in 0..M {
+        for k in 0..num_ch {
+            for m in 0..num_ch {
                 for n in 0..polyphase_length {
-                    let filter_index = n * M + m;
-                    if filter_index < L {
+                    let filter_index = n * num_ch + m;
+                    if filter_index < filter_len {
                         polyphase_matrix[[k, m, n]] = filters[[k, filter_index]];
                     }
                 }
@@ -464,11 +463,11 @@ impl PerfectReconstructionFilterBank {
     ///
     /// * Subband signals for each channel
     pub fn analysis(&self, input: &Array1<f64>) -> SignalResult<Vec<Array1<f64>>> {
-        let _M = self.config.num_channels;
-        let D = self.config.decimation_factor;
+        let _num_channels = self.config.num_channels;
+        let decimation = self.config.decimation_factor;
 
         // Use polyphase implementation for efficiency
-        self.polyphase_analysis(input, D)
+        self.polyphase_analysis(input, decimation)
     }
 
     /// Perform synthesis (reconstruction) using polyphase implementation
@@ -481,19 +480,19 @@ impl PerfectReconstructionFilterBank {
     ///
     /// * Reconstructed signal
     pub fn synthesis(&self, subbands: &[Array1<f64>]) -> SignalResult<Array1<f64>> {
-        let M = self.config.num_channels;
-        let U = self.config.decimation_factor; // Upsampling factor
+        let num_ch = self.config.num_channels;
+        let upsample_factor = self.config.decimation_factor; // Upsampling factor
 
-        if subbands.len() != M {
+        if subbands.len() != num_ch {
             return Err(SignalError::ValueError(format!(
                 "Expected {} subbands, got {}",
-                M,
+                num_ch,
                 subbands.len()
             )));
         }
 
         // Use polyphase implementation for efficiency
-        self.polyphase_synthesis(subbands, U)
+        self.polyphase_synthesis(subbands, upsample_factor)
     }
 
     /// Polyphase analysis implementation
@@ -502,20 +501,20 @@ impl PerfectReconstructionFilterBank {
         input: &Array1<f64>,
         decimation: usize,
     ) -> SignalResult<Vec<Array1<f64>>> {
-        let M = self.config.num_channels;
-        let N = input.len();
-        let output_length = N.div_ceil(decimation);
+        let num_ch = self.config.num_channels;
+        let signal_len = input.len();
+        let output_length = signal_len.div_ceil(decimation);
 
-        let mut subbands = vec![Array1::zeros(output_length); M];
+        let mut subbands = vec![Array1::zeros(output_length); num_ch];
 
         // Polyphase decomposition of input
         let polyphase_inputs = self.polyphase_decompose_input(input, decimation)?;
 
         // Apply polyphase matrix
-        for k in 0..M {
+        for k in 0..num_ch {
             let mut output_vec = vec![0.0; output_length];
 
-            for m in 0..M {
+            for m in 0..num_ch {
                 if m < polyphase_inputs.len() {
                     let filtered = self.apply_polyphase_filter(
                         &polyphase_inputs[m],
@@ -542,17 +541,17 @@ impl PerfectReconstructionFilterBank {
         subbands: &[Array1<f64>],
         upsampling: usize,
     ) -> SignalResult<Array1<f64>> {
-        let M = self.config.num_channels;
+        let num_ch = self.config.num_channels;
         let subband_length = subbands[0].len();
         let _output_length = subband_length * upsampling;
 
-        let mut polyphase_outputs = vec![Array1::zeros(subband_length); M];
+        let mut polyphase_outputs = vec![Array1::zeros(subband_length); num_ch];
 
         // Apply synthesis polyphase matrix
-        for m in 0..M {
+        for m in 0..num_ch {
             let mut output_vec = vec![0.0; subband_length];
 
-            for k in 0..M {
+            for k in 0..num_ch {
                 let filtered = self.apply_polyphase_filter(
                     &subbands[k],
                     &self.synthesis_polyphase.slice(scirs2_core::ndarray::s![m, k, ..]),
@@ -580,18 +579,18 @@ impl PerfectReconstructionFilterBank {
         input: &Array1<f64>,
         decimation: usize,
     ) -> SignalResult<Vec<Array1<f64>>> {
-        let M = self.config.num_channels;
-        let N = input.len();
-        let output_length = N.div_ceil(decimation);
+        let num_ch = self.config.num_channels;
+        let signal_len = input.len();
+        let output_length = signal_len.div_ceil(decimation);
 
-        let mut polyphase_components = vec![Array1::zeros(output_length); M];
+        let mut polyphase_components = vec![Array1::zeros(output_length); num_ch];
 
-        for m in 0..M {
+        for m in 0..num_ch {
             let mut component_vec = vec![0.0; output_length];
             let mut output_idx = 0;
 
             let mut input_idx = m;
-            while input_idx < N && output_idx < output_length {
+            while input_idx < signal_len && output_idx < output_length {
                 component_vec[output_idx] = input[input_idx];
                 input_idx += decimation;
                 output_idx += 1;
@@ -609,13 +608,13 @@ impl PerfectReconstructionFilterBank {
         polyphase_outputs: &[Array1<f64>],
         upsampling: usize,
     ) -> SignalResult<Array1<f64>> {
-        let M = polyphase_outputs.len();
+        let num_ch = polyphase_outputs.len();
         let subband_length = polyphase_outputs[0].len();
         let output_length = subband_length * upsampling;
 
         let mut output = Array1::zeros(output_length);
 
-        for m in 0..M {
+        for m in 0..num_ch {
             for (i, &val) in polyphase_outputs[m].iter().enumerate() {
                 let output_idx = i * upsampling + m;
                 if output_idx < output_length {
@@ -724,11 +723,11 @@ impl PerfectReconstructionFilterBank {
 
     /// Compute frequency responses of all filters
     fn compute_frequency_responses(&self, freqs: &Array1<f64>) -> SignalResult<Array2<Complex64>> {
-        let M = self.config.num_channels;
+        let num_ch = self.config.num_channels;
         let num_freqs = freqs.len();
-        let mut responses = Array2::zeros((M, num_freqs));
+        let mut responses = Array2::zeros((num_ch, num_freqs));
 
-        for k in 0..M {
+        for k in 0..num_ch {
             let filter = self.analysis_filters.row(k);
             for (i, &freq) in freqs.iter().enumerate() {
                 let mut response = Complex64::new(0.0, 0.0);
@@ -745,18 +744,18 @@ impl PerfectReconstructionFilterBank {
 
     /// Compute aliasing level
     fn compute_aliasing_level(&self, responses: &Array2<Complex64>) -> SignalResult<f64> {
-        let M = self.config.num_channels;
+        let num_ch = self.config.num_channels;
         let num_freqs = responses.ncols();
         let mut max_aliasing = 0.0f64;
 
         for i in 0..num_freqs {
             let mut sum_magnitude_squared = 0.0;
-            for k in 0..M {
+            for k in 0..num_ch {
                 sum_magnitude_squared += responses[[k, i]].norm_sqr();
             }
 
-            // Aliasing occurs when sum deviates significantly from M
-            let aliasing = (sum_magnitude_squared - M as f64).abs();
+            // Aliasing occurs when sum deviates significantly from num_ch
+            let aliasing = (sum_magnitude_squared - num_ch as f64).abs();
             max_aliasing = max_aliasing.max(aliasing);
         }
 
@@ -765,7 +764,7 @@ impl PerfectReconstructionFilterBank {
 
     /// Compute imaging level
     fn compute_imaging_level(&self, responses: &Array2<Complex64>) -> SignalResult<f64> {
-        let M = self.config.num_channels;
+        let num_ch = self.config.num_channels;
         let num_freqs = responses.ncols();
         let mut max_imaging = 0.0f64;
 
@@ -774,7 +773,7 @@ impl PerfectReconstructionFilterBank {
             let folded_i = num_freqs - 1 - i;
             let mut imaging = 0.0;
 
-            for k in 0..M {
+            for k in 0..num_ch {
                 let original_response = responses[[k, i]].norm();
                 let folded_response = responses[[k, folded_i]].norm();
                 imaging += (original_response - folded_response).abs();
@@ -788,14 +787,14 @@ impl PerfectReconstructionFilterBank {
 
     /// Compute stopband attenuation
     fn compute_stopband_attenuation(&self, responses: &Array2<Complex64>) -> SignalResult<f64> {
-        let M = self.config.num_channels;
+        let num_ch = self.config.num_channels;
         let num_freqs = responses.ncols();
         let mut min_attenuation = f64::INFINITY;
 
-        for k in 0..M {
+        for k in 0..num_ch {
             // Define stopband region (beyond passband)
-            let _passband_end = num_freqs / (2 * M);
-            let stopband_start = num_freqs / M;
+            let _passband_end = num_freqs / (2 * num_ch);
+            let stopband_start = num_freqs / num_ch;
 
             let mut max_stopband_response = 0.0f64;
             for i in stopband_start..num_freqs {
@@ -813,13 +812,13 @@ impl PerfectReconstructionFilterBank {
 
     /// Compute passband ripple
     fn compute_passband_ripple(&self, responses: &Array2<Complex64>) -> SignalResult<f64> {
-        let M = self.config.num_channels;
+        let num_ch = self.config.num_channels;
         let num_freqs = responses.ncols();
         let mut max_ripple = 0.0f64;
 
-        for k in 0..M {
+        for k in 0..num_ch {
             // Define passband region
-            let passband_end = num_freqs / (2 * M);
+            let passband_end = num_freqs / (2 * num_ch);
 
             let mut passband_min = f64::INFINITY;
             let mut passband_max = 0.0f64;
@@ -928,11 +927,11 @@ impl MultirateConverter {
     }
 
     /// Design anti-aliasing filter
-    fn design_antialiasing_filter(length: usize, cutoff: f64) -> SignalResult<Array1<f64>> {
-        let mut filter = Array1::zeros(_length);
-        let center = (_length - 1) as f64 / 2.0;
+    fn design_antialiasing_filter(filter_len: usize, cutoff: f64) -> SignalResult<Array1<f64>> {
+        let mut filter = Array1::zeros(filter_len);
+        let center = (filter_len - 1) as f64 / 2.0;
 
-        for n in 0.._length {
+        for n in 0..filter_len {
             let t = n as f64 - center;
             let sinc_val = if t == 0.0 {
                 cutoff / PI
@@ -941,8 +940,8 @@ impl MultirateConverter {
             };
 
             // Apply window (Blackman)
-            let window_val = 0.42 - 0.5 * (2.0 * PI * n as f64 / (_length - 1) as f64).cos()
-                + 0.08 * (4.0 * PI * n as f64 / (_length - 1) as f64).cos();
+            let window_val = 0.42 - 0.5 * (2.0 * PI * n as f64 / (filter_len - 1) as f64).cos()
+                + 0.08 * (4.0 * PI * n as f64 / (filter_len - 1) as f64).cos();
 
             filter[n] = sinc_val * window_val;
         }
@@ -966,13 +965,13 @@ impl MultirateConverter {
     ///
     /// * Rate-converted signal
     pub fn convert(&mut self, input: &Array1<f64>) -> SignalResult<Array1<f64>> {
-        // Step 1: Upsample by L
+        // Step 1: Upsample by upsampling_factor
         let upsampled = self.upsample(input, self.upsampling_factor)?;
 
         // Step 2: Apply anti-aliasing filter
         let filtered = self.apply_filter(&upsampled, &self.interpolation_filter)?;
 
-        // Step 3: Downsample by M
+        // Step 3: Downsample by downsampling_factor
         let output = self.downsample(&filtered, self.downsampling_factor)?;
 
         Ok(output)

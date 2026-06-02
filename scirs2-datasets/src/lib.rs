@@ -27,7 +27,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-datasets = "0.4.4"
+//! scirs2-datasets = "0.5.0"
 //! ```
 //!
 //! ```rust
@@ -41,9 +41,9 @@
 //! let data = make_classification(100, 5, 3, 2, 4, Some(42)).expect("Operation failed");
 //! ```
 //!
-//! ## 🔒 Version: 0.4.4
+//! ## 🔒 Version: 0.5.0
 //!
-//! ### v0.4.4 New Features
+//! ### v0.5.0 New Features
 //!
 //! - **Lazy Loading**: Memory-mapped datasets with zero-copy views
 //! - **Data Augmentation**: GPU-accelerated augmentation pipeline
@@ -216,20 +216,20 @@ pub mod distributed_loading;
 /// columnar and scientific formats.
 pub mod formats;
 
-/// Native Parquet reader (v0.4.4, Item 6)
+/// Native Parquet reader (v0.5.0, Item 6)
 ///
 /// Reads Parquet files into typed `ParquetDataset` containers backed by
 /// `ColumnData` variants. Requires the `parquet_io` feature.
 #[cfg(feature = "parquet_io")]
 pub mod parquet_reader;
 
-/// HDF5 dataset containers (v0.4.4, Item 7)
+/// HDF5 dataset containers (v0.5.0, Item 7)
 ///
 /// Provides file validation (magic-byte check) in all builds. Full read/write
 /// support requires the `hdf5_io` feature which links `libhdf5`.
 pub mod hdf5_dataset;
 
-/// NetCDF3 climate and geospatial dataset reader (v0.4.4, Item 8)
+/// NetCDF3 climate and geospatial dataset reader (v0.5.0, Item 8)
 ///
 /// Pure-Rust reader for NetCDF-3 Classic and 64-bit-offset files using the
 /// `netcdf3` crate. Available in all build configurations.
@@ -276,7 +276,7 @@ pub mod sampling;
 // Streaming CSV loader
 pub mod streaming_csv;
 
-/// HuggingFace Arrow IPC dataset reader (v0.4.4)
+/// HuggingFace Arrow IPC dataset reader (v0.5.0)
 ///
 /// Reads `.arrow` files (Arrow IPC format) with optional `dataset_info.json`
 /// metadata. Mirrors the on-disk layout produced by HuggingFace `datasets`

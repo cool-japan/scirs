@@ -14,7 +14,7 @@ system (CAS) component designed to complement the numeric capabilities of SciRS2
 
 ```toml
 [dependencies]
-scirs2-symbolic = "0.4.4"
+scirs2-symbolic = "0.5.0"
 ```
 
 ## Quick Start
@@ -157,6 +157,32 @@ Recognised constants: `\pi`, `e`. Operators: `\frac`, `\cdot`, `a^{b}`, `\sqrt`,
 | [`eval`] | Numeric evaluation: `eval(expr, bindings)` |
 | [`display`] | `Display` impl for human-readable infix notation |
 | [`eml::display`] | `Display` for EML IR + [`eml::to_latex`] — render any expression as LaTeX |
+| [`eml::grad`] | Symbolic gradient/hessian/jacobian (`grad`, `grad_all`, `jacobian`, `hessian`) |
+| [`eml::interval`] | Outward-rounded interval arithmetic with sin/cos critical-point splitting |
+| [`eml::bridge`] | `Expr ↔ LoweredOp` adapter with deterministic `VarMap` |
+| [`eml::eval`] | Iterative stack-machine real (`f64`) + complex (`Complex64`) evaluator |
+| [`eml::simplify`] | Fixed-point rewrite pipeline (constant folding, identity rules, hash-ordered commutative) |
+| [`cas::canonicalize`] | EML-native canonical form: 7 algebraic rewrite rules, fixed-point idempotent; 32 tests |
+| [`cas::pattern`] | Pattern matching engine (`EmlPattern`), prerequisite for identity-db and e-graph |
+| [`cas::identity_db`] | 11 trig/hyperbolic/log identities via `IdentityDb::standard()`; O(1) hash lookup |
+| [`cas::smt`] | OxiZ QF_NRA SMT integration: `EmlSmtSolver`, Ackermann transcendental encoding (16 ops) |
+| [`cas::certified_rewrite`] | Certified rewriting with RAII push/pop safety, counterexample rejection |
+| [`cas/e_graph`] | Egg-style equality saturation (6 files, 1,983 LoC): `UnionFind`, `EGraph`, DP extraction |
+| [`cas::solve`] / [`cas::solve_system`] / [`cas::solve_ode`] | Algebraic solver, 3-tier system solver (Bareiss/Gröbner/transcendental), 5 ODE families |
+| [`cas::integrate_rational`] | Risch-LITE rational integration (literal-numeric coefficients) |
+| [`cas::series`] | Taylor + Padé approximants in EML form |
+| [`cas::cse_dag`] | Structural-hash CSE DAG with Kahn topological-order evaluation |
+| [`cas::moments_catalog`] | Closed-form moments for Normal/Exp/Bernoulli/Geometric/Uniform |
+| [`cas::expected_fisher_catalog`] | Expected Fisher information matrices (4 distributions) |
+| [`cas::noether_conservation`] | Poisson-bracket conservation detection (1-DOF and n-DOF) |
+| [`diffgeom`] | `Tensor`/`Metric`/`christoffel`/`ricci`/`einstein`/`covariant_derivative` + Riemann + Weyl tensors |
+| [`attention::symbolic_alibi`] | ALiBi positional bias: `alibi_slope`, `alibi_bias_expr`, `verify_symbolic_vs_numerical` |
+| [`regression`] | Symbolic regression: `discover` (beam-search), `discover_multi`, `discover_ode` (SINDy) |
+| [`regression::with_constraints`] | SMT-pruned SR: `BoundedOutput`, `Monotonic`, `DimensionMatch` |
+| [`neural_priors`] | Time-series SR prior: `discover_series_prior`, `series_prior_regularization` |
+| [`units`] | SI dimensional analysis (`UnitAware`), dimension inference over `LoweredOp` |
+| [`compile::to_jit`] | Cranelift CPU JIT for `LoweredOp`; `JitCache` keyed by structural hash |
+| [`compile::to_gpu`] | WGSL GPU JIT; real wgpu `eval_batch` (Wave 75); `to_jit_auto` threshold dispatch |
 | [`error`] | `SymbolicError` error type variants |
 
 ## Design Notes
@@ -172,7 +198,12 @@ Recognised constants: `\pi`, `e`. Operators: `\frac`, `\cdot`, `a^{b}`, `\sqrt`,
 | Feature | Pulls in | Purpose |
 |---------|----------|---------|
 | `serde` | `serde`, `serde_json`, `oxicode` | Round-trip serialization of `EmlTree`, `LoweredOp`, `Interval` (JSON + binary) |
-| `smt`   | `oxiz` | SMT-pruned symbolic regression and certified rewrite engine (v0.4.5+) |
+| `smt`   | `oxiz` 0.2.1 | SMT-pruned SR + certified rewrite engine (OxiZ QF_NRA; note: NLSAT incomplete for surface commutativity — always canonicalize first) |
+| `jit`   | `cranelift-*` | Cranelift CPU JIT via `compile::to_jit` and `JitCache` |
+| `gpu`   | `wgpu`, `pollster`, `bytemuck` | WGSL GPU JIT; real wgpu `eval_batch`; `to_jit_auto` threshold dispatch |
+| `parallel` | `rayon` | Parallel prediction in `regression::discover`; NUMA worker pinning via `scirs2-core` |
+| `numa`  | `scirs2-core` NUMA path | Explicit `par_map_chunks` wire-up for SR prediction |
+| `symbolic` (in cross-crate users) | `scirs2-symbolic` | Used by scirs2-optimize, scirs2-integrate, scirs2-stats, scirs2-neural, scirs2-linalg, scirs2-autograd |
 
 Default features are empty — the crate is 100% Pure Rust with zero C/Fortran dependencies in the default build.
 

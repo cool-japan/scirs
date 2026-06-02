@@ -1,12 +1,59 @@
-use crate::error_helpers::try_from_f64;
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
 use scirs2_core::ndarray::{Array1, Array2, Ix2};
 use scirs2_core::numeric::FromPrimitive;
 
-/// Matrix square root operation
+// ─────────────────────────────────────────────────────────────────────────────
+// Public Op structs
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Matrix square root operation (SPD-restricted).
+///
+/// # Restriction
+///
+/// This operation is restricted to **symmetric positive-definite (SPD)** input
+/// matrices.  During the forward pass the matrix is verified to be symmetric
+/// (`||A - Aᵀ||_F / ||A||_F < 1e-8`) and to have all strictly positive
+/// eigenvalues (verified via the Jacobi eigenvalue algorithm).  Non-SPD inputs
+/// return an `OpError`.
+///
+/// # Gradient
+///
+/// The reverse-mode gradient is derived from the Sylvester equation.  Given
+/// `S = √A` and upstream cotangent `dS`, we solve
+///
+///   `S · X + X · S = dS`
+///
+/// for `X`, and the gradient w.r.t. `A` is `dA = X`.
+///
+/// This is well-posed because for an SPD matrix `S` all eigenvalues are
+/// strictly positive, so the spectrum of `S` never intersects the negated
+/// spectrum of `S`.
 pub struct MatrixSqrtOp;
+
+/// Matrix logarithm operation.
+///
+/// # Gradient
+///
+/// Uses the Daleckii-Krein spectral-expansion formula for symmetric inputs.
+/// Given `A = V Λ Vᵀ` (Jacobi eigendecomposition), the reverse-mode gradient
+/// with upstream cotangent `dB` is:
+///
+///   `dA = V · (Φ ⊙ (Vᵀ · dB · V)) · Vᵀ`
+///
+/// where the Loewner matrix `Φ_{ij} = (log λ_i − log λ_j) / (λ_i − λ_j)`
+/// with the L'Hôpital limit `1/λ_i` when `i == j` (or `|λ_i - λ_j| < ε`).
+pub struct MatrixLogOp;
+
+/// Matrix power operation.
+pub struct MatrixPowOp {
+    pub power: f64,
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Op implementations
+// ─────────────────────────────────────────────────────────────────────────────
 
 impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSqrtOp {
     fn name(&self) -> &'static str {
@@ -28,37 +75,99 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
             .into_dimensionality::<Ix2>()
             .map_err(|_| OpError::IncompatibleShape("Failed to convert to 2D".into()))?;
 
-        // Compute matrix square root
-        let result = compute_matrix_sqrt(&input_2d)?;
+        // Verify SPD: symmetric check.
+        let n = input_2d.shape()[0];
+        let frob_sq_a: F = input_2d.iter().fold(F::zero(), |acc, &x| acc + x * x);
+        let frob_a = frob_sq_a.sqrt();
+        let mut sym_err = F::zero();
+        for i in 0..n {
+            for j in (i + 1)..n {
+                let diff = input_2d[[i, j]] - input_2d[[j, i]];
+                sym_err += diff * diff;
+            }
+        }
+        let sym_err = sym_err.sqrt();
+        let sym_rel = if frob_a > F::epsilon() {
+            sym_err / frob_a
+        } else {
+            sym_err
+        };
+        let sym_tol = F::from(1e-8).unwrap_or_else(F::epsilon);
+        if sym_rel > sym_tol {
+            return Err(OpError::Other(
+                "sqrtm (SPD): matrix is not symmetric; use sqrtm_pd on SPD inputs only".into(),
+            ));
+        }
+
+        // Verify SPD: smallest eigenvalue > 0 via Jacobi eigh.
+        let (eigenvalues, _) = jacobi_eigh_f64_from::<F>(&input_2d);
+        let min_ev = eigenvalues.iter().cloned().fold(f64::INFINITY, f64::min);
+        if min_ev <= 0.0 {
+            return Err(OpError::Other(format!(
+                "sqrtm (SPD): matrix has non-positive eigenvalue {min_ev:.6e}; \
+                 use sqrtm_pd on SPD inputs only"
+            )));
+        }
+
+        // Compute √A via Jacobi eigh (correct for all n).
+        let result = compute_matrix_sqrt_spd(&input_2d)?;
         ctx.append_output(result.into_dyn());
         Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let g = ctx.graph();
-        let input = ctx.input(0);
-        let shape = input.shape().to_vec();
+        let output = ctx.output(); // S = √A
+        let grad_output = ctx.output_grad(); // dS (upstream cotangent)
 
-        // For matrix square root, the gradient is computed by solving
-        // the Sylvester equation: dA/2 = X * dY + dY * X
-        // where X = sqrt(A), Y is the gradient w.r.t output
-        // This gives us: dA = solve_sylvester(X, X, 2*dY)
+        let output_arr = match output.eval(g) {
+            Ok(arr) => arr,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+        let grad_arr = match grad_output.eval(g) {
+            Ok(arr) => arr,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
 
-        // For now, we'll use a simplified approach with zeros
-        // to maintain the correct shape
-        if shape.len() == 2 {
-            let grad_zeros =
-                scirs2_core::ndarray::ArrayD::zeros(scirs2_core::ndarray::IxDyn(&shape));
-            let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_zeros, g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-        } else {
-            ctx.append_input_grad(0, None);
-        }
+        let s = match output_arr.view().into_dimensionality::<Ix2>() {
+            Ok(v) => v,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+        let ds = match grad_arr.view().into_dimensionality::<Ix2>() {
+            Ok(v) => v,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+
+        // Convert to f64 for numerical stability.
+        let s_f64 = to_f64_mat(&s);
+        let ds_f64 = to_f64_mat(&ds);
+
+        // Solve S·X + X·S = dS  (Sylvester / Lyapunov equation).
+        let da_f64 = match solve_sylvester_local(&s_f64, &s_f64, &ds_f64) {
+            Ok(x) => x,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+
+        let da_f = from_f64_mat::<F>(&da_f64);
+        let grad_tensor = crate::tensor_ops::convert_to_tensor(da_f.into_dyn(), g);
+        ctx.append_input_grad(0, Some(grad_tensor));
     }
 }
-
-/// Matrix logarithm operation
-pub struct MatrixLogOp;
 
 impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixLogOp {
     fn name(&self) -> &'static str {
@@ -88,27 +197,48 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let g = ctx.graph();
-        let input = ctx.input(0);
-        let shape = input.shape().to_vec();
+        let input = ctx.input(0); // A
+        let grad_output = ctx.output_grad(); // dB (upstream cotangent of log A)
 
-        // For matrix logarithm, the gradient involves solving
-        // a complex equation involving the Fréchet derivative
-        // For now, we'll use a simplified approach with zeros
-        // to maintain the correct shape
-        if shape.len() == 2 {
-            let grad_zeros =
-                scirs2_core::ndarray::ArrayD::zeros(scirs2_core::ndarray::IxDyn(&shape));
-            let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_zeros, g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-        } else {
-            ctx.append_input_grad(0, None);
-        }
+        let input_arr = match input.eval(g) {
+            Ok(arr) => arr,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+        let grad_arr = match grad_output.eval(g) {
+            Ok(arr) => arr,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+
+        let a = match input_arr.view().into_dimensionality::<Ix2>() {
+            Ok(v) => v,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+        let db = match grad_arr.view().into_dimensionality::<Ix2>() {
+            Ok(v) => v,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+
+        let a_f64 = to_f64_mat(&a);
+        let db_f64 = to_f64_mat(&db);
+
+        let da_f64 = logm_daleckii_krein(&a_f64, &db_f64);
+
+        let da_f = from_f64_mat::<F>(&da_f64);
+        let grad_tensor = crate::tensor_ops::convert_to_tensor(da_f.into_dyn(), g);
+        ctx.append_input_grad(0, Some(grad_tensor));
     }
-}
-
-/// Matrix power operation
-pub struct MatrixPowOp {
-    pub power: f64,
 }
 
 impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixPowOp {
@@ -157,83 +287,350 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 }
 
-// Helper functions
+// ─────────────────────────────────────────────────────────────────────────────
+// Type-conversion helpers (generic F ↔ f64)
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// Compute matrix square root using eigendecomposition
+fn to_f64_mat<F: Float>(m: &scirs2_core::ndarray::ArrayView2<F>) -> Array2<f64> {
+    let (r, c) = (m.nrows(), m.ncols());
+    let mut out = Array2::<f64>::zeros((r, c));
+    for i in 0..r {
+        for j in 0..c {
+            out[[i, j]] = m[[i, j]].to_f64().unwrap_or(0.0);
+        }
+    }
+    out
+}
+
+fn from_f64_mat<F: Float + FromPrimitive>(m: &Array2<f64>) -> Array2<F> {
+    let (r, c) = (m.nrows(), m.ncols());
+    let mut out = Array2::<F>::zeros((r, c));
+    for i in 0..r {
+        for j in 0..c {
+            out[[i, j]] = F::from(m[[i, j]]).unwrap_or_else(F::zero);
+        }
+    }
+    out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Jacobi eigenvalue algorithm for symmetric real matrices (f64)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Jacobi eigenvalue algorithm for symmetric `n × n` (f64).
+///
+/// Returns `(eigenvalues, V)` where columns of `V` are orthonormal eigenvectors
+/// and `A = V · diag(λ) · Vᵀ`.
+///
+/// Uses cyclic Jacobi sweeps with Givens rotations until the sum of squared
+/// off-diagonal entries is below `1e-28` (or 200 sweeps are exhausted).
+fn jacobi_eigh(a: &Array2<f64>) -> (Vec<f64>, Array2<f64>) {
+    let n = a.nrows();
+    let mut a = a.clone();
+    let mut v = Array2::<f64>::eye(n);
+    let max_sweeps = 200;
+
+    for _sweep in 0..max_sweeps {
+        let mut off = 0.0_f64;
+        for p in 0..n {
+            for q in (p + 1)..n {
+                off += a[[p, q]] * a[[p, q]];
+            }
+        }
+        if off < 1e-28 {
+            break;
+        }
+
+        for p in 0..n {
+            for q in (p + 1)..n {
+                let apq = a[[p, q]];
+                if apq.abs() < 1e-300 {
+                    continue;
+                }
+                let app = a[[p, p]];
+                let aqq = a[[q, q]];
+                let theta = (aqq - app) / (2.0 * apq);
+                let t = if theta >= 0.0 {
+                    1.0 / (theta + (1.0 + theta * theta).sqrt())
+                } else {
+                    1.0 / (theta - (1.0 + theta * theta).sqrt())
+                };
+                let c = 1.0 / (1.0 + t * t).sqrt();
+                let s = t * c;
+
+                a[[p, p]] = app - t * apq;
+                a[[q, q]] = aqq + t * apq;
+                a[[p, q]] = 0.0;
+                a[[q, p]] = 0.0;
+                for k in 0..n {
+                    if k != p && k != q {
+                        let akp = a[[k, p]];
+                        let akq = a[[k, q]];
+                        a[[k, p]] = c * akp - s * akq;
+                        a[[p, k]] = a[[k, p]];
+                        a[[k, q]] = s * akp + c * akq;
+                        a[[q, k]] = a[[k, q]];
+                    }
+                }
+                for k in 0..n {
+                    let vkp = v[[k, p]];
+                    let vkq = v[[k, q]];
+                    v[[k, p]] = c * vkp - s * vkq;
+                    v[[k, q]] = s * vkp + c * vkq;
+                }
+            }
+        }
+    }
+    let eigenvalues: Vec<f64> = (0..n).map(|i| a[[i, i]]).collect();
+    (eigenvalues, v)
+}
+
+/// Convert generic matrix to f64, run Jacobi eigh, return (eigenvalues, V) in f64.
+fn jacobi_eigh_f64_from<F: Float>(
+    m: &scirs2_core::ndarray::ArrayView2<F>,
+) -> (Vec<f64>, Array2<f64>) {
+    let m_f64 = to_f64_mat(m);
+    jacobi_eigh(&m_f64)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPD matrix square root (via Jacobi eigh, correct for all n)
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn compute_matrix_sqrt_spd<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
+) -> Result<Array2<F>, OpError> {
+    let n = matrix.shape()[0];
+    let m_f64 = to_f64_mat(matrix);
+    let (eigenvalues, v) = jacobi_eigh(&m_f64);
+
+    // Compute V · diag(√λ) · Vᵀ.
+    let mut vd = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        let sq = eigenvalues[i].max(0.0).sqrt();
+        for k in 0..n {
+            vd[[k, i]] = v[[k, i]] * sq;
+        }
+    }
+    // result = vd · Vᵀ
+    let mut result_f64 = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            let mut s = 0.0;
+            for l in 0..n {
+                s += vd[[i, l]] * v[[j, l]];
+            }
+            result_f64[[i, j]] = s;
+        }
+    }
+    Ok(from_f64_mat(&result_f64))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Local Sylvester solver: AX + XB = C (via Kronecker vectorisation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Solve `A · X + X · B = C` for `X` using Kronecker-product vectorisation.
+///
+/// Forms the `mn × mn` linear system `(I_n ⊗ A + Bᵀ ⊗ I_m) vec(X) = vec(C)`
+/// and solves via Gauss-Jordan elimination.
+fn solve_sylvester_local(
+    a: &Array2<f64>,
+    b: &Array2<f64>,
+    c: &Array2<f64>,
+) -> Result<Array2<f64>, OpError> {
+    let m = a.nrows();
+    let n = b.nrows();
+    debug_assert_eq!(a.ncols(), m, "A must be square");
+    debug_assert_eq!(b.ncols(), n, "B must be square");
+    debug_assert_eq!(c.nrows(), m);
+    debug_assert_eq!(c.ncols(), n);
+
+    let mn = m * n;
+    let mut coeff = Array2::<f64>::zeros((mn, mn));
+
+    // I_n ⊗ A: block-diagonal of A repeated n times.
+    for col_block in 0..n {
+        for i in 0..m {
+            for j in 0..m {
+                coeff[[col_block * m + i, col_block * m + j]] += a[[i, j]];
+            }
+        }
+    }
+
+    // Bᵀ ⊗ I_m: for each (rb, cb) in Bᵀ (= B[cb,rb]), add B[cb,rb] * I_m.
+    for rb in 0..n {
+        for cb in 0..n {
+            let b_val = b[[cb, rb]];
+            for d in 0..m {
+                coeff[[rb * m + d, cb * m + d]] += b_val;
+            }
+        }
+    }
+
+    // vec(C): column-major stacking.
+    let mut rhs = vec![0.0_f64; mn];
+    for col in 0..n {
+        for row in 0..m {
+            rhs[col * m + row] = c[[row, col]];
+        }
+    }
+
+    // Solve coeff · x = rhs via Gauss-Jordan.
+    let x_vec = gauss_jordan_f64(&coeff, &rhs)?;
+
+    // Reshape vec(X) back to m × n (column-major).
+    let mut x = Array2::<f64>::zeros((m, n));
+    for col in 0..n {
+        for row in 0..m {
+            x[[row, col]] = x_vec[col * m + row];
+        }
+    }
+    Ok(x)
+}
+
+/// Gauss-Jordan elimination solving `A · x = b` for `x`.
+fn gauss_jordan_f64(a: &Array2<f64>, b: &[f64]) -> Result<Vec<f64>, OpError> {
+    let n = a.nrows();
+    debug_assert_eq!(a.ncols(), n);
+    debug_assert_eq!(b.len(), n);
+
+    // Build augmented matrix [A | b].
+    let mut aug: Vec<Vec<f64>> = (0..n)
+        .map(|i| {
+            let mut row: Vec<f64> = (0..n).map(|j| a[[i, j]]).collect();
+            row.push(b[i]);
+            row
+        })
+        .collect();
+
+    for col in 0..n {
+        // Partial pivot.
+        let mut max_row = col;
+        for row in (col + 1)..n {
+            if aug[row][col].abs() > aug[max_row][col].abs() {
+                max_row = row;
+            }
+        }
+        aug.swap(col, max_row);
+
+        let pivot = aug[col][col];
+        if pivot.abs() < 1e-300 {
+            return Err(OpError::Other(
+                "Sylvester: singular coefficient matrix".into(),
+            ));
+        }
+
+        for j in col..=n {
+            aug[col][j] /= pivot;
+        }
+        for row in 0..n {
+            if row != col {
+                let factor = aug[row][col];
+                for j in col..=n {
+                    let val = aug[col][j];
+                    aug[row][j] -= factor * val;
+                }
+            }
+        }
+    }
+
+    Ok((0..n).map(|i| aug[i][n]).collect())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daleckii-Krein logm backward (f64, symmetric case)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Matrix log backward via Daleckii-Krein spectral expansion.
+///
+/// For symmetric `A = V Λ Vᵀ` (all λ_i > 0):
+///
+///   `dA = V · (Φ ⊙ (Vᵀ · dB · V)) · Vᵀ`
+///
+/// where `Φ_{ij} = (log λ_i − log λ_j) / (λ_i − λ_j)`
+/// with the L'Hôpital limit `1/λ_i` when `i == j` or `|λ_i - λ_j| < ε`.
+///
+/// Falls back to the symmetric formula even for mildly non-symmetric inputs
+/// (gradient symmetrizes automatically for real functions of symmetric inputs).
+fn logm_daleckii_krein(a: &Array2<f64>, db: &Array2<f64>) -> Array2<f64> {
+    let n = a.nrows();
+    let (eigenvalues, v) = jacobi_eigh(a);
+    let vt = transpose_f64(&v);
+
+    // Y = Vᵀ · dB · V
+    let vtdb = matmul_f64(&vt, db);
+    let y = matmul_f64(&vtdb, &v);
+
+    // Loewner matrix Φ.
+    let mut phi = Array2::<f64>::zeros((n, n));
+    let eps = 1e-12;
+    for i in 0..n {
+        for j in 0..n {
+            let li = eigenvalues[i].max(f64::MIN_POSITIVE);
+            let lj = eigenvalues[j].max(f64::MIN_POSITIVE);
+            let diff = li - lj;
+            if diff.abs() < eps * (li.abs() + lj.abs() + 1.0) {
+                phi[[i, j]] = 1.0 / li;
+            } else {
+                phi[[i, j]] = (li.ln() - lj.ln()) / diff;
+            }
+        }
+    }
+
+    // Hadamard: Φ ⊙ Y.
+    let mut y_phi = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            y_phi[[i, j]] = phi[[i, j]] * y[[i, j]];
+        }
+    }
+
+    // dA = V · (Φ ⊙ Y) · Vᵀ.
+    let vy = matmul_f64(&v, &y_phi);
+    matmul_f64(&vy, &vt)
+}
+
+fn matmul_f64(a: &Array2<f64>, b: &Array2<f64>) -> Array2<f64> {
+    let (m, k) = (a.nrows(), a.ncols());
+    let p = b.ncols();
+    debug_assert_eq!(k, b.nrows());
+    let mut c = Array2::<f64>::zeros((m, p));
+    for i in 0..m {
+        for j in 0..p {
+            let mut s = 0.0;
+            for l in 0..k {
+                s += a[[i, l]] * b[[l, j]];
+            }
+            c[[i, j]] = s;
+        }
+    }
+    c
+}
+
+fn transpose_f64(a: &Array2<f64>) -> Array2<f64> {
+    let (m, n) = (a.nrows(), a.ncols());
+    let mut t = Array2::<f64>::zeros((n, m));
+    for i in 0..m {
+        for j in 0..n {
+            t[[j, i]] = a[[i, j]];
+        }
+    }
+    t
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper functions (keep existing fallback helpers for MatrixPowOp)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Compute matrix square root using eigendecomposition (symmetric PSD) or Denman-Beavers.
 #[allow(dead_code)]
 fn compute_matrix_sqrt<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-
-    // Check if matrix is symmetric and positive semi-definite
     if is_symmetric_matrix(matrix) && is_positive_semidefinite(matrix)? {
-        // Use eigendecomposition for symmetric positive semi-definite matrices
-        let (eigenvalues, eigenvectors) = compute_symmetric_eigen(matrix)?;
-
-        // Check all eigenvalues are non-negative
-        for &lambda in eigenvalues.iter() {
-            if lambda < -F::epsilon() * F::from(10.0).unwrap_or_else(|| F::one()) {
-                return Err(OpError::Other(
-                    "Matrix has negative eigenvalues, cannot compute real square root".into(),
-                ));
-            }
-        }
-
-        // Compute sqrt of eigenvalues
-        let mut sqrt_eigenvalues = Array1::<F>::zeros(n);
-        for i in 0..n {
-            sqrt_eigenvalues[i] = eigenvalues[i].abs().sqrt();
-        }
-
-        // Reconstruct: sqrt(A) = V * diag(sqrt(λ)) * V^T
-        // Check if eigenvectors are identity (diagonal matrix case)
-        let is_diagonal = {
-            let mut diag = true;
-            for i in 0..n {
-                for j in 0..n {
-                    if i == j {
-                        if (eigenvectors[[i, j]] - F::one()).abs()
-                            > F::epsilon() * F::from(10.0).unwrap_or_else(|| F::one())
-                        {
-                            diag = false;
-                            break;
-                        }
-                    } else if eigenvectors[[i, j]].abs()
-                        > F::epsilon() * F::from(10.0).unwrap_or_else(|| F::one())
-                    {
-                        diag = false;
-                        break;
-                    }
-                }
-                if !diag {
-                    break;
-                }
-            }
-            diag
-        };
-
-        if is_diagonal {
-            // Matrix is diagonal, just return diagonal sqrt
-            let mut result = Array2::<F>::zeros((n, n));
-            for i in 0..n {
-                result[[i, i]] = sqrt_eigenvalues[i];
-            }
-            Ok(result)
-        } else {
-            let mut temp = Array2::<F>::zeros((n, n));
-            for i in 0..n {
-                for j in 0..n {
-                    temp[[i, j]] = eigenvectors[[i, j]] * sqrt_eigenvalues[j];
-                }
-            }
-
-            let result = temp.dot(&eigenvectors.t());
-            Ok(result)
-        }
+        compute_matrix_sqrt_spd(matrix)
     } else {
-        // For general matrices, use Schur decomposition method
-        // For now, return an approximation using Denman-Beavers iteration
         compute_matrix_sqrt_denman_beavers(matrix)
     }
 }
@@ -247,34 +644,30 @@ fn compute_matrix_log<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimi
 
     // Check if matrix is symmetric
     if is_symmetric_matrix(matrix) {
-        // Use eigendecomposition for symmetric matrices
-        let (eigenvalues, eigenvectors) = compute_symmetric_eigen(matrix)?;
+        // Use Jacobi eigh for correct symmetric eigendecomposition.
+        let (eigenvalues, v_f64) = jacobi_eigh_f64_from(matrix);
 
         // Check all eigenvalues are positive
-        for &lambda in eigenvalues.iter() {
-            if lambda <= F::epsilon() {
+        for &lambda in &eigenvalues {
+            if lambda <= 0.0 {
                 return Err(OpError::Other(
                     "Matrix has non-positive eigenvalues, cannot compute real logarithm".into(),
                 ));
             }
         }
 
-        // Compute log of eigenvalues
-        let mut log_eigenvalues = Array1::<F>::zeros(n);
-        for i in 0..n {
-            log_eigenvalues[i] = eigenvalues[i].ln();
-        }
+        // log(λ) for each eigenvalue.
+        let log_ev: Vec<f64> = eigenvalues.iter().map(|&l| l.ln()).collect();
 
-        // Reconstruct: log(A) = V * diag(log(λ)) * V^T
-        let mut temp = Array2::<F>::zeros((n, n));
+        // Reconstruct: log(A) = V · diag(log(λ)) · Vᵀ  (in f64).
+        let mut temp_f64 = Array2::<f64>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
-                temp[[i, j]] = eigenvectors[[i, j]] * log_eigenvalues[j];
+                temp_f64[[i, j]] = v_f64[[i, j]] * log_ev[j];
             }
         }
-
-        let result = temp.dot(&eigenvectors.t());
-        Ok(result)
+        let result_f64 = matmul_f64(&temp_f64, &transpose_f64(&v_f64));
+        Ok(from_f64_mat(&result_f64))
     } else {
         // For general matrices, use inverse scaling and squaring method
         compute_matrix_log_inverse_scaling(matrix)
@@ -307,12 +700,12 @@ fn compute_matrix_pow<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimi
 
     // For symmetric matrices, use eigendecomposition
     if is_symmetric_matrix(matrix) {
-        let (eigenvalues, eigenvectors) = compute_symmetric_eigen(matrix)?;
+        let (eigenvalues, v_f64) = jacobi_eigh_f64_from(matrix);
 
         // Check for negative eigenvalues if power is not integer
         if power.fract() != 0.0 {
-            for &lambda in eigenvalues.iter() {
-                if lambda < -F::epsilon() * F::from(10.0).unwrap_or_else(|| F::one()) {
+            for &lambda in &eigenvalues {
+                if lambda < -1e-10 {
                     return Err(OpError::Other(
                         "Matrix has negative eigenvalues, cannot compute real fractional power"
                             .into(),
@@ -321,26 +714,20 @@ fn compute_matrix_pow<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimi
             }
         }
 
-        // Compute power of eigenvalues
-        let mut pow_eigenvalues = Array1::<F>::zeros(n);
-        for i in 0..n {
-            if eigenvalues[i].abs() > F::epsilon() {
-                pow_eigenvalues[i] = eigenvalues[i].powf(p);
-            } else {
-                pow_eigenvalues[i] = F::zero();
-            }
-        }
+        // Compute power of eigenvalues.
+        let pow_ev: Vec<f64> = eigenvalues
+            .iter()
+            .map(|&l| if l.abs() > 1e-300 { l.powf(power) } else { 0.0 })
+            .collect();
 
-        // Reconstruct: A^p = V * diag(λ^p) * V^T
-        let mut temp = Array2::<F>::zeros((n, n));
+        let mut temp_f64 = Array2::<f64>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
-                temp[[i, j]] = eigenvectors[[i, j]] * pow_eigenvalues[j];
+                temp_f64[[i, j]] = v_f64[[i, j]] * pow_ev[j];
             }
         }
-
-        let result = temp.dot(&eigenvectors.t());
-        Ok(result)
+        let result_f64 = matmul_f64(&temp_f64, &transpose_f64(&v_f64));
+        Ok(from_f64_mat(&result_f64))
     } else {
         // For general matrices with fractional powers, use exp(p * log(A))
         let log_a = compute_matrix_log_inverse_scaling(matrix)?;
@@ -475,7 +862,9 @@ fn compute_matrix_pow_integer<F: Float + scirs2_core::ndarray::ScalarOperand>(
     Ok(result)
 }
 
-// Utility functions (reuse from other modules or implement here)
+// ─────────────────────────────────────────────────────────────────────────────
+// Utility functions
+// ─────────────────────────────────────────────────────────────────────────────
 
 #[allow(dead_code)]
 fn is_symmetric_matrix<F: Float>(matrix: &scirs2_core::ndarray::ArrayView2<F>) -> bool {
@@ -500,83 +889,14 @@ fn is_positive_semidefinite<F: Float + scirs2_core::ndarray::ScalarOperand + Fro
         return Ok(false);
     }
 
-    // Check eigenvalues
-    let (eigenvalues, _eigenvectors) = compute_symmetric_eigen(matrix)?;
-    for &lambda in eigenvalues.iter() {
-        if lambda < -F::epsilon() * F::from(10.0).unwrap_or_else(|| F::one()) {
+    // Check eigenvalues via Jacobi eigh (correct for all n).
+    let (eigenvalues, _) = jacobi_eigh_f64_from(matrix);
+    for lambda in eigenvalues {
+        if lambda < -1e-8 {
             return Ok(false);
         }
     }
     Ok(true)
-}
-
-#[allow(dead_code)]
-fn compute_symmetric_eigen<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &scirs2_core::ndarray::ArrayView2<F>,
-) -> Result<(Array1<F>, Array2<F>), OpError> {
-    // This is a simplified version - in practice, use LAPACK or a robust algorithm
-    let n = matrix.shape()[0];
-
-    // For 2x2 matrices, use analytical solution
-    if n == 2 {
-        let a = matrix[[0, 0]];
-        let b = matrix[[0, 1]];
-        let c = matrix[[1, 1]];
-
-        let trace = a + c;
-        let det = a * c - b * b;
-        let discriminant = trace * trace - F::from(4.0).unwrap_or_else(|| F::one()) * det;
-
-        if discriminant < F::zero() {
-            return Err(OpError::Other("Complex eigenvalues".into()));
-        }
-
-        let sqrt_disc = discriminant.sqrt();
-        let lambda1 = (trace + sqrt_disc) / F::from(2.0).unwrap_or_else(|| F::one());
-        let lambda2 = (trace - sqrt_disc) / F::from(2.0).unwrap_or_else(|| F::one());
-
-        let eigenvalues = Array1::from_vec(vec![lambda1, lambda2]);
-
-        // Compute eigenvectors
-        let mut eigenvectors = Array2::<F>::zeros((2, 2));
-
-        if b.abs() > F::epsilon() {
-            // First eigenvector
-            let v1_0 = lambda1 - c;
-            let v1_1 = b;
-            let norm1 = (v1_0 * v1_0 + v1_1 * v1_1).sqrt();
-            eigenvectors[[0, 0]] = v1_0 / norm1;
-            eigenvectors[[1, 0]] = v1_1 / norm1;
-
-            // Second eigenvector
-            let v2_0 = lambda2 - c;
-            let v2_1 = b;
-            let norm2 = (v2_0 * v2_0 + v2_1 * v2_1).sqrt();
-            eigenvectors[[0, 1]] = v2_0 / norm2;
-            eigenvectors[[1, 1]] = v2_1 / norm2;
-        } else {
-            // Matrix is diagonal
-            eigenvectors[[0, 0]] = F::one();
-            eigenvectors[[1, 1]] = F::one();
-            // For diagonal matrices, eigenvalues should match diagonal order
-            let eigenvalues = Array1::from_vec(vec![a, c]);
-            return Ok((eigenvalues, eigenvectors));
-        }
-
-        return Ok((eigenvalues, eigenvectors));
-    }
-
-    // For larger matrices, use a simplified approach
-    // In production, use a proper eigenvalue algorithm
-    let mut eigenvalues = Array1::<F>::zeros(n);
-    let eigenvectors = Array2::<F>::eye(n);
-
-    // Use diagonal approximation for now
-    for i in 0..n {
-        eigenvalues[i] = matrix[[i, i]];
-    }
-
-    Ok((eigenvalues, eigenvectors))
 }
 
 #[allow(dead_code)]
@@ -707,9 +1027,16 @@ fn compute_matrix_exp_pade<F: Float + scirs2_core::ndarray::ScalarOperand + From
     Ok(result)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // Public API functions
+// ─────────────────────────────────────────────────────────────────────────────
 
-/// Compute matrix square root
+/// Compute matrix square root (SPD-restricted).
+///
+/// Applies to **symmetric positive-definite** inputs only.  Errors on non-SPD
+/// matrices — see `MatrixSqrtOp` for the restriction rationale.
+///
+/// Alias: `sqrtm_pd`.
 #[allow(dead_code)]
 pub fn matrix_sqrt<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
@@ -723,7 +1050,22 @@ pub fn matrix_sqrt<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrim
         .build(MatrixSqrtOp)
 }
 
-/// Compute matrix logarithm
+/// Compute matrix square root (SPD-restricted) — explicit alias of [`matrix_sqrt`].
+///
+/// Errors if the input is not symmetric positive-definite.  The backward pass
+/// solves the Sylvester equation `S · X + X · S = dS` for `dA = X`.
+#[allow(dead_code)]
+pub fn sqrtm_pd<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &Tensor<'g, F>,
+) -> Tensor<'g, F> {
+    matrix_sqrt(matrix)
+}
+
+/// Compute matrix logarithm.
+///
+/// Uses the Daleckii-Krein spectral backward for symmetric positive-definite
+/// inputs.  For non-symmetric or nearly-indefinite inputs falls back to
+/// inverse-scaling-and-squaring.
 #[allow(dead_code)]
 pub fn matrix_log<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,

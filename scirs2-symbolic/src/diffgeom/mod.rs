@@ -16,6 +16,8 @@
 //! | [`ricci`] | [`ricci_tensor`] — Ricci curvature tensor `Rᵢⱼ` |
 //! | [`einstein`] | [`einstein_tensor`] — Einstein tensor `Gᵢⱼ = Rᵢⱼ − ½ g_{ij} R` |
 //! | [`mod@covariant_derivative`] | [`fn@covariant_derivative`] — `∇_μ T` for arbitrary valence |
+//! | [`riemann`] | [`riemann_tensor`] — full Riemann tensor `R^μ_{νρσ}`, plus [`ricci_from_riemann`] |
+//! | [`weyl`] | [`weyl_tensor`] — Weyl conformal tensor `C_{μνρσ}`, [`compute_ricci_scalar`] |
 //!
 //! # Example — Schwarzschild vacuum solution
 //!
@@ -50,7 +52,9 @@ pub mod covariant_derivative;
 pub mod einstein;
 pub mod metric;
 pub mod ricci;
+pub mod riemann;
 pub mod tensor;
+pub mod weyl;
 
 pub use christoffel::christoffel;
 pub use contraction::contract_indices;
@@ -58,4 +62,6 @@ pub use covariant_derivative::covariant_derivative;
 pub use einstein::einstein_tensor;
 pub use metric::{Metric, MetricError};
 pub use ricci::ricci_tensor;
+pub use riemann::{ricci_from_riemann, riemann_tensor};
 pub use tensor::{IndexKind, IndexLabel, Tensor};
+pub use weyl::{compute_ricci_scalar, weyl_tensor};

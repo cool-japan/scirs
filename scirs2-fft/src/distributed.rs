@@ -366,8 +366,8 @@ impl DistributedFFT {
             return Ok(ArrayD::zeros(IxDyn(&[0])));
         }
 
-        // Apply size limits for _testing
-        let actual_end = my_end.min(my_start + max_size);
+        // Apply size limits for _testing (saturating_add prevents overflow when max_size=usize::MAX)
+        let actual_end = my_end.min(my_start.saturating_add(max_size));
 
         // Calculate my slab's shape
         let mut myshape: Vec<usize> = shape.to_vec();
@@ -411,11 +411,29 @@ impl DistributedFFT {
                 }
             }
         } else {
-            // For higher dimensions, we'd need a more general approach
-            // This is a simplified implementation
-            return Err(FFTError::DimensionError(
-                "Dimensions higher than 3 not yet implemented for slab decomposition".to_string(),
-            ));
+            // General n-D path: slab decomposition partitions axis 0.
+            // All other axes are copied in full (up to max_size per axis).
+            let ndim = input.ndim();
+            // Build the iteration shape: cap non-zero axes at max_size.
+            let iter_shape: Vec<usize> = (0..ndim)
+                .map(|ax| {
+                    if ax == 0 {
+                        actual_end - my_start
+                    } else {
+                        myshape[ax].min(max_size)
+                    }
+                })
+                .collect();
+            let iter_dim = IxDyn(iter_shape.as_slice());
+            for local_idx in scirs2_core::ndarray::indices(iter_dim) {
+                let local_slice = local_idx.slice();
+                // Translate local index to global input index: axis 0 shifted by my_start.
+                let mut global = local_slice.to_vec();
+                global[0] += my_start;
+                let val: Complex64 = NumCast::from(input[IxDyn(global.as_slice())])
+                    .unwrap_or(Complex64::new(0.0, 0.0));
+                output[IxDyn(local_slice)] = val;
+            }
         }
 
         Ok(output)
@@ -487,9 +505,9 @@ impl DistributedFFT {
             return Ok(ArrayD::zeros(IxDyn(&[0])));
         }
 
-        // Apply size limits for _testing
-        let actual_end_row = my_end_row.min(my_start_row + max_size);
-        let actual_end_col = my_end_col.min(my_start_col + max_size);
+        // Apply size limits for _testing (saturating_add prevents overflow when max_size=usize::MAX)
+        let actual_end_row = my_end_row.min(my_start_row.saturating_add(max_size));
+        let actual_end_col = my_end_col.min(my_start_col.saturating_add(max_size));
 
         // Calculate my pencil's shape
         let mut myshape: Vec<usize> = shape.to_vec();
@@ -525,10 +543,27 @@ impl DistributedFFT {
                 }
             }
         } else {
-            // For higher dimensions, we'd need a more general approach
-            return Err(FFTError::DimensionError(
-                "Dimensions higher than 3 not yet implemented for pencil decomposition".to_string(),
-            ));
+            // General n-D path: pencil decomposition partitions axes 0 and 1.
+            // All remaining axes are copied in full (up to max_size per axis).
+            let ndim = input.ndim();
+            let iter_shape: Vec<usize> = (0..ndim)
+                .map(|ax| match ax {
+                    0 => actual_end_row - my_start_row,
+                    1 => actual_end_col - my_start_col,
+                    _ => myshape[ax].min(max_size),
+                })
+                .collect();
+            let iter_dim = IxDyn(iter_shape.as_slice());
+            for local_idx in scirs2_core::ndarray::indices(iter_dim) {
+                let local_slice = local_idx.slice();
+                // Translate to global input index: axes 0 and 1 shifted by their starts.
+                let mut global = local_slice.to_vec();
+                global[0] += my_start_row;
+                global[1] += my_start_col;
+                let val: Complex64 = NumCast::from(input[IxDyn(global.as_slice())])
+                    .unwrap_or(Complex64::new(0.0, 0.0));
+                output[IxDyn(local_slice)] = val;
+            }
         }
 
         Ok(output)
@@ -608,10 +643,10 @@ impl DistributedFFT {
             return Ok(ArrayD::zeros(IxDyn(&[0])));
         }
 
-        // Apply size limits for _testing
-        let actual_end_plane = my_end_plane.min(my_start_plane + max_size);
-        let actual_end_row = my_end_row.min(my_start_row + max_size);
-        let actual_end_col = my_end_col.min(my_start_col + max_size);
+        // Apply size limits for _testing (saturating_add prevents overflow when max_size=usize::MAX)
+        let actual_end_plane = my_end_plane.min(my_start_plane.saturating_add(max_size));
+        let actual_end_row = my_end_row.min(my_start_row.saturating_add(max_size));
+        let actual_end_col = my_end_col.min(my_start_col.saturating_add(max_size));
 
         // Calculate my volume's shape
         let mut myshape: Vec<usize> = shape.to_vec();
@@ -638,11 +673,29 @@ impl DistributedFFT {
                 }
             }
         } else {
-            // For higher dimensions, we'd need a more general approach
-            return Err(FFTError::DimensionError(
-                "Dimensions higher than 3 not yet implemented for volumetric decomposition"
-                    .to_string(),
-            ));
+            // General n-D path: volumetric decomposition partitions axes 0, 1, and 2.
+            // All remaining axes are copied in full (up to max_size per axis).
+            let ndim = input.ndim();
+            let iter_shape: Vec<usize> = (0..ndim)
+                .map(|ax| match ax {
+                    0 => actual_end_plane - my_start_plane,
+                    1 => actual_end_row - my_start_row,
+                    2 => actual_end_col - my_start_col,
+                    _ => myshape[ax].min(max_size),
+                })
+                .collect();
+            let iter_dim = IxDyn(iter_shape.as_slice());
+            for local_idx in scirs2_core::ndarray::indices(iter_dim) {
+                let local_slice = local_idx.slice();
+                // Translate to global input index: axes 0, 1, 2 shifted by their starts.
+                let mut global = local_slice.to_vec();
+                global[0] += my_start_plane;
+                global[1] += my_start_row;
+                global[2] += my_start_col;
+                let val: Complex64 = NumCast::from(input[IxDyn(global.as_slice())])
+                    .unwrap_or(Complex64::new(0.0, 0.0));
+                output[IxDyn(local_slice)] = val;
+            }
         }
 
         Ok(output)

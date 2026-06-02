@@ -109,10 +109,16 @@ impl PCA {
             return Err(TransformError::InvalidInput("Empty input data".to_string()));
         }
 
-        if self.n_components > n_features {
+        // PCA can return at most min(n_samples, n_features) non-trivial components.
+        // Validate against both: n_components must not exceed either dimension.
+        // (Previously only n_features was checked; on n << p wide data this allowed
+        // n_components > rank(X) which made the legacy full_matrices SVD path
+        // collapse to zero singular values for the trailing components.)
+        let max_components = n_samples.min(n_features);
+        if self.n_components > max_components {
             return Err(TransformError::InvalidInput(format!(
-                "n_components={} must be <= n_features={}",
-                self.n_components, n_features
+                "n_components={} must be <= min(n_samples, n_features)={}",
+                self.n_components, max_components
             )));
         }
 
@@ -148,8 +154,11 @@ impl PCA {
             }
         }
 
-        // Perform SVD
-        let (_u, s, vt) = match svd::<f64>(&x_processed.view(), true, None) {
+        // Perform thin SVD: full_matrices=false returns U (n x k), S (k), Vᵀ (k x m)
+        // where k = min(n_samples, n_features). On wide data (n << p) this is critical:
+        // full_matrices=true would build a p×p Vᵀ via Gram–Schmidt orthogonal extension,
+        // which is O(p³) work — catastrophic for typical n << p problems (issue #124).
+        let (_u, s, vt) = match svd::<f64>(&x_processed.view(), false, None) {
             Ok(result) => result,
             Err(e) => return Err(TransformError::LinalgError(e)),
         };
@@ -165,9 +174,17 @@ impl PCA {
             }
         }
 
-        // Compute explained variance ratio
+        // Compute explained variance ratio.
+        // With thin SVD we have only min(n,m) singular values, but for centred data the
+        // trace of the covariance equals sum_i sigma_i^2 over those same min(n,m) values
+        // (the trailing singular values from full_matrices=true would be zero), so this
+        // ratio is identical to the previous behaviour on well-posed inputs.
         let total_variance = s.mapv(|s| s * s).sum();
-        let explained_variance_ratio = singular_values.mapv(|s| s * s / total_variance);
+        let explained_variance_ratio = if total_variance > EPSILON {
+            singular_values.mapv(|s| s * s / total_variance)
+        } else {
+            Array1::zeros(self.n_components)
+        };
 
         self.components = Some(components);
         self.mean = Some(mean);
@@ -607,6 +624,37 @@ impl LDA {
         }
         global_mean.mapv_inplace(|x: f64| x / n_samples as f64);
 
+        // Fast path for the n_samples < n_features (wide / n << p) regime with the
+        // svd solver: form only n×p centred-within-class and c×p between-class matrices
+        // and SVD those instead of the p×p scatter matrices. This is the textbook
+        // small-side algorithm — equivalent to the existing p×p formulation but
+        // O(n·p·rank) instead of O(p⁴). Issue #124.
+        //
+        // We deliberately keep the wide-old eigen path untouched: the eigen branch
+        // requires Sw^{-1}·Sb explicitly, which the small-side trick does not produce.
+        if self.solver == "svd" && n_samples < n_features {
+            let (components, eigenvalues) = self.fit_svd_small_side(
+                &x_f64,
+                &class_means,
+                &global_mean,
+                &class_indices,
+                &class_counts,
+                n_samples,
+                n_features,
+                n_classes,
+            )?;
+            let total_eig = eigenvalues.iter().sum::<f64>();
+            let explained_variance_ratio = if total_eig > EPSILON {
+                eigenvalues.mapv(|e| e / total_eig)
+            } else {
+                Array1::from_elem(self.n_components, 1.0 / self.n_components as f64)
+            };
+            self.components = Some(components);
+            self.means = Some(class_means);
+            self.explained_variance_ratio = Some(explained_variance_ratio);
+            return Ok(());
+        }
+
         // Compute within-class scatter matrix
         let mut sw = Array2::<f64>::zeros((n_features, n_features));
         for i in 0..n_samples {
@@ -799,6 +847,116 @@ impl LDA {
         self.explained_variance_ratio = Some(explained_variance_ratio);
 
         Ok(())
+    }
+
+    /// Small-side SVD solver for the n_samples < n_features ("wide" / n << p) regime.
+    ///
+    /// Replaces the textbook p×p Sw / Sb formulation with an n×p centred within-class
+    /// matrix and a c×p between-class matrix. Avoids materialising p×p scatters at all,
+    /// so cost drops from O(p^4) (the dense formulation's quartic four-deep loop) to
+    /// O(n·p·rank). For n=10, p=8319 this is a ~10^9× reduction.
+    ///
+    /// Algorithm (analogous to scikit-learn's `LinearDiscriminantAnalysis(solver="svd")`):
+    /// 1. Stack centred-within-class rows: Xw_i = X_i - mu_{class(i)}.  Shape (n, p).
+    /// 2. Thin SVD of Xw = U_w · diag(S_w) · Vt_w with full_matrices=false.
+    ///    Truncate to rank_w = #{ S_w > tol }.  (rank_w <= n - c.)
+    /// 3. Whitening matrix W = Vt_w[:rank_w].T / S_w[:rank_w]   (shape (p, rank_w)).
+    /// 4. Weighted between-class deviations: Xb_c = sqrt(N_c) · (mu_c - mu).
+    ///    Shape (c, p), rank <= c - 1.
+    /// 5. Project Xb through whitening: M = Xb · W                (shape (c, rank_w)).
+    /// 6. Thin SVD of M = U_b · diag(S_b) · Vt_b.
+    /// 7. Final scalings = W · Vt_b.T                              (shape (p, rank_w)),
+    ///    take its first n_components columns transposed into row-major components.
+    /// 8. eigenvalues are S_b[:n_components]^2 (Fisher discriminant ratios).
+    #[allow(clippy::too_many_arguments)]
+    fn fit_svd_small_side(
+        &self,
+        x_f64: &Array2<f64>,
+        class_means: &Array2<f64>,
+        global_mean: &Array1<f64>,
+        class_indices: &[usize],
+        class_counts: &[usize],
+        n_samples: usize,
+        n_features: usize,
+        n_classes: usize,
+    ) -> Result<(Array2<f64>, Array1<f64>)> {
+        // Step 1: build n×p centred within-class matrix
+        let mut xw = Array2::<f64>::zeros((n_samples, n_features));
+        for i in 0..n_samples {
+            let c = class_indices[i];
+            for j in 0..n_features {
+                xw[[i, j]] = x_f64[[i, j]] - class_means[[c, j]];
+            }
+        }
+
+        // Step 2: thin SVD of Xw.  Vt_w shape (rank, p).
+        let (_u_w, s_w, vt_w) =
+            svd::<f64>(&xw.view(), false, None).map_err(TransformError::LinalgError)?;
+
+        // Determine numerical rank
+        let tol = s_w.iter().cloned().fold(0.0_f64, f64::max)
+            * (n_samples.max(n_features) as f64)
+            * f64::EPSILON;
+        let rank_w = s_w.iter().filter(|&&v| v > tol).count();
+        if rank_w == 0 {
+            return Err(TransformError::ComputationError(
+                "Within-class scatter has zero rank (all samples in same point per class)"
+                    .to_string(),
+            ));
+        }
+
+        // Step 3: whitening matrix W = Vt_w[:rank_w].T * diag(1/S_w[:rank_w])  shape (p, rank_w)
+        let mut w = Array2::<f64>::zeros((n_features, rank_w));
+        for k in 0..rank_w {
+            let inv_s = 1.0 / s_w[k];
+            for j in 0..n_features {
+                w[[j, k]] = vt_w[[k, j]] * inv_s;
+            }
+        }
+
+        // Step 4: weighted between-class deviations  Xb shape (c, p)
+        let mut xb = Array2::<f64>::zeros((n_classes, n_features));
+        for c in 0..n_classes {
+            let sqrt_nc = (class_counts[c] as f64).sqrt();
+            for j in 0..n_features {
+                xb[[c, j]] = sqrt_nc * (class_means[[c, j]] - global_mean[j]);
+            }
+        }
+
+        // Step 5: project Xb through whitening:  M = Xb · W   shape (c, rank_w)
+        let m = xb.dot(&w);
+
+        // Step 6: thin SVD of M.  Vt_b shape (rank_b, rank_w).
+        let (_u_b, s_b, vt_b) =
+            svd::<f64>(&m.view(), false, None).map_err(TransformError::LinalgError)?;
+
+        let rank_b = s_b.len().min(vt_b.nrows());
+        if self.n_components > rank_b {
+            return Err(TransformError::InvalidInput(format!(
+                "n_components={} exceeds the rank of the between-class scatter ({})",
+                self.n_components, rank_b
+            )));
+        }
+
+        // Step 7: components = (W · Vt_b.T)[:, :n_components].T   shape (n_components, p)
+        let mut components = Array2::<f64>::zeros((self.n_components, n_features));
+        for k in 0..self.n_components {
+            for j in 0..n_features {
+                let mut acc = 0.0;
+                for r in 0..rank_w {
+                    acc += w[[j, r]] * vt_b[[k, r]];
+                }
+                components[[k, j]] = acc;
+            }
+        }
+
+        // Step 8: eigenvalues = S_b^2 (discriminant ratios; sum is total separability)
+        let mut eigenvalues = Array1::<f64>::zeros(self.n_components);
+        for k in 0..self.n_components {
+            eigenvalues[k] = s_b[k] * s_b[k];
+        }
+
+        Ok((components, eigenvalues))
     }
 
     /// Transforms the input data using the fitted LDA model
@@ -1030,5 +1188,177 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("solver must be 'svd' or 'eigen'"));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Regression tests for issue #124
+    //
+    // PCA and LDA on wide data (n_samples << n_features) used to be O(p^3) /
+    // O(p^4) because the full-matrices SVD path extended Vᵀ to p×p via Gram–
+    // Schmidt, and the LDA `svd` solver materialised p×p Sw / Sb scatters. The
+    // fixes (thin SVD in PCA, small-side algorithm in LDA::fit) bring this to
+    // O(n·p·rank). We verify both correctness and that the wide path completes
+    // quickly enough for tests; the timing budget is generous so it isn't flaky.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    fn issue_124_synthetic_data(
+        n_samples: usize,
+        n_features: usize,
+        n_classes: usize,
+    ) -> (Array2<f64>, scirs2_core::ndarray::Array1<i32>) {
+        let x = Array2::from_shape_fn((n_samples, n_features), |(i, j)| {
+            ((i * 7919 + j) % 97) as f64 / 97.0
+        });
+        let y = scirs2_core::ndarray::Array1::from_shape_fn(n_samples, |i| (i % n_classes) as i32);
+        (x, y)
+    }
+
+    #[test]
+    fn test_issue_124_pca_wide_data_completes_quickly() {
+        // n_samples << n_features regime: 12 samples × 400 features. Pre-fix, this
+        // path runs the full-matrices SVD that extends Vᵀ to 400×400 via Gram–Schmidt
+        // — measurable seconds. Post-fix, it should be <100 ms.
+        let (x, _) = issue_124_synthetic_data(12, 400, 3);
+        let start = std::time::Instant::now();
+        let mut pca = PCA::new(2, true, false);
+        let result = pca
+            .fit_transform(&x)
+            .expect("PCA on wide data must succeed");
+        let elapsed = start.elapsed();
+
+        assert_eq!(result.shape(), &[12, 2]);
+        assert!(
+            result.iter().all(|v| v.is_finite()),
+            "PCA wide output must be finite"
+        );
+        // Generous bound to keep CI stable: pre-fix this took seconds, post-fix < 1s
+        // is the expected behaviour on any reasonable machine. 5 s gives ample margin.
+        assert!(
+            elapsed.as_secs_f64() < 5.0,
+            "PCA on 12x400 wide data took {:.3}s — far slower than expected; \
+             possible regression of issue #124",
+            elapsed.as_secs_f64()
+        );
+
+        // Reconstruction sanity: shape is correct and singular values are sorted.
+        let sv = pca
+            .singular_values
+            .as_ref()
+            .expect("singular values present");
+        assert!(sv.len() == 2);
+        assert!(sv[0] >= sv[1]);
+    }
+
+    #[test]
+    fn test_issue_124_pca_validates_n_components_against_min_dim() {
+        // n_components > min(n_samples, n_features) must now error rather than
+        // silently zero-pad the trailing components (legacy behaviour).
+        let (x, _) = issue_124_synthetic_data(5, 100, 2);
+        // min(5, 100) = 5; 6 components is invalid
+        let mut pca_bad = PCA::new(6, true, false);
+        let err = pca_bad
+            .fit(&x)
+            .expect_err("PCA with n_components > min(n,p) must fail");
+        assert!(
+            err.to_string().contains("min(n_samples, n_features)"),
+            "error message should reference min(n_samples, n_features): {err}"
+        );
+
+        // The boundary case (n_components == min) must still succeed.
+        let mut pca_ok = PCA::new(5, true, false);
+        let r = pca_ok
+            .fit_transform(&x)
+            .expect("PCA with n_components == min(n,p) must succeed");
+        assert_eq!(r.shape(), &[5, 5]);
+    }
+
+    #[test]
+    fn test_issue_124_lda_wide_data_svd_solver_completes_quickly() {
+        // 12 samples × 400 features × 3 classes — the wide regime that the small-side
+        // svd solver now handles in O(n·p·rank). Pre-fix, this path materialised two
+        // 400×400 scatter matrices and a four-deep loop ⇒ O(p^4).
+        let (x, y) = issue_124_synthetic_data(12, 400, 3);
+
+        let start = std::time::Instant::now();
+        let mut lda = LDA::new(2, "svd").expect("LDA::new");
+        let z = lda
+            .fit_transform(&x, &y)
+            .expect("LDA svd on wide data must succeed");
+        let elapsed = start.elapsed();
+
+        assert_eq!(z.shape(), &[12, 2]);
+        assert!(z.iter().all(|v| v.is_finite()));
+        // Pre-fix this was many seconds; post-fix < 1 s. 5 s gives ample CI margin.
+        assert!(
+            elapsed.as_secs_f64() < 5.0,
+            "LDA(svd) on 12x400 wide data took {:.3}s — possible regression of issue #124",
+            elapsed.as_secs_f64()
+        );
+
+        // Components should have unit-ish norm (small-side variant returns whitened
+        // projections, not strictly unit-norm, but each row should be finite & non-zero).
+        let components = lda.components().expect("components present");
+        assert_eq!(components.shape(), &[2, 400]);
+        for row in components.outer_iter() {
+            let norm: f64 = row.iter().map(|v| v * v).sum::<f64>().sqrt();
+            assert!(norm.is_finite() && norm > 0.0, "component norm = {norm}");
+        }
+    }
+
+    #[test]
+    fn test_issue_124_lda_svd_small_side_separates_classes() {
+        // Correctness: in the wide regime, the small-side SVD solver must still
+        // produce projections that separate classes. Use 3 well-separated Gaussian-
+        // ish clusters in 200-dim space with n=9 samples.
+        let mut data = vec![0.0; 9 * 200];
+        for i in 0..9 {
+            let class = i / 3;
+            let center = match class {
+                0 => 0.0,
+                1 => 10.0,
+                _ => -10.0,
+            };
+            for j in 0..200 {
+                // small per-sample jitter + per-class centre offset on the first 10 dims
+                let jitter = ((i * 31 + j) % 7) as f64 * 0.01;
+                let centre = if j < 10 { center } else { 0.0 };
+                data[i * 200 + j] = centre + jitter;
+            }
+        }
+        let x = Array2::from_shape_vec((9, 200), data).expect("shape ok");
+        let y = scirs2_core::ndarray::Array1::from_vec(vec![0, 0, 0, 1, 1, 1, 2, 2, 2]);
+
+        let mut lda = LDA::new(2, "svd").expect("LDA::new");
+        let z = lda
+            .fit_transform(&x, &y)
+            .expect("LDA svd on wide data must succeed");
+        assert_eq!(z.shape(), &[9, 2]);
+
+        // Within-class spread should be much smaller than between-class spread on
+        // the leading discriminant axis.
+        let class_means: Vec<f64> = (0..3)
+            .map(|c| {
+                let idxs: Vec<usize> = (0..9).filter(|&i| (i / 3) == c).collect();
+                idxs.iter().map(|&i| z[[i, 0]]).sum::<f64>() / idxs.len() as f64
+            })
+            .collect();
+        let mut between: f64 = 0.0;
+        for a in 0..3 {
+            for b in 0..3 {
+                between += (class_means[a] - class_means[b]).powi(2);
+            }
+        }
+        let between = between.sqrt();
+        let within: f64 = (0..9)
+            .map(|i| (z[[i, 0]] - class_means[i / 3]).powi(2))
+            .sum::<f64>()
+            .sqrt();
+        assert!(
+            between > 5.0 * within,
+            "between/within ratio = {} (between={}, within={}) — class separation too weak",
+            between / within.max(1e-12),
+            between,
+            within,
+        );
     }
 }

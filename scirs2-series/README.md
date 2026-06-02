@@ -3,11 +3,11 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-series.svg)](https://crates.io/crates/scirs2-series)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-series)](https://docs.rs/scirs2-series)
-[![Version](https://img.shields.io/badge/version-0.4.4-green)]()
+[![Version](https://img.shields.io/badge/version-0.5.0-green)]()
 
 **Production-ready time series analysis for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
-`scirs2-series` is a comprehensive time series library covering classical econometric models through state-of-the-art deep learning forecasters. Version 0.4.4 carries forward the full neural architecture forecaster suite (TFT, N-BEATS, N-HiTS, DeepAR), streaming/online algorithms, conformal prediction intervals, long-memory processes, intermittent demand forecasting, and hierarchical reconciliation. The Wave 3 stub-check sweep also restored the public `PatternDetector`, `STLDecomposer`, `AnomalyDetector`, and `PELTDetector` types, and `SarimaModel.forecast(steps)` was reinstated alongside the `SARIMAModel` type alias.
+`scirs2-series` is a comprehensive time series library covering classical econometric models through state-of-the-art deep learning forecasters. Version 0.5.0 carries forward the full neural architecture forecaster suite (TFT, N-BEATS, N-HiTS, DeepAR), streaming/online algorithms, conformal prediction intervals, long-memory processes, intermittent demand forecasting, and hierarchical reconciliation. The Wave 3 stub-check sweep also restored the public `PatternDetector`, `STLDecomposer`, `AnomalyDetector`, and `PELTDetector` types, and `SarimaModel.forecast(steps)` was reinstated alongside the `SARIMAModel` type alias.
 
 ---
 
@@ -24,7 +24,7 @@ Key design goals:
 
 ---
 
-## Feature List (v0.4.4)
+## Feature List (v0.5.0)
 
 ### Decomposition
 - STL (Seasonal-Trend decomposition using Loess) with robustness iterations
@@ -182,7 +182,7 @@ Key design goals:
 
 ```toml
 [dependencies]
-scirs2-series = "0.4.4"
+scirs2-series = "0.5.0"
 ```
 
 ### ARIMA Forecasting

@@ -58,17 +58,14 @@ pub use ag::tensor_ops;
 /// Re-export commonly used types from scirs2-autograd
 pub use ag::{Context, Float, Tensor};
 
-/// Placeholder for future batch operations module
-/// Will include: batch_matmul, batch_inv, batch_det, etc.
-pub mod batch {
-    // Batch matrix operations (coming soon)
-}
-
-/// Placeholder for future factorizations module
-/// Will include: lu, qr, svd, cholesky with automatic differentiation
-pub mod factorizations {
-    // Matrix factorizations with gradients (coming soon)
-}
+// Autodiff backward passes for matrix factorizations are implemented in
+// `scirs2_autograd::tensor_ops`. Canonical entry points:
+//   - scirs2_autograd::tensor_ops::cholesky
+//   - scirs2_autograd::tensor_ops::lu
+//   - scirs2_autograd::tensor_ops::qr
+//   - scirs2_autograd::tensor_ops::pinv   (three-term Golub & Pereyra grad)
+//   - scirs2_autograd::tensor_ops::sqrtm / sqrtm_pd  (SPD-restricted Sylvester backward)
+//   - scirs2_autograd::tensor_ops::logm   (Daleckii-Krein spectral backward)
 
 /// Matrix calculus operations with automatic differentiation support
 /// Includes: gradient, hessian, jacobian computations, VJP, JVP

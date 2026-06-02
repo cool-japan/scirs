@@ -898,6 +898,9 @@ impl ProximalBundle {
         let mut n_serious = 0usize;
         let mut n_null = 0usize;
         let mut nit = 0usize;
+        // Consecutive null steps since the last serious step. Used to bound the
+        // proximal-parameter growth (see the null-step branch below).
+        let mut null_since_serious = 0usize;
 
         for iter in 0..self.options.max_iter {
             nit = iter + 1;
@@ -1023,18 +1026,47 @@ impl ProximalBundle {
                 })
                 .fold(f64::NEG_INFINITY, f64::max);
 
+            // Predicted descent of the cutting-plane model at the trial point:
+            //   v = f̂(y) - f̂(x_trial) = f_y - f_model  (>= 0 for a convex model)
+            // This is the standard proximal-bundle optimality measure.
+            let descent = (f_y - f_model).max(0.0);
+
+            // Full proximal optimality measure combining the model gap with the
+            // proximal term:  δ = v + (1/(2μ)) ||Σ λ_i g_i||²  (>= 0).
+            // δ -> 0 certifies near-optimality (Kiwiel, "Methods of Descent for
+            // Nondifferentiable Optimization", 1985; Frangioni 2002). Stopping
+            // on δ — rather than only on the raw subgradient norm at the center,
+            // which oscillates across the optimum for smooth problems and forces
+            // the full iteration budget — lets the method terminate as soon as
+            // the model can no longer predict meaningful descent.
+            let agg_norm_sq: f64 = agg_g.iter().map(|g| g * g).sum::<f64>();
+            let delta = descent + 0.5 / mu * agg_norm_sq;
+            if delta <= self.options.tol * (1.0 + f_y.abs()) {
+                return Ok(ProximalBundleResult {
+                    x: y,
+                    fun: f_y,
+                    subgrad_norm: agg_norm_sq.sqrt(),
+                    n_serious_steps: n_serious,
+                    n_null_steps: n_null,
+                    nit,
+                    success: true,
+                    message: "Proximal bundle converged (optimality gap)".to_string(),
+                });
+            }
+
             // Serious step condition: f(x_trial) <= f(y) - mL * (f̂(y) - f̂(x_trial))
-            // Simplified: f_trial <= f_y - mL * (f_y - f_model)
-            let descent = f_y - f_model;
-            let is_serious = f_trial <= f_y - self.options.m_l * descent.max(0.0);
+            // Simplified: f_trial <= f_y - mL * v
+            let is_serious = f_trial <= f_y - self.options.m_l * descent;
 
             if is_serious {
                 y = x_trial.clone();
                 f_y = f_trial;
                 g_y = g_trial.clone();
                 n_serious += 1;
+                null_since_serious = 0;
             } else {
                 n_null += 1;
+                null_since_serious += 1;
             }
 
             // Add new bundle element
@@ -1049,11 +1081,18 @@ impl ProximalBundle {
                 bundle.remove(0);
             }
 
-            // Update μ: increase for null steps, reset for serious steps
+            // Update μ. On a serious step relax the proximal term (allow longer
+            // steps). On a sustained run of null steps tighten it, but BOUND the
+            // growth: the original rule let μ double monotonically up to max_mu
+            // (1e8), which shrank the proximal step ‖Σλᵢgᵢ‖/μ to ~0 and froze
+            // progress, so the method ran to max_iter every time (the cause of
+            // the 120 s timeout). Capping μ relative to its initial value keeps
+            // the trial step large enough to keep making progress.
             if is_serious {
                 mu = (mu * 0.5).max(self.options.min_mu);
-            } else if n_null > 3 * (n_serious + 1) {
-                mu = (mu * 2.0).min(self.options.max_mu);
+            } else if null_since_serious >= 3 {
+                let mu_cap = (self.options.mu * 1e4).min(self.options.max_mu);
+                mu = (mu * 2.0).min(mu_cap);
             }
         }
 

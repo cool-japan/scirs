@@ -120,18 +120,21 @@
 
 ## Wave 74 — Autograd factorizations n×n (2026-05-08)
 
-- [~] **Autodiff backward passes for general n×n factorizations** (planned 2026-05-08)
-  - **Goal:** Replace the six "not yet implemented in autodiff for n > 2" error returns in `autograd/factorizations.rs:48,246,421`, `autograd/special.rs:44,281,562`, `autograd/transformations.rs:115`, `autograd/batch.rs:547` with full implementations. Foundation primitives for normalizing flows (matrix-square-root Jacobian), GP marginal-likelihood (log-det Cholesky), least-squares heads (pseudo-inverse).
-  - **Design:** Six derivations from Murray (2016) "Differentiation of the Cholesky decomposition" / Giles (2008):
-    1. **LU backward** (`factorizations.rs:48`): `dA = L⁻ᵀ · phi(L^T · dL · L^(-T) - U · dU · U⁻¹) · L⁻ᵀ + L · dU · U⁻¹` where `phi(M)` zeros above-diagonal entries; two triangular solves O(n³).
-    2. **QR backward** (`factorizations.rs:246`): `dA = (dQ + Q · phi(M^T - M)) · R⁻ᵀ` where `M = R · dR^T - dQ^T · Q`.
-    3. **Cholesky backward** (`factorizations.rs:421`): Murray 2016: `dA = ½ · L⁻ᵀ · phi(L^T · dL + L^T · dL^T) · L⁻¹` where `phi` symmetrises and zeros below-diagonal.
-    4. **Pseudo-inverse backward** (`special.rs:44`): SVD-regularized when `cond(A) > 1e10`.
-    5. **Matrix square-root backward** (`special.rs:281`): Sylvester-equation `S · dA + dA · S = ds` via existing Bartels-Stewart.
-    6. **Matrix log backward** (`special.rs:562`): Padé approximation chained with Schur-based forward `logm`.
-  - **Batch dimension** (`batch.rs:547`): rayon `for_each` parallelism on independent sample-wise backward passes.
-  - **Files:** `scirs2-linalg/src/autograd/factorizations.rs`, `scirs2-linalg/src/autograd/special.rs`, `scirs2-linalg/src/autograd/transformations.rs`, `scirs2-linalg/src/autograd/batch.rs`, `scirs2-linalg/src/autograd/mod.rs`, `scirs2-linalg/TODO.md`.
-  - **Prerequisites:** existing `solve_triangular`, `solve_sylvester`, `logm`, `sqrtm` forward; existing autograd tape.
-  - **Tests:** ≥ 12 in `scirs2-linalg/tests/autograd_factorizations_nxn_tests.rs` including `lu_backward_3x3_random` (fd-grad ≤ 1e-7), `qr_backward_thin_5x3`, `cholesky_backward_5x5_spd`, `pinv_backward_overdetermined_5x3`, `sqrtm_backward_4x4_general`, `logm_backward_3x3_via_pade`, `batch_lift_5_x_3x3_lu_consistent`.
-  - **Risk:** Numerical stability of pinv for ill-conditioned matrices; mitigated by SVD regularization. Sylvester sqrtm needs Bartels-Stewart 2×2 block fix (Feb 26, 2026 patch — verify conjugate-pair eigenvalues).
-  - **Status (2026-05-08, partial / deviated):** Math delivered as standalone reference functions in `tests/autograd_factorizations_nxn_tests.rs` (12 tests, FD-validated to ≤ 1e-4 on ill-conditioned cases, ≤ 1e-6 on well-conditioned). **Tape integration deferred:** `src/autograd/{factorizations,special,transformations,batch,tensor_algebra}.rs` are dead/orphan files — they reference an old `Tensor<F>` API with public `.data`/`.requires_grad`/`.node` fields that no longer exists in `scirs2-autograd::tensor::Tensor<'graph, F>`. `mod.rs` shadows them with empty `pub mod X {}` placeholders since at least Wave 53. Re-enabling them produces 562 build errors. The "stub error returns" the goal asks to replace are unreachable. Future wave: rewrite the autograd module against the current `Op`-trait API and call into the reference math. Item left `[~]`.
+- [x] **Autodiff backward passes for general n×n factorizations** (planned 2026-05-08, resumed 2026-05-15) (DONE Wave 75, 2026-05-15)
+  - **Goal:** Wire the FD-validated Murray (2016) / Giles (2008) backward formulas into the live `scirs2-autograd` Op-trait API. End-users get correct gradients for n > 2 from `scirs2_autograd::tensor_ops::{cholesky,lu,qr,sqrtm_pd,logm}`.
+  - **Wave 75 refinements applied:**
+    - `pinv` backward already correct at `scirs2-autograd/src/tensor_ops/matrix_ops.rs:121-196` — NOT overwritten.
+    - `sqrtm` ships as `sqrtm_pd` (SPD-restricted; Sylvester backward only well-posed for SPD). General `sqrtm` deferred.
+    - `MatrixLogOp` / `MatrixSqrtOp` grads live in `matrix_functions.rs:756-758` (NOT `decomposition_ops.rs`). Target `matrix_functions.rs` for Slice 2B.
+    - LU/QR backward use combined multi-output Op (NOT SVDExtractOp pass-through anti-pattern).
+    - Zero FD-check tests exist on live Op grads today — Slice 2 adds ≥1 FD-check per fixed op.
+  - **Files (Slice 2A):** `scirs2-autograd/src/tensor_ops/decomposition_ops.rs` — replace `CholeskyOp::grad`, `LUOp::grad`, `QROp::grad` with Murray/Townsend formulas. Keep `LUExtractOp` / `QRExtractOp` as thin pure-forward extractors (parent Op owns gradient).
+  - **Files (Slice 2B):** `scirs2-autograd/src/tensor_ops/matrix_functions.rs` — replace `MatrixSqrtOp::grad` (Sylvester, SPD-only) and `MatrixLogOp::grad` (Daleckii-Krein spectral expansion). Delete dead files `scirs2-linalg/src/autograd/{factorizations,special,transformations,batch}.rs`. Update `scirs2-linalg/src/autograd/mod.rs` doc comment. Flip this item `[~]` → `[x]`.
+  - **Tests (mandatory):** 5 new end-to-end integration tests in `scirs2-linalg/tests/autograd_factorizations_nxn_tests.rs` — each includes an FD-vs-analytical-grad central-difference assertion (≤1e-6 well-conditioned, ≤1e-4 ill-conditioned):
+    - `cholesky_backward_via_autograd_5x5_spd` (FD-check)
+    - `lu_backward_via_autograd_5x5_general` (FD-check)
+    - `qr_backward_via_autograd_5x5_orthogonal` (FD-check)
+    - `pinv_backward_via_autograd_5x3_overdetermined` (verification only — no overwrite)
+    - `sqrtm_pd_backward_via_autograd_4x4_spd` (FD-check, SPD input)
+    - `logm_backward_via_autograd_3x3_via_pade` (FD-check)
+  - **Completion criteria:** All 6 above + existing 11 reference-math tests pass; 4 dead files deleted; `cargo clippy -p scirs2-autograd -p scirs2-linalg --all-features --all-targets -- -D warnings` zero warnings.

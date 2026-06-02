@@ -19,7 +19,7 @@ Use scirs2-graph when you need to:
 - Visualize graphs as SVG or DOT output
 - Detect graph isomorphism or subgraph patterns
 
-## Features (v0.4.4)
+## Features (v0.5.0)
 
 ### Core Graph Representations
 - Directed and undirected graphs with efficient adjacency storage
@@ -136,14 +136,14 @@ Use scirs2-graph when you need to:
 
 ```toml
 [dependencies]
-scirs2-graph = "0.4.4"
+scirs2-graph = "0.5.0"
 ```
 
 For parallel processing support:
 
 ```toml
 [dependencies]
-scirs2-graph = { version = "0.4.4", features = ["parallel"] }
+scirs2-graph = { version = "0.5.0", features = ["parallel"] }
 ```
 
 ## Quick Start
@@ -295,16 +295,32 @@ fn temporal_example() -> CoreResult<()> {
 }
 ```
 
+## GPU Acceleration (v0.5.0)
+
+`scirs2-graph` provides real wgpu GPU dispatch for large-scale graph traversal and shortest paths (feature `gpu`):
+
+| Algorithm | Implementation |
+|-----------|---------------|
+| BFS | WGSL level-sync kernel with `atomicCompareExchange` on distances; CPU fallback for n_edges < 4096 |
+| Bellman-Ford SSSP | WGSL edge-parallel kernel with `atomicMin` (f32-bits trick); handles non-negative weights |
+| Delta-stepping SSSP | True WGSL bucket-based relaxation: `DELTA_LIGHT_WGSL` + `DELTA_APPLY_WGSL` + `DELTA_HEAVY_WGSL` with `changed_flag` convergence; adaptive delta heuristic |
+| CPU-parallel BFS | `parallel_bfs_atomic` via rayon + `AtomicI32` distance array |
+| CPU-parallel Bellman-Ford | `parallel_bellman_ford_atomic` via rayon + `AtomicU32` (f32 bits) |
+
+All GPU algorithms gracefully skip to CPU when no wgpu adapter is available (tested on Darwin Metal and Linux Vulkan).
+
 ## Feature Flags
 
 | Flag | Description |
 |------|-------------|
 | `parallel` | Enable Rayon-based parallel processing for large graph algorithms |
 | `simd` | Enable SIMD-accelerated numerical operations |
+| `gpu` | Enable wgpu GPU dispatch for BFS, SSSP, delta-stepping (requires wgpu/pollster/bytemuck) |
 
 ## Performance
 
 - Multi-threaded algorithms via Rayon for large graphs (millions of nodes/edges)
+- GPU dispatch (wgpu) for BFS and SSSP on large graphs (n_edges ≥ 4096)
 - CSR representation for cache-efficient traversal
 - Memory profiling tools built in
 - Validated against NetworkX and igraph reference implementations

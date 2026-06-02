@@ -587,6 +587,56 @@ fn compute_grad_for_input<'graph, F: Float>(
             // Downcast failed — pass gradient through unchanged as safe fallback.
             Some(gy)
         }
+    } else if op_name == "Cholesky" {
+        // ─────────────────────────────────────────────────────────────────────
+        // Cholesky backward (Murray 2016):
+        //   dA = CholeskyBackwardOp(original_input_A, upstream_grad_dL)
+        //
+        // y_tensor is the L output of CholeskyOp.
+        // x_tensor is the original input A (input 0 of CholeskyOp).
+        // gy is the upstream gradient dL flowing back.
+        // ─────────────────────────────────────────────────────────────────────
+        use crate::tensor_ops::decomposition_ops::CholeskyBackwardOp;
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(x_tensor, false)
+            .append_input(gy, false)
+            .build(CholeskyBackwardOp);
+        Some(gx)
+    } else if op_name == "LUExtractL" {
+        // Murray (2016) LU backward for L component.
+        use crate::tensor_ops::decomposition_ops::LUExtractBackwardOp;
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(x_tensor, false)
+            .append_input(gy, false)
+            .build(LUExtractBackwardOp { component: 1 });
+        Some(gx)
+    } else if op_name == "LUExtractU" {
+        // Murray (2016) LU backward for U component.
+        use crate::tensor_ops::decomposition_ops::LUExtractBackwardOp;
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(x_tensor, false)
+            .append_input(gy, false)
+            .build(LUExtractBackwardOp { component: 2 });
+        Some(gx)
+    } else if op_name == "LUExtractP" {
+        // Permutation matrix carries no smooth gradient.
+        None
+    } else if op_name == "QRExtractQ" {
+        // Townsend / Murray (2016) QR backward for Q component.
+        use crate::tensor_ops::decomposition_ops::QRExtractBackwardOp;
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(x_tensor, false)
+            .append_input(gy, false)
+            .build(QRExtractBackwardOp { component: 0 });
+        Some(gx)
+    } else if op_name == "QRExtractR" {
+        // Townsend / Murray (2016) QR backward for R component.
+        use crate::tensor_ops::decomposition_ops::QRExtractBackwardOp;
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(x_tensor, false)
+            .append_input(gy, false)
+            .build(QRExtractBackwardOp { component: 1 });
+        Some(gx)
     } else {
         // Default case: pass through gradient for unknown ops.
         // This is generally safer than returning None (zero gradient)

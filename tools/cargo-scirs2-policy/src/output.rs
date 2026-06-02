@@ -69,18 +69,12 @@ fn print_json(violations: &[Violation]) {
     for (i, v) in violations.iter().enumerate() {
         let comma = if i + 1 < violations.len() { "," } else { "" };
         let file_json = match &v.file {
-            Some(f) => format!(
-                "\"{}\"",
-                f.replace('\\', "/").replace('"', "\\\"")
-            ),
+            Some(f) => format!("\"{}\"", f.replace('\\', "/").replace('"', "\\\"")),
             None => "null".to_string(),
         };
         println!("  {{");
         println!("    \"rule_id\": \"{}\",", v.rule_id);
-        println!(
-            "    \"message\": \"{}\",",
-            v.message.replace('"', "\\\"")
-        );
+        println!("    \"message\": \"{}\",", v.message.replace('"', "\\\""));
         println!("    \"severity\": \"{}\",", v.severity);
         println!("    \"file\": {}", file_json);
         println!("  }}{}", comma);

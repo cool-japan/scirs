@@ -33,7 +33,9 @@
 //! | `SOURCE_SCAN_001` | WARN | `use rand::` in non-core source files |
 //! | `SOURCE_SCAN_002` | INFO | `use ndarray::` in non-core source files |
 
-use cargo_scirs2_policy::{bench_regression, checks, dep_audit, report, rules, version_policy, violation, workspace};
+use cargo_scirs2_policy::{
+    bench_regression, checks, dep_audit, report, rules, version_policy, violation, workspace,
+};
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 
@@ -88,9 +90,9 @@ enum PolicyCommand {
         /// Path to the Criterion output directory (default: `target/criterion`).
         #[arg(long, default_value = "target/criterion")]
         criterion_dir: PathBuf,
-        /// Path to write the snapshot JSON (default: `/tmp/scirs2_bench_snapshot.json`).
-        #[arg(long, default_value = "/tmp/scirs2_bench_snapshot.json")]
-        output: PathBuf,
+        /// Path to write the snapshot JSON (default: `<TMPDIR>/scirs2_bench_snapshot.json`).
+        #[arg(long)]
+        output: Option<PathBuf>,
     },
     /// Compare two benchmark snapshots and report regressions.
     ///
@@ -146,9 +148,9 @@ enum PolicyCommand {
         /// Path to the workspace root (defaults to the current directory).
         #[arg(long, default_value = ".")]
         workspace: PathBuf,
-        /// Path to write the snapshot JSON.
-        #[arg(long, default_value = "/tmp/scirs2_api_snapshot.json")]
-        output: PathBuf,
+        /// Path to write the snapshot JSON (default: `<TMPDIR>/scirs2_api_snapshot.json`).
+        #[arg(long)]
+        output: Option<PathBuf>,
     },
     /// Print the current SemVer commitment level and version policy.
     VersionPolicy {
@@ -175,7 +177,11 @@ fn main() {
         PolicyCommand::BenchSnapshot {
             criterion_dir,
             output,
-        } => run_bench_snapshot(&criterion_dir, &output),
+        } => {
+            let output_path =
+                output.unwrap_or_else(|| std::env::temp_dir().join("scirs2_bench_snapshot.json"));
+            run_bench_snapshot(&criterion_dir, &output_path)
+        }
         PolicyCommand::BenchDiff {
             baseline,
             current,
@@ -193,7 +199,9 @@ fn main() {
             format,
         } => run_check_semver(&workspace, api_snapshot.as_deref(), &format),
         PolicyCommand::SaveApiSnapshot { workspace, output } => {
-            run_save_api_snapshot(&workspace, &output)
+            let output_path =
+                output.unwrap_or_else(|| std::env::temp_dir().join("scirs2_api_snapshot.json"));
+            run_save_api_snapshot(&workspace, &output_path)
         }
         PolicyCommand::VersionPolicy { workspace } => run_version_policy(&workspace),
     };
@@ -273,7 +281,10 @@ fn run_duplicates(workspace: &Path) -> i32 {
     if duplicates.is_empty() {
         println!("No duplicate dependency versions found.");
     } else {
-        println!("Packages with multiple versions ({} total):", duplicates.len());
+        println!(
+            "Packages with multiple versions ({} total):",
+            duplicates.len()
+        );
         println!();
         for (name, versions) in &duplicates {
             println!("  {:40} {}", name, versions.join(", "));
@@ -387,17 +398,18 @@ fn run_dep_audit(workspace: &Path, baseline_count: Option<usize>, strict: bool) 
 /// Run SemVer and deprecation policy checks.
 ///
 /// Returns `0` when no errors are found, `1` otherwise.
-fn run_check_semver(workspace_path: &Path, api_snapshot: Option<&Path>, output_format: &str) -> i32 {
+fn run_check_semver(
+    workspace_path: &Path,
+    api_snapshot: Option<&Path>,
+    output_format: &str,
+) -> i32 {
     let ws_info = workspace::discover_workspace(workspace_path);
     let violations = checks::run_all_checks_with_snapshot(&ws_info, api_snapshot);
 
     // Filter to only semver/deprecation/api-compat violations
     let semver_violations: Vec<_> = violations
         .into_iter()
-        .filter(|v| {
-            v.message.contains("DEPRECATION_")
-                || v.message.contains("API_COMPAT_")
-        })
+        .filter(|v| v.message.contains("DEPRECATION_") || v.message.contains("API_COMPAT_"))
         .collect();
 
     match output_format {
@@ -486,7 +498,10 @@ fn run_version_policy(workspace_path: &Path) -> i32 {
     println!("SemVer commitment:      {commitment}");
     println!();
     println!("Deprecation Policy:");
-    println!("  Window:               {} minor versions before removal", policy.deprecation_window);
+    println!(
+        "  Window:               {} minor versions before removal",
+        policy.deprecation_window
+    );
     println!("  Require since field:  {}", policy.require_since);
     println!("  Require note field:   {}", policy.require_note);
     println!();
@@ -496,7 +511,10 @@ fn run_version_policy(workspace_path: &Path) -> i32 {
     } else {
         println!("  Branches:             {}", lts.branches.join(", "));
     }
-    println!("  Security patch window: {} months", lts.security_patch_window_months);
+    println!(
+        "  Security patch window: {} months",
+        lts.security_patch_window_months
+    );
     println!();
 
     match commitment {
@@ -568,7 +586,10 @@ mod tests {
         .expect("write Cargo.toml");
 
         let code = run_check(&dir, "text");
-        assert_eq!(code, 1, "Workspace with violations should return exit code 1");
+        assert_eq!(
+            code, 1,
+            "Workspace with violations should return exit code 1"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -674,12 +695,13 @@ mod tests {
     fn write_snapshot(path: &Path, measurements: &[(&str, f64)]) {
         let mut snap = bench_regression::BenchmarkSnapshot::new();
         for (name, mean) in measurements {
-            snap.measurements.push(bench_regression::BenchmarkMeasurement {
-                name: name.to_string(),
-                mean_ns: *mean,
-                std_dev_ns: mean * 0.05,
-                std_err_ns: mean * 0.01,
-            });
+            snap.measurements
+                .push(bench_regression::BenchmarkMeasurement {
+                    name: name.to_string(),
+                    mean_ns: *mean,
+                    std_dev_ns: mean * 0.05,
+                    std_err_ns: mean * 0.01,
+                });
         }
         snap.save(path).expect("save snapshot");
     }

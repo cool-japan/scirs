@@ -41,8 +41,8 @@ console_error_panic_hook = { workspace = true, optional = true }
 
 # Core dependencies
 ndarray = { workspace = true, default-features = false, features = ["std", "serde"] }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
+num-traits = { workspace = true, default-features = false }
+num-complex = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

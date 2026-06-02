@@ -174,6 +174,8 @@ mod mae;
 mod mse;
 #[cfg(feature = "symbolic")]
 pub mod symbolic;
+#[cfg(feature = "symbolic")]
+pub mod symbolic_prior_loss;
 mod triplet;
 
 pub use contrastive::ContrastiveLoss;
@@ -184,4 +186,6 @@ pub use mae::MeanAbsoluteError;
 pub use mse::MeanSquaredError;
 #[cfg(feature = "symbolic")]
 pub use symbolic::SymbolicLoss;
+#[cfg(feature = "symbolic")]
+pub use symbolic_prior_loss::SymbolicPriorLoss;
 pub use triplet::TripletLoss;

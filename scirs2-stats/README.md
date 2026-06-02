@@ -6,7 +6,7 @@
 
 **Comprehensive statistical computing for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
-`scirs2-stats` is the statistical backbone of SciRS2, providing a production-ready, pure-Rust implementation of probability distributions, hypothesis testing, Bayesian inference, survival analysis, MCMC sampling, Gaussian processes, copulas, and much more. The API mirrors SciPy's `stats` module where sensible, while going considerably further in v0.4.4 with nonparametric Bayes, causal inference, sequential Monte Carlo, and advanced time-series-oriented statistics.
+`scirs2-stats` is the statistical backbone of SciRS2, providing a production-ready, pure-Rust implementation of probability distributions, hypothesis testing, Bayesian inference, survival analysis, MCMC sampling, Gaussian processes, copulas, and much more. The API mirrors SciPy's `stats` module where sensible, while going considerably further in v0.5.0 with nonparametric Bayes, causal inference, sequential Monte Carlo, and advanced time-series-oriented statistics.
 
 ---
 
@@ -25,7 +25,7 @@ Modern statistical workflows demand more than descriptive statistics and p-value
 
 ---
 
-## Feature List (v0.4.4)
+## Feature List (v0.5.0)
 
 ### Descriptive Statistics
 - Mean, median, trimmed mean, geometric mean, harmonic mean
@@ -143,7 +143,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.4.4"
+scirs2-stats = "0.5.0"
 ```
 
 ### Basic Descriptive Statistics

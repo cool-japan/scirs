@@ -24,7 +24,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.4.4", features = ["blas"] }
+//! scirs2-autograd = { version = "0.5.0", features = ["blas"] }
 //! ```
 //!
 //! ### BLAS Acceleration (Recommended)
@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.4.4", features = ["blas"] }
+//! scirs2-autograd = { version = "0.5.0", features = ["blas"] }
 //! ```
 //!
 //! ## 🚀 Quick Start
@@ -300,12 +300,12 @@
 //! |---------|---------|-----------------|
 //! | Autodiff | ✅ | ✅ |
 //! | Dynamic Graphs | ✅ | ✅ |
-//! | GPU Support | ✅ | ✅ (v0.4.4) |
+//! | GPU Support | ✅ | ✅ (v0.5.0) |
 //! | Type Safety | ❌ | ✅ |
 //! | Memory Safety | ⚠️ | ✅ |
 //! | Pure Rust | ❌ | ✅ |
 //!
-//! ## 🚀 v0.4.4 Features
+//! ## 🚀 v0.5.0 Features
 //!
 //! - **GPU Acceleration**: CUDA, Metal, OpenCL, WebGPU backends
 //! - **Higher-Order Derivatives**: Hessian-vector products, full Jacobians
@@ -316,7 +316,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.4.4**
+//! Current version: **0.5.0**
 
 #[allow(unused_imports)]
 // Re-export from scirs2-core for POLICY compliance

@@ -49,9 +49,18 @@ pub fn print_report(violations: &[PolicyViolation]) {
     }
 
     // Summary
-    let errors = violations.iter().filter(|v| v.severity == Severity::Error).count();
-    let warnings = violations.iter().filter(|v| v.severity == Severity::Warning).count();
-    let infos = violations.iter().filter(|v| v.severity == Severity::Info).count();
+    let errors = violations
+        .iter()
+        .filter(|v| v.severity == Severity::Error)
+        .count();
+    let warnings = violations
+        .iter()
+        .filter(|v| v.severity == Severity::Warning)
+        .count();
+    let infos = violations
+        .iter()
+        .filter(|v| v.severity == Severity::Info)
+        .count();
     let crate_count = by_crate.len();
     println!(
         "{} violation(s) in {} crate(s) ({} errors, {} warnings, {} info)",
@@ -80,7 +89,10 @@ pub fn json_report(violations: &[PolicyViolation]) -> String {
     let mut out = String::from("[\n");
     for (i, v) in violations.iter().enumerate() {
         let comma = if i + 1 < violations.len() { "," } else { "" };
-        let file_escaped = v.file.display().to_string()
+        let file_escaped = v
+            .file
+            .display()
+            .to_string()
             .replace('\\', "/")
             .replace('"', "\\\"");
         let msg_escaped = v.message.replace('"', "\\\"");
@@ -104,7 +116,12 @@ mod tests {
     use crate::violation::{PolicyViolation, Severity};
     use std::path::PathBuf;
 
-    fn make_violation(crate_name: &str, file: &str, line: usize, severity: Severity) -> PolicyViolation {
+    fn make_violation(
+        crate_name: &str,
+        file: &str,
+        line: usize,
+        severity: Severity,
+    ) -> PolicyViolation {
         PolicyViolation {
             crate_name: crate_name.to_string(),
             file: PathBuf::from(file),
@@ -139,15 +156,24 @@ mod tests {
 
     #[test]
     fn test_json_report_valid_structure() {
-        let violations = vec![
-            make_violation("crate-a", "/path/lib.rs", 7, Severity::Error),
-        ];
+        let violations = vec![make_violation(
+            "crate-a",
+            "/path/lib.rs",
+            7,
+            Severity::Error,
+        )];
         let json = json_report(&violations);
         assert!(json.starts_with('['), "Should start with [");
         assert!(json.trim_end().ends_with(']'), "Should end with ]");
-        assert!(json.contains("\"crate_name\":\"crate-a\""), "Should contain crate name");
+        assert!(
+            json.contains("\"crate_name\":\"crate-a\""),
+            "Should contain crate name"
+        );
         assert!(json.contains("\"line\":7"), "Should contain line number");
-        assert!(json.contains("\"severity\":\"ERROR\""), "Should contain severity");
+        assert!(
+            json.contains("\"severity\":\"ERROR\""),
+            "Should contain severity"
+        );
     }
 
     #[test]
@@ -161,7 +187,10 @@ mod tests {
         assert!(json.contains("\"crate_name\":\"crate-a\""));
         assert!(json.contains("\"crate_name\":\"crate-b\""));
         // Trailing comma only on first element
-        assert!(json.contains("},\n  {"), "First entry should have trailing comma");
+        assert!(
+            json.contains("},\n  {"),
+            "First entry should have trailing comma"
+        );
     }
 
     #[test]

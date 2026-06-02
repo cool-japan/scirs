@@ -1,345 +1,30 @@
-//! Native Plotting for Advanced Clustering - Advanced Visualization Engine
-//!
-//! This module provides comprehensive native plotting capabilities for Advanced clustering,
-//! including interactive dendrogram visualization, 3D cluster plots, real-time animation,
-//! and advanced quantum state visualizations without external dependencies.
+//! AdvancedNativePlotter — the main plotting engine and all its methods.
 
-use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
-use crate::advanced_visualization::{
-    AdvancedVisualizationOutput, NeuromorphicAdaptationPlot, QuantumCoherencePlot,
+use super::types::{
+    AnimationEngine, Camera3D, DendrogramNode, DendrogramTree, DirectionalLight, ExecutionSummary,
+    InteractiveController, InteractiveFeature, InteractivePerformanceDashboard, Lighting3D,
+    MetricTimelinePoint, Native3DClusterPlot, NativeClusterPlot, NativeDendrogramPlot,
+    NativePlotConfig, NativeVisualizationOutput, NeuromorphicActivityPlot, PlotColorScheme,
+    PointLight, QuantumCoherenceAnimation, QuantumCoherenceFrame, QuantumField3D, SvgCanvas,
+    SvgElement,
 };
+use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
 use crate::error::{ClusteringError, Result};
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use std::collections::HashMap;
 use std::f64::consts::PI;
-
-use serde::{Deserialize, Serialize};
 
 /// Native plotting engine for Advanced clustering
 #[derive(Debug)]
 pub struct AdvancedNativePlotter {
     /// Plot configuration
-    config: NativePlotConfig,
+    pub(crate) config: NativePlotConfig,
     /// SVG canvas for rendering
-    svg_canvas: SvgCanvas,
+    pub(crate) svg_canvas: SvgCanvas,
     /// Animation engine
-    animation_engine: AnimationEngine,
+    pub(crate) animation_engine: AnimationEngine,
     /// Interactive controller
-    interactive_controller: InteractiveController,
-}
-
-/// Configuration for native plotting
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NativePlotConfig {
-    /// Canvas width in pixels
-    pub width: usize,
-    /// Canvas height in pixels
-    pub height: usize,
-    /// Enable interactive features
-    pub enable_interactivity: bool,
-    /// Enable animations
-    pub enable_animations: bool,
-    /// Animation frame rate (FPS)
-    pub animation_fps: f64,
-    /// Color scheme
-    pub color_scheme: PlotColorScheme,
-    /// Export quality
-    pub export_quality: ExportQuality,
-}
-
-/// Color schemes for native plotting
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum PlotColorScheme {
-    /// Quantum theme (blue-cyan-purple)
-    Quantum,
-    /// Neuromorphic theme (green-yellow-red)
-    Neuromorphic,
-    /// AI theme (gold-orange-red)
-    AI,
-    /// Scientific theme (grayscale with highlights)
-    Scientific,
-    /// Custom color palette
-    Custom(Vec<[u8; 3]>),
-}
-
-/// Export quality settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ExportQuality {
-    /// Draft quality (fast rendering)
-    Draft,
-    /// Standard quality
-    Standard,
-    /// High quality (detailed rendering)
-    High,
-    /// Publication quality (maximum detail)
-    Publication,
-}
-
-/// SVG canvas for native rendering
-#[derive(Debug)]
-pub struct SvgCanvas {
-    /// Canvas dimensions
-    width: usize,
-    height: usize,
-    /// SVG elements
-    elements: Vec<SvgElement>,
-    /// Style definitions
-    styles: HashMap<String, String>,
-}
-
-/// SVG element types
-#[derive(Debug, Clone)]
-pub enum SvgElement {
-    /// Circle element
-    Circle {
-        cx: f64,
-        cy: f64,
-        r: f64,
-        fill: String,
-        stroke: String,
-        stroke_width: f64,
-        opacity: f64,
-    },
-    /// Line element
-    Line {
-        x1: f64,
-        y1: f64,
-        x2: f64,
-        y2: f64,
-        stroke: String,
-        stroke_width: f64,
-        opacity: f64,
-    },
-    /// Path element (for complex shapes)
-    Path {
-        d: String,
-        fill: String,
-        stroke: String,
-        stroke_width: f64,
-        opacity: f64,
-    },
-    /// Text element
-    Text {
-        x: f64,
-        y: f64,
-        content: String,
-        font_size: f64,
-        fill: String,
-        text_anchor: String,
-    },
-    /// Group element (for hierarchical organization)
-    Group {
-        id: String,
-        elements: Vec<SvgElement>,
-        transform: String,
-    },
-}
-
-/// Animation engine for dynamic visualizations
-#[derive(Debug)]
-pub struct AnimationEngine {
-    /// Animation frames
-    frames: Vec<AnimationFrame>,
-    /// Current frame index
-    current_frame: usize,
-    /// Frame duration in milliseconds
-    frame_duration: f64,
-    /// Total animation duration
-    total_duration: f64,
-}
-
-/// Animation frame data
-#[derive(Debug, Clone)]
-pub struct AnimationFrame {
-    /// Frame timestamp
-    timestamp: f64,
-    /// Frame elements
-    elements: Vec<SvgElement>,
-    /// Frame-specific transformations
-    transformations: Vec<Transformation>,
-}
-
-/// Animation transformations
-#[derive(Debug, Clone)]
-pub enum Transformation {
-    /// Translation
-    Translate { dx: f64, dy: f64 },
-    /// Rotation
-    Rotate { angle: f64, cx: f64, cy: f64 },
-    /// Scale
-    Scale { sx: f64, sy: f64 },
-    /// Opacity fade
-    Fade { from: f64, to: f64 },
-    /// Color transition
-    ColorTransition { from: String, to: String },
-}
-
-/// Interactive controller for user interaction
-#[derive(Debug)]
-pub struct InteractiveController {
-    /// Zoom level
-    zoom_level: f64,
-    /// Pan offset
-    pan_offset: (f64, f64),
-    /// Selected elements
-    selected_elements: Vec<String>,
-    /// Hover state
-    hover_element: Option<String>,
-}
-
-/// Native dendrogram plot
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NativeDendrogramPlot {
-    /// Dendrogram tree structure
-    pub tree: DendrogramTree,
-    /// Node positions
-    pub node_positions: HashMap<String, (f64, f64)>,
-    /// Branch lengths
-    pub branch_lengths: HashMap<String, f64>,
-    /// Quantum enhancement data
-    pub quantum_enhancements: HashMap<String, f64>,
-    /// Interactive features
-    pub interactive_features: Vec<InteractiveFeature>,
-}
-
-/// Dendrogram tree structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DendrogramTree {
-    /// Root node
-    pub root: DendrogramNode,
-    /// Total height
-    pub height: f64,
-    /// Leaf count
-    pub leaf_count: usize,
-}
-
-/// Dendrogram node
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DendrogramNode {
-    /// Node ID
-    pub id: String,
-    /// Node height
-    pub height: f64,
-    /// Child nodes
-    pub children: Vec<DendrogramNode>,
-    /// Data point indices (for leaf nodes)
-    pub data_indices: Vec<usize>,
-    /// Quantum coherence at this node
-    pub quantum_coherence: f64,
-    /// Neuromorphic activity
-    pub neuromorphic_activity: f64,
-}
-
-/// Interactive features for plots
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum InteractiveFeature {
-    /// Zoom and pan
-    ZoomPan,
-    /// Node selection
-    NodeSelection,
-    /// Tooltip on hover
-    Tooltip,
-    /// Real-time filtering
-    RealTimeFilter,
-    /// Animation controls
-    AnimationControls,
-    /// Export options
-    ExportOptions,
-}
-
-/// 3D cluster plot for high-dimensional visualization
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Native3DClusterPlot {
-    /// 3D data points
-    pub points_3d: Array2<f64>,
-    /// Point colors based on clustering
-    pub point_colors: Vec<[u8; 3]>,
-    /// 3D centroids
-    pub centroids_3d: Array2<f64>,
-    /// Camera position
-    pub camera: Camera3D,
-    /// Lighting setup
-    pub lighting: Lighting3D,
-    /// Quantum field visualization
-    pub quantum_field: QuantumField3D,
-}
-
-/// 3D camera configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Camera3D {
-    /// Camera position
-    pub position: [f64; 3],
-    /// Look-at target
-    pub target: [f64; 3],
-    /// Up vector
-    pub up: [f64; 3],
-    /// Field of view
-    pub fov: f64,
-    /// Near and far clipping planes
-    pub near: f64,
-    pub far: f64,
-}
-
-/// 3D lighting configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Lighting3D {
-    /// Ambient light intensity
-    pub ambient: f64,
-    /// Directional lights
-    pub directional_lights: Vec<DirectionalLight>,
-    /// Point lights
-    pub point_lights: Vec<PointLight>,
-}
-
-/// Directional light
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirectionalLight {
-    /// Light direction
-    pub direction: [f64; 3],
-    /// Light intensity
-    pub intensity: f64,
-    /// Light color
-    pub color: [f64; 3],
-}
-
-/// Point light
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PointLight {
-    /// Light position
-    pub position: [f64; 3],
-    /// Light intensity
-    pub intensity: f64,
-    /// Light color
-    pub color: [f64; 3],
-    /// Attenuation
-    pub attenuation: f64,
-}
-
-/// 3D quantum field visualization
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QuantumField3D {
-    /// Field strength at grid points
-    pub field_strength: Array2<f64>,
-    /// Field coherence
-    pub coherence: Array2<f64>,
-    /// Phase information
-    pub phase: Array2<f64>,
-    /// Entanglement connections
-    pub entanglement_lines: Vec<([f64; 3], [f64; 3], f64)>,
-}
-
-impl Default for NativePlotConfig {
-    fn default() -> Self {
-        Self {
-            width: 1200,
-            height: 800,
-            enable_interactivity: true,
-            enable_animations: true,
-            animation_fps: 30.0,
-            color_scheme: PlotColorScheme::Quantum,
-            export_quality: ExportQuality::High,
-        }
-    }
+    pub(crate) interactive_controller: InteractiveController,
 }
 
 impl AdvancedNativePlotter {
@@ -882,7 +567,7 @@ impl AdvancedNativePlotter {
     }
 
     fn apply_quantum_color_enhancement(&self, base_color: String, quantum_factor: f64) -> String {
-        // Apply quantum shimmer effect to _color
+        // Apply quantum shimmer effect to color
         if base_color.starts_with("hsl") {
             // Extract hue, saturation, lightness
             if let Some(hsl_part) = base_color
@@ -1050,6 +735,9 @@ impl AdvancedNativePlotter {
         self.svg_canvas.add_element(x_label);
         self.svg_canvas.add_element(y_label);
 
+        // Suppress unused variable warnings for bounds that are used for label generation
+        let _ = (x_min, x_max, y_min, ymax);
+
         Ok(())
     }
 
@@ -1061,38 +749,38 @@ impl AdvancedNativePlotter {
             let zoom = 1.0;
             let panX = 0, panY = 0;
             let selectedElements = [];
-            
+
             // Initialize interactive features
             function initInteractivity() {
                 const svg = document.querySelector('svg');
                 if (!svg) return;
-                
+
                 // Zoom and pan
                 svg.addEventListener('wheel', handleZoom);
                 svg.addEventListener('mousedown', handlePanStart);
                 svg.addEventListener('mousemove', handlePanMove);
                 svg.addEventListener('mouseup', handlePanEnd);
-                
+
                 // Element selection
                 svg.addEventListener('click', handleElementClick);
                 svg.addEventListener('mouseover', handleElementHover);
                 svg.addEventListener('mouseout', handleElementOut);
             }
-            
+
             function handleZoom(event) {
                 event.preventDefault();
                 const delta = event.deltaY > 0 ? 0.9 : 1.1;
                 zoom *= delta;
                 updateTransform();
             }
-            
+
             function handleElementClick(event) {
                 const target = event.target;
                 if (target.tagName === 'circle' || target.tagName === 'path') {
                     toggleSelection(target);
                 }
             }
-            
+
             function toggleSelection(element) {
                 const index = selectedElements.indexOf(element);
                 if (index > -1) {
@@ -1103,16 +791,16 @@ impl AdvancedNativePlotter {
                     element.classList.add('selected');
                 }
             }
-            
+
             function updateTransform() {
                 const svg = document.querySelector('svg');
                 const mainGroup = svg.querySelector('g.main-group');
                 if (mainGroup) {
-                    mainGroup.setAttribute('transform', 
+                    mainGroup.setAttribute('transform',
                         `translate(${panX}, ${panY}) scale(${zoom})`);
                 }
             }
-            
+
             // Initialize when DOM is ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initInteractivity);
@@ -1128,7 +816,7 @@ impl AdvancedNativePlotter {
     ///
     /// Constructs a binary tree by greedily merging the two nearest cluster
     /// centroids at each step, mirroring single-linkage agglomeration.
-    fn build_dendrogram_tree(
+    pub(crate) fn build_dendrogram_tree(
         &self,
         data: &ArrayView2<f64>,
         result: &AdvancedClusteringResult,
@@ -1238,7 +926,7 @@ impl AdvancedNativePlotter {
     ///
     /// Leaves are spread evenly along the x-axis; internal nodes are placed
     /// at the mean x of their children and at their merge-height on the y-axis.
-    fn calculate_dendrogram_layout(
+    pub(crate) fn calculate_dendrogram_layout(
         &self,
         tree: &DendrogramTree,
     ) -> Result<HashMap<String, (f64, f64)>> {
@@ -1306,7 +994,7 @@ impl AdvancedNativePlotter {
     }
 
     /// Compute branch lengths for each node, scaled by quantum coherence.
-    fn calculate_quantum_branch_lengths(
+    pub(crate) fn calculate_quantum_branch_lengths(
         &self,
         tree: &DendrogramTree,
         result: &AdvancedClusteringResult,
@@ -1333,7 +1021,7 @@ impl AdvancedNativePlotter {
     }
 
     /// Compute per-node quantum enhancement values for dendrogram colouring.
-    fn calculate_dendrogram_quantum_enhancements(
+    pub(crate) fn calculate_dendrogram_quantum_enhancements(
         &self,
         tree: &DendrogramTree,
         result: &AdvancedClusteringResult,
@@ -1358,7 +1046,7 @@ impl AdvancedNativePlotter {
     }
 
     /// Render dendrogram tree as SVG line elements and add them to the canvas.
-    fn render_dendrogram_to_svg(
+    pub(crate) fn render_dendrogram_to_svg(
         &mut self,
         tree: &DendrogramTree,
         positions: &HashMap<String, (f64, f64)>,
@@ -1426,7 +1114,7 @@ impl AdvancedNativePlotter {
     /// Build a quantum-field representation for 3D cluster plots.
     ///
     /// The field is sampled on a 10×10 grid overlaid on the data bounding box.
-    fn create_quantum_field_3d(
+    pub(crate) fn create_quantum_field_3d(
         &self,
         points_3d: &Array2<f64>,
         result: &AdvancedClusteringResult,
@@ -1519,7 +1207,7 @@ impl AdvancedNativePlotter {
     }
 
     /// Generate a single quantum coherence animation frame at time `t`.
-    fn create_quantum_coherence_frame(
+    pub(crate) fn create_quantum_coherence_frame(
         &self,
         result: &AdvancedClusteringResult,
         t: f64,
@@ -1574,609 +1262,7 @@ impl AdvancedNativePlotter {
     }
 }
 
-// Supporting data structures
-
-/// Native cluster plot output
-#[derive(Debug)]
-pub struct NativeClusterPlot {
-    /// Plot data
-    pub data: Array2<f64>,
-    /// Point elements
-    pub point_elements: Vec<SvgElement>,
-    /// Centroid elements
-    pub centroid_elements: Vec<SvgElement>,
-    /// Quantum enhancements per point
-    pub quantum_enhancements: Vec<f64>,
-    /// Plot bounds
-    pub bounds: (f64, f64, f64, f64),
-    /// Scale factors
-    pub scale: (f64, f64),
-}
-
-/// Complete native visualization output
-#[derive(Debug)]
-pub struct NativeVisualizationOutput {
-    /// Main cluster plot
-    pub cluster_plot: NativeClusterPlot,
-    /// Dendrogram (if applicable)
-    pub dendrogram: Option<NativeDendrogramPlot>,
-    /// 3D plot (if applicable)
-    pub plot_3d: Option<Native3DClusterPlot>,
-    /// Quantum coherence animation
-    pub quantum_animation: Option<QuantumCoherenceAnimation>,
-    /// Neuromorphic activity plot
-    pub neuromorphic_plot: NeuromorphicActivityPlot,
-    /// Interactive performance dashboard
-    pub performance_dashboard: InteractivePerformanceDashboard,
-    /// SVG content as string
-    pub svg_content: String,
-    /// Interactive JavaScript
-    pub interactive_script: String,
-}
-
-/// Quantum coherence animation data
-#[derive(Debug)]
-pub struct QuantumCoherenceAnimation {
-    /// Animation frames
-    pub frames: Vec<QuantumCoherenceFrame>,
-    /// Total duration in seconds
-    pub duration: f64,
-    /// Frames per second
-    pub fps: f64,
-}
-
-/// Single quantum coherence frame
-#[derive(Debug, Clone)]
-pub struct QuantumCoherenceFrame {
-    /// Frame timestamp
-    pub timestamp: f64,
-    /// Coherence visualization elements
-    pub elements: Vec<SvgElement>,
-    /// Quantum field strength
-    pub field_strength: Array2<f64>,
-}
-
-/// Neuromorphic activity plot
-#[derive(Debug)]
-pub struct NeuromorphicActivityPlot {
-    /// Activity matrix (time x neurons)
-    pub activity_matrix: Array2<f64>,
-    /// Spike trains
-    pub spike_trains: Array2<f64>,
-    /// Plasticity changes
-    pub plasticity_changes: Array2<f64>,
-    /// Time resolution
-    pub time_resolution: f64,
-}
-
-/// Interactive performance dashboard
-#[derive(Debug)]
-pub struct InteractivePerformanceDashboard {
-    /// Performance metrics
-    pub performance_metrics: HashMap<String, f64>,
-    /// Improvement factors
-    pub improvements: HashMap<String, f64>,
-    /// Metrics timeline
-    pub metrics_timeline: Vec<MetricTimelinePoint>,
-    /// Execution summary
-    pub execution_summary: ExecutionSummary,
-}
-
-/// Timeline point for metrics
-#[derive(Debug, Clone)]
-pub struct MetricTimelinePoint {
-    /// Timestamp
-    pub timestamp: f64,
-    /// Quantum coherence at this time
-    pub quantum_coherence: f64,
-    /// Neural adaptation rate
-    pub neural_adaptation: f64,
-    /// AI confidence
-    pub ai_confidence: f64,
-}
-
-/// Execution summary
-#[derive(Debug, Clone)]
-pub struct ExecutionSummary {
-    /// Total execution time
-    pub total_time: f64,
-    /// Memory usage
-    pub memory_usage: f64,
-    /// Number of iterations
-    pub iterations: usize,
-    /// Selected algorithm
-    pub algorithm: String,
-    /// Final confidence
-    pub confidence: f64,
-}
-
-// Implementation of remaining methods would continue here...
-// The SvgCanvas, AnimationEngine, and InteractiveController implementations
-// would provide the core rendering and interaction capabilities
-
-impl SvgCanvas {
-    pub fn new(width: usize, height: usize) -> Self {
-        Self {
-            width,
-            height,
-            elements: Vec::new(),
-            styles: HashMap::new(),
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.elements.clear();
-    }
-
-    pub fn add_element(&mut self, element: SvgElement) {
-        self.elements.push(element);
-    }
-
-    pub fn to_svg(&self) -> String {
-        let mut svg = format!(
-            r#"<svg width="{}" height="{}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">"#,
-            self.width, self.height
-        );
-
-        // Add styles
-        svg.push_str("<defs><style>");
-        for (selector, style) in &self.styles {
-            svg.push_str(&format!("{} {{ {} }}", selector, style));
-        }
-        svg.push_str("</style></defs>");
-
-        // Add main group
-        svg.push_str(r#"<g class="main-group">"#);
-
-        // Add elements
-        for element in &self.elements {
-            svg.push_str(&element.to_svg());
-        }
-
-        svg.push_str("</g></svg>");
-        svg
-    }
-}
-
-impl SvgElement {
-    pub fn to_svg(&self) -> String {
-        match self {
-            SvgElement::Circle {
-                cx,
-                cy,
-                r,
-                fill,
-                stroke,
-                stroke_width,
-                opacity,
-            } => {
-                format!(
-                    r#"<circle cx="{}" cy="{}" r="{}" fill="{}" stroke="{}" stroke-width="{}" opacity="{}" />"#,
-                    cx, cy, r, fill, stroke, stroke_width, opacity
-                )
-            }
-            SvgElement::Line {
-                x1,
-                y1,
-                x2,
-                y2,
-                stroke,
-                stroke_width,
-                opacity,
-            } => {
-                format!(
-                    r#"<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="{}" stroke-width="{}" opacity="{}" />"#,
-                    x1, y1, x2, y2, stroke, stroke_width, opacity
-                )
-            }
-            SvgElement::Path {
-                d,
-                fill,
-                stroke,
-                stroke_width,
-                opacity,
-            } => {
-                format!(
-                    r#"<path d="{}" fill="{}" stroke="{}" stroke-width="{}" opacity="{}" />"#,
-                    d, fill, stroke, stroke_width, opacity
-                )
-            }
-            SvgElement::Text {
-                x,
-                y,
-                content,
-                font_size,
-                fill,
-                text_anchor,
-            } => {
-                format!(
-                    r#"<text x="{}" y="{}" font-size="{}" fill="{}" text-anchor="{}">{}</text>"#,
-                    x, y, font_size, fill, text_anchor, content
-                )
-            }
-            SvgElement::Group {
-                id,
-                elements,
-                transform,
-            } => {
-                let mut group = format!(r#"<g id="{}" transform="{}">"#, id, transform);
-                for element in elements {
-                    group.push_str(&element.to_svg());
-                }
-                group.push_str("</g>");
-                group
-            }
-        }
-    }
-}
-
-impl AnimationEngine {
-    pub fn new(fps: f64) -> Self {
-        Self {
-            frames: Vec::new(),
-            current_frame: 0,
-            frame_duration: 1000.0 / fps,
-            total_duration: 0.0,
-        }
-    }
-}
-
-impl InteractiveController {
-    pub fn new() -> Self {
-        Self {
-            zoom_level: 1.0,
-            pan_offset: (0.0, 0.0),
-            selected_elements: Vec::new(),
-            hover_element: None,
-        }
-    }
-}
-
-// Additional implementation methods would continue...
-// This provides the core structure for native plotting capabilities
-
-/// Convenience function to create native Advanced visualization
-#[allow(dead_code)]
-pub fn create_native_advanced_plot(
-    data: &ArrayView2<f64>,
-    result: &AdvancedClusteringResult,
-    config: Option<NativePlotConfig>,
-) -> Result<NativeVisualizationOutput> {
-    let config = config.unwrap_or_default();
-    let mut plotter = AdvancedNativePlotter::new(config);
-    plotter.create_comprehensive_plot(data, result)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
-    use scirs2_core::ndarray::{array, Array1, Array2};
-
-    /// Build a minimal AdvancedClusteringResult from small 4-point 2-D data.
-    /// Two clusters: points 0,1 in cluster 0; points 2,3 in cluster 1.
-    fn make_result() -> AdvancedClusteringResult {
-        let centroids = array![[0.5, 0.5], [5.5, 5.5]];
-        let clusters = Array1::from_vec(vec![0, 0, 1, 1]);
-        AdvancedClusteringResult {
-            clusters,
-            centroids,
-            ai_speedup: 1.0,
-            quantum_advantage: 1.0,
-            neuromorphic_benefit: 1.0,
-            meta_learning_improvement: 0.0,
-            selected_algorithm: "test".to_string(),
-            confidence: 0.9,
-            performance: AdvancedPerformanceMetrics {
-                silhouette_score: 0.8,
-                execution_time: 0.001,
-                memory_usage: 1.0,
-                quantum_coherence: 0.7,
-                neural_adaptation_rate: 0.5,
-                ai_iterations: 5,
-                energy_efficiency: 0.9,
-            },
-        }
-    }
-
-    /// Small 4-point 2-D data matching make_result().
-    fn make_data() -> Array2<f64> {
-        array![[0.0, 0.0], [1.0, 1.0], [5.0, 5.0], [6.0, 6.0]]
-    }
-
-    // -----------------------------------------------------------------------
-    // build_dendrogram_tree
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_build_dendrogram_tree_basic() {
-        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
-        let data = make_data();
-        let result = make_result();
-        let tree = plotter
-            .build_dendrogram_tree(&data.view(), &result)
-            .expect("build_dendrogram_tree failed");
-
-        assert_eq!(tree.leaf_count, 4, "leaf_count should equal n_samples");
-        assert!(
-            tree.root.height >= 0.0,
-            "root height must be non-negative, got {}",
-            tree.root.height
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // calculate_dendrogram_layout
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_calculate_dendrogram_layout_all_nodes_have_positions() {
-        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
-        let data = make_data();
-        let result = make_result();
-        let tree = plotter
-            .build_dendrogram_tree(&data.view(), &result)
-            .expect("build_dendrogram_tree failed");
-        let layout = plotter
-            .calculate_dendrogram_layout(&tree)
-            .expect("calculate_dendrogram_layout failed");
-
-        // We should have at least one entry (the root).
-        assert!(
-            !layout.is_empty(),
-            "layout must contain at least one position"
-        );
-        for (id, (x, y)) in &layout {
-            assert!(
-                x.is_finite() && y.is_finite(),
-                "position for node '{id}' is not finite: ({x}, {y})"
-            );
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // calculate_quantum_branch_lengths
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_calculate_quantum_branch_lengths_all_nodes() {
-        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
-        let data = make_data();
-        let result = make_result();
-        let tree = plotter
-            .build_dendrogram_tree(&data.view(), &result)
-            .expect("build_dendrogram_tree failed");
-        let lengths = plotter
-            .calculate_quantum_branch_lengths(&tree, &result)
-            .expect("calculate_quantum_branch_lengths failed");
-
-        assert!(!lengths.is_empty(), "branch lengths map must not be empty");
-        for (id, length) in &lengths {
-            assert!(
-                length.is_finite(),
-                "branch length for '{id}' is not finite: {length}"
-            );
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // calculate_dendrogram_quantum_enhancements
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_calculate_dendrogram_quantum_enhancements_in_range() {
-        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
-        let data = make_data();
-        let result = make_result();
-        let tree = plotter
-            .build_dendrogram_tree(&data.view(), &result)
-            .expect("build_dendrogram_tree failed");
-        let enhancements = plotter
-            .calculate_dendrogram_quantum_enhancements(&tree, &result)
-            .expect("calculate_dendrogram_quantum_enhancements failed");
-
-        assert!(
-            !enhancements.is_empty(),
-            "enhancements map must not be empty"
-        );
-        for (id, enh) in &enhancements {
-            assert!(
-                *enh >= 0.0 && *enh <= 1.0,
-                "enhancement for '{id}' is out of [0, 1]: {enh}"
-            );
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // render_dendrogram_to_svg
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_render_dendrogram_to_svg_adds_elements() {
-        let mut plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
-        let data = make_data();
-        let result = make_result();
-        let tree = plotter
-            .build_dendrogram_tree(&data.view(), &result)
-            .expect("build_dendrogram_tree failed");
-        let positions = plotter
-            .calculate_dendrogram_layout(&tree)
-            .expect("calculate_dendrogram_layout failed");
-        let branch_lengths = plotter
-            .calculate_quantum_branch_lengths(&tree, &result)
-            .expect("calculate_quantum_branch_lengths failed");
-        let enhancements = plotter
-            .calculate_dendrogram_quantum_enhancements(&tree, &result)
-            .expect("calculate_dendrogram_quantum_enhancements failed");
-
-        plotter
-            .render_dendrogram_to_svg(&tree, &positions, &branch_lengths, &enhancements)
-            .expect("render_dendrogram_to_svg failed");
-
-        // The SVG canvas should now contain content.
-        let svg = plotter.svg_canvas.to_svg();
-        assert!(
-            !svg.is_empty(),
-            "SVG canvas must be non-empty after rendering"
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // create_quantum_field_3d
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_create_quantum_field_3d_grid_dimensions() {
-        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
-        let data = make_data();
-        let result = make_result();
-        // Need 3-D data for create_quantum_field_3d.
-        let data_3d: Array2<f64> = array![
-            [0.0, 0.0, 0.0],
-            [1.0, 1.0, 1.0],
-            [5.0, 5.0, 5.0],
-            [6.0, 6.0, 6.0]
-        ];
-        let field = plotter
-            .create_quantum_field_3d(&data_3d, &result)
-            .expect("create_quantum_field_3d failed");
-
-        // Method uses a 10×10 grid.
-        let shape = field.field_strength.shape();
-        assert_eq!(shape[0], 10, "field grid rows should be 10");
-        assert_eq!(shape[1], 10, "field grid cols should be 10");
-        // All values should be finite and >= 0.
-        for v in field.field_strength.iter() {
-            assert!(
-                v.is_finite() && *v >= 0.0,
-                "field value should be finite and >= 0, got {v}"
-            );
-        }
-        // Unused variable suppression — we built result but only use data_3d.
-        let _ = data;
-    }
-
-    // -----------------------------------------------------------------------
-    // create_quantum_coherence_frame
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_create_quantum_coherence_frame_shape_and_timestamp() {
-        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
-        let result = make_result();
-        let frame = plotter
-            .create_quantum_coherence_frame(&result, 0.0)
-            .expect("create_quantum_coherence_frame failed");
-
-        assert_eq!(
-            frame.timestamp, 0.0,
-            "timestamp should match argument t=0.0"
-        );
-        let shape = frame.field_strength.shape();
-        assert_eq!(shape[0], 8, "field_strength rows should be 8");
-        assert_eq!(shape[1], 8, "field_strength cols should be 8");
-        // The result has 2 centroids, so there should be 2 SVG elements.
-        assert_eq!(
-            frame.elements.len(),
-            2,
-            "should have one element per centroid"
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // create_comprehensive_plot (exercises multiple paths via create_native_advanced_plot)
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_create_comprehensive_plot_runs_ok() {
-        let data = make_data();
-        let result = make_result();
-        let output = create_native_advanced_plot(&data.view(), &result, None)
-            .expect("create_native_advanced_plot failed");
-
-        assert!(
-            !output.svg_content.is_empty(),
-            "svg_content must be non-empty"
-        );
-        // For 2-D data, plot_3d should be None (ncols <= 2).
-        assert!(
-            output.plot_3d.is_none(),
-            "plot_3d should be None for 2-D data"
-        );
-    }
-
-    // -----------------------------------------------------------------------
-    // create_comprehensive_plot with hierarchical algorithm triggers dendrogram path
-    // -----------------------------------------------------------------------
-    #[test]
-    fn test_comprehensive_plot_hierarchical_triggers_dendrogram() {
-        let data = make_data();
-        let mut result = make_result();
-        result.selected_algorithm = "hierarchical".to_string();
-
-        let output = create_native_advanced_plot(&data.view(), &result, None)
-            .expect("create_native_advanced_plot (hierarchical) failed");
-
-        assert!(
-            output.dendrogram.is_some(),
-            "dendrogram should be Some when selected_algorithm contains 'hierarchical'"
-        );
-    }
-}
-
-/// Export native visualization to file
-#[allow(dead_code)]
-pub fn export_native_visualization(
-    output: &NativeVisualizationOutput,
-    filename: &str,
-    format: &str,
-) -> Result<()> {
-    match format.to_lowercase().as_str() {
-        "svg" => {
-            use std::fs::File;
-            use std::io::Write;
-
-            let mut file = File::create(format!("{}.svg", filename)).map_err(|e| {
-                ClusteringError::InvalidInput(format!("Failed to create SVG file: {}", e))
-            })?;
-
-            file.write_all(output.svg_content.as_bytes()).map_err(|e| {
-                ClusteringError::InvalidInput(format!("Failed to write SVG file: {}", e))
-            })?;
-
-            println!("✅ Exported native Advanced visualization to {filename}.svg");
-        }
-        "html" => {
-            use std::fs::File;
-            use std::io::Write;
-
-            let html_content = format!(
-                r#"<!DOCTYPE html>
-<html>
-<head>
-    <title>Advanced Native Visualization</title>
-    <style>
-        body {{ margin: 0; padding: 20px; background: #1a1a2e; }}
-        .selected {{ stroke: #FFD700 !important; stroke-width: 3px !important; }}
-    </style>
-</head>
-<body>
-    {}
-    <script>{}</script>
-</body>
-</html>"#,
-                output.svg_content, output.interactive_script
-            );
-
-            let mut file = File::create(format!("{}.html", filename)).map_err(|e| {
-                ClusteringError::InvalidInput(format!("Failed to create HTML file: {}", e))
-            })?;
-
-            file.write_all(html_content.as_bytes()).map_err(|e| {
-                ClusteringError::InvalidInput(format!("Failed to write HTML file: {}", e))
-            })?;
-
-            println!("🌐 Exported interactive Advanced visualization to {filename}.html");
-        }
-        _ => {
-            return Err(ClusteringError::InvalidInput(format!(
-                "Unsupported export format: {}",
-                format
-            )));
-        }
-    }
-
-    Ok(())
-}
+// Suppress the unused import warning for AdvancedPerformanceMetrics — it is only
+// needed by the test helpers which live in mod.rs and use the crate path directly.
+#[allow(unused_imports)]
+use crate::advanced_clustering::AdvancedPerformanceMetrics as _AdvancedPerformanceMetrics;

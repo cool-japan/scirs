@@ -30,18 +30,11 @@ impl ApiCompatCheck {
     ///
     /// If the snapshot file at `snapshot_path` does not exist, this check is
     /// a no-op (returns empty violations).
-    pub fn run(
-        &self,
-        workspace: &WorkspaceInfo,
-        snapshot_path: &Path,
-    ) -> Vec<PolicyViolation> {
+    pub fn run(&self, workspace: &WorkspaceInfo, snapshot_path: &Path) -> Vec<PolicyViolation> {
         if !snapshot_path.exists() {
             return Vec::new();
         }
-        match check_api_compatibility(workspace, snapshot_path) {
-            Ok(violations) => violations,
-            Err(_) => Vec::new(),
-        }
+        check_api_compatibility(workspace, snapshot_path).unwrap_or_default()
     }
 }
 
@@ -113,8 +106,7 @@ impl ApiSnapshot {
     pub fn load(path: &Path) -> Result<Self, String> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read API snapshot from {}: {e}", path.display()))?;
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse API snapshot: {e}"))
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse API snapshot: {e}"))
     }
 }
 
@@ -283,12 +275,24 @@ pub fn check_api_compatibility(
     let old_set: BTreeSet<(&str, &str, &str)> = old_snapshot
         .items
         .iter()
-        .map(|item| (item.crate_name.as_str(), item.kind.as_str(), item.name.as_str()))
+        .map(|item| {
+            (
+                item.crate_name.as_str(),
+                item.kind.as_str(),
+                item.name.as_str(),
+            )
+        })
         .collect();
 
     let current_set: BTreeSet<(&str, &str, &str)> = current_items
         .iter()
-        .map(|item| (item.crate_name.as_str(), item.kind.as_str(), item.name.as_str()))
+        .map(|item| {
+            (
+                item.crate_name.as_str(),
+                item.kind.as_str(),
+                item.name.as_str(),
+            )
+        })
         .collect();
 
     // Build a map of old items for deprecated status lookup
@@ -297,7 +301,11 @@ pub fn check_api_compatibility(
         .iter()
         .map(|item| {
             (
-                (item.crate_name.as_str(), item.kind.as_str(), item.name.as_str()),
+                (
+                    item.crate_name.as_str(),
+                    item.kind.as_str(),
+                    item.name.as_str(),
+                ),
                 item.is_deprecated,
             )
         })
@@ -449,7 +457,8 @@ mod tests {
         fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"test-crate\"\nversion = \"0.4.0\"\n",
-        ).ok();
+        )
+        .ok();
         fs::write(src_dir.join("lib.rs"), source).ok();
 
         WorkspaceInfo {
@@ -523,16 +532,14 @@ pub fn new_func() {}
         let snapshot = ApiSnapshot {
             version: "0.4.0".to_string(),
             timestamp: "12345".to_string(),
-            items: vec![
-                ApiItem {
-                    crate_name: "my-crate".to_string(),
-                    file: "src/lib.rs".to_string(),
-                    line: 1,
-                    kind: "fn".to_string(),
-                    name: "my_func".to_string(),
-                    is_deprecated: false,
-                },
-            ],
+            items: vec![ApiItem {
+                crate_name: "my-crate".to_string(),
+                file: "src/lib.rs".to_string(),
+                line: 1,
+                kind: "fn".to_string(),
+                name: "my_func".to_string(),
+                is_deprecated: false,
+            }],
         };
 
         let path = dir.join("snapshot.json");
@@ -579,10 +586,10 @@ pub fn new_func() {}
         // Current workspace only has kept_func
         let ws = make_workspace(&dir, "pub fn kept_func() {}\n");
 
-        let violations = check_api_compatibility(&ws, &snap_path)
-            .expect("check should succeed");
+        let violations = check_api_compatibility(&ws, &snap_path).expect("check should succeed");
 
-        let removal_errors: Vec<_> = violations.iter()
+        let removal_errors: Vec<_> = violations
+            .iter()
             .filter(|v| v.message.contains("API_COMPAT_001"))
             .collect();
         assert_eq!(removal_errors.len(), 1, "Should flag undeprecated removal");
@@ -599,16 +606,14 @@ pub fn new_func() {}
         let old_snapshot = ApiSnapshot {
             version: "0.3.0".to_string(),
             timestamp: "1".to_string(),
-            items: vec![
-                ApiItem {
-                    crate_name: "test-crate".to_string(),
-                    file: "src/lib.rs".to_string(),
-                    line: 1,
-                    kind: "fn".to_string(),
-                    name: "removed_func".to_string(),
-                    is_deprecated: true, // was deprecated
-                },
-            ],
+            items: vec![ApiItem {
+                crate_name: "test-crate".to_string(),
+                file: "src/lib.rs".to_string(),
+                line: 1,
+                kind: "fn".to_string(),
+                name: "removed_func".to_string(),
+                is_deprecated: true, // was deprecated
+            }],
         };
         let snap_path = dir.join("old.json");
         old_snapshot.save(&snap_path).expect("save");
@@ -616,13 +621,17 @@ pub fn new_func() {}
         // Current workspace has nothing
         let ws = make_workspace(&dir, "// empty\n");
 
-        let violations = check_api_compatibility(&ws, &snap_path)
-            .expect("check should succeed");
+        let violations = check_api_compatibility(&ws, &snap_path).expect("check should succeed");
 
-        let removal_warns: Vec<_> = violations.iter()
+        let removal_warns: Vec<_> = violations
+            .iter()
             .filter(|v| v.message.contains("API_COMPAT_002"))
             .collect();
-        assert_eq!(removal_warns.len(), 1, "Should report deprecated removal as warning");
+        assert_eq!(
+            removal_warns.len(),
+            1,
+            "Should report deprecated removal as warning"
+        );
         assert_eq!(removal_warns[0].severity, Severity::Warning);
 
         let _ = fs::remove_dir_all(&dir);
@@ -643,10 +652,10 @@ pub fn new_func() {}
 
         let ws = make_workspace(&dir, "pub fn new_func() {}\n");
 
-        let violations = check_api_compatibility(&ws, &snap_path)
-            .expect("check should succeed");
+        let violations = check_api_compatibility(&ws, &snap_path).expect("check should succeed");
 
-        let new_infos: Vec<_> = violations.iter()
+        let new_infos: Vec<_> = violations
+            .iter()
             .filter(|v| v.message.contains("API_COMPAT_003"))
             .collect();
         assert_eq!(new_infos.len(), 1, "Should report new item as info");
@@ -662,7 +671,10 @@ pub fn new_func() {}
 
         let check = ApiCompatCheck;
         let violations = check.run(&ws, &dir.join("nonexistent.json"));
-        assert!(violations.is_empty(), "No snapshot should mean no violations");
+        assert!(
+            violations.is_empty(),
+            "No snapshot should mean no violations"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -675,7 +687,8 @@ pub fn new_func() {}
         fs::write(
             dir.join("Cargo.toml"),
             "[package]\nname = \"test-crate\"\nversion = \"0.4.0\"\n",
-        ).ok();
+        )
+        .ok();
         fs::write(
             src_dir.join("lib.rs"),
             r#"
@@ -684,7 +697,8 @@ pub fn stable_func() {}
 #[deprecated(since = "0.4.0", note = "use stable_func")]
 pub fn deprecated_func() {}
 "#,
-        ).ok();
+        )
+        .ok();
 
         let ws = WorkspaceInfo {
             root: dir.clone(),
@@ -704,11 +718,13 @@ pub fn deprecated_func() {}
         assert_eq!(snapshot.items.len(), 2);
 
         // 3. Check compatibility (same version — no removals)
-        let violations = check_api_compatibility(&ws, &snap_path)
-            .expect("check compat");
+        let violations = check_api_compatibility(&ws, &snap_path).expect("check compat");
         // No removals, no additions (same source)
-        let removals: Vec<_> = violations.iter()
-            .filter(|v| v.message.contains("API_COMPAT_001") || v.message.contains("API_COMPAT_002"))
+        let removals: Vec<_> = violations
+            .iter()
+            .filter(|v| {
+                v.message.contains("API_COMPAT_001") || v.message.contains("API_COMPAT_002")
+            })
             .collect();
         assert!(removals.is_empty(), "No removals expected");
 

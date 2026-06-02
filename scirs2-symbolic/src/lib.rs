@@ -55,11 +55,13 @@
 //! assert_eq!(to_latex(&op), "\\frac{1}{x_{0}}");
 //! ```
 
+pub mod attention;
 pub mod autograd_bridge;
 pub mod cas;
 #[cfg(feature = "jit")]
 pub mod compile;
 pub mod diffgeom;
+pub mod neural_priors;
 
 #[cfg(feature = "macros")]
 pub use scirs2_symbolic_macros::{eml_pattern, eml_template};
@@ -82,6 +84,10 @@ pub use eml::{
 pub use error::{EmlError, SymbolicError};
 pub use eval::eval;
 pub use expr::Expr;
+pub use neural_priors::{
+    discover_series_prior, eval_series_prior, series_prior_regularization, SeriesPrior,
+    SymRegConfig,
+};
 pub use regression::{
     discover, discover_multi, discover_multi_best, discover_ode, discover_ode_best,
     with_constraints, BuildingBlock, ConstrainedConfig, Constraint, DiscoveredFormula, Fitness,

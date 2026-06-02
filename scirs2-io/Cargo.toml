@@ -45,6 +45,9 @@ glob = { workspace = true }
 netcdf3 = { workspace = true }
 kamadak-exif = { workspace = true, optional = true }
 hdf5 = { workspace = true, optional = true }
+# Pure-Rust HDF5 reader (noffi migration; read-only at M1)
+oxih5-core = { workspace = true, optional = true }
+oxih5-format = { workspace = true, optional = true }
 # rayon = { workspace = true }  # Now use scirs2-core parallel abstractions
 thiserror = { workspace = true }
 tokio = { workspace = true, optional = true, features = ["fs", "io-util", "time", "rt"] }
@@ -63,7 +66,7 @@ arrow = { workspace = true, optional = true }
 arrow-array = { workspace = true, optional = true }
 arrow-schema = { workspace = true, optional = true }
 arrow-cast = { workspace = true, optional = true }
-parquet = { workspace = true, optional = true }
+parquet = { workspace = true, default-features = false, optional = true }
 serde_yaml = { workspace = true }
 toml = { workspace = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
@@ -74,6 +77,9 @@ oxiarc-snappy = { workspace = true }  # Pure Rust Snappy (COOLJAPAN Policy)
 oxiarc-brotli = { workspace = true }  # Pure Rust Brotli (COOLJAPAN Policy)
 # Database drivers
 rusqlite = { workspace = true, optional = true }
+# Pure-Rust SQLite-compatible backend (noffi migration; alpha — ROLLBACK/savepoints incomplete)
+oxisql-core = { workspace = true, optional = true }
+oxisql-sqlite-compat = { workspace = true, optional = true }
 # sqlx removed - postgres/mysql implementations are stubs only
 # mongodb removed - stub only, no actual crate usage
 # redis removed - stub only, no actual crate usage
@@ -95,7 +101,9 @@ csv = []
 # Default compression uses 100% Pure Rust libraries (COOLJAPAN Policy)
 compression = []
 validation = []
-hdf5 = ["dep:hdf5"]
+hdf5 = ["dep:hdf5", "dep:oxih5-core", "dep:oxih5-format"]
+# Keep the C-linked hdf5 crate available for write paths until oxih5 write support ships (M2+)
+hdf5-legacy = ["dep:hdf5"]
 parquet = ["dep:parquet", "dep:arrow", "dep:arrow-array", "dep:arrow-schema", "dep:arrow-cast"]
 async = ["dep:tokio", "dep:futures", "dep:futures-util", "dep:async-trait"]
 reqwest = ["dep:reqwest", "dep:log"]
@@ -106,7 +114,9 @@ azure-storage-blobs = []
 gpu = []
 exif = ["image_io"]
 # Database features
-sqlite = ["dep:rusqlite"]
+sqlite = ["dep:rusqlite", "dep:oxisql-core", "dep:oxisql-sqlite-compat"]
+# Keep the C-linked rusqlite available as a stable fallback given oxisql-sqlite-compat alpha status
+sqlite-stable = ["dep:rusqlite"]
 postgres = ["async"]  # Stub implementation only (no actual sqlx dependency)
 mysql = ["async"]     # Stub implementation only (no actual sqlx dependency)
 mongodb = ["async"]   # Stub feature (no actual mongodb crate dependency)

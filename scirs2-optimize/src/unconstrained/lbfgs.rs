@@ -1,6 +1,9 @@
 //! Limited-memory BFGS algorithms for large-scale optimization
 
 use crate::error::OptimizeError;
+use crate::unconstrained::lbfgs_gpu::{
+    try_gpu_two_loop_recursion, GpuDispatchResult, GPU_LBFGS_THRESHOLD,
+};
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::{Bounds, Options};
 use scirs2_core::ndarray::{Array1, ArrayView1};
@@ -318,52 +321,71 @@ where
         g_old.assign(&g);
         let f_old = f;
 
-        // Compute the search direction using the L-BFGS two-loop recursion
-        // Start with the gradient (not negated yet)
-        let mut search_direction = g.clone();
+        // Compute the search direction using the L-BFGS two-loop recursion.
+        // When the `gpu` feature is enabled and conditions are met (n >= threshold,
+        // adapter present, use_gpu=true), delegate to the GPU path.  Otherwise
+        // use the CPU path below (unchanged).
+        let effective_threshold = options
+            .gpu_threshold_override
+            .unwrap_or(GPU_LBFGS_THRESHOLD);
+        let mut search_direction = match try_gpu_two_loop_recursion(
+            &s_vectors,
+            &y_vectors,
+            &rho_values,
+            &g,
+            options.use_gpu,
+            effective_threshold,
+        ) {
+            GpuDispatchResult::Done(dir) => dir,
+            GpuDispatchResult::FallbackToCpu => {
+                // --- CPU two-loop recursion (original, unchanged) ---
+                // Start with the gradient (not negated yet)
+                let mut search_direction_cpu = g.clone();
 
-        // L-BFGS two-loop recursion to compute a search direction
-        let mut alpha_values = Vec::with_capacity(s_vectors.len());
+                // L-BFGS two-loop recursion to compute a search direction
+                let mut alpha_values = Vec::with_capacity(s_vectors.len());
 
-        // First loop: compute and save alpha values
-        for i in (0..s_vectors.len()).rev() {
-            let rho_i = rho_values[i];
-            let s_i = &s_vectors[i];
-            let y_i = &y_vectors[i];
+                // First loop: compute and save alpha values
+                for i in (0..s_vectors.len()).rev() {
+                    let rho_i = rho_values[i];
+                    let s_i = &s_vectors[i];
+                    let y_i = &y_vectors[i];
 
-            let alpha_i = rho_i * s_i.dot(&search_direction);
-            alpha_values.push(alpha_i);
+                    let alpha_i = rho_i * s_i.dot(&search_direction_cpu);
+                    alpha_values.push(alpha_i);
 
-            search_direction = &search_direction - &(alpha_i * y_i);
-        }
+                    search_direction_cpu = &search_direction_cpu - &(alpha_i * y_i);
+                }
 
-        // Scale the search direction by an approximation of the initial inverse Hessian
-        if !s_vectors.is_empty() {
-            let y_last = &y_vectors[s_vectors.len() - 1];
-            let s_last = &s_vectors[s_vectors.len() - 1];
+                // Scale the search direction by an approximation of the initial inverse Hessian
+                if !s_vectors.is_empty() {
+                    let y_last = &y_vectors[s_vectors.len() - 1];
+                    let s_last = &s_vectors[s_vectors.len() - 1];
 
-            let ys = y_last.dot(s_last);
-            let yy = y_last.dot(y_last);
+                    let ys = y_last.dot(s_last);
+                    let yy = y_last.dot(y_last);
 
-            if ys > 0.0 && yy > 0.0 {
-                let gamma = ys / yy;
-                search_direction = &search_direction * gamma;
+                    if ys > 0.0 && yy > 0.0 {
+                        let gamma = ys / yy;
+                        search_direction_cpu = &search_direction_cpu * gamma;
+                    }
+                }
+
+                // Second loop: compute the final search direction
+                for (i, &alpha_i) in alpha_values.iter().enumerate() {
+                    let idx = s_vectors.len() - 1 - i;
+                    let rho_i = rho_values[idx];
+                    let s_i = &s_vectors[idx];
+                    let y_i = &y_vectors[idx];
+
+                    let beta_i = rho_i * y_i.dot(&search_direction_cpu);
+                    search_direction_cpu = &search_direction_cpu + &(s_i * (alpha_i - beta_i));
+                }
+
+                // Make the search direction negative for minimization
+                -search_direction_cpu
             }
-        }
-
-        // Second loop: compute the final search direction
-        for (i, &alpha_i) in alpha_values.iter().enumerate() {
-            let idx = s_vectors.len() - 1 - i;
-            let rho_i = rho_values[idx];
-            let s_i = &s_vectors[idx];
-            let y_i = &y_vectors[idx];
-
-            let beta_i = rho_i * y_i.dot(&search_direction);
-            search_direction = &search_direction + &(s_i * (alpha_i - beta_i));
-        }
-
-        // Make the search direction negative for minimization
-        search_direction = -search_direction;
+        };
 
         // More robust line search for L-BFGS
         let c1 = 1e-4; // Sufficient decrease parameter

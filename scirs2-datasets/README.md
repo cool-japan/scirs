@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-datasets.svg)](https://crates.io/crates/scirs2-datasets)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-datasets)](https://docs.rs/scirs2-datasets)
-[![Version](https://img.shields.io/badge/version-0.4.4-green)]()
+[![Version](https://img.shields.io/badge/version-0.5.0-green)]()
 
 A comprehensive dataset loading and generation library for the SciRS2 scientific computing ecosystem. Provides classic toy datasets, synthetic data generators, time series benchmarks, graph datasets, image datasets, anomaly detection benchmarks, financial data, medical imaging (synthetic), recommendation datasets, and more — all with a consistent, ergonomic API inspired by `scikit-learn.datasets`.
 
@@ -50,14 +50,14 @@ A comprehensive dataset loading and generation library for the SciRS2 scientific
 
 ```toml
 [dependencies]
-scirs2-datasets = "0.4.4"
+scirs2-datasets = "0.5.0"
 ```
 
 With remote dataset download support:
 
 ```toml
 [dependencies]
-scirs2-datasets = { version = "0.4.4", features = ["download"] }
+scirs2-datasets = { version = "0.5.0", features = ["download"] }
 ```
 
 ## Quick Start

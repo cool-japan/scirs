@@ -297,7 +297,8 @@ impl TSNE {
         let n_samples = x.shape()[0];
 
         if self.init == "pca" {
-            let n_components = self.n_components.min(x.shape()[1]);
+            // Bound by both dimensions: PCA can return at most min(n_samples, n_features) components.
+            let n_components = self.n_components.min(x.shape()[0]).min(x.shape()[1]);
             let mut pca = PCA::new(n_components, true, false);
             let mut x_embedded = pca.fit_transform(x)?;
 

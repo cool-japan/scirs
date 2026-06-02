@@ -38,27 +38,29 @@ use std::path::PathBuf;
 
 /// `(crate_name, replacement_hint, severity_when_optional)`
 const BANNED: &[(&str, &str, Severity)] = &[
-    ("zip",         "use oxiarc-archive instead",          Severity::Error),
-    ("flate2",      "use oxiarc-deflate/oxiarc-* instead", Severity::Error),
-    ("zstd",        "use oxiarc-zstd instead",             Severity::Error),
-    ("bzip2",       "use oxiarc-bzip2 instead",            Severity::Error),
-    ("lz4",         "use oxiarc-lz4 instead",              Severity::Error),
-    ("snap",        "use oxiarc-snappy instead",           Severity::Error),
-    ("brotli",      "use oxiarc-brotli instead",           Severity::Error),
-    ("miniz_oxide", "use oxiarc-deflate instead",          Severity::Error),
-    ("bincode",     "use oxicode instead",                 Severity::Error),
-    ("openblas-src","use oxiblas instead",                 Severity::Error),
-    ("blas-src",    "use oxiblas instead",                 Severity::Error),
-    ("cblas",       "use oxiblas instead",                 Severity::Error),
-    ("lapack-src",  "use oxiblas instead",                 Severity::Error),
-    ("rustfft",     "use OxiFFT instead",                  Severity::Error),
-    ("z3",          "use OxiZ instead",                    Severity::Error),
+    ("zip", "use oxiarc-archive instead", Severity::Error),
+    (
+        "flate2",
+        "use oxiarc-deflate/oxiarc-* instead",
+        Severity::Error,
+    ),
+    ("zstd", "use oxiarc-zstd instead", Severity::Error),
+    ("bzip2", "use oxiarc-bzip2 instead", Severity::Error),
+    ("lz4", "use oxiarc-lz4 instead", Severity::Error),
+    ("snap", "use oxiarc-snappy instead", Severity::Error),
+    ("brotli", "use oxiarc-brotli instead", Severity::Error),
+    ("miniz_oxide", "use oxiarc-deflate instead", Severity::Error),
+    ("bincode", "use oxicode instead", Severity::Error),
+    ("openblas-src", "use oxiblas instead", Severity::Error),
+    ("blas-src", "use oxiblas instead", Severity::Error),
+    ("cblas", "use oxiblas instead", Severity::Error),
+    ("lapack-src", "use oxiblas instead", Severity::Error),
+    ("rustfft", "use OxiFFT instead", Severity::Error),
+    ("z3", "use OxiZ instead", Severity::Error),
 ];
 
 /// Packages that are banned in non-core crates only.
-const NON_CORE_BANNED: &[(&str, &str)] = &[
-    ("rand", "use scirs2-core random utilities instead"),
-];
+const NON_CORE_BANNED: &[(&str, &str)] = &[("rand", "use scirs2-core random utilities instead")];
 
 // ---------------------------------------------------------------------------
 // Check struct
@@ -100,7 +102,11 @@ impl BannedDepCheck {
                             "banned dependency '{}': {} (COOLJAPAN Pure Rust Policy){}",
                             dep_name,
                             hint,
-                            if optional { " [optional — verify feature gate]" } else { "" },
+                            if optional {
+                                " [optional — verify feature gate]"
+                            } else {
+                                ""
+                            },
                         ),
                         severity: effective_severity,
                     });
@@ -111,7 +117,7 @@ impl BannedDepCheck {
             if !crate_info.is_core {
                 for (dep_name, hint) in NON_CORE_BANNED {
                     if let Some((line_num, optional)) = find_dep(&content, dep_name) {
-                        let severity = if optional { Severity::Warning } else { Severity::Warning };
+                        let severity = Severity::Warning;
                         violations.push(PolicyViolation {
                             crate_name: crate_info.name.clone(),
                             file: cargo_toml.clone(),
@@ -230,6 +236,7 @@ mod tests {
     use super::*;
     use crate::workspace::{CrateInfo, WorkspaceInfo};
     use std::fs;
+    use std::path::Path;
 
     fn temp_dir(suffix: &str) -> std::path::PathBuf {
         let base = std::env::temp_dir().join(format!(
@@ -245,13 +252,18 @@ mod tests {
         base
     }
 
-    fn workspace_with_cargo_toml(dir: &std::path::PathBuf, content: &str, name: &str, is_core: bool) -> WorkspaceInfo {
+    fn workspace_with_cargo_toml(
+        dir: &Path,
+        content: &str,
+        name: &str,
+        is_core: bool,
+    ) -> WorkspaceInfo {
         fs::write(dir.join("Cargo.toml"), content).expect("write Cargo.toml");
         WorkspaceInfo {
             root: dir.parent().unwrap_or(dir).to_path_buf(),
             crates: vec![CrateInfo {
                 name: name.to_string(),
-                path: dir.clone(),
+                path: dir.to_path_buf(),
                 is_core,
             }],
         }
@@ -267,9 +279,16 @@ mod tests {
             false,
         );
         let violations = BannedDepCheck.run(&ws);
-        let flate2_v: Vec<_> = violations.iter().filter(|v| v.message.contains("flate2")).collect();
+        let flate2_v: Vec<_> = violations
+            .iter()
+            .filter(|v| v.message.contains("flate2"))
+            .collect();
         assert!(!flate2_v.is_empty(), "Should detect flate2");
-        assert_eq!(flate2_v[0].severity, Severity::Error, "Non-optional flate2 is Error");
+        assert_eq!(
+            flate2_v[0].severity,
+            Severity::Error,
+            "Non-optional flate2 is Error"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -283,7 +302,10 @@ mod tests {
             false,
         );
         let violations = BannedDepCheck.run(&ws);
-        let flate2_v: Vec<_> = violations.iter().filter(|v| v.message.contains("flate2")).collect();
+        let flate2_v: Vec<_> = violations
+            .iter()
+            .filter(|v| v.message.contains("flate2"))
+            .collect();
         assert!(!flate2_v.is_empty(), "Optional flate2 still flagged");
         assert_eq!(
             flate2_v[0].severity,
@@ -303,7 +325,10 @@ mod tests {
             false,
         );
         let violations = BannedDepCheck.run(&ws);
-        assert!(violations.is_empty(), "Clean Cargo.toml should have no violations");
+        assert!(
+            violations.is_empty(),
+            "Clean Cargo.toml should have no violations"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -317,7 +342,10 @@ mod tests {
             false,
         );
         let violations = BannedDepCheck.run(&ws);
-        let rand_v: Vec<_> = violations.iter().filter(|v| v.message.contains("rand")).collect();
+        let rand_v: Vec<_> = violations
+            .iter()
+            .filter(|v| v.message.contains("rand"))
+            .collect();
         assert!(!rand_v.is_empty(), "rand in non-core should be flagged");
         let _ = fs::remove_dir_all(&dir);
     }
@@ -332,8 +360,14 @@ mod tests {
             true,
         );
         let violations = BannedDepCheck.run(&ws);
-        let rand_v: Vec<_> = violations.iter().filter(|v| v.message.contains("'rand'")).collect();
-        assert!(rand_v.is_empty(), "rand in scirs2-core should NOT be flagged");
+        let rand_v: Vec<_> = violations
+            .iter()
+            .filter(|v| v.message.contains("'rand'"))
+            .collect();
+        assert!(
+            rand_v.is_empty(),
+            "rand in scirs2-core should NOT be flagged"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -342,7 +376,10 @@ mod tests {
         // "lz4-something" should not match "lz4"
         assert!(!line_declares_dep("lz4-sys = \"1.0\"", "lz4"));
         // "oxiarc-lz4 = ..." should not match "lz4"
-        assert!(!line_declares_dep("oxiarc-lz4 = { workspace = true }", "lz4"));
+        assert!(!line_declares_dep(
+            "oxiarc-lz4 = { workspace = true }",
+            "lz4"
+        ));
         // Feature list strings should not match
         assert!(!line_declares_dep("features = [\"lz4\", \"snap\"]", "lz4"));
     }
@@ -354,7 +391,10 @@ mod tests {
         assert!(line_declares_dep("lz4.workspace = true", "lz4"));
         assert!(line_declares_dep("\"lz4\" = \"1.24\"", "lz4"));
         assert!(line_declares_dep("zip = \"2.0\"", "zip"));
-        assert!(line_declares_dep("bincode = { version = \"1.3\", optional = true }", "bincode"));
+        assert!(line_declares_dep(
+            "bincode = { version = \"1.3\", optional = true }",
+            "bincode"
+        ));
     }
 
     #[test]

@@ -1503,7 +1503,222 @@ where
     Ok((extracted, complex_eigenvectors))
 }
 
-/// Solve symmetric matrices with power iteration (simplified implementation)
+/// Reduce a real symmetric matrix to tridiagonal form using Householder
+/// reflections (EISPACK `tred2`).
+///
+/// Returns `(d, e, z)` where `d` is the diagonal of the tridiagonal matrix, `e`
+/// is its sub-diagonal (`e[0]` is unused and set to zero), and `z` is the
+/// orthogonal transformation that maps the eigenvectors of the tridiagonal form
+/// back to those of the original matrix. The combination with [`symmetric_tridiagonal_ql`]
+/// yields the full symmetric eigendecomposition.
+fn symmetric_tridiagonalize<F>(a: &ArrayView2<F>) -> (Array1<F>, Array1<F>, Array2<F>)
+where
+    F: Float + NumAssign + Sum + ScalarOperand + 'static,
+{
+    let n = a.nrows();
+    let mut z = a.to_owned();
+    let mut d = Array1::<F>::zeros(n);
+    let mut e = Array1::<F>::zeros(n);
+
+    for i in (1..n).rev() {
+        let l = i - 1;
+        let mut h = F::zero();
+        let mut scale = F::zero();
+
+        if l > 0 {
+            for k in 0..=l {
+                scale += z[[i, k]].abs();
+            }
+            if scale == F::zero() {
+                e[i] = z[[i, l]];
+            } else {
+                for k in 0..=l {
+                    z[[i, k]] /= scale;
+                    h += z[[i, k]] * z[[i, k]];
+                }
+                let mut f = z[[i, l]];
+                let g = if f >= F::zero() { -h.sqrt() } else { h.sqrt() };
+                e[i] = scale * g;
+                h -= f * g;
+                z[[i, l]] = f - g;
+                f = F::zero();
+                for j in 0..=l {
+                    z[[j, i]] = z[[i, j]] / h;
+                    let mut gg = F::zero();
+                    for k in 0..=j {
+                        gg += z[[j, k]] * z[[i, k]];
+                    }
+                    for k in (j + 1)..=l {
+                        gg += z[[k, j]] * z[[i, k]];
+                    }
+                    e[j] = gg / h;
+                    f += e[j] * z[[i, j]];
+                }
+                let hh = f / (h + h);
+                for j in 0..=l {
+                    let fj = z[[i, j]];
+                    let gj = e[j] - hh * fj;
+                    e[j] = gj;
+                    for k in 0..=j {
+                        let upd = fj * e[k] + gj * z[[i, k]];
+                        z[[j, k]] -= upd;
+                    }
+                }
+            }
+        } else {
+            e[i] = z[[i, l]];
+        }
+        d[i] = h;
+    }
+
+    d[0] = F::zero();
+    e[0] = F::zero();
+
+    // Accumulate the orthogonal transformation.
+    for i in 0..n {
+        let l = i;
+        if d[i] != F::zero() {
+            for j in 0..l {
+                let mut g = F::zero();
+                for k in 0..l {
+                    g += z[[i, k]] * z[[k, j]];
+                }
+                for k in 0..l {
+                    let zki = z[[k, i]];
+                    z[[k, j]] -= g * zki;
+                }
+            }
+        }
+        d[i] = z[[i, i]];
+        z[[i, i]] = F::one();
+        for j in 0..l {
+            z[[j, i]] = F::zero();
+            z[[i, j]] = F::zero();
+        }
+    }
+
+    (d, e, z)
+}
+
+/// Compute the eigenvalues and eigenvectors of a real symmetric tridiagonal
+/// matrix using the implicit-shift QL algorithm with deflation (EISPACK `tql2`).
+///
+/// `d` holds the diagonal (overwritten with the eigenvalues), `e` holds the
+/// sub-diagonal (destroyed), and `z` holds the accumulated transformation from
+/// [`symmetric_tridiagonalize`] on input and the eigenvectors on output (column
+/// `j` corresponds to eigenvalue `d[j]`).
+fn symmetric_tridiagonal_ql<F>(
+    d: &mut Array1<F>,
+    e: &mut Array1<F>,
+    z: &mut Array2<F>,
+) -> LinalgResult<()>
+where
+    F: Float + NumAssign + Sum + ScalarOperand + 'static,
+{
+    let n = d.len();
+    if n == 0 {
+        return Ok(());
+    }
+
+    // Shift the sub-diagonal so that e[i] couples d[i] and d[i+1].
+    for i in 1..n {
+        e[i - 1] = e[i];
+    }
+    e[n - 1] = F::zero();
+
+    let eps = F::epsilon();
+    let two = F::one() + F::one();
+    let mut f = F::zero();
+    let mut tst1 = F::zero();
+
+    for l in 0..n {
+        // Track the largest tridiagonal element seen so far for the relative
+        // deflation test.
+        let local = d[l].abs() + e[l].abs();
+        if local > tst1 {
+            tst1 = local;
+        }
+
+        // Find the smallest `m >= l` at which the sub-diagonal is negligible.
+        let mut m = l;
+        while m < n {
+            if e[m].abs() <= eps * tst1 {
+                break;
+            }
+            m += 1;
+        }
+
+        if m > l {
+            let mut iter = 0usize;
+            loop {
+                iter += 1;
+                if iter > 50 {
+                    return Err(LinalgError::ConvergenceError(format!(
+                        "Symmetric tridiagonal QL failed to converge for eigenvalue {l} after {iter} iterations"
+                    )));
+                }
+
+                // Form the implicit (Wilkinson) shift from the leading 2x2.
+                let g0 = d[l];
+                let mut p = (d[l + 1] - g0) / (two * e[l]);
+                let mut r = p.hypot(F::one());
+                let signed_r = if p >= F::zero() { r.abs() } else { -r.abs() };
+                d[l] = e[l] / (p + signed_r);
+                d[l + 1] = e[l] * (p + signed_r);
+                let dl1 = d[l + 1];
+                let h = g0 - d[l];
+                for item in d.iter_mut().take(n).skip(l + 2) {
+                    *item -= h;
+                }
+                f += h;
+
+                // Implicit QL transformation, sweeping from m down to l.
+                p = d[m];
+                let mut c = F::one();
+                let mut c2 = c;
+                let mut c3 = c;
+                let el1 = e[l + 1];
+                let mut s = F::zero();
+                let mut s2 = F::zero();
+                for i in (l..m).rev() {
+                    c3 = c2;
+                    c2 = c;
+                    s2 = s;
+                    let g2 = c * e[i];
+                    let h2 = c * p;
+                    r = p.hypot(e[i]);
+                    e[i + 1] = s * r;
+                    s = e[i] / r;
+                    c = p / r;
+                    p = c * d[i] - s * g2;
+                    d[i + 1] = h2 + s * (c * g2 + s * d[i]);
+
+                    // Accumulate the eigenvector rotation.
+                    for k in 0..n {
+                        let hh = z[[k, i + 1]];
+                        z[[k, i + 1]] = s * z[[k, i]] + c * hh;
+                        z[[k, i]] = c * z[[k, i]] - s * hh;
+                    }
+                }
+
+                p = -s * s2 * c3 * el1 * e[l] / dl1;
+                e[l] = s * p;
+                d[l] = c * p;
+
+                if e[l].abs() <= eps * tst1 {
+                    break;
+                }
+            }
+        }
+        d[l] += f;
+        e[l] = F::zero();
+    }
+
+    Ok(())
+}
+
+/// Solve symmetric matrices via Householder tridiagonalization plus the
+/// implicit-shift QL algorithm (numerically stable for clustered spectra).
 #[allow(dead_code)]
 fn solve_symmetric_with_power_iteration<F>(
     a: &ArrayView2<F>,
@@ -1511,102 +1726,22 @@ fn solve_symmetric_with_power_iteration<F>(
 where
     F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
 {
-    use crate::decomposition::qr;
     use crate::norm::vector_norm;
 
     let n = a.nrows();
-    let max_iter = 1000;
-    let tolerance =
-        F::from(1e-10).unwrap_or_else(|| F::epsilon() * F::from(100.0).unwrap_or(F::one()));
 
-    // Use QR algorithm for symmetric matrices
-    // This is more stable than power iteration for all eigenvalues
-
-    // Create a working copy of the matrix
-    let mut workmatrix = a.to_owned();
-    let mut q_accumulated = Array2::eye(n);
-
-    // Apply QR iterations with shifting for better convergence
-    for iter in 0..max_iter {
-        // Check for convergence by examining off-diagonal elements
-        let mut max_off_diag = F::zero();
-        for i in 0..n {
-            for j in 0..n {
-                if i != j {
-                    let abs_val = workmatrix[[i, j]].abs();
-                    if abs_val > max_off_diag {
-                        max_off_diag = abs_val;
-                    }
-                }
-            }
-        }
-
-        if max_off_diag < tolerance {
-            break;
-        }
-
-        // Apply shift to improve convergence
-        // Use Wilkinson shift: the eigenvalue of the 2x2 bottom-right submatrix
-        // that is closer to the bottom-right element
-        let shift = if n >= 2 {
-            let a_nn = workmatrix[[n - 1, n - 1]];
-            let a_n1n1 = workmatrix[[n - 2, n - 2]];
-            let a_nn1 = workmatrix[[n - 1, n - 2]];
-
-            let b = a_nn + a_n1n1;
-            let c = a_nn * a_n1n1 - a_nn1 * a_nn1;
-            let discriminant = b * b - F::from(4.0).unwrap_or(F::one()) * c;
-
-            if discriminant >= F::zero() {
-                let sqrt_disc = discriminant.sqrt();
-                let lambda1 = (b + sqrt_disc) / F::from(2.0).unwrap_or(F::one());
-                let lambda2 = (b - sqrt_disc) / F::from(2.0).unwrap_or(F::one());
-
-                // Choose the eigenvalue closer to a_nn
-                if (lambda1 - a_nn).abs() < (lambda2 - a_nn).abs() {
-                    lambda1
-                } else {
-                    lambda2
-                }
-            } else {
-                a_nn
-            }
-        } else {
-            workmatrix[[n - 1, n - 1]]
-        };
-
-        // Apply shift: A' = A - σI
-        for i in 0..n {
-            workmatrix[[i, i]] -= shift;
-        }
-
-        // Perform QR decomposition
-        let (q, r) = qr(&workmatrix.view(), None).map_err(|_| {
-            LinalgError::ConvergenceError(format!(
-                "QR decomposition failed in symmetric eigenvalue computation at iteration {iter}"
-            ))
-        })?;
-
-        // Update: A = RQ + σI
-        workmatrix = r.dot(&q);
-        for i in 0..n {
-            workmatrix[[i, i]] += shift;
-        }
-
-        // Accumulate transformation
-        q_accumulated = q_accumulated.dot(&q);
-
-        // Early termination for well-conditioned problems
-        if iter > 10 && max_off_diag < tolerance * F::from(10.0).unwrap_or(F::one()) {
-            break;
-        }
-    }
-
-    // Extract eigenvalues from diagonal
-    let mut eigenvalues = Array1::zeros(n);
-    for i in 0..n {
-        eigenvalues[i] = workmatrix[[i, i]];
-    }
+    // Symmetric eigensolver via Householder tridiagonalization (`tred2`) followed
+    // by the implicit-shift QL algorithm with deflation (`tql2`). This is the
+    // classic, numerically stable EISPACK approach. Unlike a global-shift QR
+    // sweep on the dense matrix, the implicit-shift QL on a tridiagonal form is
+    // guaranteed to converge (cubically, locally) and — crucially — resolves
+    // clustered / (near-)degenerate spectra reliably. The previous global-shift
+    // QR iteration could stall for up to its full iteration cap on the many
+    // (near-)equal eigenvalues of, e.g., A^T A for a low-rank matrix, which made
+    // SVD-driven callers (matrix completion's SVT/Soft-Impute) extremely slow.
+    let (mut diagonal, mut subdiag, mut q_accumulated) = symmetric_tridiagonalize(a);
+    symmetric_tridiagonal_ql(&mut diagonal, &mut subdiag, &mut q_accumulated)?;
+    let eigenvalues = diagonal;
 
     // Sort eigenvalues and eigenvectors in descending order
     let mut indices: Vec<usize> = (0..n).collect();

@@ -112,11 +112,7 @@ pub fn find_duplicate_deps(lock_path: &Path) -> Vec<(String, Vec<String>)> {
     let value: toml::Value = match toml::from_str(&content) {
         Ok(v) => v,
         Err(err) => {
-            eprintln!(
-                "Warning: failed to parse {}: {}",
-                lock_path.display(),
-                err
-            );
+            eprintln!("Warning: failed to parse {}: {}", lock_path.display(), err);
             return Vec::new();
         }
     };

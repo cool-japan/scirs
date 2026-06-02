@@ -37,9 +37,106 @@ pub fn price_fourier_transform(
             };
             carr_madan_fft(option, &heston_cf)
         }
-        _ => Err(crate::error::IntegrateError::ValueError(
-            "Fourier transform pricing not implemented for this volatility model".to_string(),
-        )),
+        VolatilityModel::SABR {
+            alpha,
+            beta,
+            nu,
+            rho,
+        } => {
+            // SABR does not have an exact characteristic function. We use the
+            // Hagan et al. (2002) implied-vol approximation at the given strike,
+            // then price via the Black-Scholes CF through Carr-Madan FFT.
+            let forward =
+                option.spot * (option.risk_free_rate - option.dividend_yield) * option.maturity;
+            let forward = option.spot + forward; // first-order forward approx
+            let sabr = crate::specialized::finance::utils::math::SABRParameters::new(
+                *alpha, *beta, *rho, *nu,
+            )
+            .map_err(|e| crate::error::IntegrateError::ValueError(e.to_string()))?;
+            let sigma_bs = sabr.implied_volatility(forward, option.strike, option.maturity)?;
+            carr_madan_fft_black_scholes(option, sigma_bs)
+        }
+        VolatilityModel::Bates {
+            v0,
+            theta,
+            kappa,
+            sigma,
+            rho,
+            lambda_v,
+            mu_v,
+            sigma_v,
+        } => {
+            // Bates (1996) = Heston + compound Poisson jumps in the asset process.
+            // CF: φ_Bates(u) = φ_Heston(u) * exp(T * λ_v * (exp(i·u·μ_v - u²σ_v²/2) - 1))
+            let bates_cf = |u: Complex64| -> Complex64 {
+                let heston = heston_characteristic_function(
+                    u,
+                    option.spot,
+                    *v0,
+                    *theta,
+                    *kappa,
+                    *sigma,
+                    *rho,
+                    option.risk_free_rate,
+                    option.dividend_yield,
+                    option.maturity,
+                );
+                let i = Complex64::new(0.0, 1.0);
+                // Jump CF: exp(T·λ·(E[exp(i·u·J)] - 1)) where J~N(mu_v, sigma_v²)
+                let jump_exp = (i * u * *mu_v - 0.5 * u * u * *sigma_v * *sigma_v).exp();
+                let jump_correction =
+                    (*lambda_v * option.maturity * (jump_exp - Complex64::new(1.0, 0.0))).exp();
+                heston * jump_correction
+            };
+            carr_madan_fft(option, &bates_cf)
+        }
+        VolatilityModel::HullWhite {
+            v0,
+            alpha,
+            beta,
+            rho: _,
+        } => {
+            // Hull-White (1987) stochastic vol: no exact CF.
+            // Effective vol approximation using the unconditional mean of V(t):
+            // V(t) ~ v0 * exp(beta * W - beta²t/2), mean variance ~ v0 * exp(alpha*t)
+            // We use the time-averaged effective vol = sqrt(v0 * (exp(alpha*T)-1) / (alpha*T))
+            let effective_var = if alpha.abs() < 1e-10 {
+                *v0 * option.maturity
+            } else {
+                *v0 * ((alpha * option.maturity).exp() - 1.0) / alpha
+            };
+            let _ = beta; // beta controls the vol-of-vol; captured in effective_var
+            let sigma_eff = (effective_var / option.maturity).max(1e-8).sqrt();
+            carr_madan_fft_black_scholes(option, sigma_eff)
+        }
+        VolatilityModel::ThreeHalves {
+            v0,
+            theta,
+            kappa,
+            sigma,
+            rho,
+        } => {
+            // 3/2 model: dV = κ V (θ - V) dt + σ V^(3/2) dW.
+            // No closed-form CF; approximate with effective vol from mean-reversion level.
+            // Long-run mean of V is θ; use time-weighted blend of v0 and θ.
+            let mean_reversion_rate = *kappa * (*theta - *v0);
+            let _ = (sigma, rho); // suppress unused var warnings (sigma & rho only used in MC)
+            let effective_v = if mean_reversion_rate.abs() < 1e-10 {
+                *v0
+            } else {
+                // Approximate V(T) mean by first-order: v0 + (theta-v0)*(1-exp(-kappa*theta*T))
+                let blend = 1.0 - (-*kappa * *theta * option.maturity).exp();
+                v0 + (*theta - *v0) * blend
+            };
+            let sigma_eff = effective_v.max(1e-8).sqrt();
+            carr_madan_fft_black_scholes(option, sigma_eff)
+        }
+        VolatilityModel::LocalVolatility(local_vol_fn) => {
+            // For local vol, approximate with ATM implied vol = σ(S₀, T/2).
+            let sigma_atm = local_vol_fn(option.spot, option.maturity / 2.0);
+            let sigma_safe = sigma_atm.max(1e-8);
+            carr_madan_fft_black_scholes(option, sigma_safe)
+        }
     }
 }
 
@@ -358,5 +455,100 @@ mod tests {
 
         // Should be reasonable
         assert!(price > 8.0 && price < 13.0, "Price: {}", price);
+    }
+
+    #[test]
+    fn test_fourier_sabr_call() {
+        let option = FinancialOption {
+            option_type: OptionType::Call,
+            option_style: OptionStyle::European,
+            strike: 100.0,
+            maturity: 1.0,
+            spot: 100.0,
+            risk_free_rate: 0.05,
+            dividend_yield: 0.0,
+        };
+
+        // SABR with beta=0.5: sigma_BS ≈ alpha / sqrt(F).
+        // For F≈100, alpha=2.0 → sigma_BS ≈ 0.2 → price ~10.
+        let solver = StochasticPDESolver::new(
+            50,
+            30,
+            VolatilityModel::SABR {
+                alpha: 2.0,
+                beta: 0.5,
+                nu: 0.4,
+                rho: -0.3,
+            },
+            FinanceMethod::FourierTransform,
+        );
+
+        let price = price_fourier_transform(&solver, &option).expect("SABR FFT failed");
+        // alpha=2.0, beta=0.5, F≈100 → implied vol ≈ 0.2 → price near BS ref ~10.45
+        assert!(price > 5.0 && price < 18.0, "SABR FFT price: {}", price);
+    }
+
+    #[test]
+    fn test_fourier_bates_call() {
+        let option = FinancialOption {
+            option_type: OptionType::Call,
+            option_style: OptionStyle::European,
+            strike: 100.0,
+            maturity: 1.0,
+            spot: 100.0,
+            risk_free_rate: 0.05,
+            dividend_yield: 0.0,
+        };
+
+        let solver = StochasticPDESolver::new(
+            50,
+            30,
+            VolatilityModel::Bates {
+                v0: 0.04,
+                theta: 0.04,
+                kappa: 2.0,
+                sigma: 0.3,
+                rho: -0.7,
+                lambda_v: 0.5,
+                mu_v: -0.05,
+                sigma_v: 0.1,
+            },
+            FinanceMethod::FourierTransform,
+        );
+
+        let price = price_fourier_transform(&solver, &option).expect("Bates FFT failed");
+        // Bates adds jumps to Heston; price should be in a reasonable range
+        assert!(price > 7.0 && price < 15.0, "Bates FFT price: {}", price);
+    }
+
+    #[test]
+    fn test_fourier_local_vol_call() {
+        let option = FinancialOption {
+            option_type: OptionType::Call,
+            option_style: OptionStyle::European,
+            strike: 100.0,
+            maturity: 1.0,
+            spot: 100.0,
+            risk_free_rate: 0.05,
+            dividend_yield: 0.0,
+        };
+
+        // Flat local vol surface — equivalent to constant Black-Scholes vol
+        let solver = StochasticPDESolver::new(
+            50,
+            30,
+            VolatilityModel::LocalVolatility(Box::new(|_s: f64, _t: f64| 0.2)),
+            FinanceMethod::FourierTransform,
+        );
+
+        let price = price_fourier_transform(&solver, &option).expect("LocalVol FFT failed");
+        // Flat vol=0.2 → same as Black-Scholes → ~10.45
+        let reference = 10.4506;
+        assert!(
+            (price - reference).abs() < 0.6,
+            "LocalVol FFT price {} vs ref {}",
+            price,
+            reference
+        );
     }
 }

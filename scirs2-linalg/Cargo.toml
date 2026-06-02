@@ -47,6 +47,7 @@ approx = { workspace = true }
 criterion = { workspace = true }
 proptest = { workspace = true }
 scirs2-sparse = { workspace = true }
+scirs2-autograd = { workspace = true }
 
 [features]
 # Default features - OxiBLAS (pure Rust) is used for all platforms

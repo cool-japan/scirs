@@ -9,6 +9,17 @@
 //! | [`DatabaseSource`]| SQLite query-based loading                      |
 //! | [`StreamSource`]  | Kafka-like channel-based message consumption    |
 //! | [`GeneratorSource`]| Produce data from a user closure               |
+//!
+//! # noffi migration status (DatabaseSource)
+//!
+//! TODO(noffi-migration): Replace `rusqlite` in `DatabaseSource::load_rows` with
+//! `oxisql-sqlite-compat` (Pure Rust SQLite via Limbo).
+//!
+//! The `load_rows` method uses `Connection::open`, `conn.prepare`, `stmt.query`,
+//! and `ValueRef` row iteration — all synchronous. `oxisql-sqlite-compat` is async
+//! (Limbo/tokio). Migration requires an async shim or making `DataSource` async.
+//! Keep `rusqlite` until the sync/async impedance mismatch is resolved.
+//! See `~/work/noffi/oxisql/` for reference API.
 
 #![allow(missing_docs)]
 

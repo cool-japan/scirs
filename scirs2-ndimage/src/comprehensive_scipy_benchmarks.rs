@@ -77,7 +77,10 @@ impl Default for BenchmarkConfig {
             ],
             enable_memory_profiling: true,
             enable_scipy_comparison: true,
-            temp_dir: "/tmp/scirs2_benchmarks".to_string(),
+            temp_dir: std::env::temp_dir()
+                .join("scirs2_benchmarks")
+                .to_string_lossy()
+                .into_owned(),
         }
     }
 }

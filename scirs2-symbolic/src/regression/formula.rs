@@ -36,7 +36,7 @@ impl DiscoveredFormula {
 /// Iterative O(N) node count over a [`LoweredOp`] tree.
 ///
 /// Exposed at `pub(crate)` so the search engine in
-/// [`crate::regression::discover`] can size-cap candidate ops without
+/// [`mod@crate::regression::discover`] can size-cap candidate ops without
 /// reconstructing a [`DiscoveredFormula`] just for the count.
 pub(crate) fn count_nodes(op: &LoweredOp) -> usize {
     let mut count = 0;

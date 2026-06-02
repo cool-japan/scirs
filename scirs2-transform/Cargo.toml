@@ -56,7 +56,7 @@ monitoring = ["dep:prometheus", "dep:serde_json"]
 
 [dev-dependencies]
 scirs2-datasets = { workspace = true }
-plotters = { workspace = true }
+plotters = { workspace = true, default-features = false }
 criterion = { workspace = true }
 rand = { workspace = true }
 ndarray-rand = { workspace = true }

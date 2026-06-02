@@ -2,6 +2,9 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::conjugate_gradient::compute_line_bounds;
+use crate::unconstrained::newton_gpu::{
+    try_gpu_newton_cg_solve, GpuNewtonResult, GPU_NEWTON_THRESHOLD,
+};
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::utils::{
     array_diff_norm, finite_difference_gradient, finite_difference_hessian,
@@ -65,8 +68,15 @@ where
         let hess = finite_difference_hessian(&mut fun, &x.view(), eps)?;
         nfev += n * n;
 
-        // Solve the Newton-CG system to find the step direction
-        let mut p = solve_newton_cg_system(&g, &hess, gtol);
+        // Solve the Newton-CG system to find the step direction.
+        // Attempt GPU acceleration for large n; fall back to CPU on any error.
+        let threshold = options
+            .gpu_threshold_override
+            .unwrap_or(GPU_NEWTON_THRESHOLD);
+        let mut p = match try_gpu_newton_cg_solve(&g, &hess, gtol, options.use_gpu, threshold) {
+            GpuNewtonResult::Done(step) => step,
+            GpuNewtonResult::FallbackToCpu => solve_newton_cg_system(&g, &hess, gtol),
+        };
 
         // If the bounds are provided, project the search direction
         if let Some(bounds) = bounds {

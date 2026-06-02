@@ -2,9 +2,10 @@
 //!
 //! This module provides data structures and operations for working with Voronoi cells,
 //! which are the building blocks for Voronoi-based interpolation methods.
+//! Supports full general n-D (n ≥ 2) Voronoi cell operations.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -15,6 +16,9 @@ use crate::error::{InterpolateError, InterpolateResult};
 /// A Voronoi cell is the region of space that is closer to a specific site (point)
 /// than to any other site. This structure stores the geometry and properties of
 /// a Voronoi cell needed for interpolation.
+///
+/// For n ≥ 3 dimensions, use `vertices_nd()`, `volume_nd()`, and `neighbours_nd()`
+/// which are populated by `VoronoiDiagram::compute_cells` via Delaunay circumcentres.
 #[derive(Debug, Clone)]
 pub struct VoronoiCell<F: Float + FromPrimitive + Debug> {
     /// The center point (site) of this Voronoi cell
@@ -31,9 +35,15 @@ pub struct VoronoiCell<F: Float + FromPrimitive + Debug> {
 
     /// The value associated with this cell's site (used in interpolation)
     pub value: F,
+
+    /// Voronoi vertices for n≥3 dimensions (circumcentres of Delaunay simplices).
+    /// Empty for 2D (use `vertices` instead).
+    pub voronoi_vertices_nd: Vec<Array1<F>>,
 }
 
-impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand> VoronoiCell<F> {
+impl<F: Float + FromPrimitive + ToPrimitive + Debug + scirs2_core::ndarray::ScalarOperand>
+    VoronoiCell<F>
+{
     /// Creates a new Voronoi cell with the given site and value
     pub fn new(site: Array1<F>, value: F) -> Self {
         VoronoiCell {
@@ -42,7 +52,40 @@ impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand> Vor
             neighbors: Vec::new(),
             measure: F::zero(),
             value,
+            voronoi_vertices_nd: Vec::new(),
         }
+    }
+
+    /// Returns the Voronoi cell vertices for dimension n ≥ 2.
+    ///
+    /// For 2D and 3D, wraps the existing `vertices` array rows (polygon / bounding-box
+    /// approximation).  For n ≥ 4, returns the circumcentres of Delaunay simplices
+    /// stored in `voronoi_vertices_nd` (populated by `VoronoiDiagram::compute_cells`).
+    pub fn vertices_nd(&self) -> InterpolateResult<Vec<Array1<F>>> {
+        let dim = self.site.len();
+        if dim <= 3 {
+            // Return stored polygon / polyhedron vertices from the vertices array
+            let n = self.vertices.nrows();
+            Ok((0..n).map(|i| self.vertices.row(i).to_owned()).collect())
+        } else {
+            Ok(self.voronoi_vertices_nd.clone())
+        }
+    }
+
+    /// Returns the approximate volume (area in 2D) of the Voronoi cell.
+    ///
+    /// For 2D, returns the exact polygon area stored in `measure`.
+    /// For n ≥ 3, returns the volume computed from simplex triangulation, stored in `measure`.
+    pub fn volume_nd(&self) -> InterpolateResult<F> {
+        Ok(self.measure)
+    }
+
+    /// Returns the indices of neighbouring Voronoi sites (sharing a Delaunay edge).
+    ///
+    /// For all dimensions, returns the `neighbors` slice populated by
+    /// `VoronoiDiagram::compute_cells`.
+    pub fn neighbours_nd(&self) -> InterpolateResult<Vec<usize>> {
+        Ok(self.neighbors.clone())
     }
 
     /// Sets the vertices of the Voronoi cell
@@ -419,7 +462,7 @@ fn compute_bounding_box<F: Float + Debug>(points: ArrayView2<F>) -> (Array1<F>, 
 /// A collection of Voronoi cells forming a Voronoi diagram
 #[derive(Debug, Clone)]
 pub struct VoronoiDiagram<
-    F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 'static,
+    F: Float + FromPrimitive + ToPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 'static,
 > {
     /// The cells that make up the Voronoi diagram
     pub cells: Vec<VoronoiCell<F>>,
@@ -428,11 +471,13 @@ pub struct VoronoiDiagram<
     pub dim: usize,
 
     /// Bounds of the domain (min_x, min_y, max_x, max_y, etc.)
+    /// Format: [min_dim0, min_dim1, ..., max_dim0, max_dim1, ...]
     pub bounds: Array1<F>,
 }
 
-impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 'static>
-    VoronoiDiagram<F>
+impl<
+        F: Float + FromPrimitive + ToPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 'static,
+    > VoronoiDiagram<F>
 {
     /// Creates a new Voronoi diagram from sites and values
     pub fn new(
@@ -451,8 +496,8 @@ impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 's
             )));
         }
 
-        let default_bounds = if dim == 2 || dim == 3 {
-            // Calculate min/max for each dimension
+        // Compute bounds for any dimension (general n-D)
+        let default_bounds = {
             let mut min_coords = Array1::from_elem(dim, F::infinity());
             let mut max_coords = Array1::from_elem(dim, F::neg_infinity());
 
@@ -464,37 +509,19 @@ impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 's
                 }
             }
 
-            // Add padding to avoid numerical issues (10% on each side)
+            // Add 10% padding on each side to avoid numerical issues at boundaries
+            // Format: [min_0, min_1, ..., min_{d-1}, max_0, max_1, ..., max_{d-1}]
             let mut bounds_vec = Vec::with_capacity(2 * dim);
+            let pad_factor = F::from(0.1_f64).expect("Failed to convert padding constant to float");
             for j in 0..dim {
-                let padding = (max_coords[j] - min_coords[j])
-                    * F::from(0.1).expect("Failed to convert constant to float");
-                bounds_vec.push(min_coords[j] - padding); // Min bound
-                bounds_vec.push(max_coords[j] + padding); // Max bound
+                let padding = (max_coords[j] - min_coords[j]) * pad_factor;
+                bounds_vec.push(min_coords[j] - padding);
             }
-
-            if dim == 2 {
-                // Reorder for 2D to match the expected format [min_x, min_y, max_x, max_y]
-                Array1::from_vec(vec![
-                    bounds_vec[0], // min_x
-                    bounds_vec[1], // min_y
-                    bounds_vec[2], // max_x
-                    bounds_vec[3], // max_y
-                ])
-            } else {
-                // Reorder for 3D to match the expected format [min_x, min_y, min_z, max_x, max_y, max_z]
-                Array1::from_vec(vec![
-                    bounds_vec[0], // min_x
-                    bounds_vec[2], // min_y
-                    bounds_vec[4], // min_z
-                    bounds_vec[1], // max_x
-                    bounds_vec[3], // max_y
-                    bounds_vec[5], // max_z
-                ])
+            for j in 0..dim {
+                let padding = (max_coords[j] - min_coords[j]) * pad_factor;
+                bounds_vec.push(max_coords[j] + padding);
             }
-        } else {
-            return Err(InterpolateError::UnsupportedOperation(
-                format!("Default bounds calculation for {dim}-dimensional Voronoi diagrams not yet implemented")));
+            Array1::from_vec(bounds_vec)
         };
 
         let bounds = bounds.unwrap_or(default_bounds);
@@ -854,10 +881,98 @@ impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 's
                 let _ = self.cells[i].compute_measure();
             }
         } else {
-            return Err(InterpolateError::UnsupportedOperation(format!(
-                "Computing Voronoi cells for {}-dimensional diagrams not yet implemented",
-                self.dim
-            )));
+            // n≥4 dimensions: use Delaunay-circumcentre approach
+            self.compute_cells_nd()?;
+        }
+
+        Ok(())
+    }
+
+    /// Compute Voronoi cells for n ≥ 4 dimensions using Delaunay triangulation.
+    ///
+    /// Algorithm:
+    /// 1. Build Delaunay triangulation of all sites (using scirs2-spatial, f64 only).
+    /// 2. For each site i, collect all simplices containing i.
+    /// 3. For each such simplex, compute its circumcentre (a Voronoi vertex).
+    /// 4. Store circumcentres in `voronoi_vertices_nd`.
+    /// 5. Compute cell volume by fan-triangulation from centroid.
+    /// 6. Extract neighbours from Delaunay adjacency.
+    fn compute_cells_nd(&mut self) -> InterpolateResult<()> {
+        use scirs2_spatial::delaunay::Delaunay;
+
+        let n_sites = self.cells.len();
+        let dim = self.dim;
+
+        // Convert sites to f64 Array2 for Delaunay (which is f64-only)
+        let mut sites_f64 = scirs2_core::ndarray::Array2::<f64>::zeros((n_sites, dim));
+        for i in 0..n_sites {
+            for j in 0..dim {
+                sites_f64[[i, j]] = self.cells[i].site[j].to_f64().ok_or_else(|| {
+                    InterpolateError::NumericalError(
+                        "Failed to convert site coordinate to f64".to_string(),
+                    )
+                })?;
+            }
+        }
+
+        // Run Delaunay triangulation
+        let tri = Delaunay::new(&sites_f64).map_err(|e| {
+            InterpolateError::NumericalError(format!("Delaunay triangulation failed: {e}"))
+        })?;
+
+        let simplices = tri.simplices();
+
+        // For each site i, collect simplices that contain site i
+        let mut site_simplices: Vec<Vec<usize>> = vec![Vec::new(); n_sites];
+        for (s_idx, simplex) in simplices.iter().enumerate() {
+            for &site_idx in simplex {
+                if site_idx < n_sites {
+                    site_simplices[site_idx].push(s_idx);
+                }
+            }
+        }
+
+        // For each site, compute Voronoi vertices (circumcentres) and cell volume
+        for i in 0..n_sites {
+            let mut voronoi_verts: Vec<Array1<F>> = Vec::new();
+            let mut neighbour_set: std::collections::HashSet<usize> =
+                std::collections::HashSet::new();
+
+            for &s_idx in &site_simplices[i] {
+                let simplex = &simplices[s_idx];
+
+                // Compute circumcentre of this simplex
+                if let Ok(cc_f64) = circumcentre_nd(&sites_f64, simplex, dim) {
+                    // Check that circumcentre is not degenerate (very far away)
+                    let is_finite = cc_f64.iter().all(|x| x.is_finite());
+                    if is_finite {
+                        let cc: Array1<F> = Array1::from_iter(
+                            cc_f64.iter().map(|&x| F::from(x).unwrap_or(F::zero())),
+                        );
+                        voronoi_verts.push(cc);
+                    }
+                }
+
+                // Collect neighbours: all other sites in this simplex
+                for &other in simplex {
+                    if other < n_sites && other != i {
+                        neighbour_set.insert(other);
+                    }
+                }
+            }
+
+            // Compute volume from Voronoi vertices via fan triangulation from centroid
+            let volume = if voronoi_verts.len() >= dim + 1 {
+                compute_convex_volume_nd(&voronoi_verts, dim).unwrap_or(F::zero())
+            } else {
+                F::zero()
+            };
+
+            // Store results in cell
+            self.cells[i].voronoi_vertices_nd = voronoi_verts;
+            self.cells[i].measure = volume;
+            let neighbours: Vec<usize> = neighbour_set.into_iter().collect();
+            self.cells[i].set_neighbors(neighbours);
         }
 
         Ok(())
@@ -1006,6 +1121,233 @@ impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 's
             )))
         }
     }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// n-D Voronoi helper functions
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Compute the circumcentre of an n-simplex given by `simplex` indices into `points`.
+///
+/// The circumcentre c satisfies ||c - p_j||² = R² for all j.
+/// Subtracting the equation for j=0 from j=1..n gives an (n×n) linear system:
+///   2 (p_j - p_0) · c = ||p_j||² - ||p_0||²   for j = 1..n
+///
+/// Returns `Err` if the system is singular (degenerate simplex).
+fn circumcentre_nd(
+    points: &scirs2_core::ndarray::Array2<f64>,
+    simplex: &[usize],
+    dim: usize,
+) -> Result<Vec<f64>, String> {
+    if simplex.len() != dim + 1 {
+        return Err(format!(
+            "Simplex must have {} vertices for {}D, got {}",
+            dim + 1,
+            dim,
+            simplex.len()
+        ));
+    }
+
+    // p0 is the reference vertex
+    let p0: Vec<f64> = (0..dim).map(|j| points[[simplex[0], j]]).collect();
+    let norm0_sq: f64 = p0.iter().map(|&x| x * x).sum();
+
+    // Build system A * c = b of size n × n
+    let n = dim;
+    let mut a = vec![0.0_f64; n * n];
+    let mut b = vec![0.0_f64; n];
+
+    for row in 0..n {
+        let pi: Vec<f64> = (0..dim).map(|j| points[[simplex[row + 1], j]]).collect();
+        let norm_i_sq: f64 = pi.iter().map(|&x| x * x).sum();
+
+        for col in 0..n {
+            a[row * n + col] = 2.0 * (pi[col] - p0[col]);
+        }
+        b[row] = norm_i_sq - norm0_sq;
+    }
+
+    // Gaussian elimination with partial pivoting
+    let mut x = b.clone();
+    for col in 0..n {
+        // Find pivot
+        let mut max_row = col;
+        let mut max_val = a[col * n + col].abs();
+        for row in col + 1..n {
+            let val = a[row * n + col].abs();
+            if val > max_val {
+                max_val = val;
+                max_row = row;
+            }
+        }
+
+        if max_val < 1e-12 {
+            return Err("Singular simplex matrix".to_string());
+        }
+
+        // Swap rows
+        if max_row != col {
+            for j in 0..n {
+                a.swap(col * n + j, max_row * n + j);
+            }
+            x.swap(col, max_row);
+        }
+
+        // Eliminate
+        for row in col + 1..n {
+            let factor = a[row * n + col] / a[col * n + col];
+            for j in col + 1..n {
+                let val = a[col * n + j];
+                a[row * n + j] -= factor * val;
+            }
+            x[row] -= factor * x[col];
+        }
+    }
+
+    // Back-substitution
+    let mut result = vec![0.0_f64; n];
+    for i in (0..n).rev() {
+        let mut sum = x[i];
+        for j in i + 1..n {
+            sum -= a[i * n + j] * result[j];
+        }
+        if a[i * n + i].abs() < 1e-12 {
+            return Err("Singular simplex matrix in back-substitution".to_string());
+        }
+        result[i] = sum / a[i * n + i];
+    }
+
+    Ok(result)
+}
+
+/// Compute the volume of a convex polytope defined by `verts` in `dim` dimensions.
+///
+/// Strategy: fan-triangulation from v_0 (first vertex as reference apex).
+/// For each (dim)-subset of the *remaining* `n_verts-1` vertices, form a simplex
+/// `[v_0, v_{i0}, ..., v_{i_{dim-1}}]` and accumulate `|det| / dim!`.
+///
+/// For convex polytopes this correctly computes the volume: every convex polytope
+/// can be triangulated from any interior-or-boundary apex into non-overlapping simplices.
+/// Because Voronoi cells are convex, this is exact when v_0 lies on the boundary.
+///
+/// The n-simplex volume formula: V = |det([v_1-v_0, ..., v_n-v_0])| / n!
+fn compute_convex_volume_nd<F: Float + FromPrimitive + ToPrimitive + Debug>(
+    verts: &[Array1<F>],
+    dim: usize,
+) -> Option<F> {
+    let n_verts = verts.len();
+    if n_verts < dim + 1 {
+        return Some(F::zero());
+    }
+
+    // Compute factorial(dim) for volume formula
+    let dim_factorial: f64 = (1..=dim).map(|k| k as f64).product();
+
+    // Convert all vertices to f64
+    let verts_f64: Vec<Vec<f64>> = verts
+        .iter()
+        .map(|v| (0..dim).map(|j| v[j].to_f64().unwrap_or(0.0)).collect())
+        .collect();
+
+    let v0 = &verts_f64[0];
+    let n_rest = n_verts - 1; // remaining vertices: indices 1..n_verts
+
+    let mut total_volume = 0.0_f64;
+
+    if n_rest < dim {
+        return Some(F::zero());
+    }
+
+    // Enumerate all C(n_rest, dim) combinations of the `dim` vertices from [1..n_verts]
+    let mut indices: Vec<usize> = (0..dim).collect(); // indices into [1..n_verts]
+
+    'outer: loop {
+        // Build the dim×dim matrix M where column k = verts[1+indices[k]] - v0
+        let mut mat = vec![0.0_f64; dim * dim];
+        for col in 0..dim {
+            let vi = &verts_f64[1 + indices[col]];
+            for row in 0..dim {
+                mat[row * dim + col] = vi[row] - v0[row];
+            }
+        }
+
+        // Compute |det(M)| / dim!
+        let det = det_f64(&mat, dim).abs();
+        total_volume += det / dim_factorial;
+
+        // Advance to next combination (standard "odometer" increment)
+        let mut pos = dim;
+        loop {
+            if pos == 0 {
+                break 'outer; // All combinations exhausted
+            }
+            pos -= 1;
+            let max_val = n_rest - dim + pos;
+            if indices[pos] < max_val {
+                indices[pos] += 1;
+                for k in pos + 1..dim {
+                    indices[k] = indices[k - 1] + 1;
+                }
+                break;
+            }
+        }
+    }
+
+    F::from(total_volume)
+}
+
+/// Compute the determinant of a square matrix stored row-major in a flat slice.
+fn det_f64(mat: &[f64], n: usize) -> f64 {
+    if n == 0 {
+        return 1.0;
+    }
+    if n == 1 {
+        return mat[0];
+    }
+    if n == 2 {
+        return mat[0] * mat[3] - mat[1] * mat[2];
+    }
+
+    // General case: Gaussian elimination
+    let mut a: Vec<f64> = mat.to_vec();
+    let mut det = 1.0_f64;
+    let mut sign = 1.0_f64;
+
+    for col in 0..n {
+        // Partial pivoting
+        let mut max_row = col;
+        let mut max_val = a[col * n + col].abs();
+        for row in col + 1..n {
+            let val = a[row * n + col].abs();
+            if val > max_val {
+                max_val = val;
+                max_row = row;
+            }
+        }
+
+        if max_val < 1e-15 {
+            return 0.0;
+        }
+
+        if max_row != col {
+            for j in 0..n {
+                a.swap(col * n + j, max_row * n + j);
+            }
+            sign = -sign;
+        }
+
+        det *= a[col * n + col];
+
+        for row in col + 1..n {
+            let factor = a[row * n + col] / a[col * n + col];
+            for j in col + 1..n {
+                let val = a[col * n + j];
+                a[row * n + j] -= factor * val;
+            }
+        }
+    }
+
+    det * sign
 }
 
 /// Computes the intersection of two line segments if it exists

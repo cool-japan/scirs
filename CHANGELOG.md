@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-06-02
+
+### Added
+
+#### Wave 73: NUMA Parallelism, Pantelides Index Reduction, Lévy-Area SDE, Hilbert Curves
+- **scirs2-core**: `par_map_chunks` NUMA-locality chunk map (`parallel/numa/par_map_chunks.rs`) — Linux pthread affinity pin, rayon fallback for Darwin/WASM; typed result vector; 8 tests
+- **scirs2-integrate**: Pantelides full graph algorithms — Hopcroft-Karp O(E√V) bipartite matching + Tarjan iterative SCC replace heuristic `find_singular_subsets` for correct DAE index reduction; 13 tests
+- **scirs2-integrate**: Wiktorsson 2001 truncated-series Lévy-area for SDE strong order 1.5 (`sde/levy_area.rs`); wired into `srk_strong_general[_with_options]`; 10 tests
+- **scirs2-spatial**: 2D+3D Hilbert curve sort — 24-state Butz/Hamilton lookup table for 3D; `hilbert_d{2,3}`, `hilbert_d{2,3}_inverse`, `hilbert_d{2,3}_f64`, `hilbert_sort_{2d,3d}`; 8 tests
+- **scirs2-autograd**: Correctness repair — `ScalarMulOp` added to `compute_grad_for_input` name-dispatch in `gradient.rs`; published `jit_fusion` module extending `can_fuse` for MatmulEpilogue and batched-matmul→reduction patterns; 8 tests
+- **scirs2-symbolic**: NUMA wire-up for `regression::discover::predict_parallel` via `scirs2_core::par_map_chunks` (NUMA_DISPATCH_THRESHOLD=1024, NUMA_CHUNK_SIZE=64); 3 tests
+
+#### Wave 74: LRSC/SSC Timeout Fix
+- **scirs2-cluster**: Fixed 5 pre-existing LRSC/SSC timeouts in `subspace_enhanced.rs` — root cause was full eigendecomposition inside ADMM; fix: (a) sign-aware delta convergence early-exit in `power_iter_eig_local`/`power_iteration_vec` (1e-12/1e-10 tolerance); (b) `min_eigval`/`min_sigma_sq` params to skip sub-threshold SVT modes (25+ of 30 eigvecs skipped per iter); LRSC tests 120s→2s (60×), SSC tests 120s→33s; all 18 `subspace_enhanced::` tests pass
+
+#### Wave 75: Real wgpu Dispatch Consolidation
+- **scirs2-interpolate**: Real RBF kernel-matrix + evaluation WGSL (kernel_id uniform, workgroup 16×16/64); module split to `gpu_accelerated/mod.rs` + `wgpu_rbf.rs`; real `is_gpu_available()` OnceLock probe; `GpuStats` gains per-stage timing fields; `wgpu_rbf` feature gate; 5 tests
+- **scirs2-graph**: Real WGSL BFS (level-sync, atomicCompareExchange), Bellman-Ford SSSP (edge-parallel atomicMin f32-bits), delta-stepping; CPU-parallel BFS/Bellman-Ford via rayon+AtomicU32; GPU threshold n_edges<4096; fixed `CpuParallel` dispatch bug; 4 GPU smoke tests
+- **scirs2-core**: `GpuNdarray<f32>` (`array_protocol/gpu_ndarray.rs`) — singleton `WebGPUContext` OnceLock, 7 WGSL kernels (elementwise add/sub/mul/scalar, naive matmul, two-pass sum, 16×16 transpose), `array_protocol_wgpu` feature; 8 tests
+- **scirs2-symbolic**: `eval_batch` GPU path — f64→f32 cast at buffer boundary; inline wgpu adapter probe; `GpuError::NoAdapter` tuple variant; 4 GPU smoke tests
+
+#### Wave 76: Differential Geometry, Neural Priors, GPU Optimizers
+- **scirs2-core/gpu/kernels**: Filled 13 empty WGSL source slots (Adam/SGD/RMSprop/Adagrad/LAMB/memcpy/fill/reduce_sum/reduce_max/rk4_{1-4}/rk4_combine/error_estimate); promoted `GEMM_SHADER_WGSL` to `pub`
+- **scirs2-optimize**: L-BFGS GPU (`lbfgs_gpu.rs`) — two-loop recursion via GpuNdarray (dot/scale/add/subtract); `GpuLbfgsState`; `gpu_threshold_override` option; f64↔f32 boundary; 2 tests
+- **scirs2-symbolic/diffgeom**: Riemann tensor `R^μ_{νρσ}` (4-term formula, symbolic grad of Christoffel); `ricci_from_riemann` trace; Weyl tensor full-n decomposition (`weyl.rs`); 10 integration tests (Schwarzschild, Minkowski, anti-symmetry, Bianchi, trace-free, Kretschmann scalar)
+- **scirs2-symbolic**: `neural_priors.rs` — `discover_series_prior` (sliding-window SR), `eval_series_prior`, `series_prior_regularization` (min-over-formulas penalty); 8 tests
+- **scirs2-neural**: `SymbolicPriorLoss` loss function gated on `symbolic` feature (`losses/symbolic_prior_loss.rs`)
+
+#### Wave 77: ALiBi, CG/Newton GPU, Delta-Stepping WGSL, GpuNdarray Ops
+- **scirs2-symbolic**: ALiBi positional bias (`attention/symbolic_alibi.rs`) — `alibi_slope` (1-based head indexing), `alibi_bias_expr` (LoweredOp tree), `alibi_bias_matrix_symbolic`, `verify_symbolic_vs_numerical`; max_diff < 1e-14 vs scirs2-neural baseline; 6 tests
+- **scirs2-optimize**: CG GPU (`cg_gpu.rs`) beta/direction-update via GpuNdarray; Newton GPU (`newton_gpu.rs`) Hessian-vector matmul GPU for CG subsolver; `GpuNdarray::matmul()` public wrapper; 3 tests
+- **scirs2-graph**: True delta-stepping WGSL — `DELTA_LIGHT_WGSL` + `DELTA_APPLY_WGSL` + `DELTA_HEAVY_WGSL` (fixed convergence: heavy phase now has `changed_flag`); 2 tests
+- **scirs2-core**: `concat_axis.wgsl` (uniform-based stride gather, axis>0) + `reduce_sum_axis.wgsl` (per-output-element axis reduction, rank≥3); shapes upscaled in tests to exceed GPU_THRESHOLD (4096); `gpu_ndarray.rs` WGSL constants split to `gpu_ndarray_shaders.rs`; 3 tests
+
+### Changed
+- Version bump to 0.5.0 development cycle
+
+---
+
 ## [0.4.4] - 2026-05-15
 
 ### Added

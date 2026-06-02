@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2.svg)](https://crates.io/crates/scirs2)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2)](https://docs.rs/scirs2)
-[![Version](https://img.shields.io/badge/version-0.4.2-green.svg)]()
+[![Version](https://img.shields.io/badge/version-0.5.0-green.svg)]()
 
 `scirs2` is the **all-in-one convenience meta-crate** for the SciRS2 scientific computing ecosystem. It re-exports the complete set of SciRS2 sub-crates through a unified interface, so you can depend on a single crate and enable only the domains you need via Cargo feature flags.
 
@@ -15,30 +15,30 @@ Add the meta-crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2 = "0.4.2"
+scirs2 = "0.5.0"
 ```
 
 With only the sub-crates you need (recommended for production):
 
 ```toml
 [dependencies]
-scirs2 = { version = "0.4.2", default-features = false, features = ["linalg", "stats", "optimize"] }
+scirs2 = { version = "0.5.0", default-features = false, features = ["linalg", "stats", "optimize"] }
 ```
 
 For the complete ecosystem:
 
 ```toml
 [dependencies]
-scirs2 = { version = "0.4.2", features = ["full"] }
+scirs2 = { version = "0.5.0", features = ["full"] }
 ```
 
 Or depend on individual sub-crates directly for fastest compile times:
 
 ```toml
 [dependencies]
-scirs2-core     = "0.4.2"
-scirs2-linalg   = "0.4.2"
-scirs2-stats    = "0.4.2"
+scirs2-core     = "0.5.0"
+scirs2-linalg   = "0.5.0"
+scirs2-stats    = "0.5.0"
 ```
 
 ## Feature Flags
@@ -82,7 +82,7 @@ Each sub-crate is gated behind a feature flag of the same name. `default` enable
 | `graph`       | `scirs2-graph`         | Graph algorithms, GNNs, community detection        |
 | `vision`      | `scirs2-vision`        | Computer vision: feature detection, stereo, depth  |
 
-### Advanced Feature Flags (v0.4.2+)
+### Advanced Feature Flags (v0.5.0+)
 
 | Feature         | Requires          | Description                                                          |
 |-----------------|-------------------|----------------------------------------------------------------------|
@@ -266,7 +266,7 @@ scirs2 (meta-crate, re-exports all)
 
 ## Performance
 
-SciRS2 v0.4.2 delivers production-grade performance:
+SciRS2 v0.5.0 delivers production-grade performance:
 
 - **SIMD Acceleration**: AVX2/AVX-512/NEON paths for 3-12x speedups on element-wise operations
 - **GPU Backends**: Metal (Apple Silicon), with CUDA and ROCm in development

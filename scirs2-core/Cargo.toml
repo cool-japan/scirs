@@ -18,14 +18,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [build-dependencies]
-cc = { workspace = true }
+cc = { workspace = true, optional = true }
 
 [dependencies]
 # Core dependencies
 ndarray = { workspace = true }  # ndarray 0.17.1 - REQUIRED (not optional)
-num-traits = { workspace = true }
-num-complex = { workspace = true }
-num-integer = { workspace = true }
+num-traits = { workspace = true, default-features = false }
+num-complex = { workspace = true, default-features = false }
+num-integer = { workspace = true, default-features = false }
 thiserror = { workspace = true }
 once_cell.workspace = true
 parking_lot.workspace = true
@@ -117,7 +117,13 @@ quickcheck = { workspace = true, optional = true }  # Property-based testing
 
 # Arbitrary precision dependencies
 num-bigint = { workspace = true, optional = true }  # Arbitrary precision integers
-rug = { workspace = true, optional = true }  # High-performance arbitrary precision
+rug = { workspace = true, optional = true }  # Arbitrary precision complex (rug::Complex; pending oxinum-complex)
+# oxinum-* Pure Rust arbitrary precision: Int/Float/Rational (GMP/MPFR-free).
+# ArbitraryComplex still uses rug until oxinum ships oxinum-complex.
+oxinum-core     = { workspace = true, optional = true }
+oxinum-int      = { workspace = true, optional = true }
+oxinum-float    = { workspace = true, optional = true }
+oxinum-rational = { workspace = true, optional = true }
 
 # Python integration dependencies (PyO3)
 pyo3 = { workspace = true, optional = true }  # Python bindings
@@ -199,7 +205,8 @@ async = ["std", "tokio", "async-trait"]  # Async error handling and recovery mec
 gpu = ["std"]  # GPU acceleration abstractions (requires std)
 opencl = ["std", "gpu", "dep:opencl3"]  # OpenCL-specific GPU acceleration (requires std)
 metal = ["std", "gpu", "dep:metal", "dep:objc2", "dep:objc2-foundation", "dep:objc2-metal", "dep:objc2-metal-performance-shaders"]  # Metal-specific GPU acceleration (Apple) (requires std)
-mpsgraph = ["std", "metal", "dep:objc2-metal-performance-shaders-graph"]  # MPSGraph high-performance operations (Apple, requires metal) (requires std)
+mpsgraph = ["std", "metal", "dep:objc2-metal-performance-shaders-graph", "dep:cc"]  # MPSGraph high-performance operations (Apple, requires metal + cc for ObjC wrapper) (requires std)
+c-opt = ["dep:cc"]  # Enable C/Objective-C compiler for optional native extensions (mpsgraph Obj-C wrapper)
 wgpu_backend = ["std", "gpu", "dep:wgpu", "dep:pollster"]  # WebGPU-specific GPU acceleration (requires std)
 rocm = ["std", "gpu"]  # ROCm-specific GPU acceleration (AMD) (requires std)
 # CUDA feature is platform-conditional - only works on x86_64 Linux and Windows
@@ -269,7 +276,7 @@ arrow = ["std", "dep:arrow", "dep:arrow-array", "dep:arrow-buffer", "dep:arrow-c
 jit = ["std"]  # Just-in-time compilation (requires std)
 ml_pipeline = ["std"]  # ML pipeline integration and real-time processing (requires std)
 production = ["std", "observability", "versioning", "leak_detection", "data_validation"]  # All production features (requires std)
-arbitrary-precision = ["std", "num-bigint", "rug"]  # Arbitrary precision arithmetic (requires std for GMP)
+arbitrary-precision = ["std", "num-bigint", "rug", "oxinum-core", "oxinum-int", "oxinum-float", "oxinum-rational"]  # Arbitrary precision arithmetic (rug retained for Complex only; Int/Float/Rational use Pure Rust oxinum-*)
 python = ["std", "dep:pyo3", "dep:scirs2-numpy", "serialization"]  # Python bindings with NumPy integration (uses scirs2-numpy with ndarray 0.17) (requires std)
 all = [
     "simd", "parallel", "cache", "validation", "logging",
@@ -583,10 +590,17 @@ required-features = ["memory_efficient"]
 [[bench]]
 name = "numpy_scipy_comparison_bench"
 harness = false
+required-features = ["random"]
+
+[[bench]]
+name = "mobile_neon_bench"
+harness = false
+required-features = ["simd"]
 
 [[bench]]
 name = "simple_array_bench"
 harness = false
+required-features = ["random"]
 
 [[bench]]
 name = "random_performance_bench"

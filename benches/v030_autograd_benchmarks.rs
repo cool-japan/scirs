@@ -53,13 +53,14 @@ fn save_results() {
         if let Some(ref results) = BENCHMARK_RESULTS {
             let json = serde_json::to_string_pretty(results)
                 .expect("Failed to serialize benchmark results");
-            let mut file = File::create("/tmp/scirs2_v030_autograd_results.json")
-                .expect("Failed to create results file");
+            let output_path = std::env::temp_dir().join("scirs2_v030_autograd_results.json");
+            let mut file = File::create(&output_path).expect("Failed to create results file");
             file.write_all(json.as_bytes())
                 .expect("Failed to write results");
             println!(
-                "\n Saved {} benchmark results to /tmp/scirs2_v030_autograd_results.json",
-                results.len()
+                "\n Saved {} benchmark results to {}",
+                results.len(),
+                output_path.display()
             );
         }
     }

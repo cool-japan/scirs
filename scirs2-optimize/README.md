@@ -23,7 +23,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ---
 
-## Feature List (v0.4.3)
+## Feature List (v0.5.0)
 
 ### Unconstrained Optimization
 - Nelder-Mead simplex with adaptive parameter selection
@@ -184,7 +184,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.4.4"
+scirs2-optimize = "0.5.0"
 ```
 
 ### Unconstrained Minimisation (BFGS)
@@ -367,6 +367,19 @@ println!("Nash equilibrium: row={:?}, col={:?}", nash.strategy_row, nash.strateg
 | `least_squares` | Levenberg-Marquardt, TRR, robust variants |
 | `root_finding` | Hybrid, Broyden, Anderson acceleration, Krylov |
 | `scalar` | Brent, golden section, bounded scalar optimisation |
+| `symbolic` | Symbolic Newton (exact gradient/Hessian via `scirs2-symbolic`), Lagrangian/KKT, L-BFGS symbolic, trust-region symbolic |
+| `gpu` | GPU-accelerated optimizers (CG, Newton, L-BFGS) via `GpuNdarray` and wgpu dispatch |
+
+### Symbolic and GPU Optimizers (v0.5.0)
+
+| Module | Description |
+|---|---|
+| `symbolic::newton` | Newton optimizer with exact symbolic Hessian + gradient via `eml::grad`; Gaussian-elimination linear solve |
+| `symbolic::lagrangian` | `build_kkt` + `solve_lagrangian_symbolic`; Newton on full N×N KKT system |
+| `symbolic::lbfgs` | L-BFGS with symbolic gradient; trust-region symbolic (dogleg) |
+| `gpu::cg_gpu` | CG solver with GpuNdarray dot/direction-update; `GPU_CG_THRESHOLD=4096` |
+| `gpu::newton_gpu` | Newton with Hessian-vector matmul via GpuNdarray |
+| `gpu::lbfgs_gpu` | L-BFGS two-loop recursion via GpuNdarray; `GPU_LBFGS_THRESHOLD=4096`; f64↔f32 boundary |
 
 ---
 
@@ -378,6 +391,8 @@ println!("Nash equilibrium: row={:?}, col={:?}", nash.strategy_row, nash.strateg
 | `simd` | SIMD-accelerated linear algebra via `scirs2-core` |
 | `async` | Async function evaluation for expensive oracles |
 | `serde` | Serialization of results and configurations |
+| `symbolic` | Symbolic Newton/Lagrangian/KKT/L-BFGS via `scirs2-symbolic` |
+| `gpu` | GPU-accelerated CG/Newton/L-BFGS via wgpu (`scirs2-core` GpuNdarray) |
 
 Default features: none (pure Rust, no C/Fortran dependencies).
 

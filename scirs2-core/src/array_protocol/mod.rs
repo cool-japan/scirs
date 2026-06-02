@@ -37,6 +37,10 @@ use crate::error::{CoreError, CoreResult, ErrorContext};
 // Internal submodules
 mod distributed_impl;
 mod gpu_impl;
+#[cfg(feature = "array_protocol_wgpu")]
+pub mod gpu_ndarray;
+#[cfg(feature = "array_protocol_wgpu")]
+mod gpu_ndarray_shaders;
 mod jit_impl;
 mod operations;
 

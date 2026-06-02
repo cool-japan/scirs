@@ -55,7 +55,7 @@ scirs2-neural = { workspace = true }
 scirs2-symbolic = { workspace = true }
 
 # Python bindings
-pyo3 = { workspace = true }
+pyo3 = { workspace = true, default-features = false }
 scirs2-numpy = { workspace = true }
 pyo3-async-runtimes = { workspace = true }  # Async Python support (successor to pyo3-asyncio)
 
@@ -66,7 +66,7 @@ tokio = { workspace = true }
 rayon.workspace = true
 
 # N-dimensional arrays (used for batch linalg helpers)
-ndarray = { workspace = true }
+ndarray = { workspace = true, default-features = false }
 
 # Error handling
 thiserror.workspace = true

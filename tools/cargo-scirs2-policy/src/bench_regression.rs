@@ -137,8 +137,7 @@ impl BenchmarkSnapshot {
         }
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialise snapshot: {e}"))?;
-        std::fs::write(path, json)
-            .map_err(|e| format!("Failed to write {}: {}", path.display(), e))
+        std::fs::write(path, json).map_err(|e| format!("Failed to write {}: {}", path.display(), e))
     }
 
     /// Build a snapshot by scanning a Criterion output directory.
@@ -267,8 +266,7 @@ fn collect_estimates_recursive(
 
 /// Parse a Criterion `estimates.json` file.
 fn load_estimates_file(path: &Path) -> Result<CriterionEstimates, String> {
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| format!("read error: {e}"))?;
+    let content = std::fs::read_to_string(path).map_err(|e| format!("read error: {e}"))?;
     serde_json::from_str(&content).map_err(|e| format!("JSON parse error: {e}"))
 }
 
@@ -422,10 +420,8 @@ const DIFF_NOISE_FLOOR: f64 = 0.02;
 pub fn format_regression_report(entries: &[RegressionEntry]) -> String {
     // Use is_regression to filter out any improvements that might have crept
     // in (e.g., if the caller passed a mixed slice).
-    let regressions: Vec<&RegressionEntry> = entries
-        .iter()
-        .filter(|e| e.is_regression(0.0))
-        .collect();
+    let regressions: Vec<&RegressionEntry> =
+        entries.iter().filter(|e| e.is_regression(0.0)).collect();
 
     if regressions.is_empty() {
         return String::from("No regressions found.\n");
@@ -661,7 +657,9 @@ fn read_git_hash() -> Option<String> {
             let content = content.trim();
             // Resolve symbolic ref
             if let Some(stripped) = content.strip_prefix("ref: ") {
-                let ref_path = dir.join(".git").join(stripped.replace('/', std::path::MAIN_SEPARATOR_STR));
+                let ref_path = dir
+                    .join(".git")
+                    .join(stripped.replace('/', std::path::MAIN_SEPARATOR_STR));
                 let hash = std::fs::read_to_string(ref_path).ok()?;
                 return Some(hash.trim().to_string());
             }
@@ -765,8 +763,7 @@ mod tests {
 
     #[test]
     fn test_from_criterion_dir_missing_returns_err() {
-        let result =
-            BenchmarkSnapshot::from_criterion_dir(Path::new("/nonexistent/criterion/dir"));
+        let result = BenchmarkSnapshot::from_criterion_dir(Path::new("/nonexistent/criterion/dir"));
         assert!(result.is_err());
     }
 

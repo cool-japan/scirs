@@ -12,17 +12,17 @@
 
 ```toml
 [dependencies]
-scirs2-core = "0.4.4"
+scirs2-core = "0.5.0"
 ```
 
 With optional feature flags:
 
 ```toml
 [dependencies]
-scirs2-core = { version = "0.4.4", features = ["validation", "simd", "parallel", "gpu"] }
+scirs2-core = { version = "0.5.0", features = ["validation", "simd", "parallel", "gpu"] }
 ```
 
-## Features (v0.4.4)
+## Features (v0.5.0)
 
 ### Performance
 
@@ -161,6 +161,46 @@ let pipeline = Pipeline::builder()
 let predictions = pipeline.predict(&features)?;
 ```
 
+## v0.5.0 Additions
+
+### NUMA-Aware Parallel Mapping
+
+`par_map_chunks` provides typed-result chunk-parallel mapping with NUMA locality (Linux `pthread` affinity pin; rayon fallback on Darwin/WASM):
+
+```rust
+use scirs2_core::parallel::numa::par_map_chunks;
+
+let data = vec![1.0_f64; 4096];
+let results: Vec<f64> = par_map_chunks(&data, 64, |chunk| {
+    chunk.iter().map(|x| x * x).collect::<Vec<_>>()
+})?;
+```
+
+### GpuNdarray — Native f32 Array on WebGPU
+
+`GpuNdarray<f32>` implements `ArrayProtocol` with real wgpu dispatch for 7 kernels:
+
+```rust
+use scirs2_core::array_protocol::gpu_ndarray::GpuNdarray;
+
+// GPU array operations (automatically falls back to CPU when no adapter)
+let a = GpuNdarray::from_slice(&[1.0_f32, 2.0, 3.0, 4.0], vec![2, 2]);
+let b = GpuNdarray::from_slice(&[5.0_f32, 6.0, 7.0, 8.0], vec![2, 2]);
+let c = a.add(&b)?;           // WGSL elementwise add
+let m = a.matmul(&b)?;        // WGSL tiled matmul (16×16 shared mem)
+let s = a.sum(None)?;         // WGSL two-pass reduce
+let t = a.transpose()?;       // WGSL 32×32 bank-conflict-padded transpose
+let cat = a.concat_axis(&b, 1)?;  // WGSL uniform-based stride gather (axis > 0)
+let r = a.sum(Some(0))?;     // WGSL per-output-element axis reduction (rank ≥ 3)
+```
+
+GPU dispatch threshold: operations below ~4096 elements use CPU. SVD, inverse, and `apply_elementwise` fall back to CPU with documented rationale.
+
+### WGSL Kernel Registry (v0.5.0)
+
+All 13 previously-empty WGSL kernel slots are now filled in `gpu/kernels/mod.rs`:
+Adam, SGD, RMSprop, Adagrad, LAMB optimizers; memcpy, fill, reduce_sum, reduce_max; RK4 stages (rk4_1/2/3/4 + combine) and error estimate.
+
 ## Feature Flags
 
 | Feature | Description |
@@ -172,6 +212,7 @@ let predictions = pipeline.predict(&features)?;
 | `cuda` | NVIDIA CUDA backend (requires `gpu`) |
 | `memory_management` | Advanced memory utilities (arena, slab, pool) |
 | `array_protocol` | Extensible unified array interface |
+| `array_protocol_wgpu` | `GpuNdarray<f32>` with real wgpu dispatch (requires `array_protocol`) |
 | `logging` | Structured logging integration |
 | `profiling` | Performance profiling stubs |
 | `std` | Standard library support (enabled by default; disable for `no_std`) |

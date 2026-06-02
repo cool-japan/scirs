@@ -1,4 +1,32 @@
 //! SQLite database implementation
+//!
+//! # noffi migration status
+//!
+//! TODO(noffi-migration): Replace `rusqlite` with `oxisql-sqlite-compat` (Pure Rust SQLite via Limbo).
+//!
+//! **API mapping** (rusqlite → oxisql-sqlite-compat):
+//! - `rusqlite::Connection::open(path)` → `SqliteConnection::open(path).await`
+//! - `conn.prepare(sql)` → `conn.prepare(sql).await` (returns `SqlitePrepared`)
+//! - `stmt.execute(params)` → `conn.execute(sql, params).await`
+//! - `stmt.query(params)` → `conn.query(sql, params).await` (returns `Vec<Row>`)
+//! - `row.get_ref(i)` / `ValueRef` → `Row` is `Vec<Value>` in oxisql
+//! - `conn.transaction()` → `conn.transaction().await` (returns `SqliteTransaction`)
+//! - `tx.commit()` → `txn.commit().await`
+//!
+//! **Architecture blocker**: The `DatabaseConnection` trait used here is **synchronous**.
+//! `oxisql-sqlite-compat` is fully async (Limbo/tokio-based). Migrating requires either:
+//!   (a) making `DatabaseConnection` async (trait-level change), or
+//!   (b) using `tokio::runtime::Handle::block_on` / `futures::executor::block_on` as a shim.
+//!
+//! **Alpha caveats** (oxisql-sqlite-compat 0.1.0 / Limbo 0.0.22):
+//! - ROLLBACK is not supported by the Limbo engine (returns error). No ROLLBACK/savepoints
+//!   are used in this file, so this is not a current blocker.
+//! - `params_from_iter` / `ToSql` trait have no direct equivalent; use `&[&dyn ToSqlValue]`.
+//! - `rusqlite::types::ValueRef` → `oxisql_core::Value` enum.
+//!
+//! Until the sync/async impedance mismatch is resolved, this file keeps `rusqlite`.
+//! The `sqlite-stable` feature is available to use only `rusqlite` without oxisql deps.
+//! See `~/work/noffi/oxisql/` for reference API.
 
 use crate::database::{
     ColumnDef, DataType, DatabaseConfig, DatabaseConnection, Index, QueryBuilder, QueryType,

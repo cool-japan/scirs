@@ -86,60 +86,16 @@ pub fn run_vector_add_wgsl(a: &[f32], b: &[f32]) -> Result<Vec<f32>, GpuError> {
     ctx.run_vector_add(a, b)
 }
 
-// WebGPU shader source templates
-#[allow(dead_code)]
-const ADAM_SHADER_WGSL: &str = r#"
-@group(0) @binding(0) var<storage, read_write> params: array<f32>;
-@group(0) @binding(1) var<storage, read> grads: array<f32>;
-@group(0) @binding(2) var<storage, read_write> m: array<f32>;
-@group(0) @binding(3) var<storage, read_write> v: array<f32>;
+// WebGPU shader source templates — used by the kernel registry in kernels/mod.rs
+// for the GEMM BLAS kernel (exposed here as a named constant for external use).
 
-struct AdamUniforms {
-    lr: f32,
-    beta1: f32,
-    beta2: f32,
-    eps: f32,
-    weight_decay: f32,
-    bias_correction1: f32,
-    bias_correction2: f32,
-    n: u32,
-};
-
-@group(0) @binding(4) var<uniform> uniforms: AdamUniforms;
-
-@compute @workgroup_size(64)
-#[allow(dead_code)]
-fn adam_update(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let idx = global_id.x;
-    
-    if (idx >= uniforms.n) {
-        return;
-    }
-    
-    var grad = grads[idx];
-    
-    // Apply weight decay
-    if (uniforms.weight_decay > 0.0) {
-        grad += uniforms.weight_decay * params[idx];
-    }
-    
-    // Update biased first moment estimate
-    m[idx] = uniforms.beta1 * m[idx] + (1.0 - uniforms.beta1) * grad;
-    
-    // Update biased second raw moment estimate
-    v[idx] = uniforms.beta2 * v[idx] + (1.0 - uniforms.beta2) * grad * grad;
-    
-    // Compute bias-corrected moment estimates
-    let m_hat = m[idx] / uniforms.bias_correction1;
-    let v_hat = v[idx] / uniforms.bias_correction2;
-    
-    // Update parameters
-    params[idx] -= uniforms.lr * m_hat / (sqrt(v_hat) + uniforms.eps);
-}
-"#;
-
-#[allow(dead_code)]
-const GEMM_SHADER_WGSL: &str = r#"
+/// WGSL source for the GEMM kernel (tiled 8×8 matrix multiply).
+///
+/// Computes C = alpha * A * B + beta * C where A is M×K, B is K×N, C is M×N.
+///
+/// Buffers: 0 → matrix_a (read), 1 → matrix_b (read), 2 → matrix_c (read_write)
+/// Uniforms: M, N, K, alpha, beta
+pub const GEMM_SHADER_WGSL: &str = r#"
 @group(0) @binding(0) var<storage, read> matrix_a: array<f32>;
 @group(0) @binding(1) var<storage, read> matrix_b: array<f32>;
 @group(0) @binding(2) var<storage, read_write> matrix_c: array<f32>;
@@ -155,20 +111,17 @@ struct GemmUniforms {
 @group(0) @binding(3) var<uniform> uniforms: GemmUniforms;
 
 @compute @workgroup_size(8, 8)
-#[allow(dead_code)]
-fn gemm(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let row = global_id.x;
     let col = global_id.y;
-    
-    if (row >= uniforms.M || col >= uniforms.N) {
-        return;
-    }
-    
-    var sum = 0.0;
+
+    if row >= uniforms.M || col >= uniforms.N { return; }
+
+    var sum = 0.0f;
     for (var k = 0u; k < uniforms.K; k++) {
         sum += matrix_a[row * uniforms.K + k] * matrix_b[k * uniforms.N + col];
     }
-    
+
     let idx = row * uniforms.N + col;
     matrix_c[idx] = uniforms.alpha * sum + uniforms.beta * matrix_c[idx];
 }
@@ -474,6 +427,18 @@ impl WebGPUContext {
                 entries: &dedup_entries,
             });
         Ok((bind_group_layout, dedup_infos))
+    }
+
+    /// Return a reference to the underlying `wgpu::Device`.
+    #[cfg(feature = "wgpu_backend")]
+    pub fn device(&self) -> &Device {
+        &self.device
+    }
+
+    /// Return a reference to the underlying `wgpu::Queue`.
+    #[cfg(feature = "wgpu_backend")]
+    pub fn queue(&self) -> &Queue {
+        &self.queue
     }
 
     /// Allocate device memory

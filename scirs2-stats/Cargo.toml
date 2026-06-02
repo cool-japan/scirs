@@ -40,7 +40,7 @@ crossbeam = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-plotters = { workspace = true }
+plotters = { workspace = true, default-features = false }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 rand = { workspace = true }

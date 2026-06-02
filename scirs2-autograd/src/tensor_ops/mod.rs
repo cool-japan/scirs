@@ -469,7 +469,8 @@ pub(crate) mod reduction_ops;
 mod xent_ops;
 
 // New linear algebra modules
-mod decomposition_ops;
+pub(crate) mod decomposition_backward;
+pub(crate) mod decomposition_ops;
 mod eigen_ops;
 mod linalg_ops;
 // mod matrix_functions; // Module removed - functions are in decomposition_ops

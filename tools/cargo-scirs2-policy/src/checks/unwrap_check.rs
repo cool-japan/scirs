@@ -61,11 +61,7 @@ impl UnwrapCheck {
 /// Scan a file's content for `.unwrap()` calls outside of test blocks.
 ///
 /// Returns one [`PolicyViolation`] per matching line.
-pub fn scan_for_unwrap(
-    file: &Path,
-    content: &str,
-    crate_name: &str,
-) -> Vec<PolicyViolation> {
+pub fn scan_for_unwrap(file: &Path, content: &str, crate_name: &str) -> Vec<PolicyViolation> {
     let mut violations = Vec::new();
     let mut in_cfg_test_block = false;
     let mut brace_depth: i64 = 0;
@@ -201,7 +197,7 @@ mod tests {
     use super::*;
     use crate::workspace::{CrateInfo, WorkspaceInfo};
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     fn temp_dir(suffix: &str) -> PathBuf {
         let base = std::env::temp_dir().join(format!(
@@ -217,7 +213,7 @@ mod tests {
         base
     }
 
-    fn workspace_with_file(dir: &PathBuf, filename: &str, content: &str) -> WorkspaceInfo {
+    fn workspace_with_file(dir: &Path, filename: &str, content: &str) -> WorkspaceInfo {
         let src = dir.join("src");
         fs::create_dir_all(&src).expect("src dir");
         fs::write(src.join(filename), content).expect("write file");
@@ -225,7 +221,7 @@ mod tests {
             root: dir.parent().unwrap_or(dir).to_path_buf(),
             crates: vec![CrateInfo {
                 name: "my-crate".to_string(),
-                path: dir.clone(),
+                path: dir.to_path_buf(),
                 is_core: false,
             }],
         }
@@ -240,7 +236,10 @@ mod tests {
             "fn foo() {\n    let x = something().unwrap();\n}\n",
         );
         let violations = UnwrapCheck.run(&ws);
-        assert!(!violations.is_empty(), "Should detect .unwrap() in production code");
+        assert!(
+            !violations.is_empty(),
+            "Should detect .unwrap() in production code"
+        );
         assert_eq!(violations[0].line, 2);
         let _ = fs::remove_dir_all(&dir);
     }
@@ -281,7 +280,10 @@ mod tests {
             "// let x = foo().unwrap(); -- commented out\nfn bar() {}\n",
         );
         let violations = UnwrapCheck.run(&ws);
-        assert!(violations.is_empty(), "Commented unwrap should not be flagged");
+        assert!(
+            violations.is_empty(),
+            "Commented unwrap should not be flagged"
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 

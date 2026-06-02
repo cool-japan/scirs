@@ -43,7 +43,7 @@ chrono = { workspace = true }
 statrs = { workspace = true }
 
 # Visualization dependencies (optional)
-plotters = { workspace = true, optional = true }
+plotters = { workspace = true, default-features = false, optional = true }
 plotly = { workspace = true, optional = true }
 
 # Async runtime for dashboard server (optional)

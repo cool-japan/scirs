@@ -1,6 +1,7 @@
 //! Conjugate Gradient method for unconstrained optimization
 
 use crate::error::OptimizeError;
+use crate::unconstrained::cg_gpu::{try_gpu_cg_update, GpuCgResult, GPU_CG_THRESHOLD};
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::utils::{
     array_diff_norm, check_convergence, compute_gradient_with_jacobian, finite_difference_gradient,
@@ -129,19 +130,27 @@ where
             break;
         }
 
-        // Calculate beta using the Fletcher-Reeves formula
-        let g_new_norm_sq = g_new.dot(&g_new);
-        let g_norm_sq = g.dot(&g);
+        // Calculate beta (Fletcher-Reeves) and update search direction.
+        // Attempt GPU acceleration for large n; fall back to CPU on any error.
+        let threshold = options.gpu_threshold_override.unwrap_or(GPU_CG_THRESHOLD);
+        let gpu_result = try_gpu_cg_update(&g, &g_new, &p, options.use_gpu, threshold);
 
-        // If gradient is too small, use steepest descent
-        let beta_fr = if g_norm_sq < 1e-10 {
-            0.0
-        } else {
-            g_new_norm_sq / g_norm_sq
-        };
-
-        // Update search direction
-        p = -&g_new + beta_fr * &p;
+        match gpu_result {
+            GpuCgResult::Done(_g_new_norm_sq, _beta, new_p) => {
+                p = new_p;
+            }
+            GpuCgResult::FallbackToCpu => {
+                // CPU path: Fletcher-Reeves beta.
+                let g_new_norm_sq = g_new.dot(&g_new);
+                let g_norm_sq = g.dot(&g);
+                let beta_fr = if g_norm_sq < 1e-10 {
+                    0.0
+                } else {
+                    g_new_norm_sq / g_norm_sq
+                };
+                p = -&g_new + beta_fr * &p;
+            }
+        }
 
         // Project the search direction to respect bounds
         if let Some(bounds) = bounds {

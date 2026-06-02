@@ -24,10 +24,7 @@ const BANNED_DEPS: &[(&str, &str)] = &[
         "bzip2",
         "Use oxiarc-bzip2 instead (COOLJAPAN Pure Rust Policy)",
     ),
-    (
-        "lz4",
-        "Use oxiarc-lz4 instead (COOLJAPAN Pure Rust Policy)",
-    ),
+    ("lz4", "Use oxiarc-lz4 instead (COOLJAPAN Pure Rust Policy)"),
     (
         "snap",
         "Use oxiarc-snappy instead (COOLJAPAN Pure Rust Policy)",
@@ -52,10 +49,7 @@ const BANNED_DEPS: &[(&str, &str)] = &[
         "blas-src",
         "Use oxiblas instead (COOLJAPAN Pure Rust Policy)",
     ),
-    (
-        "z3",
-        "Use oxiz instead (COOLJAPAN Pure Rust Policy)",
-    ),
+    ("z3", "Use oxiz instead (COOLJAPAN Pure Rust Policy)"),
     (
         "ndarray-npy",
         "Use custom binary format instead (removed to eliminate zip crate dependency)",
@@ -265,7 +259,10 @@ mod tests {
 
         let rule = BannedDirectDepRule;
         let violations = rule.check(&dir);
-        assert!(violations.is_empty(), "Clean workspace should have no violations");
+        assert!(
+            violations.is_empty(),
+            "Clean workspace should have no violations"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -275,8 +272,14 @@ mod tests {
         // "oxiarc-lz4 = ..." should NOT match "lz4"
         assert!(!is_direct_dep("oxiarc-lz4 = { workspace = true }", "lz4"));
         assert!(!is_direct_dep("oxiarc-zstd = { workspace = true }", "zstd"));
-        assert!(!is_direct_dep("oxiarc-bzip2 = { workspace = true }", "bzip2"));
-        assert!(!is_direct_dep("oxiarc-brotli = { workspace = true }", "brotli"));
+        assert!(!is_direct_dep(
+            "oxiarc-bzip2 = { workspace = true }",
+            "bzip2"
+        ));
+        assert!(!is_direct_dep(
+            "oxiarc-brotli = { workspace = true }",
+            "brotli"
+        ));
     }
 
     #[test]

@@ -50,6 +50,9 @@ pub mod bem;
 pub mod finite_volume;
 pub mod time_fem;
 
+// Discontinuous Galerkin system components
+pub mod dg_systems;
+
 use scirs2_core::ndarray::{Array1, Array2};
 use std::ops::Range;
 

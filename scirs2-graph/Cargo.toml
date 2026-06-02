@@ -35,6 +35,11 @@ sysinfo = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
+# GPU acceleration (optional, behind `gpu` feature)
+wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+bytemuck = { workspace = true, optional = true }
+
 [dev-dependencies]
 tempfile = { workspace = true }
 criterion = { workspace = true, features = ["html_reports"] }
@@ -49,10 +54,10 @@ default = ["std", "sysinfo"]
 std = []
 unstable = []
 
-# Performance features  
+# Performance features
 parallel = ["scirs2-core/parallel"]
 simd = ["scirs2-core/simd"]
-gpu = ["scirs2-core/gpu"]
+gpu = ["scirs2-core/gpu", "scirs2-core/wgpu_backend", "dep:wgpu", "dep:pollster", "dep:bytemuck"]
 sysinfo = []
 
 # Algorithm features

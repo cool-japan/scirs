@@ -81,7 +81,10 @@ impl ExternalBenchmarkRunner {
         Self {
             python_executable: "python3".to_string(),
             r_executable: "Rscript".to_string(),
-            temp_dir: "/tmp/scirs2_benchmarks".to_string(),
+            temp_dir: std::env::temp_dir()
+                .join("scirs2_benchmarks")
+                .to_string_lossy()
+                .into_owned(),
         }
     }
 
