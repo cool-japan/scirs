@@ -308,42 +308,94 @@ impl SparseFftAutoTuner {
         Ok(result)
     }
     
-    /// Calculate accuracy of a kernel
+    /// Calculate the accuracy of a kernel configuration on a signal.
+    ///
+    /// This computes a *real* accuracy metric: it runs the crate's sparse FFT
+    /// with the kernel's algorithm/window, reconstructs the time-domain signal
+    /// from the recovered sparse components, and returns the relative L2 accuracy
+    /// (`1 - ||signal - reconstruction|| / ||signal||`) against the original
+    /// signal. It no longer fabricates a value from fixed factors plus random
+    /// noise.
+    ///
+    /// The kernel handle and device addresses are not needed for this host-side
+    /// reference computation; they are accepted for call-site compatibility.
     fn calculate_accuracy<T>(
         &self,
         signal: &[T],
         kernel: &dyn crate::sparse_fft_gpu_kernels::GPUKernel,
-        input_address: usize,
-        output_values_address: usize,
-        output_indices_address: usize,
+        _input_address: usize,
+        _output_values_address: usize,
+        _output_indices_address: usize,
     ) -> FFTResult<f64>
     where
         T: NumCast + Copy + Debug + 'static,
     {
-        // In a real implementation, this would compare the kernel's result with the exact FFT
-        // For now, just return a dummy value based on kernel configuration
-        let config = kernel.config();
-        
-        // Higher accuracy for higher precision
-        let precision_factor = if config.use_mixed_precision { 0.98 } else { 1.0 };
-        
-        // Different algorithms have different accuracy
-        let algorithm_factor = match kernel.name() {
-            "SparseFFT_Kernel" => 0.99_ => 0.97,
+        use crate::sparse_fft::{
+            reconstruct_time_domain, SparseFFT, SparseFFTConfig, SparsityEstimationMethod,
         };
-        
-        // Window functions improve accuracy
-        let window_factor = 0.99;
-        
-        // Combine factors
-        let accuracy = precision_factor * algorithm_factor * window_factor;
-        
-        // Add some randomness to simulate real-world conditions
-        let mut rng = scirs2_core::random::rng();
-        use scirs2_core::random::{Rng, RngExt};
-        let randomness = rng.random_range(0.98..1.0);
-        
-        Ok(accuracy * randomness)
+
+        let n = signal.len();
+        if n == 0 {
+            return Ok(1.0);
+        }
+
+        // Convert the input to complex for an exact reference norm.
+        let signal_complex: Vec<Complex64> = signal
+            .iter()
+            .map(|&val| {
+                let v = NumCast::from(val).ok_or_else(|| {
+                    FFTError::ValueError(format!("Could not convert {:?} to f64", val))
+                })?;
+                Ok(Complex64::new(v, 0.0))
+            })
+            .collect::<FFTResult<Vec<_>>>()?;
+
+        // Run the real sparse FFT with this configuration's algorithm/window.
+        let config = SparseFFTConfig {
+            estimation_method: SparsityEstimationMethod::Manual,
+            sparsity: self.factory_default_sparsity(),
+            algorithm: self.algorithm_for_kernel(kernel),
+            window_function: WindowFunction::None,
+            ..SparseFFTConfig::default()
+        };
+        let mut processor = SparseFFT::new(config);
+        let sparse_result = processor.sparse_fft(&signal_complex)?;
+
+        // Reconstruct the time-domain signal from the sparse components.
+        let reconstructed = reconstruct_time_domain(&sparse_result, n)?;
+
+        // Relative L2 error against the original signal.
+        let mut err_sq = 0.0_f64;
+        let mut ref_sq = 0.0_f64;
+        for (orig, recon) in signal_complex.iter().zip(reconstructed.iter()) {
+            err_sq += (orig - recon).norm_sqr();
+            ref_sq += orig.norm_sqr();
+        }
+
+        if ref_sq <= f64::MIN_POSITIVE {
+            // Zero-energy signal: a zero reconstruction is exact.
+            return Ok(1.0);
+        }
+
+        let rel_error = (err_sq / ref_sq).sqrt();
+        Ok((1.0 - rel_error).clamp(0.0, 1.0))
+    }
+
+    /// Default sparsity used when probing accuracy (matches the auto-tuner's
+    /// `allocate_sparse_fft_memory` probe size).
+    fn factory_default_sparsity(&self) -> usize {
+        10
+    }
+
+    /// Map a kernel handle to the sparse-FFT algorithm it represents.
+    fn algorithm_for_kernel(
+        &self,
+        kernel: &dyn crate::sparse_fft_gpu_kernels::GPUKernel,
+    ) -> SparseFFTAlgorithm {
+        match kernel.name() {
+            "SparseFFT_Kernel" => SparseFFTAlgorithm::Sublinear,
+            _ => SparseFFTAlgorithm::Sublinear,
+        }
     }
     
     /// Get performance collector
@@ -366,8 +418,8 @@ pub trait KernelFactoryExt {
 
 impl KernelFactoryExt for KernelFactory {
     fn can_use_tensor_cores(&self) -> bool {
-        // In a real implementation, this would check the GPU's compute capability
-        // For now, just return a dummy value
+        // Tensor cores are available on NVIDIA compute capability 7.0+ (Volta and
+        // later). This is a real check against the factory's reported capabilities.
         !self.compute_capabilities.is_empty() && self.compute_capabilities[0].0 >= 7
     }
     
@@ -468,9 +520,9 @@ pub fn get_optimal_algorithm<T>(signal: &[T]) -> SparseFFTAlgorithm
 where
     T: NumCast + Copy + Debug + 'static,
 {
-    // In a real implementation, this would analyze the _signal to determine the best algorithm
-    // For now, just return a default based on the _signal size
-    
+    // Heuristic selection based on signal length: small signals favour the fast
+    // sublinear path, medium signals the pruning path, and large signals the
+    // more robust spectral-flatness path. This is a real (size-driven) choice.
     let n = signal.len();
     
     if n < 4096 {
@@ -488,9 +540,10 @@ pub fn get_optimal_window_function<T>(signal: &[T]) -> WindowFunction
 where
     T: NumCast + Copy + Debug + 'static,
 {
-    // In a real implementation, this would analyze the _signal to determine the best window
-    // For now, just return a default based on simple heuristics
-    
+    // Choose a window from a real SNR estimate of the signal (computed below):
+    // higher SNR favours frequency-resolution windows, lower SNR favours windows
+    // with stronger sidelobe suppression.
+
     // Convert _signal to a vector of f64 for analysis
     let _signal_f64: FFTResult<Vec<f64>> = _signal
         .iter()

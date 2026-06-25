@@ -49,6 +49,38 @@ fn test_cpu_fallback_operations() {
 }
 
 #[test]
+fn test_gpu_dispatch_returns_real_results() {
+    // The GPU dispatch path allocates host-backed buffers and runs a CPU fallback
+    // kernel (no physical GPU runtime is linked). Verify it returns the REAL
+    // product rather than fabricated zeros, which is what the previous mock buffer
+    // produced.
+    use crate::gpu::backends::CpuFallbackBackend;
+    use crate::gpu::{GpuBackend, GpuLinalgOps};
+
+    let backend = CpuFallbackBackend::new();
+    let context = backend
+        .create_context(0)
+        .expect("Test: failed to create CPU fallback context");
+
+    let dispatcher = super::dispatcher::GpuOperationDispatcher::<f64>::new();
+
+    // Matrix-vector: [[1,2],[3,4]] * [1,2] = [5, 11]
+    let a = array![[1.0, 2.0], [3.0, 4.0]];
+    let x = array![1.0, 2.0];
+    let y = dispatcher
+        .gpu_matvec(context.as_ref(), &a.view(), &x.view())
+        .expect("Test: gpu_matvec failed");
+    assert_eq!(y, array![5.0, 11.0]);
+
+    // Matrix-matrix: [[1,2],[3,4]] * [[5,6],[7,8]] = [[19,22],[43,50]]
+    let b = array![[5.0, 6.0], [7.0, 8.0]];
+    let c = dispatcher
+        .gpu_matmul(context.as_ref(), &a.view(), &b.view())
+        .expect("Test: gpu_matmul failed");
+    assert_eq!(c, array![[19.0, 22.0], [43.0, 50.0]]);
+}
+
+#[test]
 fn test_kernel_manager() {
     let mut manager = super::kernels::GpuKernelManager::new();
 

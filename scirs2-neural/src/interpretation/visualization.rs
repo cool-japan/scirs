@@ -4,7 +4,7 @@
 //! behavior including attention visualization, feature visualization, and network dissection.
 
 use crate::error::{NeuralError, Result};
-use scirs2_core::ndarray::ArrayD;
+use scirs2_core::ndarray::{Array2, ArrayD, Ix2, IxDyn};
 use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -171,16 +171,172 @@ where
                             weighted_attention + head_attention * F::from(weight).expect("Failed to convert to float");
                     }
                     Ok(weighted_attention)
-    /// Generate attention rollout visualization
+    /// Generate an attention-rollout visualization.
+    ///
+    /// Implements Abnar & Zuidema (2020): each layer's head-aggregated attention
+    /// is mixed with the identity (to account for residual connections), row
+    /// normalized, and the resulting matrices are multiplied across layers in
+    /// depth order (taken from `target_layers`, falling back to the cache order).
     pub fn attention_rollout(&self) -> Result<ArrayD<F>> {
-        // Simplified attention rollout - would normally compute across all layers
         if self.attention_cache.is_empty() {
             return Err(NeuralError::ComputationError(
                 "No attention weights available for rollout".to_string(),
             ));
-        // For now, just return the first cached attention
-        let first_attention = self.attention_cache.values().next().expect("Operation failed");
-        self.aggregate_attention_heads(first_attention)
+        }
+
+        // Resolve depth order. `target_layers` is the intended ordering; only
+        // fall back to the (unordered) cache when no targets are registered.
+        let ordered: Vec<&ArrayD<F>> = if self.target_layers.is_empty() {
+            self.attention_cache.values().collect()
+        } else {
+            self.target_layers
+                .iter()
+                .filter_map(|name| self.attention_cache.get(name))
+                .collect()
+        };
+        if ordered.is_empty() {
+            return Err(NeuralError::ComputationError(
+                "None of the target layers have cached attention for rollout".to_string(),
+            ));
+        }
+
+        let mut acc: Option<Vec<Array2<F>>> = None;
+        for attn in ordered {
+            let aggregated = self.aggregate_attention_heads(attn)?;
+            let layer = Self::residual_normalize(&aggregated)?;
+            acc = Some(match acc {
+                None => layer,
+                Some(prev) => {
+                    if prev.len() != layer.len() {
+                        return Err(NeuralError::ShapeMismatch(
+                            "inconsistent batch size across attention layers".to_string(),
+                        ));
+                    }
+                    let mut combined = Vec::with_capacity(prev.len());
+                    for (current, accumulated) in layer.iter().zip(prev.iter()) {
+                        combined.push(Self::square_matmul(current, accumulated)?);
+                    }
+                    combined
+                }
+            });
+        }
+
+        let batches = acc.ok_or_else(|| {
+            NeuralError::ComputationError("attention rollout produced no result".to_string())
+        })?;
+        let batch_count = batches.len();
+        if batch_count == 1 {
+            let single = batches
+                .into_iter()
+                .next()
+                .ok_or_else(|| NeuralError::ComputationError("empty rollout".to_string()))?;
+            return Ok(single.into_dyn());
+        }
+        let rows = batches[0].nrows();
+        let cols = batches[0].ncols();
+        let mut out = ArrayD::<F>::zeros(IxDyn(&[batch_count, rows, cols]));
+        for (bi, matrix) in batches.iter().enumerate() {
+            for i in 0..rows {
+                for j in 0..cols {
+                    out[[bi, i, j]] = matrix[[i, j]];
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    /// Split head-aggregated attention into per-batch square `[seq, seq]` matrices.
+    fn as_square_batches(aggregated: &ArrayD<F>) -> Result<Vec<Array2<F>>> {
+        match aggregated.ndim() {
+            2 => {
+                let m = aggregated
+                    .view()
+                    .into_dimensionality::<Ix2>()
+                    .map_err(|e| NeuralError::ComputationError(format!("{e}")))?;
+                Ok(vec![m.to_owned()])
+            }
+            3 => {
+                let shape = aggregated.shape();
+                let (batch, rows, cols) = (shape[0], shape[1], shape[2]);
+                let mut out = Vec::with_capacity(batch);
+                for b in 0..batch {
+                    let mut m = Array2::<F>::zeros((rows, cols));
+                    for i in 0..rows {
+                        for j in 0..cols {
+                            m[[i, j]] = aggregated[[b, i, j]];
+                        }
+                    }
+                    out.push(m);
+                }
+                Ok(out)
+            }
+            other => Err(NeuralError::ComputationError(format!(
+                "attention rollout expects 2D [seq, seq] or 3D [batch, seq, seq] attention, got {other}D"
+            ))),
+        }
+    }
+
+    /// Mix attention with the identity (residual) and row-normalize each matrix.
+    fn residual_normalize(aggregated: &ArrayD<F>) -> Result<Vec<Array2<F>>> {
+        let batches = Self::as_square_batches(aggregated)?;
+        let half = F::from(0.5)
+            .ok_or_else(|| NeuralError::ComputationError("0.5 conversion failed".to_string()))?;
+        let mut out = Vec::with_capacity(batches.len());
+        for m in &batches {
+            let n = m.nrows();
+            if m.ncols() != n {
+                return Err(NeuralError::ShapeMismatch(format!(
+                    "attention matrix must be square for rollout, got {}x{}",
+                    n,
+                    m.ncols()
+                )));
+            }
+            let mut a = Array2::<F>::zeros((n, n));
+            for i in 0..n {
+                let mut row_sum = F::zero();
+                for j in 0..n {
+                    let mut v = half * m[[i, j]];
+                    if i == j {
+                        v = v + half;
+                    }
+                    a[[i, j]] = v;
+                    row_sum = row_sum + v;
+                }
+                if row_sum > F::zero() {
+                    for j in 0..n {
+                        a[[i, j]] = a[[i, j]] / row_sum;
+                    }
+                }
+            }
+            out.push(a);
+        }
+        Ok(out)
+    }
+
+    /// Generic square-matrix multiply (`F: Float` does not implement `LinalgScalar`).
+    fn square_matmul(a: &Array2<F>, b: &Array2<F>) -> Result<Array2<F>> {
+        let (m, k) = (a.nrows(), a.ncols());
+        let (k2, n) = (b.nrows(), b.ncols());
+        if k != k2 {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "rollout matmul inner dimensions {k} != {k2}"
+            )));
+        }
+        let mut out = Array2::<F>::zeros((m, n));
+        for i in 0..m {
+            for p in 0..k {
+                let a_ip = a[[i, p]];
+                if a_ip == F::zero() {
+                    continue;
+                }
+                for j in 0..n {
+                    out[[i, j]] = out[[i, j]] + a_ip * b[[p, j]];
+                }
+            }
+        }
+        Ok(out)
+    }
+
     /// Visualize attention flow between tokens
     pub fn visualize_attention_flow(
         &self,

@@ -1,6 +1,6 @@
 //! COBYLA (Constrained Optimization BY Linear Approximations) algorithm
 
-use crate::constrained::{Constraint, ConstraintFn, ConstraintKind, Options};
+use crate::constrained::{Constraint, ConstraintKind, Options};
 use crate::error::{OptimizeError, OptimizeResult};
 use crate::result::OptimizeResults;
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
@@ -29,7 +29,7 @@ use scirs2_core::validation::check_finite;
 pub fn minimize_cobyla<F, S>(
     func: F,
     x0: &ArrayBase<S, Ix1>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
     options: &Options,
 ) -> OptimizeResult<OptimizeResults<f64>>
 where
@@ -284,7 +284,7 @@ fn build_linear_models(
 fn solve_trust_region_subproblem(
     grad_f: &Array1<f64>,
     grad_c: &Array2<f64>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
     rho: f64,
     n: usize,
 ) -> OptimizeResult<Array1<f64>> {

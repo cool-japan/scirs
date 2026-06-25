@@ -6,7 +6,7 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use scirs2_core::ndarray::{Array, ArrayView, Axis, Ix2, IxDyn, ScalarOperand};
+use scirs2_core::ndarray::{Array, ArrayView, Axis, Ix2, IxDyn, ScalarOperand, Slice};
 use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::random::{Rng, RngExt, SeedableRng};
 use std::fmt::Debug;
@@ -474,12 +474,55 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
 
     fn backward(
         &self,
-        _input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // For now, just return a placeholder gradient
-        let grad_input = Array::zeros(_input.dim());
-        Ok(grad_input)
+        // Without a backward layer the forward output is returned verbatim, so
+        // the gradient flows straight through the forward layer.
+        let backward_layer = match &self.backward_layer {
+            Some(layer) => layer,
+            None => return self.forward_layer.backward(input, grad_output),
+        };
+
+        // The forward pass stacked [forward_out | backward_out] along the last
+        // axis, so its length must be even: the first half is the forward
+        // layer's gradient, the second half the backward layer's.
+        let ndim = grad_output.ndim();
+        if ndim < 2 {
+            return Err(NeuralError::InferenceError(
+                "ThreadSafeBidirectional expects at least a (batch, seq, ..) gradient".to_string(),
+            ));
+        }
+        let last_axis = Axis(ndim - 1);
+        let combined = grad_output.len_of(last_axis);
+        if !combined.is_multiple_of(2) {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Bidirectional gradient last dimension ({combined}) must be even"
+            )));
+        }
+        let hidden = (combined / 2) as isize;
+
+        let grad_forward = grad_output
+            .slice_axis(last_axis, Slice::new(0, Some(hidden), 1))
+            .to_owned();
+        let mut grad_backward = grad_output
+            .slice_axis(last_axis, Slice::new(hidden, Some(combined as isize), 1))
+            .to_owned();
+
+        // Forward branch: straightforward backprop.
+        let grad_input_forward = self.forward_layer.backward(input, &grad_forward)?;
+
+        // Backward branch: the forward pass reversed the sequence axis (axis 1)
+        // *after* the backward layer's forward call, so undo that reversal on the
+        // incoming gradient, backprop through the backward layer on the reversed
+        // input, then re-reverse the resulting input gradient.
+        grad_backward.invert_axis(Axis(1));
+        let mut reversed_input = input.to_owned();
+        reversed_input.invert_axis(Axis(1));
+        let mut grad_input_backward = backward_layer.backward(&reversed_input, &grad_backward)?;
+        grad_input_backward.invert_axis(Axis(1));
+
+        Ok(grad_input_forward + grad_input_backward)
     }
 
     fn update(&mut self, learningrate: F) -> Result<()> {

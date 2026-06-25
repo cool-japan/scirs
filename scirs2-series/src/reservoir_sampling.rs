@@ -399,18 +399,24 @@ impl TimeSeriesReservoir {
             ));
         }
         self.current_time = timestamp;
-        // Weight = exp(−λ · (T_now − t)).  Since t == T_now for the arriving item,
-        // the weight is always exp(0) = 1.0 at insertion time.  The A-Res key
-        // handles the relative comparison correctly.
-        let weight = if self.decay_rate == 0.0 {
-            1.0
-        } else {
-            // We use a constant weight of 1 for new items (arrival weight = 1)
-            // and compensate by re-scaling existing keys when needed.
-            // The simplest correct implementation for streaming is to always
-            // assign weight 1 to the current item and use the stream index as
-            // the timestamp for the decay computation.
-            1.0_f64.exp() // = e; ensures new items are competitive
+        // Recency-biased A-Res weight: w = exp(decay_rate * t).  Larger (later)
+        // timestamps receive exponentially larger weight, so the A-Res key
+        // ln(u)/w is closer to 0 (the kept end) for recent observations.
+        // decay_rate == 0 reduces to uniform sampling (Algorithm R).
+        let exponent = self.decay_rate * timestamp;
+        // Guard against overflow of exp() for very large exponents: the key
+        // ln(u)/w only needs the *relative* ordering, and exp() saturates to
+        // f64::MAX rather than +inf so that ln(u)/w stays finite and strictly
+        // ordered (more-recent items keep larger, i.e. closer-to-zero, keys).
+        let weight = {
+            let w = exponent.exp();
+            if w.is_finite() && w > 0.0 {
+                w
+            } else if exponent > 0.0 {
+                f64::MAX
+            } else {
+                f64::MIN_POSITIVE
+            }
         };
         self.inner
             .update(TimedObservation { value, timestamp }, weight)

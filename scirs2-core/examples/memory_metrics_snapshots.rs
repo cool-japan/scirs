@@ -11,8 +11,6 @@ fn main() {
 }
 
 #[cfg(feature = "memory_management")]
-use std::path::Path;
-#[cfg(feature = "memory_management")]
 use std::thread;
 #[cfg(feature = "memory_management")]
 use std::time::Duration;
@@ -39,7 +37,7 @@ fn main() {
 
     // Take an initial snapshot
     println!("Taking initial snapshot...");
-    let snapshot1 = take_snapshot("baseline", "Initial memory state");
+    let _snapshot1 = take_snapshot("baseline", "Initial memory state");
 
     // Allocate some memory
     println!("\nAllocating memory...");
@@ -56,7 +54,7 @@ fn main() {
 
     // Take a second snapshot
     println!("\nTaking snapshot after allocations...");
-    let snapshot2 = take_snapshot("allocated", "After memory allocations");
+    let _snapshot2 = take_snapshot("allocated", "After memory allocations");
 
     // Compare snapshots
     println!("\nComparing snapshots (baseline -> allocated):");
@@ -69,7 +67,7 @@ fn main() {
 
     // Take a snapshot before potential leak
     println!("Taking snapshot before potential leak...");
-    let snapshot_before_leak = take_snapshot("before_leak", "Before potential memory leak");
+    let _snapshot_before_leak = take_snapshot("before_leak", "Before potential memory leak");
 
     // Simulate a memory leak (allocation without matching deallocation)
     println!("\nSimulating a memory leak...");
@@ -81,7 +79,7 @@ fn main() {
 
     // Take a snapshot after operations that should have cleaned up
     println!("\nTaking snapshot after operations...");
-    let snapshot_after_leak = take_snapshot(
+    let _snapshot_after_leak = take_snapshot(
         "after_leak",
         "After operations that should have freed memory",
     );
@@ -113,7 +111,7 @@ fn main() {
     println!("---------------------------------------");
 
     // Create a directory for snapshots if it doesn't exist
-    let snapshot_dir = Path::new("/tmp/memory_snapshots");
+    let snapshot_dir = std::env::temp_dir().join("memory_snapshots");
 
     // Save all snapshots
     println!("Saving snapshots to {:?}...", snapshot_dir);

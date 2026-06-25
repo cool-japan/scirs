@@ -799,15 +799,11 @@ pub fn find_images<P: AsRef<Path>>(
     pattern: &str,
     recursive: bool,
 ) -> Result<Vec<std::path::PathBuf>> {
-    let search_pattern = if recursive {
-        format!("{}/**/{}", dir_path.as_ref().display(), pattern)
-    } else {
-        format!("{}/{}", dir_path.as_ref().display(), pattern)
-    };
+    let mut paths: Vec<std::path::PathBuf> = Vec::new();
+    collect_matching_files(dir_path.as_ref(), pattern, recursive, &mut paths);
 
-    let paths = glob::glob(&search_pattern)
-        .map_err(|e| IoError::FileError(e.to_string()))?
-        .filter_map(|entry| entry.ok())
+    let mut paths: Vec<std::path::PathBuf> = paths
+        .into_iter()
         .filter(|path| {
             let ext = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
             matches!(
@@ -817,7 +813,122 @@ pub fn find_images<P: AsRef<Path>>(
         })
         .collect();
 
+    // glob yields paths in sorted order; read_dir does not, so sort explicitly.
+    paths.sort();
     Ok(paths)
+}
+
+/// Recursively (or not) collect files under `dir` whose file name matches the
+/// glob `pattern`. Unreadable directories and entries are silently skipped,
+/// mirroring the previous `glob::glob(...).filter_map(|e| e.ok())` behaviour.
+fn collect_matching_files(
+    dir: &Path,
+    pattern: &str,
+    recursive: bool,
+    out: &mut Vec<std::path::PathBuf>,
+) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if recursive {
+                collect_matching_files(&path, pattern, recursive, out);
+            }
+        } else if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if glob_match_file_name(pattern, name) {
+                out.push(path);
+            }
+        }
+    }
+}
+
+/// Match a file name against a glob pattern supporting `*`, `?` and `[...]`
+/// character classes (with `!` negation and `a-z` ranges), as the `glob`
+/// crate does for a single path component. Matching is case-sensitive.
+fn glob_match_file_name(pattern: &str, name: &str) -> bool {
+    let pat: Vec<char> = pattern.chars().collect();
+    let txt: Vec<char> = name.chars().collect();
+    let (mut p, mut t) = (0usize, 0usize);
+    // Backtracking state for the most recent `*`.
+    let (mut star_p, mut star_t): (Option<usize>, usize) = (None, 0);
+
+    while t < txt.len() {
+        let matched = match pat.get(p) {
+            Some('*') => {
+                star_p = Some(p);
+                star_t = t;
+                p += 1;
+                continue;
+            }
+            Some('?') => true,
+            Some('[') => match match_char_class(&pat, p, txt[t]) {
+                Some((hit, next_p)) => {
+                    if hit {
+                        p = next_p;
+                        t += 1;
+                        continue;
+                    }
+                    false
+                }
+                // Unterminated class: treat '[' as a literal, like a mismatch
+                // unless it equals the character.
+                None => pat.get(p) == Some(&txt[t]),
+            },
+            Some(&c) => c == txt[t],
+            None => false,
+        };
+
+        if matched {
+            p += 1;
+            t += 1;
+        } else if let Some(sp) = star_p {
+            // Backtrack: let the last `*` consume one more character.
+            star_t += 1;
+            t = star_t;
+            p = sp + 1;
+        } else {
+            return false;
+        }
+    }
+    // Remaining pattern must be all `*` to match.
+    pat[p..].iter().all(|&c| c == '*')
+}
+
+/// Try to match `c` against the character class starting at `pat[start]`
+/// (which must be `'['`). Returns `Some((matched, index_after_class))`, or
+/// `None` if the class is unterminated.
+fn match_char_class(pat: &[char], start: usize, c: char) -> Option<(bool, usize)> {
+    let mut i = start + 1;
+    let negated = matches!(pat.get(i), Some('!') | Some('^'));
+    if negated {
+        i += 1;
+    }
+    let mut matched = false;
+    let mut first = true;
+    while let Some(&pc) = pat.get(i) {
+        if pc == ']' && !first {
+            return Some((matched != negated, i + 1));
+        }
+        first = false;
+        // Range like `a-z` (the `-` must not be the final char before `]`).
+        if let (Some(&'-'), Some(&hi)) = (pat.get(i + 1), pat.get(i + 2)) {
+            if hi != ']' {
+                if pc <= c && c <= hi {
+                    matched = true;
+                }
+                i += 3;
+                continue;
+            }
+        }
+        if pc == c {
+            matched = true;
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Batch process images in directory
@@ -876,6 +987,52 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_glob_match_file_name() {
+        // `*` wildcard
+        assert!(glob_match_file_name("*.jpg", "photo.jpg"));
+        assert!(glob_match_file_name("*", "anything.png"));
+        assert!(!glob_match_file_name("*.jpg", "photo.png"));
+        // `?` wildcard
+        assert!(glob_match_file_name("img?.png", "img1.png"));
+        assert!(!glob_match_file_name("img?.png", "img10.png"));
+        // character classes with ranges and negation
+        assert!(glob_match_file_name("img[0-9].png", "img5.png"));
+        assert!(!glob_match_file_name("img[0-9].png", "imgx.png"));
+        assert!(glob_match_file_name("img[!0-9].png", "imgx.png"));
+        // literal match and case sensitivity
+        assert!(glob_match_file_name("exact.bmp", "exact.bmp"));
+        assert!(!glob_match_file_name("*.JPG", "photo.jpg"));
+        // multiple stars with backtracking
+        assert!(glob_match_file_name("a*b*c", "axxbyyc"));
+        assert!(!glob_match_file_name("a*b*c", "axxbyy"));
+    }
+
+    #[test]
+    fn test_find_images_sorted_and_filtered() -> Result<()> {
+        let dir =
+            std::env::temp_dir().join(format!("scirs2_io_find_images_test_{}", std::process::id()));
+        let sub = dir.join("sub");
+        std::fs::create_dir_all(&sub).map_err(|e| IoError::FileError(e.to_string()))?;
+        for name in ["b.jpg", "a.jpg", "c.txt"] {
+            std::fs::write(dir.join(name), b"x").map_err(|e| IoError::FileError(e.to_string()))?;
+        }
+        std::fs::write(sub.join("d.jpg"), b"x").map_err(|e| IoError::FileError(e.to_string()))?;
+
+        let non_recursive = find_images(&dir, "*.jpg", false)?;
+        let names: Vec<String> = non_recursive
+            .iter()
+            .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(String::from))
+            .collect();
+        assert_eq!(names, ["a.jpg", "b.jpg"], "sorted, non-recursive");
+
+        let recursive = find_images(&dir, "*.jpg", true)?;
+        assert_eq!(recursive.len(), 3, "recursive picks up sub/d.jpg");
+
+        std::fs::remove_dir_all(&dir).map_err(|e| IoError::FileError(e.to_string()))?;
+        Ok(())
+    }
 
     #[test]
     fn test_image_format_from_extension() {

@@ -49,7 +49,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-spatial = "0.5.0"
+//! scirs2-spatial = "0.5.1"
 //! ```
 //!
 //! ```rust
@@ -65,7 +65,7 @@
 //! let d = distance::euclidean(&[1.0, 2.0], &[4.0, 6.0]);
 //! ```
 //!
-//! ## 🔒 Version: 0.5.0 (March 27, 2026)
+//! ## 🔒 Version: 0.5.1 (March 27, 2026)
 //
 // ## Features
 //
@@ -1144,8 +1144,13 @@ pub use extreme_performance_optimization::{
     benchmark_extreme_optimizations, create_ultimate_optimizer, AdvancedfastDistanceMatrix,
     CacheHierarchyInfo, CacheObliviousSpatialAlgorithms, ExtremeMemoryAllocator, ExtremeOptimizer,
     ExtremePerformanceMetrics, HardwarePerformanceCounters, JitCompiler, LockFreeSpatialStructures,
-    NumaTopologyInfo, OptimizationRecord, SelfOptimizingAlgorithm,
+    NumaTopologyInfo, OptimizationRecord,
 };
+// `SelfOptimizingAlgorithm` is an experimental research type whose runtime
+// self-optimization pipeline is not implemented (it returns an honest
+// `NotImplementedError`). It is gated behind the `experimental` cargo feature.
+#[cfg(feature = "experimental")]
+pub use extreme_performance_optimization::SelfOptimizingAlgorithm;
 
 #[cfg(test)]
 mod tests {

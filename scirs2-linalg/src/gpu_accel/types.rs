@@ -300,11 +300,11 @@ pub struct GpuCapabilities {
     pub has_fp16: bool,
     /// Whether the device exposes tensor-core style mixed-precision units.
     pub has_tensor_cores: bool,
-    /// Simulated video RAM in gigabytes.
+    /// Simulation working-memory budget in gigabytes (host RAM, not GPU VRAM).
     pub vram_gb: f64,
     /// Human-readable device name.
     pub name: String,
-    /// Number of simulated compute units (analogous to CUDA SMs).
+    /// Number of compute units; for the CPU-backed model this is the host core count.
     pub compute_units: u32,
     /// Preferred warp / wavefront width (elements processed together).
     pub warp_size: u32,
@@ -318,19 +318,27 @@ impl Default for GpuCapabilities {
     }
 }
 
-/// Return a [`GpuCapabilities`] struct describing the simulated device.
+/// Report the capabilities of the CPU-backed "GPU" execution model.
 ///
-/// In the absence of real hardware the values are fixed at reasonable
-/// mid-range defaults that reflect a typical discrete GPU.
+/// This backend is a pure-Rust simulation of the GPU programming model that runs
+/// entirely on the host CPU — there is **no physical GPU**. The reported figures
+/// therefore describe the host-backed simulation rather than real device
+/// hardware: `compute_units` reflects the number of logical CPU cores, and the
+/// memory / width figures are the simulation's working limits, not the VRAM and
+/// warp width of a discrete graphics card.
 pub fn detect_gpu_capabilities() -> GpuCapabilities {
+    // Real host core count instead of a fabricated SM count.
+    let compute_units = num_cpus::get().max(1) as u32;
     GpuCapabilities {
         has_fp16: true,
-        has_tensor_cores: false, // Tensor-core emulation not yet implemented
+        has_tensor_cores: false, // No tensor-core hardware; not emulated.
+        // Host-backed buffers live in system RAM; this is the simulation's
+        // working memory budget, not the VRAM of a physical GPU.
         vram_gb: 8.0,
-        name: "SciRS2 Simulated GPU (OxiBLAS backend)".to_string(),
-        compute_units: 64,
-        warp_size: 32,
-        max_buffer_elements: 1 << 30, // 1 billion elements
+        name: "SciRS2 CPU-backed GEMM (simulated GPU model, no physical GPU)".to_string(),
+        compute_units,
+        warp_size: 32, // Tile width used by the simulated tiled-GEMM kernel.
+        max_buffer_elements: 1 << 30, // Simulation cap (~1 billion elements).
     }
 }
 

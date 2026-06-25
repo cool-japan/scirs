@@ -1,4 +1,4 @@
-/// Zarr v3 types: data types, compressors, array metadata, and array structs.
+//! Zarr v3 types: data types, compressors, array metadata, and array structs.
 
 use serde::{Deserialize, Serialize};
 

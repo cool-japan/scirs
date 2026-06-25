@@ -192,7 +192,13 @@ impl AdvancedPatternRecognizer {
         let mut features = Vec::new();
 
         if data.len() < window_size {
-            return vec![0.0; 4]; // Return zero features for insufficient data
+            // Genuine insufficient-data case: the window-based autocorrelation,
+            // transition, periodicity and lag-count statistics computed below are
+            // undefined when the input is shorter than a single window. Return a
+            // neutral zero vector with the SAME arity (4) as the populated path so
+            // downstream feature concatenation stays aligned. This is a documented
+            // sentinel for "no structure measurable", not a fabricated measurement.
+            return vec![0.0; 4];
         }
 
         let mut autocorrelations = Vec::new();

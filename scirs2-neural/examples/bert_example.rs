@@ -1,57 +1,54 @@
-// use scirs2_core::ndarray::{Array, IxDyn}; // Unused imports
-// use scirs2_neural::layers::Layer; // Unused imports
-// use scirs2_neural::models::{BertConfig, BertModel}; // TODO: Implement models module
+//! BERT model example
+//!
+//! Demonstrates building a small BERT model and running a forward pass to get
+//! both the sequence output and the pooled output. Dimensions are kept small
+//! so the example runs quickly.
 
-#[allow(dead_code)]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_neural::error::Result;
+use scirs2_neural::layers::Layer;
+use scirs2_neural::models::{BertConfig, BertModel};
+
+fn main() -> Result<()> {
     println!("BERT Model Example");
-    println!("Note: BERT models are not yet implemented.");
-    println!("This example is a placeholder for future BERT functionality.");
+    println!("==================");
 
-    // TODO: Implement BERT models module and uncomment the following code
-    /*
-    // Create a small BERT model for demonstration
+    // Create a small BERT model for demonstration.
     println!("Creating a small BERT model...");
     let config = BertConfig::custom(
-        10000, // vocab_size
-        128,   // hidden_size
-        2,     // num_hidden_layers
-        2,     // num_attention_heads
+        1000, // vocab_size
+        32,   // hidden_size
+        2,    // num_hidden_layers
+        4,    // num_attention_heads
     );
     let model = BertModel::<f32>::new(config)?;
-    // Create dummy input (batch_size=2, seq_len=16)
-    // Input tensor contains token IDs
-    let input = Array::from_shape_fn(
-        IxDyn(&[2, 16]),
-        |_| scirs2_core::random::random::<f32>() * 100.0, // Random token IDs between 0 and 100
-    );
+
+    // Dummy input (batch_size=2, seq_len=8). Values represent token IDs.
+    let input = Array::from_shape_fn(IxDyn(&[2, 8]), |_| {
+        (scirs2_core::random::random::<f32>() * 100.0).floor()
+    });
     println!("Input shape: {:?}", input.shape());
-    // Get sequence output (hidden states)
+
+    // Sequence output (hidden states) via the Layer `forward` method.
     let sequence_output = model.forward(&input)?;
     println!("Sequence output shape: {:?}", sequence_output.shape());
-    // Get pooled output (for classification tasks)
+
+    // Pooled output (for classification tasks).
     let pooled_output = model.get_pooled_output(&input)?;
     println!("Pooled output shape: {:?}", pooled_output.shape());
-    // Let's create a BERT-Base model
+
+    // Demonstrate the BERT-Base convenience constructor. BERT-Base is large (12
+    // transformer layers at hidden size 768), so we construct it and report its
+    // configuration rather than running a full forward pass, keeping the example
+    // fast. (The forward-pass demonstration above uses the small model.)
     println!("\nCreating a BERT-Base model...");
-    let bert_base = BertModel::<f32>::bert_base_uncased()?;
-    // Create dummy input for a longer sequence
-    let base_input = Array::from_shape_fn(
-        IxDyn(&[1, 64]),
-        |_| scirs2_core::random::random::<f32>() * 1000.0, // Random token IDs
-    );
-    println!("BERT-Base input shape: {:?}", base_input.shape());
-    // Forward pass to get pooled output
-    let base_pooled_output = bert_base.get_pooled_output(&base_input)?;
-    println!(
-        "BERT-Base pooled output shape: {:?}",
-        base_pooled_output.shape()
-    );
-    println!(
-        "BERT-Base hidden dimension: {}",
-        base_pooled_output.shape()[1]
-    );
+    let _bert_base = BertModel::<f32>::bert_base_uncased()?;
+    let base_config = BertConfig::bert_base_uncased();
+    println!("BERT-Base model created successfully.");
+    println!("  - hidden size: {}", base_config.hidden_size);
+    println!("  - hidden layers: {}", base_config.num_hidden_layers);
+    println!("  - attention heads: {}", base_config.num_attention_heads);
+
     println!("\nBERT example completed successfully!");
-    */
     Ok(())
 }

@@ -130,26 +130,10 @@ fn optimize_portfolio(
     //    We encode all non-negativity via a single inequality function min(w) ≥ 0.
     let nonneg_con: fn(&[f64]) -> f64 = |w| w.iter().cloned().fold(f64::INFINITY, f64::min);
 
-    type ConFn = fn(&[f64]) -> f64;
-    let constraints: Vec<Constraint<ConFn>> = vec![
-        Constraint {
-            fun: eq_con,
-            kind: ConstraintKind::Equality,
-            lb: None,
-            ub: None,
-        },
-        Constraint {
-            fun: return_constraint,
-            kind: ConstraintKind::Inequality,
-            lb: None,
-            ub: None,
-        },
-        Constraint {
-            fun: nonneg_con,
-            kind: ConstraintKind::Inequality,
-            lb: None,
-            ub: None,
-        },
+    let constraints: Vec<Constraint> = vec![
+        Constraint::new(eq_con, ConstraintKind::Equality),
+        Constraint::new(return_constraint, ConstraintKind::Inequality),
+        Constraint::new(nonneg_con, ConstraintKind::Inequality),
     ];
 
     // Initial guess: equal weights
@@ -221,20 +205,9 @@ fn main() {
     let obj_mv = move |w: &[f64]| portfolio_variance(w, &cov_mv);
     let eq_mv: fn(&[f64]) -> f64 = |w| w.iter().sum::<f64>() - 1.0;
     let nn_mv: fn(&[f64]) -> f64 = |w| w.iter().cloned().fold(f64::INFINITY, f64::min);
-    type ConFnMv = fn(&[f64]) -> f64;
-    let cons_mv: Vec<Constraint<ConFnMv>> = vec![
-        Constraint {
-            fun: eq_mv,
-            kind: ConstraintKind::Equality,
-            lb: None,
-            ub: None,
-        },
-        Constraint {
-            fun: nn_mv,
-            kind: ConstraintKind::Inequality,
-            lb: None,
-            ub: None,
-        },
+    let cons_mv: Vec<Constraint> = vec![
+        Constraint::new(eq_mv, ConstraintKind::Equality),
+        Constraint::new(nn_mv, ConstraintKind::Inequality),
     ];
     let x0_mv = Array1::from_elem(N_ASSETS, 1.0 / N_ASSETS as f64);
     match minimize_constrained(obj_mv, &x0_mv, &cons_mv, Method::SLSQP, None) {

@@ -271,7 +271,7 @@ impl Codec for ShuffleCodec {
             return Ok(data.to_vec());
         }
         let n_elements = data.len() / self.element_size;
-        if data.len() % self.element_size != 0 {
+        if !data.len().is_multiple_of(self.element_size) {
             return Err(IoError::FormatError(format!(
                 "Shuffle encode: data length {} not divisible by element size {}",
                 data.len(),
@@ -294,7 +294,7 @@ impl Codec for ShuffleCodec {
             return Ok(data.to_vec());
         }
         let n_elements = data.len() / self.element_size;
-        if data.len() % self.element_size != 0 {
+        if !data.len().is_multiple_of(self.element_size) {
             return Err(IoError::FormatError(format!(
                 "Shuffle decode: data length {} not divisible by element size {}",
                 data.len(),

@@ -13,8 +13,13 @@ readme = "README.md"
 keywords = ["scientific", "python", "numpy", "scipy", "machine-learning"]
 categories = ["science", "mathematics", "algorithms"]
 
+# NOTE: lib name is intentionally `scirs2_python` (NOT `scirs2`) to avoid an
+# output-filename collision with the `scirs2` umbrella crate's `libscirs2.rlib`
+# in the shared workspace target dir. The Python import name stays `scirs2` via
+# `[tool.maturin] module-name = "scirs2"` in pyproject.toml plus `#[pymodule] fn scirs2`.
+# Do NOT rename this back to `scirs2`.
 [lib]
-name = "scirs2"
+name = "scirs2_python"
 crate-type = ["cdylib", "rlib"]
 doc = false
 
@@ -67,9 +72,6 @@ rayon.workspace = true
 
 # N-dimensional arrays (used for batch linalg helpers)
 ndarray = { workspace = true, default-features = false }
-
-# Error handling
-thiserror.workspace = true
 
 # Image processing (needed for vision module)
 image.workspace = true

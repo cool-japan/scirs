@@ -234,15 +234,15 @@ pub struct PerformanceSnapshot {
 }
 
 impl ProductionGpuAccelerator {
-    /// Initialize the production GPU accelerator
+    /// Initialize the production GPU accelerator.
+    ///
+    /// Construction succeeds whether or not a GPU is present. When no GPU device
+    /// is detected the accelerator operates entirely through the CPU fallback
+    /// path, which computes real interpolation results; it never fabricates a
+    /// GPU. Callers can inspect `Self::devices` (or run an interpolation, which
+    /// reports the `ExecutionStrategy` chosen) to learn whether a GPU is in use.
     pub fn new(config: ProductionGpuConfig) -> InterpolateResult<Self> {
         let devices = Self::detect_gpu_devices()?;
-
-        if devices.is_empty() {
-            return Err(InterpolateError::InvalidState(
-                "No GPU devices detected".to_string(),
-            ));
-        }
 
         let mut memory_pools = HashMap::new();
 
@@ -274,24 +274,24 @@ impl ProductionGpuAccelerator {
         })
     }
 
-    /// Detect available GPU devices
+    /// Detect available GPU devices.
+    ///
+    /// This accelerator does not bind to a concrete GPU runtime (CUDA, OpenCL,
+    /// Metal, WebGPU) in the current build. Rather than fabricate a device with
+    /// invented specifications, detection honestly reports only the devices that
+    /// are actually usable. When no GPU runtime is available — the present state
+    /// of this build — an empty list is returned and every execution path
+    /// transparently falls back to the real CPU implementation, which computes
+    /// genuine interpolation values.
     fn detect_gpu_devices() -> InterpolateResult<Vec<GpuDevice>> {
-        // In a real implementation, this would use CUDA, OpenCL, or other GPU APIs
-        // to detect and query available GPU devices
-
-        // Simulated device detection for demonstration
-        let devices = vec![GpuDevice {
-            id: 0,
-            name: "Simulated GPU 0".to_string(),
-            total_memory: 8 * 1024 * 1024 * 1024,     // 8GB
-            available_memory: 7 * 1024 * 1024 * 1024, // 7GB
-            compute_capability: (7, 5),               // Simulated compute capability
-            is_available: true,
-            utilization: 0.0,
-            temperature: Some(45),
-        }];
-
-        Ok(devices)
+        // No GPU backend is wired into this module, so no usable device exists.
+        // Returning an empty list is the honest result; `select_execution_strategy`
+        // then routes work to the CPU fallback that produces real results.
+        //
+        // When a real backend is integrated, this is where the available
+        // hardware would be enumerated and its true properties (name, memory,
+        // compute capability) queried from the driver.
+        Ok(Vec::new())
     }
 
     /// Execute large-scale interpolation with intelligent workload distribution
@@ -390,7 +390,7 @@ impl ProductionGpuAccelerator {
             let batch_end = (batch_start + batch_size).min(n_queries);
             let batch_queries = query_points.slice(s![batch_start..batch_end, ..]);
 
-            // Simulate GPU computation with retry mechanism
+            // Execute the batch interpolation with an automatic retry mechanism.
             let batch_results = self.execute_with_retry(|| {
                 self.gpu_interpolate_batch(device_id, points, values, &batch_queries)
             })?;
@@ -430,8 +430,9 @@ impl ProductionGpuAccelerator {
         let n_queries = query_points.nrows();
         let chunk_size = n_queries / available_devices.len();
 
-        // For a real implementation, we would use async/parallel execution
-        // Here we simulate the multi-GPU distribution
+        // Distribute the query workload across the available devices. A future
+        // backend could dispatch these chunks concurrently; here they are
+        // computed sequentially and each chunk yields real interpolated values.
         let mut results = Array1::zeros(n_queries);
 
         for (device_idx, &device_id) in available_devices.iter().enumerate() {
@@ -491,7 +492,9 @@ impl ProductionGpuAccelerator {
         Ok(results)
     }
 
-    /// CPU fallback implementation
+    /// CPU fallback implementation.
+    ///
+    /// Computes a real nearest-neighbour interpolation of the input data.
     fn execute_cpu_fallback<F>(
         &self,
         points: &ArrayView2<F>,
@@ -502,13 +505,35 @@ impl ProductionGpuAccelerator {
     where
         F: Float + FromPrimitive + Zero + Debug,
     {
-        // Simple nearest neighbor fallback for demonstration
+        Self::nearest_neighbor_interpolate(points, values, query_points)
+    }
+
+    /// Compute a real nearest-neighbour interpolation on the CPU.
+    ///
+    /// For every query point the value of the closest training point (in
+    /// squared Euclidean distance) is returned. This is the honest fallback
+    /// used whenever no GPU kernel binding is available; the result is a genuine
+    /// interpolation of the input data, never a fabricated placeholder.
+    fn nearest_neighbor_interpolate<F>(
+        points: &ArrayView2<F>,
+        values: &ArrayView1<F>,
+        query_points: &ArrayView2<F>,
+    ) -> InterpolateResult<Array1<F>>
+    where
+        F: Float + FromPrimitive + Zero + Debug,
+    {
         let n_queries = query_points.nrows();
+        if points.nrows() == 0 || values.is_empty() {
+            return Err(InterpolateError::InsufficientData(
+                "at least one training point is required for interpolation".to_string(),
+            ));
+        }
+
         let mut results = Array1::zeros(n_queries);
 
         for (i, query) in query_points.axis_iter(Axis(0)).enumerate() {
             let mut min_dist = F::infinity();
-            let mut nearest_value = F::zero();
+            let mut nearest_value = values[0];
 
             for (j, point) in points.axis_iter(Axis(0)).enumerate() {
                 let dist = query
@@ -532,55 +557,65 @@ impl ProductionGpuAccelerator {
         Ok(results)
     }
 
-    /// Execute GPU interpolation for a batch (simulated)
+    /// Execute interpolation for a batch on the selected device.
+    ///
+    /// No GPU kernel binding is wired into this build, so the work is performed
+    /// on the CPU and the returned values are the **real** interpolated results,
+    /// never fabricated placeholders. The actual elapsed time of the computation
+    /// is recorded for performance monitoring.
     fn gpu_interpolate_batch<F>(
         &self,
         device_id: usize,
-        _points: &ArrayView2<F>,
-        _values: &ArrayView1<F>,
+        points: &ArrayView2<F>,
+        values: &ArrayView1<F>,
         query_batch: &ArrayView2<F>,
     ) -> InterpolateResult<Array1<F>>
     where
         F: Float + FromPrimitive + Zero + Debug,
     {
-        // Simulate GPU computation delay
-        std::thread::sleep(Duration::from_millis(1));
+        let start = Instant::now();
 
-        // Update device metrics
+        let results = Self::nearest_neighbor_interpolate(points, values, query_batch)?;
+
+        // Record the real elapsed kernel time for monitoring.
         if let Ok(mut monitor) = self.monitor.lock() {
             if let Some(metrics) = monitor.device_metrics.get_mut(&device_id) {
                 metrics.kernel_executions += 1;
-                metrics.total_kernel_time += Duration::from_millis(1);
+                metrics.total_kernel_time += start.elapsed();
             }
         }
 
-        // Return simulated results
-        Ok(Array1::zeros(query_batch.nrows()))
+        Ok(results)
     }
 
-    /// Execute GPU interpolation with streaming (simulated)
+    /// Execute interpolation for a streaming chunk on the selected device.
+    ///
+    /// As with [`Self::gpu_interpolate_batch`], the values returned are the real
+    /// interpolation of the chunk computed on the CPU, and the elapsed time is
+    /// recorded for monitoring.
     fn gpu_interpolate_streaming<F>(
         &self,
         device_id: usize,
-        _points: &ArrayView2<F>,
-        _values: &ArrayView1<F>,
+        points: &ArrayView2<F>,
+        values: &ArrayView1<F>,
         query_batch: &ArrayView2<F>,
     ) -> InterpolateResult<Array1<F>>
     where
         F: Float + FromPrimitive + Zero + Debug,
     {
-        // Simulate more efficient streaming computation
-        std::thread::sleep(Duration::from_micros(500));
+        let start = Instant::now();
 
-        // Update device metrics
+        let results = Self::nearest_neighbor_interpolate(points, values, query_batch)?;
+
+        // Record the real elapsed kernel time for monitoring.
         if let Ok(mut monitor) = self.monitor.lock() {
             if let Some(metrics) = monitor.device_metrics.get_mut(&device_id) {
                 metrics.kernel_executions += 1;
-                metrics.total_kernel_time += Duration::from_micros(500);
+                metrics.total_kernel_time += start.elapsed();
             }
         }
 
-        Ok(Array1::zeros(query_batch.nrows()))
+        Ok(results)
     }
 
     /// Select optimal device for current workload
@@ -1461,31 +1496,78 @@ mod tests {
     #[test]
     fn test_production_gpu_accelerator_creation() {
         let config = ProductionGpuConfig::default();
-        let result = ProductionGpuAccelerator::new(config);
+        let mut accelerator =
+            ProductionGpuAccelerator::new(config).expect("accelerator creation should succeed");
 
-        // Should succeed with simulated devices
-        assert!(result.is_ok());
+        // Honest device detection: no GPU runtime is bound into this build, so no
+        // device is reported (no fabricated "Simulated GPU"). The accelerator must
+        // still be constructible and route work to the real CPU fallback.
+        assert!(accelerator.devices.is_empty());
 
-        let accelerator = result.expect("Operation failed");
-        assert!(!accelerator.devices.is_empty());
+        let strategy = accelerator
+            .select_execution_strategy(100, 100)
+            .expect("strategy selection should succeed");
+        assert!(matches!(strategy, ExecutionStrategy::CpuFallback));
+
+        // The CPU fallback must produce real interpolation values. With a query
+        // placed exactly on a training point, nearest-neighbour interpolation must
+        // return that point's value rather than a fabricated placeholder.
+        use scirs2_core::ndarray::Array2;
+        let points =
+            Array2::from_shape_vec((3, 2), vec![0.0_f64, 0.0, 1.0, 0.0, 0.0, 1.0]).expect("shape");
+        let values = Array1::from(vec![10.0_f64, 20.0, 30.0]);
+        let queries = Array2::from_shape_vec((1, 2), vec![1.0_f64, 0.0]).expect("shape");
+
+        let result = accelerator
+            .execute_large_scale_interpolation(
+                &points.view(),
+                &values.view(),
+                &queries.view(),
+                "nearest",
+            )
+            .expect("interpolation should succeed");
+        assert_eq!(result.len(), 1);
+        assert!((result[0] - 20.0).abs() < 1e-12);
     }
 
     #[test]
     fn test_execution_strategy_selection() {
         let config = ProductionGpuConfig::default();
-        let accelerator = ProductionGpuAccelerator::new(config).expect("Operation failed");
+        let mut accelerator = ProductionGpuAccelerator::new(config).expect("Operation failed");
 
-        // Small problem should use single GPU
+        // Inject a controlled synthetic device so the pure selection logic can be
+        // exercised deterministically, independent of the host's real GPU
+        // presence. This is a test input to the decision function, not a
+        // fabricated computation result.
+        accelerator.devices = vec![GpuDevice {
+            id: 0,
+            name: "test-device".to_string(),
+            total_memory: 8 * 1024 * 1024 * 1024,
+            available_memory: 7 * 1024 * 1024 * 1024,
+            compute_capability: (7, 5),
+            is_available: true,
+            utilization: 0.0,
+            temperature: None,
+        }];
+
+        // Small problem should use single GPU batch.
         let strategy = accelerator
             .select_execution_strategy(100, 100)
             .expect("Operation failed");
         assert!(matches!(strategy, ExecutionStrategy::SingleGpuBatch));
 
-        // Large problem should use streaming
+        // Very large problem should use streaming.
         let strategy = accelerator
             .select_execution_strategy(100_000, 10_000)
             .expect("Operation failed");
         assert!(matches!(strategy, ExecutionStrategy::StreamingChunked));
+
+        // With no available device the honest fallback is the CPU path.
+        accelerator.devices.clear();
+        let strategy = accelerator
+            .select_execution_strategy(100, 100)
+            .expect("Operation failed");
+        assert!(matches!(strategy, ExecutionStrategy::CpuFallback));
     }
 
     #[test]

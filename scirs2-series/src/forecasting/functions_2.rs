@@ -172,10 +172,9 @@ where
 /// # Example
 ///
 /// ```
-/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::auto_arima;
 ///
-/// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+/// let ts: scirs2_core::ndarray::Array1<f64> = (1..=50).map(|i| i as f64 + (i as f64 * 0.3).sin()).collect();
 /// let params = auto_arima(&ts, 2, 1, 2, false, None).expect("Example/test failed");
 /// println!("Optimal p: {}, d: {}, q: {}", params.p, params.d, params.q);
 /// ```
@@ -218,10 +217,9 @@ where
 /// # Example
 ///
 /// ```
-/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::{auto_arima_with_options, AutoArimaOptions};
 ///
-/// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+/// let ts: scirs2_core::ndarray::Array1<f64> = (1..=50).map(|i| i as f64 + (i as f64 * 0.3).sin()).collect();
 ///
 /// let mut options = AutoArimaOptions::default();
 /// options.max_p = 3;

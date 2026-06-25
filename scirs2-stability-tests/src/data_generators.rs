@@ -66,11 +66,7 @@ pub fn concentric_rings(n_per_ring: usize, n_rings: usize) -> (Vec<[f64; 2]>, Ve
 ///
 /// The "noise" is a deterministic triangular wave pattern with small amplitude
 /// to make the data imperfect but reproducible.
-pub fn linear_regression_data(
-    n: usize,
-    slope: f64,
-    intercept: f64,
-) -> (Vec<f64>, Vec<f64>) {
+pub fn linear_regression_data(n: usize, slope: f64, intercept: f64) -> (Vec<f64>, Vec<f64>) {
     let mut x_vals = Vec::with_capacity(n);
     let mut y_vals = Vec::with_capacity(n);
 
@@ -89,11 +85,7 @@ pub fn linear_regression_data(
 /// Generate exact linear regression data with no noise.
 ///
 /// Useful for verifying that models achieve perfect fit on noiseless data.
-pub fn exact_linear_data(
-    n: usize,
-    slope: f64,
-    intercept: f64,
-) -> (Vec<f64>, Vec<f64>) {
+pub fn exact_linear_data(n: usize, slope: f64, intercept: f64) -> (Vec<f64>, Vec<f64>) {
     let mut x_vals = Vec::with_capacity(n);
     let mut y_vals = Vec::with_capacity(n);
 
@@ -111,10 +103,7 @@ pub fn exact_linear_data(
 ///
 /// Each cluster has `n_per_cluster` points arranged in a tight deterministic
 /// pattern around the centroid.
-pub fn clustered_data(
-    centroids: &[[f64; 2]],
-    n_per_cluster: usize,
-) -> (Vec<[f64; 2]>, Vec<usize>) {
+pub fn clustered_data(centroids: &[[f64; 2]], n_per_cluster: usize) -> (Vec<[f64; 2]>, Vec<usize>) {
     let mut points = Vec::with_capacity(centroids.len() * n_per_cluster);
     let mut labels = Vec::with_capacity(centroids.len() * n_per_cluster);
 
@@ -155,10 +144,9 @@ pub fn high_dim_clustered_data(
             // Place cluster center along first dimension
             point[0] = center_offset;
             // Add deterministic spread in all dimensions
-            for d in 0..n_dims {
-                let perturbation =
-                    triangle_wave((i as f64 + d as f64 * 0.37) * 0.9) * 0.2;
-                point[d] += perturbation;
+            for (d, coord) in point.iter_mut().enumerate() {
+                let perturbation = triangle_wave((i as f64 + d as f64 * 0.37) * 0.9) * 0.2;
+                *coord += perturbation;
             }
             points.push(point);
             labels.push(ci);
@@ -177,8 +165,8 @@ pub fn structured_correlation(block_sizes: &[usize], intra_corr: f64) -> Vec<Vec
     let mut matrix = vec![vec![0.0; n]; n];
 
     // Diagonal
-    for i in 0..n {
-        matrix[i][i] = 1.0;
+    for (i, row) in matrix.iter_mut().enumerate() {
+        row[i] = 1.0;
     }
 
     // Fill blocks
@@ -205,10 +193,10 @@ pub fn xor_pattern(n_per_quadrant: usize) -> (Vec<[f64; 2]>, Vec<usize>) {
     let mut labels = Vec::with_capacity(n_per_quadrant * 4);
 
     let offsets = [
-        (1.0, 1.0, 0usize),   // Q1: positive
-        (-1.0, -1.0, 0),      // Q3: positive (same class as Q1)
-        (-1.0, 1.0, 1),       // Q2: negative
-        (1.0, -1.0, 1),       // Q4: negative
+        (1.0, 1.0, 0usize), // Q1: positive
+        (-1.0, -1.0, 0),    // Q3: positive (same class as Q1)
+        (-1.0, 1.0, 1),     // Q2: negative
+        (1.0, -1.0, 1),     // Q4: negative
     ];
 
     for &(cx, cy, label) in &offsets {
@@ -226,10 +214,7 @@ pub fn xor_pattern(n_per_quadrant: usize) -> (Vec<[f64; 2]>, Vec<usize>) {
 }
 
 /// Generate a polynomial regression dataset: `y = sum(coeffs[i] * x^i)`.
-pub fn polynomial_data(
-    n: usize,
-    coeffs: &[f64],
-) -> (Vec<f64>, Vec<f64>) {
+pub fn polynomial_data(n: usize, coeffs: &[f64]) -> (Vec<f64>, Vec<f64>) {
     let mut x_vals = Vec::with_capacity(n);
     let mut y_vals = Vec::with_capacity(n);
 
@@ -269,7 +254,7 @@ mod tests {
         for i in 0..1000 {
             let t = i as f64 * 0.01 - 5.0;
             let v = triangle_wave(t);
-            assert!(v >= -1.0 && v <= 1.0, "triangle_wave({t}) = {v}");
+            assert!((-1.0..=1.0).contains(&v), "triangle_wave({t}) = {v}");
         }
     }
 

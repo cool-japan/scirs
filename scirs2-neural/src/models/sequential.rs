@@ -353,55 +353,66 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + NumAssign + 's
         loss_fn.forward(&predictions, targets)
     }
 }
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::layers::Dense;
-//     use crate::losses::MeanSquaredError;
-//     use crate::models::TrainingConfig;
-//     use crate::optimizers::SGD;
-//     use scirs2_core::ndarray::Array2;
-//     use scirs2_core::random::rngs::StdRng;
-//     use scirs2_core::random::SeedableRng;
-//
-//     // Note: Tests temporarily disabled due to rand version conflicts
-//     // TODO: Fix rand version compatibility issues
-//     #[allow(dead_code)]
-//     fn _test_sequential_training() {
-//         let mut rng = StdRng::seed_from_u64(42);
-//         let mut model = Sequential::<f64>::new();
-//         // Add layers
-//         model.add_layer(Dense::new(4, 8, None, &mut rng).expect("Operation failed"));
-//         model.add_layer(Dense::new(8, 4, None, &mut rng).expect("Operation failed"));
-//         model.add_layer(Dense::new(4, 1, None, &mut rng).expect("Operation failed"));
-//         // Create dummy data
-//         let train_x = Array2::<f64>::from_elem((100, 4), 0.5).into_dyn();
-//         let train_y = Array2::<f64>::from_elem((100, 1), 1.0).into_dyn();
-//         // Training configuration
-//         let config = TrainingConfig {
-//             batch_size: 10,
-//             epochs: 5,
-//             validation_split: 0.2,
-//             verbose: 0,
-//             ..Default::default()
-//         };
-//         let loss_fn = MeanSquaredError::new();
-//         let mut optimizer = SGD::new(0.01);
-//         // Train the model
-//         model.fit(&train_x, &train_y, &config, &loss_fn, &mut optimizer).expect("Operation failed");
-//         // Check that training history was recorded
-//         assert!(!model.training_history().train_loss.is_empty());
-//         assert!(!model.training_history().val_loss.is_empty());
-//     }
-//     #[test]
-//     fn test_sequential_prediction() {
-//         model.add_layer(Dense::new(3, 5, None, &mut rng).expect("Operation failed"));
-//         model.add_layer(Dense::new(5, 2, None, &mut rng).expect("Operation failed"));
-//         let input = Array2::<f64>::from_elem((2, 3), 0.5).into_dyn();
-//         let output = model.predict(&input).expect("Operation failed");
-//         assert_eq!(output.shape(), &[2, 2]);
-//     fn test_batched_prediction() {
-//         let input = Array2::<f64>::from_elem((25, 3), 0.5).into_dyn();
-//         let output = model.predict_batched(&input, 10).expect("Operation failed");
-//         assert_eq!(output.shape(), &[25, 2]);
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::layers::Dense;
+    use crate::losses::MeanSquaredError;
+    use crate::models::TrainingConfig;
+    use crate::optimizers::SGD;
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::random::rngs::SmallRng;
+    use scirs2_core::random::SeedableRng;
+
+    #[test]
+    fn test_sequential_training() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let mut model = Sequential::<f64>::new();
+        // Add layers
+        model.add_layer(Dense::new(4, 8, None, &mut rng).expect("Operation failed"));
+        model.add_layer(Dense::new(8, 4, None, &mut rng).expect("Operation failed"));
+        model.add_layer(Dense::new(4, 1, None, &mut rng).expect("Operation failed"));
+        // Create dummy data
+        let train_x = Array2::<f64>::from_elem((100, 4), 0.5).into_dyn();
+        let train_y = Array2::<f64>::from_elem((100, 1), 1.0).into_dyn();
+        // Training configuration
+        let config = TrainingConfig {
+            batch_size: 10,
+            epochs: 5,
+            validation_split: 0.2,
+            verbose: 0,
+            ..Default::default()
+        };
+        let loss_fn = MeanSquaredError::new();
+        let mut optimizer = SGD::new(0.01);
+        // Train the model
+        model
+            .fit(&train_x, &train_y, &config, &loss_fn, &mut optimizer)
+            .expect("Operation failed");
+        // Check that training history was recorded
+        assert!(!model.training_history().train_loss.is_empty());
+        assert!(!model.training_history().val_loss.is_empty());
+    }
+
+    #[test]
+    fn test_sequential_prediction() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let mut model = Sequential::<f64>::new();
+        model.add_layer(Dense::new(3, 5, None, &mut rng).expect("Operation failed"));
+        model.add_layer(Dense::new(5, 2, None, &mut rng).expect("Operation failed"));
+        let input = Array2::<f64>::from_elem((2, 3), 0.5).into_dyn();
+        let output = model.predict(&input).expect("Operation failed");
+        assert_eq!(output.shape(), &[2, 2]);
+    }
+
+    #[test]
+    fn test_batched_prediction() {
+        let mut rng = SmallRng::seed_from_u64(42);
+        let mut model = Sequential::<f64>::new();
+        model.add_layer(Dense::new(3, 5, None, &mut rng).expect("Operation failed"));
+        model.add_layer(Dense::new(5, 2, None, &mut rng).expect("Operation failed"));
+        let input = Array2::<f64>::from_elem((25, 3), 0.5).into_dyn();
+        let output = model.predict_batched(&input, 10).expect("Operation failed");
+        assert_eq!(output.shape(), &[25, 2]);
+    }
+}

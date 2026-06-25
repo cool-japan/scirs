@@ -320,10 +320,12 @@ where
                             Err(_) => return Err(NotImplemented),
                         }
                     }
-                    // For other types, create a placeholder result for demonstration
-                    // In a real implementation, we would support more _types and dimensions
-                    let result = Self::new(self.host_data.clone(), self.config.clone());
-                    return Ok(Box::new(result));
+                    // Only f64 / Ix2 matrix multiplication is implemented above.
+                    // Returning a clone of the left operand here would be a
+                    // fabricated result (it is not the matrix product), so report
+                    // the operation as unimplemented for other element types and
+                    // dimensions instead.
+                    return Err(NotImplemented);
                 }
 
                 Err(NotImplemented)

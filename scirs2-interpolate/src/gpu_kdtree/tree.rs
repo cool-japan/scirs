@@ -428,19 +428,19 @@ mod tests {
 
     #[test]
     fn test_kdtree_knn_batch_matches_brute_force() {
-        use fastrand::Rng;
-        let mut rng = Rng::with_seed(42);
+        use scirs2_core::random::{rngs::StdRng, RngExt, SeedableRng};
+        let mut rng = StdRng::seed_from_u64(42);
 
         let n = 50_usize;
         let dim = 3_usize;
         let pts: Vec<Vec<f64>> = (0..n)
-            .map(|_| (0..dim).map(|_| rng.f64()).collect())
+            .map(|_| (0..dim).map(|_| rng.random::<f64>()).collect())
             .collect();
 
         let tree = GpuKdTree::new(pts.clone()).expect("build 3d");
 
         let queries: Vec<Vec<f64>> = (0..20)
-            .map(|_| (0..dim).map(|_| rng.f64()).collect())
+            .map(|_| (0..dim).map(|_| rng.random::<f64>()).collect())
             .collect();
 
         let k = 5;
@@ -475,17 +475,17 @@ mod tests {
 
     #[test]
     fn test_kdtree_high_dim_correct() {
-        use fastrand::Rng;
-        let mut rng = Rng::with_seed(99);
+        use scirs2_core::random::{rngs::StdRng, RngExt, SeedableRng};
+        let mut rng = StdRng::seed_from_u64(99);
 
         let n = 100_usize;
         let dim = 10_usize;
         let pts: Vec<Vec<f64>> = (0..n)
-            .map(|_| (0..dim).map(|_| rng.f64()).collect())
+            .map(|_| (0..dim).map(|_| rng.random::<f64>()).collect())
             .collect();
 
         let tree = GpuKdTree::new(pts.clone()).expect("build 10d");
-        let q: Vec<f64> = (0..dim).map(|_| rng.f64()).collect();
+        let q: Vec<f64> = (0..dim).map(|_| rng.random::<f64>()).collect();
         let k = 7;
 
         let tree_res = tree.knn(&q, k).expect("knn 10d");
@@ -509,10 +509,12 @@ mod tests {
 
     #[test]
     fn test_kdtree_distances_are_sorted_ascending() {
-        use fastrand::Rng;
-        let mut rng = Rng::with_seed(7);
+        use scirs2_core::random::{rngs::StdRng, RngExt, SeedableRng};
+        let mut rng = StdRng::seed_from_u64(7);
 
-        let pts: Vec<Vec<f64>> = (0..30).map(|_| vec![rng.f64(), rng.f64()]).collect();
+        let pts: Vec<Vec<f64>> = (0..30)
+            .map(|_| vec![rng.random::<f64>(), rng.random::<f64>()])
+            .collect();
         let tree = GpuKdTree::new(pts).expect("build");
         let q = vec![0.5, 0.5];
         let res = tree.knn(&q, 10).expect("knn 10");

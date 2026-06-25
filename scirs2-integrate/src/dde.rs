@@ -806,8 +806,30 @@ impl<F: IntegrateFloat> DDESystem<F> for StateDependentDDE<F> {
     }
 
     fn delays(&self) -> Vec<F> {
-        // Return dummy delays; actual delays come from state_dependent_delays
-        vec![F::one(); self.n_delays]
+        // The authoritative, time-varying delays are produced by
+        // `state_dependent_delays`.  `delays()` is still consulted by the
+        // integrator to size the pre-history sampling window and to seed the
+        // discontinuity tracker, so it must return genuine delay magnitudes
+        // rather than a fabricated constant.  We evaluate the real delay
+        // function at the system's initial state (history at the natural
+        // reference time `0`) to obtain a representative estimate.
+        let y0 = (self.history_fn)(F::zero());
+        let estimated = (self.delay_fn)(F::zero(), y0.view());
+        if estimated.len() == self.n_delays {
+            estimated
+        } else {
+            // The delay function reported a different number of delays than
+            // declared; fall back to the declared count using the values we
+            // did obtain (padding with the largest observed delay so the
+            // history window is not under-sized).
+            let fill = estimated
+                .iter()
+                .cloned()
+                .fold(F::zero(), |a, b| if b > a { b } else { a });
+            let mut out = estimated;
+            out.resize(self.n_delays, fill);
+            out
+        }
     }
 
     fn state_dependent_delays(&self, t: F, y: ArrayView1<F>) -> Vec<F> {

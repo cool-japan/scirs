@@ -247,14 +247,18 @@ pub struct WorkStealingStats {
     pub steal_time_ratio: f64,
 }
 
-/// Cache performance metrics
+/// Cache performance metrics.
+///
+/// These fields require CPU performance counters to populate. The
+/// [`ParallelOptimizer`] execution path does not sample such counters, so it
+/// reports them as zero ("not measured") rather than fabricating values.
 #[derive(Debug, Clone)]
 pub struct CachePerformanceMetrics {
-    /// Estimated cache hit rate
+    /// Estimated cache hit rate (0.0 when not measured)
     pub hit_rate: f64,
-    /// Memory bandwidth utilization
+    /// Memory bandwidth utilization (0.0 when not measured)
     pub bandwidth_utilization: f64,
-    /// Cache-friendly access patterns detected
+    /// Cache-friendly access patterns detected (0 when not measured)
     pub cache_friendly_accesses: usize,
 }
 
@@ -392,7 +396,25 @@ impl ParallelOptimizer {
         }
     }
 
-    /// Collect execution statistics
+    /// Collect execution statistics.
+    ///
+    /// Only genuinely observable quantities are reported here; nothing is
+    /// fabricated. Concretely:
+    ///
+    /// * `total_time` is the real wall-clock duration of the parallel section.
+    /// * `work_stealing_stats` are read from each worker's live counters. Note
+    ///   that the data-parallel execution path ([`ThreadPool::execute_tasks`])
+    ///   dispatches work through the core `parallel_ops` runtime rather than the
+    ///   persistent worker loop, so these counters report the actual steal
+    ///   activity of the explicit work-stealing path (which is zero when all
+    ///   work was handled by the data-parallel runtime).
+    /// * Per-thread wall-clock attribution (`thread_times`) is **not** available
+    ///   for the data-parallel execution path, so an empty vector is returned
+    ///   rather than a fabricated per-thread duration.
+    /// * Hardware-level quantities (NUMA affinity hits, cache hit/bandwidth,
+    ///   SIMD utilisation) require CPU performance counters that are not
+    ///   sampled here; they are reported as zero and documented as "not
+    ///   measured" rather than fabricated with plausible numbers.
     fn collect_execution_stats(
         &self,
         start_time: Instant,
@@ -400,40 +422,59 @@ impl ParallelOptimizer {
     ) -> IntegrateResult<ParallelExecutionStats> {
         let total_time = start_time.elapsed();
 
-        // Collect per-thread statistics
-        let thread_times: Vec<Duration> = thread_pool.workers.iter()
-            .map(|_| Duration::from_millis(100)) // Placeholder
-            .collect();
-
-        // Calculate load balance efficiency
-        let max_time = thread_times.iter().max().unwrap_or(&Duration::ZERO);
-        let avg_time = thread_times.iter().sum::<Duration>() / thread_times.len() as u32;
-        let load_balance_efficiency = if *max_time > Duration::ZERO {
-            avg_time.as_secs_f64() / max_time.as_secs_f64()
+        // Aggregate the real work-stealing counters maintained by the worker
+        // local queues. These are honest measurements: they reflect exactly the
+        // number of steal attempts/successes recorded by the explicit
+        // work-stealing path.
+        let mut steal_attempts = 0usize;
+        let mut successful_steals = 0usize;
+        for worker in &thread_pool.workers {
+            if let Ok(local_q) = worker.local_queue.lock() {
+                steal_attempts += local_q.steals_attempted;
+                successful_steals += local_q.steals_successful;
+            }
+        }
+        let success_rate = if steal_attempts > 0 {
+            successful_steals as f64 / steal_attempts as f64
         } else {
-            1.0
+            0.0
         };
 
-        // Collect work stealing stats
         let work_stealing_stats = WorkStealingStats {
-            steal_attempts: 100, // Placeholder
-            successful_steals: 80,
-            success_rate: 0.8,
-            steal_time_ratio: 0.1,
+            steal_attempts,
+            successful_steals,
+            success_rate,
+            // The fraction of time spent stealing versus working is not
+            // instrumented; reported as zero rather than fabricated.
+            steal_time_ratio: 0.0,
         };
+
+        // Per-thread wall-clock times are not observable for the data-parallel
+        // execution path; return an empty set rather than fabricate durations.
+        // With no per-thread samples there is no measured imbalance, so report
+        // perfect (1.0) load-balance efficiency as the neutral value.
+        let thread_times: Vec<Duration> = Vec::new();
+        let load_balance_efficiency = 1.0;
 
         Ok(ParallelExecutionStats {
             total_time,
             thread_times,
             load_balance_efficiency,
             work_stealing_stats,
-            numa_affinity_hits: 95,
+            // NUMA affinity hits require hardware/OS counters that are not
+            // sampled here (not measured).
+            numa_affinity_hits: 0,
             cache_performance: CachePerformanceMetrics {
-                hit_rate: 0.92,
-                bandwidth_utilization: 0.75,
-                cache_friendly_accesses: 1000,
+                // Cache hit-rate / bandwidth / friendly-access counts require
+                // CPU performance counters that are not sampled here
+                // (not measured).
+                hit_rate: 0.0,
+                bandwidth_utilization: 0.0,
+                cache_friendly_accesses: 0,
             },
-            simd_utilization: 0.85,
+            // SIMD utilisation requires instruction-level profiling that is not
+            // performed here (not measured).
+            simd_utilization: 0.0,
         })
     }
 
@@ -623,102 +664,51 @@ impl ThreadPool {
         })
     }
 
-    /// Execute tasks in parallel across worker threads
+    /// Execute tasks in parallel and collect their real results.
+    ///
+    /// Large tasks are subdivided (when `can_subdivide()` and the estimated
+    /// cost warrants it) and the resulting work items are sorted largest-first
+    /// for better load balancing before being dispatched across the available
+    /// CPU threads via the data-parallel runtime.  Each returned
+    /// [`ParallelResult`] is the genuine output of `ParallelTask::execute`;
+    /// there is one entry per executed (sub)task, in dispatch order.
     pub fn execute_tasks(
         &self,
         tasks: Vec<Box<dyn ParallelTask + Send>>,
     ) -> IntegrateResult<Vec<ParallelResult>> {
-        use std::sync::atomic::Ordering;
+        use scirs2_core::parallel_ops::*;
 
         if tasks.is_empty() {
             return Ok(Vec::new());
         }
 
-        let num_tasks = tasks.len();
-
-        // Distribute tasks to worker queues with intelligent load balancing
-        {
-            let mut global_queue = self.task_queue.lock().expect("Operation failed");
-
-            // Subdivide large tasks first for better load distribution
-            let mut all_tasks = Vec::new();
-            for task in tasks {
-                if task.can_subdivide() && task.estimated_cost() > 10.0 {
-                    let subtasks = task.subdivide();
-                    all_tasks.extend(subtasks);
-                } else {
-                    all_tasks.push(task);
-                }
-            }
-
-            global_queue.pending_tasks = all_tasks.len();
-
-            // Sort tasks by estimated cost (largest first) for better load balancing
-            all_tasks.sort_by(|a, b| {
-                b.estimated_cost()
-                    .partial_cmp(&a.estimated_cost())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-
-            // Distribute tasks to workers based on priority and estimated cost
-            for (i, task) in all_tasks.into_iter().enumerate() {
-                let worker_idx = if task.priority() == TaskPriority::High
-                    || task.priority() == TaskPriority::Critical
-                {
-                    // High priority tasks go to specific workers
-                    i % (self.workers.len() / 2).max(1)
-                } else {
-                    // Normal tasks use round-robin
-                    i % self.workers.len()
-                };
-
-                if let Ok(mut local_queue) = self.workers[worker_idx].local_queue.try_lock() {
-                    local_queue.tasks.push(task);
-                } else {
-                    // If worker queue is busy, add to global queue
-                    global_queue.global_tasks.push(task);
-                }
+        // Subdivide large tasks first for better load distribution.
+        let mut all_tasks: Vec<Box<dyn ParallelTask + Send>> = Vec::with_capacity(tasks.len());
+        for task in tasks {
+            if task.can_subdivide() && task.estimated_cost() > 10.0 {
+                all_tasks.extend(task.subdivide());
+            } else {
+                all_tasks.push(task);
             }
         }
 
-        // Wake up worker threads
-        self.shutdown.store(0, Ordering::Relaxed);
+        // Sort work items by estimated cost (largest first) so that the most
+        // expensive items are scheduled before the cheap ones.
+        all_tasks.sort_by(|a, b| {
+            b.estimated_cost()
+                .partial_cmp(&a.estimated_cost())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
-        // Wait for completion and collect results
-        let start_time = Instant::now();
-        let timeout = Duration::from_secs(30); // 30 second timeout
+        // Execute every work item and collect the genuine result of each one.
+        // `execute()` cannot fail at the dispatch level, so the only errors are
+        // those reported by the tasks themselves (preserved inside each
+        // `ParallelResult`).
+        let results: Vec<ParallelResult> = all_tasks
+            .into_par_iter()
+            .map(|task| task.execute())
+            .collect();
 
-        loop {
-            thread::sleep(Duration::from_millis(10));
-
-            let global_queue = self.task_queue.lock().expect("Operation failed");
-            let all_workers_idle = self.workers.iter().all(|w| {
-                if let Ok(local_q) = w.local_queue.lock() {
-                    local_q.tasks.is_empty()
-                } else {
-                    false
-                }
-            });
-
-            if global_queue.pending_tasks == 0
-                && global_queue.global_tasks.is_empty()
-                && all_workers_idle
-            {
-                break;
-            }
-
-            if start_time.elapsed() > timeout {
-                return Err(IntegrateError::ConvergenceError(
-                    "Task execution timeout".to_string(),
-                ));
-            }
-        }
-
-        // Return placeholder results for now
-        let mut results = Vec::new();
-        for _ in 0..num_tasks {
-            results.push(Ok(Box::new(()) as Box<dyn std::any::Any + Send>));
-        }
         Ok(results)
     }
 
@@ -962,5 +952,38 @@ mod tests {
         let output = result.expect("Test: parallel integration failed");
         assert_eq!(output.dim(), (4, 4));
         assert!((output[[0, 0]] - 3.0_f64).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_execute_parallel_returns_real_results() {
+        // `execute_parallel` must return the genuine output of each task, not a
+        // placeholder `()`. We submit a small (non-subdivided) element-wise
+        // task and verify the real computed array comes back.
+        let mut optimizer = ParallelOptimizer::new(2);
+        let input = Array2::from_elem((2, 2), 5.0_f64);
+        let task = VectorizedComputeTask {
+            input,
+            operation: VectorOperation::ElementWise(ArithmeticOp::Add(3.0)),
+            chunk_size: 8, // larger than the input so the task is not subdivided
+            prefer_simd: false,
+        };
+
+        let (results, _stats) = optimizer
+            .execute_parallel(vec![Box::new(task)])
+            .expect("parallel execution should succeed");
+
+        assert_eq!(results.len(), 1, "exactly one task was submitted");
+        let any = results
+            .into_iter()
+            .next()
+            .expect("one result")
+            .expect("task itself should succeed");
+        let array = any
+            .downcast_ref::<Array2<f64>>()
+            .expect("result must be the real Array2 produced by the task, not a placeholder");
+        assert_eq!(array.dim(), (2, 2));
+        for &v in array.iter() {
+            assert!((v - 8.0_f64).abs() < 1e-10, "5 + 3 should equal 8, got {v}");
+        }
     }
 }

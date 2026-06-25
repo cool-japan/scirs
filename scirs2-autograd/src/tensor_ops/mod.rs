@@ -1298,26 +1298,10 @@ where
 
     // Create the tensor with explicitly set known shape
     let shape_isize: Vec<isize> = originalshape.iter().map(|&s| s as isize).collect();
-    let tensor = Tensor::builder(graph)
+    Tensor::builder(graph)
         .set_knownshape(&shape_isize)
         .set_differentiable(false)
-        .build(const_gen_ops::ConvertToTensor { arr });
-
-    // Manually handle shape for debug purposes
-    if let Some(ctx) = crate::graph::AsGraph::context_ref(graph) {
-        if let Ok(eval_result) = tensor.eval(ctx) {
-            if eval_result.shape() != originalshape.as_slice() {
-                // For debugging only, doesn't affect the actual tensor shape
-                println!(
-                    "DEBUG: convert_to_tensor shape mismatch: Expected {:?}, got {:?}",
-                    originalshape,
-                    eval_result.shape()
-                );
-            }
-        }
-    }
-
-    tensor
+        .build(const_gen_ops::ConvertToTensor { arr })
 }
 
 /// Generates a zero-ranked tensor from a scalar value.
@@ -1673,31 +1657,11 @@ pub fn variable<F: Float, D>(
 where
     D: scirs2_core::ndarray::Dimension,
 {
-    // Save the original shape for debugging
-    let origshape = arr.shape().to_vec();
-    println!("Creating variable with shape: {origshape:?}");
-
     // Convert the array to dynamic form for tensor creation
     let arr_dyn = arr.into_dyn();
 
     // Create the tensor directly using ConvertToTensor
-    let tensor = Tensor::builder(graph).build(const_gen_ops::ConvertToTensor { arr: arr_dyn });
-
-    // Debug the created tensor
-    if let Some(ctx) = crate::graph::AsGraph::context_ref(graph) {
-        if let Ok(eval_result) = tensor.eval(ctx) {
-            println!("Created tensor with shape: {:?}", eval_result.shape());
-            if eval_result.shape() != origshape.as_slice() {
-                println!(
-                    "WARNING: Shape mismatch! Expected {:?}, got {:?}",
-                    origshape,
-                    eval_result.shape()
-                );
-            }
-        }
-    }
-
-    tensor
+    Tensor::builder(graph).build(const_gen_ops::ConvertToTensor { arr: arr_dyn })
 }
 
 // method version
@@ -1852,6 +1816,9 @@ pub use linalg_ops::{
     diag as linalg_diag, extract_diag as linalg_extract_diag, eye as linalg_eye,
     trace as linalg_trace,
 };
+// Backward op dispatched by gradient.rs for `trace` (string-dispatch path does
+// not call Op::grad, so the matrix-valued VJP `gy · I_n` is delivered here).
+pub(crate) use linalg_ops::TraceBackwardOp;
 pub use matrix_ops::{
     determinant as matrix_det, matrix_inverse as matrix_inv,
     pseudo_inverse as matrix_pseudo_inverse,
@@ -1871,6 +1838,11 @@ pub use matrix_ops::pseudo_inverse as pinv;
 // Matrix functions (now implemented!)
 pub use matrix_functions::{logm, powm, sqrtm};
 pub use matrix_functions::{matrix_log, matrix_power, matrix_sqrt};
+// Backward ops dispatched by gradient.rs for the matrix functions, plus the
+// forward `MatrixPowOp` (needed to recover the exponent `p` via downcast).
+pub(crate) use matrix_functions::{
+    MatrixLogBackwardOp, MatrixPowBackwardOp, MatrixPowOp, MatrixSqrtBackwardOp,
+};
 
 // Numerical properties
 pub use numerical_props::{

@@ -376,8 +376,12 @@ fn detect_cuda_devices() -> NdimageResult<Vec<DeviceCapability>> {
         return Ok(Vec::new());
     }
 
-    // Simulated device detection for common CUDA hardware
-    // In a real implementation, this would use actual CUDA APIs
+    // Enumerate real CUDA hardware by querying the NVIDIA driver via
+    // `nvidia-smi`. Architecture-dependent figures that the tool does not
+    // report (compute capability, SM count, clock, bandwidth) are estimated
+    // from the reported device name. If no device can be enumerated this
+    // returns an empty list (honest "no GPU detected") rather than
+    // fabricating a device that may not exist.
     let mut devices = Vec::new();
 
     // Check for NVIDIA GPUs via nvidia-ml-py or similar approaches
@@ -421,23 +425,10 @@ fn detect_cuda_devices() -> NdimageResult<Vec<DeviceCapability>> {
         }
     }
 
-    // Fallback: If nvidia-smi is not available, provide a generic device
-    if devices.is_empty() {
-        devices.push(DeviceCapability {
-            name: "Generic CUDA Device".to_string(),
-            total_memory: 8_589_934_592,      // 8GB
-            available_memory: 7_516_192_768,  // 7GB available
-            compute_capability: Some((7, 5)), // Common modern capability
-            max_threads_per_block: Some(1024),
-            max_block_dims: Some([1024, 1024, 64]),
-            max_grid_dims: Some([65535, 65535, 65535]),
-            shared_memory_per_block: Some(49152),
-            multiprocessor_count: Some(68),
-            clock_rate: Some(1_800_000),   // 1.8 GHz
-            memory_bandwidth: Some(448.0), // GB/s
-        });
-    }
-
+    // If `nvidia-smi` produced no usable output we deliberately do NOT
+    // synthesise a placeholder device: returning an empty list reports the
+    // honest "no enumerable CUDA device" state instead of advertising
+    // hardware (and capacities) that may not actually be present.
     Ok(devices)
 }
 

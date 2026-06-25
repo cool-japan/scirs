@@ -694,8 +694,3 @@ mod tests {
         assert_eq!(result.x.len(), 2);
     }
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
-}

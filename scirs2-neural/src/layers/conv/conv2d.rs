@@ -164,18 +164,24 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Conv2
         let (pad_h, pad_w) = match self.padding_mode {
             PaddingMode::Valid => (0, 0),
             PaddingMode::Same => {
-                // Same padding: output size = ceil(input / stride)
+                // Same padding: output size = ceil(input / stride). The
+                // expressions below give the *total* padding; halving yields the
+                // per-side padding that the output formula (which counts both
+                // sides as `2 * pad`) expects. This mirrors the im2col path.
                 let out_h = input_h.div_ceil(sh);
                 let out_w = input_w.div_ceil(sw);
                 let pad_h = ((out_h - 1) * sh + kh).saturating_sub(input_h);
                 let pad_w = ((out_w - 1) * sw + kw).saturating_sub(input_w);
-                (pad_h, pad_w)
+                (pad_h / 2, pad_w / 2)
             }
             PaddingMode::Custom(pad) => (pad, pad),
         };
 
-        let out_h = (input_h + 2 * pad_h - kh) / sh + 1;
-        let out_w = (input_w + 2 * pad_w - kw) / sw + 1;
+        // Use saturating subtraction so an over-large kernel on a small (padded)
+        // input cannot underflow; the output spatial size is clamped to at
+        // least 1.
+        let out_h = (input_h + 2 * pad_h).saturating_sub(kh) / sh + 1;
+        let out_w = (input_w + 2 * pad_w).saturating_sub(kw) / sw + 1;
 
         (out_h, out_w)
     }

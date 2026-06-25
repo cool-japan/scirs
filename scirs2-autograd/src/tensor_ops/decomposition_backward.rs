@@ -338,6 +338,184 @@ pub fn qr_backward<F: Float>(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. SVD backward — Townsend (2016) / Wan & Zhang (reduced/thin SVD)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Reverse-mode VJP of the **reduced (thin) SVD** `A = U · diag(s) · Vᵀ`.
+///
+/// Shapes (with `k = min(m, n)`):
+/// - `u`   : `m × k`   (orthonormal columns)
+/// - `s`   : length-`k` singular values, descending
+/// - `vt`  : `k × n`   (rows are orthonormal — `Vᵀ`)
+/// - `grad_u`  : `m × k`  cotangent of `U`
+/// - `grad_s`  : length-`k`  cotangent of the singular values
+/// - `grad_vt` : `k × n`  cotangent of `Vᵀ`
+///
+/// Returns `dA` of shape `m × n`.
+///
+/// # Formula (distinct singular values)
+///
+/// Let `V = Vᵀᵀ` (`n × k`), `dV = grad_vtᵀ` (`n × k`).  Define the
+/// antisymmetrising "F-matrix"
+///
+///   `F_{ij} = 1 / (s_j² − s_i²)`  for `i ≠ j`,  `F_{ii} = 0`.
+///
+/// With `J = Uᵀ·dU` and `K = Vᵀ·dV` (both `k × k`):
+///
+///   `dA = U · [ F ∘ (J − Jᵀ) ] · S · Vᵀ`                (U-rotation term)
+///       + U · diag(grad_s) · Vᵀ                          (singular-value term)
+///       + U · S · [ F ∘ (K − Kᵀ) ] · Vᵀ                  (V-rotation term)
+///       + (I − U·Uᵀ) · dU · S⁻¹ · Vᵀ                     (U-completion, only if m > k)
+///       + U · S⁻¹ · dVᵀ · (I − V·Vᵀ)                     (V-completion, only if n > k)
+///
+/// The completion terms account for variations of `A` that move the column
+/// (resp. row) space outside the retained `k` basis vectors; they vanish when
+/// the corresponding dimension equals `k`.
+///
+/// # Degenerate case
+///
+/// When two singular values coincide (`|s_i − s_j| < tol`) the `F`-matrix
+/// formula is singular and the VJP is **not** well-defined for `dU`/`dV`
+/// (only the symmetric combination is).  Callers must check for this and
+/// raise an honest error rather than returning a fabricated gradient; this
+/// routine sets the offending `F` entries to zero, which is correct **only**
+/// when the upstream gradient does not actually depend on the rotation within
+/// the degenerate subspace.  See [`svd_has_repeated_singular_values`].
+pub fn svd_backward<F: Float>(
+    u: &Array2<F>,
+    s: &[F],
+    vt: &Array2<F>,
+    grad_u: &Array2<F>,
+    grad_s: &[F],
+    grad_vt: &Array2<F>,
+) -> Array2<F> {
+    let m = u.nrows();
+    let k = s.len();
+    let n = vt.ncols();
+
+    let ut = u.t().to_owned(); // k × m
+    let v = vt.t().to_owned(); // n × k
+                               // dV = grad_vtᵀ : n × k
+    let dv = grad_vt.t().to_owned();
+
+    // S as a diagonal (k) — kept as a vector and applied row/col-wise.
+    // F-matrix: F[i,j] = 1 / (s_j² − s_i²), i ≠ j; 0 on diagonal and where
+    // singular values coincide (degenerate guard).
+    let tol = F::from(1e-12).unwrap_or_else(F::epsilon);
+    let mut fmat = Array2::<F>::zeros((k, k));
+    for i in 0..k {
+        for j in 0..k {
+            if i == j {
+                continue;
+            }
+            let denom = s[j] * s[j] - s[i] * s[i];
+            if denom.abs() > tol {
+                fmat[[i, j]] = F::one() / denom;
+            }
+            // else: degenerate subspace — leave 0 (see doc/honest-error path).
+        }
+    }
+
+    // J = Uᵀ · dU  (k × k);  K = Vᵀ · dV  (k × k)
+    let j_mat = ut.dot(grad_u); // k × k
+    let k_mat = v.t().to_owned().dot(&dv); // k × k
+
+    // Antisymmetric parts masked by F.
+    // JU = F ∘ (J − Jᵀ),  JV = F ∘ (K − Kᵀ)
+    let mut ju = Array2::<F>::zeros((k, k));
+    let mut jv = Array2::<F>::zeros((k, k));
+    for i in 0..k {
+        for j in 0..k {
+            ju[[i, j]] = fmat[[i, j]] * (j_mat[[i, j]] - j_mat[[j, i]]);
+            jv[[i, j]] = fmat[[i, j]] * (k_mat[[i, j]] - k_mat[[j, i]]);
+        }
+    }
+
+    // Build the inner k×k matrix:
+    //   inner = JU · S  +  diag(grad_s)  +  S · JV
+    // where `· S` scales columns by s_j and `S ·` scales rows by s_i.
+    let mut inner = Array2::<F>::zeros((k, k));
+    for i in 0..k {
+        for j in 0..k {
+            let term_u = ju[[i, j]] * s[j]; // (JU · S)
+            let term_v = s[i] * jv[[i, j]]; // (S · JV)
+            inner[[i, j]] = term_u + term_v;
+        }
+        inner[[i, i]] += grad_s[i]; // diag(grad_s)
+    }
+
+    // dA = U · inner · Vᵀ.
+    let u_inner = u.dot(&inner); // m × k
+    let mut da = u_inner.dot(vt); // m × k · k × n = m × n
+
+    // U-completion term: (I − U·Uᵀ) · dU · S⁻¹ · Vᵀ   (only when m > k).
+    if m > k {
+        // proj_u_perp_du = dU − U·(Uᵀ·dU) = (I − U Uᵀ) dU   (m × k)
+        let u_jmat = u.dot(&j_mat); // m × k  = U · (Uᵀ dU)
+        let mut comp = Array2::<F>::zeros((m, k));
+        for i in 0..m {
+            for jj in 0..k {
+                // scale column jj by 1/s_jj
+                let sj = s[jj];
+                if sj.abs() > tol {
+                    comp[[i, jj]] = (grad_u[[i, jj]] - u_jmat[[i, jj]]) / sj;
+                }
+            }
+        }
+        let comp_vt = comp.dot(vt); // m × n
+        da = &da + &comp_vt;
+    }
+
+    // V-completion term: U · S⁻¹ · dVᵀ · (I − V·Vᵀ)   (only when n > k).
+    if n > k {
+        // (I − V Vᵀ) dV = dV − V·(Vᵀ·dV) = dV − V·K   (n × k)
+        let v_kmat = v.dot(&k_mat); // n × k
+        let mut comp = Array2::<F>::zeros((n, k)); // holds (I − V Vᵀ) dV scaled by 1/s on column
+        for i in 0..n {
+            for jj in 0..k {
+                let sj = s[jj];
+                if sj.abs() > tol {
+                    comp[[i, jj]] = (dv[[i, jj]] - v_kmat[[i, jj]]) / sj;
+                }
+            }
+        }
+        // term = U · (compᵀ) : (m × k) · (k × n) = m × n
+        let comp_t = comp.t().to_owned(); // k × n
+        let term = u.dot(&comp_t); // m × n
+        da = &da + &term;
+    }
+
+    da
+}
+
+/// Returns `true` when the singular values contain a (near-)repeated pair,
+/// i.e. `|s_i − s_j| < tol · max(1, s_max)` for some `i ≠ j`.
+///
+/// In that case the `dU`/`dV` part of the SVD VJP is mathematically undefined
+/// (the decomposition is non-unique within the degenerate subspace), so the
+/// caller should raise an honest error instead of fabricating a gradient.
+pub fn svd_has_repeated_singular_values<F: Float>(s: &[F]) -> bool {
+    let k = s.len();
+    if k < 2 {
+        return false;
+    }
+    let s_max = s.iter().cloned().fold(
+        F::zero(),
+        |acc, x| if x.abs() > acc { x.abs() } else { acc },
+    );
+    let scale = if s_max > F::one() { s_max } else { F::one() };
+    let tol = F::from(1e-7).unwrap_or_else(F::epsilon) * scale;
+    for i in 0..k {
+        for j in (i + 1)..k {
+            if (s[i] - s[j]).abs() < tol {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -646,5 +824,186 @@ mod tests {
         });
         let err = max_abs(&analytic, &numeric);
         assert!(err < 1e-4, "qr_backward_mixed_unit: max err = {err}");
+    }
+
+    // ── SVD backward tests ───────────────────────────────────────────────────
+
+    /// Symmetric Jacobi eigensolver (eigenvalues ascending) for test SVD.
+    fn sym_eig(a: &Array2<f64>) -> (Vec<f64>, Array2<f64>) {
+        let n = a.nrows();
+        let mut m = a.clone();
+        let mut v = Array2::<f64>::eye(n);
+        for _ in 0..200 {
+            // find largest off-diagonal
+            let mut p = 0;
+            let mut q = 1;
+            let mut max = 0.0;
+            for i in 0..n {
+                for j in (i + 1)..n {
+                    if m[[i, j]].abs() > max {
+                        max = m[[i, j]].abs();
+                        p = i;
+                        q = j;
+                    }
+                }
+            }
+            if max < 1e-14 {
+                break;
+            }
+            let app = m[[p, p]];
+            let aqq = m[[q, q]];
+            let apq = m[[p, q]];
+            let theta = 0.5 * (2.0 * apq).atan2(app - aqq);
+            let (c, sn) = (theta.cos(), theta.sin());
+            for i in 0..n {
+                let mip = m[[i, p]];
+                let miq = m[[i, q]];
+                m[[i, p]] = c * mip + sn * miq;
+                m[[i, q]] = -sn * mip + c * miq;
+            }
+            for i in 0..n {
+                let mpi = m[[p, i]];
+                let mqi = m[[q, i]];
+                m[[p, i]] = c * mpi + sn * mqi;
+                m[[q, i]] = -sn * mpi + c * mqi;
+            }
+            for i in 0..n {
+                let vip = v[[i, p]];
+                let viq = v[[i, q]];
+                v[[i, p]] = c * vip + sn * viq;
+                v[[i, q]] = -sn * vip + c * viq;
+            }
+        }
+        let eig: Vec<f64> = (0..n).map(|i| m[[i, i]]).collect();
+        (eig, v)
+    }
+
+    /// Reference reduced SVD via eigendecomposition of AᵀA (descending s).
+    /// Returns (U m×k, s len-k, Vt k×n).  Signs fixed so the first nonzero
+    /// entry of each V-column is positive (deterministic).
+    fn svd_ref(a: &Array2<f64>) -> (Array2<f64>, Vec<f64>, Array2<f64>) {
+        let (m, n) = (a.nrows(), a.ncols());
+        let k = m.min(n);
+        let ata = a.t().dot(a); // n × n
+        let (eig, vfull) = sym_eig(&ata); // ascending
+                                          // sort descending
+        let mut idx: Vec<usize> = (0..n).collect();
+        idx.sort_by(|&i, &j| eig[j].partial_cmp(&eig[i]).unwrap());
+        let mut s = vec![0.0; k];
+        let mut v = Array2::<f64>::zeros((n, k));
+        for (col, &oi) in idx.iter().take(k).enumerate() {
+            let lam = eig[oi].max(0.0);
+            s[col] = lam.sqrt();
+            // sign fix on V column
+            let mut sign = 1.0;
+            for r in 0..n {
+                if vfull[[r, oi]].abs() > 1e-12 {
+                    sign = if vfull[[r, oi]] >= 0.0 { 1.0 } else { -1.0 };
+                    break;
+                }
+            }
+            for r in 0..n {
+                v[[r, col]] = sign * vfull[[r, oi]];
+            }
+        }
+        // U = A V S⁻¹
+        let mut u = Array2::<f64>::zeros((m, k));
+        for col in 0..k {
+            if s[col] > 1e-12 {
+                for r in 0..m {
+                    let mut acc = 0.0;
+                    for c in 0..n {
+                        acc += a[[r, c]] * v[[c, col]];
+                    }
+                    u[[r, col]] = acc / s[col];
+                }
+            }
+        }
+        let vt = v.t().to_owned();
+        (u, s, vt)
+    }
+
+    /// Singular-value gradient path: dA from grad_s must match FD of Σ s_i.
+    #[test]
+    fn svd_backward_singular_values_square() {
+        let mut a = random_matrix(3, 3, 0x5151);
+        for i in 0..3 {
+            a[[i, i]] += 4.0; // keep singular values well separated & nonzero
+        }
+        let (u, s, vt) = svd_ref(&a);
+        let k = s.len();
+        let grad_u = Array2::<f64>::zeros((3, k));
+        let grad_s = vec![1.0; k]; // d(Σ s_i)
+        let grad_vt = Array2::<f64>::zeros((k, 3));
+        let analytic = svd_backward(&u, &s, &vt, &grad_u, &grad_s, &grad_vt);
+
+        let numeric = fd_gradient(&a, |ap| {
+            let (_, sp, _) = svd_ref(ap);
+            sp.iter().sum()
+        });
+        let err = max_abs(&analytic, &numeric);
+        assert!(
+            err < 1e-4,
+            "svd_backward_singular_values_square: err = {err}"
+        );
+    }
+
+    /// Full VJP (U, s, V all flowing) for a square matrix, checked against a
+    /// self-consistent finite-difference loss `Σ wU⊙U + Σ wS·s + Σ wV⊙Vt`.
+    #[test]
+    fn svd_backward_full_vjp_square() {
+        let mut a = random_matrix(3, 3, 0x7A7A);
+        for i in 0..3 {
+            a[[i, i]] += 5.0;
+        }
+        let (u, s, vt) = svd_ref(&a);
+        let k = s.len();
+        // Deterministic cotangents.
+        let grad_u = random_matrix(3, k, 0x11);
+        let grad_s: Vec<f64> = (0..k).map(|i| 0.3 + 0.1 * i as f64).collect();
+        let grad_vt = random_matrix(k, 3, 0x22);
+        let analytic = svd_backward(&u, &s, &vt, &grad_u, &grad_s, &grad_vt);
+
+        let numeric = fd_gradient(&a, |ap| {
+            let (up, sp, vtp) = svd_ref(ap);
+            let lu: f64 = up.iter().zip(grad_u.iter()).map(|(x, g)| x * g).sum();
+            let ls: f64 = sp.iter().zip(grad_s.iter()).map(|(x, g)| x * g).sum();
+            let lv: f64 = vtp.iter().zip(grad_vt.iter()).map(|(x, g)| x * g).sum();
+            lu + ls + lv
+        });
+        let err = max_abs(&analytic, &numeric);
+        assert!(err < 1e-3, "svd_backward_full_vjp_square: err = {err}");
+    }
+
+    /// Tall matrix (m > n): exercises the U-completion term.
+    #[test]
+    fn svd_backward_singular_values_tall() {
+        let a = {
+            let mut t = random_matrix(4, 2, 0x9292);
+            t[[0, 0]] += 3.0;
+            t[[1, 1]] += 5.0;
+            t
+        };
+        let (u, s, vt) = svd_ref(&a);
+        let k = s.len();
+        let grad_u = Array2::<f64>::zeros((4, k));
+        let grad_s = vec![1.0; k];
+        let grad_vt = Array2::<f64>::zeros((k, 2));
+        let analytic = svd_backward(&u, &s, &vt, &grad_u, &grad_s, &grad_vt);
+        let numeric = fd_gradient(&a, |ap| {
+            let (_, sp, _) = svd_ref(ap);
+            sp.iter().sum()
+        });
+        let err = max_abs(&analytic, &numeric);
+        assert!(err < 1e-4, "svd_backward_singular_values_tall: err = {err}");
+    }
+
+    #[test]
+    fn svd_repeated_singular_values_detected() {
+        // Identity has all singular values = 1 (fully degenerate).
+        let s_eq = [1.0_f64, 1.0, 1.0];
+        assert!(svd_has_repeated_singular_values(&s_eq));
+        let s_distinct = [3.0_f64, 2.0, 1.0];
+        assert!(!svd_has_repeated_singular_values(&s_distinct));
     }
 }

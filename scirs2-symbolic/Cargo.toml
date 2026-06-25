@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 default = []
 serde = ["dep:serde", "dep:serde_json", "dep:oxicode"]
 smt = ["dep:oxiz", "dep:num-rational"]
-parallel = ["dep:rayon"]
+parallel = []
 macros = ["dep:scirs2-symbolic-macros"]
 # NUMA-aware parallel scheduler for `regression::discover` (Phase 1
 # design-freedom unlock A). Routes feature-matrix evaluation through
@@ -43,18 +43,15 @@ gpu = [
     "jit",
     "dep:wgpu",
     "dep:pollster",
-    "dep:bytemuck",
 ]
 
 [dependencies]
 thiserror = { workspace = true }
 num-complex = { workspace = true, default-features = false }
 ahash = { workspace = true }
-hashbrown = { workspace = true }
 once_cell = { workspace = true }
 tracing = { workspace = true }
 ndarray = { workspace = true, default-features = false }
-rayon = { workspace = true, optional = true }
 scirs2-core = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["rc"] }
 serde_json = { workspace = true, optional = true }
@@ -67,13 +64,12 @@ cranelift-jit = { workspace = true, optional = true }
 cranelift-module = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
-bytemuck = { workspace = true, optional = true }
 scirs2-symbolic-macros = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
 proptest = { workspace = true }
-oxieml = "0.1"
+oxieml = { workspace = true }
 criterion = { workspace = true }
 
 [[test]]

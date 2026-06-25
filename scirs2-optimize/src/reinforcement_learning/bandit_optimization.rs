@@ -123,6 +123,3 @@ where
         status: 0,
     })
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {}

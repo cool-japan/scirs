@@ -71,6 +71,10 @@ where
     rng: StdRng,
     nfev: usize,
     nit: usize,
+    /// Number of accepted moves during the most recent temperature level
+    recent_accepted: usize,
+    /// Number of attempted moves during the most recent temperature level
+    recent_total: usize,
 }
 
 impl<F> SimulatedAnnealing<F>
@@ -105,6 +109,8 @@ where
             rng,
             nfev: 1,
             nit: 0,
+            recent_accepted: 0,
+            recent_total: 0,
         }
     }
 
@@ -171,17 +177,23 @@ where
         }
     }
 
-    /// Calculate recent acceptance rate (simplified)
+    /// Calculate the acceptance rate over the most recent temperature level
     fn calculate_acceptance_rate(&self) -> f64 {
-        // In a real implementation, this would track actual acceptance rate
-        // For now, return a default value
-        0.5
+        if self.recent_total == 0 {
+            // No moves have been attempted yet (e.g. before the first
+            // temperature level completes); report zero accepted rather than
+            // fabricating a value.
+            0.0
+        } else {
+            self.recent_accepted as f64 / self.recent_total as f64
+        }
     }
 
     /// Run one step of the algorithm
     fn step(&mut self) -> bool {
         self.nit += 1;
 
+        let mut accepted = 0usize;
         for _ in 0..self.options.max_steps_per_temp {
             // Generate neighbor
             let neighbor = self.generate_neighbor();
@@ -191,6 +203,7 @@ where
             // Accept or reject
             let acceptance_prob = self.acceptance_probability(neighbor_value);
             if self.rng.random_range(0.0..1.0) < acceptance_prob {
+                accepted += 1;
                 self.current_x = neighbor;
                 self.current_value = neighbor_value;
 
@@ -201,6 +214,11 @@ where
                 }
             }
         }
+
+        // Record acceptance statistics for this temperature level so the
+        // adaptive cooling schedule can react to the true acceptance rate.
+        self.recent_accepted = accepted;
+        self.recent_total = self.options.max_steps_per_temp;
 
         // Update temperature
         self.update_temperature();

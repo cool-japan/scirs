@@ -5,10 +5,11 @@
 //!
 //! ## Backend
 //!
-//! Integer, float, and rational arithmetic are backed by **oxinum-\*** (Pure Rust, GMP/MPFR-free).
-//! Complex arithmetic still relies on `rug::Complex` because oxinum does not yet provide a
-//! complex type.  The `ArbitraryComplex` struct is therefore only available when the `rug` crate
-//! is present (i.e. the `arbitrary-precision` feature is active, which gates both oxinum and rug).
+//! All types are backed by **oxinum-\*** (Pure Rust, GMP/MPFR-free, C/Fortran-free):
+//! - Integer arithmetic: `oxinum_int::IBig`
+//! - Float arithmetic: `oxinum_float::DBig`
+//! - Rational arithmetic: `oxinum_rational::RBig`
+//! - Complex arithmetic: `oxinum_complex::CBig` (replaces the former `rug::Complex` backend)
 //!
 //! ## Precision model
 //!
@@ -21,7 +22,7 @@
 //! - Arbitrary precision integers (`ArbitraryInt`) backed by `oxinum_int::IBig`
 //! - Arbitrary precision floating-point (`ArbitraryFloat`) backed by `oxinum_float::DBig`
 //! - Exact rational arithmetic (`ArbitraryRational`) backed by `oxinum_rational::RBig`
-//! - Arbitrary precision complex numbers (`ArbitraryComplex`) backed by `rug::Complex`
+//! - Arbitrary precision complex numbers (`ArbitraryComplex`) backed by `oxinum_complex::CBig`
 //! - Integration with existing ScientificNumber traits
 //! - Automatic precision tracking and management
 //! - Configurable precision contexts
@@ -41,8 +42,8 @@ use oxinum_float::{
 };
 // oxinum-rational types (Pure Rust)
 use oxinum_rational::{IBig as RIBig, RBig, UBig as RUBig};
-// rug is still needed for ArbitraryComplex (no oxinum complex type yet)
-use rug::{ops::Pow, Complex as RugComplex, Float as RugFloat};
+// oxinum-complex: Pure Rust arbitrary-precision complex (replaces rug::Complex)
+use oxinum_complex::CBig;
 use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Add, Div, Mul, Neg, Sub};
@@ -1071,34 +1072,31 @@ impl Neg for ArbitraryRational {
 }
 
 // ---------------------------------------------------------------------------
-// ArbitraryComplex — STILL backed by rug::Complex
-//
-// MIGRATION BLOCKER: oxinum does not yet provide a complex number type.
-// This struct retains `rug::Complex` as its backing type.  When oxinum
-// ships an `oxinum-complex` crate, this struct should be migrated in a
-// follow-up.  Track at: https://github.com/cool-japan/oxinum (no issue yet).
+// ArbitraryComplex — backed by oxinum_complex::CBig (Pure Rust, GMP/MPC-free)
 // ---------------------------------------------------------------------------
 
-/// Arbitrary precision complex number.
+/// Arbitrary precision complex number backed by `oxinum_complex::CBig` (Pure Rust).
 ///
-/// **Backed by `rug::Complex` (GMP/MPC).**
-///
-/// This is the only remaining rug usage in scirs2-core.  Migration is blocked
-/// on upstream oxinum shipping an `oxinum-complex` crate.  Once that is
-/// available at 0.1.0 on crates.io, this struct can be re-implemented on
-/// top of it and the `rug` dependency can be fully removed.
+/// `CBig` is a decimal arbitrary-precision complex number whose real and imaginary
+/// parts are each a `DBig`.  This struct provides the same public API as the former
+/// `rug::Complex`-backed implementation while being fully GMP/MPFR/MPC-free.
 #[derive(Clone)]
 pub struct ArbitraryComplex {
-    value: RugComplex,
+    value: CBig,
     context: ArbitraryPrecisionContext,
 }
 
 impl ArbitraryComplex {
+    /// Returns the decimal-digit precision derived from the bit precision stored
+    /// in the context.  Used when calling CBig transcendental methods.
+    fn prec_digits(&self) -> usize {
+        bits_to_decimal_digits(self.context.floatprecision)
+    }
+
     /// Create a new complex number with default precision.
     pub fn new() -> Self {
-        let prec = get_defaultprecision();
         Self {
-            value: RugComplex::new(prec),
+            value: CBig::zero(),
             context: ArbitraryPrecisionContext::default(),
         }
     }
@@ -1107,7 +1105,7 @@ impl ArbitraryComplex {
     pub fn prec(prec: u32) -> CoreResult<Self> {
         let context = ArbitraryPrecisionContext::withprecision(prec)?;
         Ok(Self {
-            value: RugComplex::new(prec),
+            value: CBig::zero(),
             context,
         })
     }
@@ -1116,93 +1114,126 @@ impl ArbitraryComplex {
     pub fn re(re: &ArbitraryFloat, im: &ArbitraryFloat) -> Self {
         let prec = re.precision().max(im.precision());
         let context = re.context.clone();
-        // Convert DBig to f64 for rug (precision is limited but only used for construction).
         let re_f = re.to_f64();
         let im_f = im.to_f64();
+        // CBig::from_f64 rejects NaN/Inf; fall back to zero for non-finite inputs.
+        let value = CBig::from_f64(re_f, im_f).unwrap_or_else(|_| CBig::zero());
         Self {
-            value: RugComplex::with_val(prec, (re_f, im_f)),
-            context,
+            value,
+            context: ArbitraryPrecisionContext {
+                floatprecision: prec,
+                ..context
+            },
         }
     }
 
     /// Create from f64 real and imaginary parts.
     pub fn re_2(re: f64, im: f64) -> Self {
-        let prec = get_defaultprecision();
+        let value = CBig::from_f64(re, im).unwrap_or_else(|_| CBig::zero());
         Self {
-            value: RugComplex::with_val(prec, (re, im)),
+            value,
             context: ArbitraryPrecisionContext::default(),
         }
     }
 
     /// Get the real part as an `ArbitraryFloat`.
     pub fn real(&self) -> ArbitraryFloat {
-        let re_f64 = self.value.real().to_f64();
+        let (re_f64, _) = self.value.to_f64_parts();
         ArbitraryFloat::from_f64(re_f64)
     }
 
     /// Get the imaginary part as an `ArbitraryFloat`.
     pub fn imag(&self) -> ArbitraryFloat {
-        let im_f64 = self.value.imag().to_f64();
+        let (_, im_f64) = self.value.to_f64_parts();
         ArbitraryFloat::from_f64(im_f64)
     }
 
     /// Get the magnitude (absolute value) as an `ArbitraryFloat`.
     pub fn abs(&self) -> ArbitraryFloat {
-        let mag = RugFloat::with_val(self.context.floatprecision, self.value.abs_ref());
-        ArbitraryFloat::from_f64(mag.to_f64())
+        let digits = self.prec_digits();
+        let mag_f64 = self
+            .value
+            .abs(digits)
+            .map(|d| d.to_f64().value())
+            .unwrap_or(0.0);
+        ArbitraryFloat::from_f64(mag_f64)
     }
 
     /// Get the phase (argument) as an `ArbitraryFloat`.
     pub fn arg(&self) -> ArbitraryFloat {
-        let arg = RugFloat::with_val(self.context.floatprecision, self.value.arg_ref());
-        ArbitraryFloat::from_f64(arg.to_f64())
+        let digits = self.prec_digits();
+        let arg_f64 = self
+            .value
+            .arg(digits)
+            .map(|d| d.to_f64().value())
+            .unwrap_or(0.0);
+        ArbitraryFloat::from_f64(arg_f64)
     }
 
     /// Complex conjugate.
     pub fn conj(&self) -> Self {
-        let mut result = self.clone();
-        result.value.conj_mut();
-        result
+        Self {
+            value: self.value.conj(),
+            context: self.context.clone(),
+        }
     }
 
     /// Natural logarithm.
+    ///
+    /// Returns the principal value `ln|z| + i·arg(z)`.
+    /// If `z` is zero (ln undefined), returns a zero complex.
     pub fn ln(&self) -> Self {
-        let mut result = self.clone();
-        result.value.ln_mut();
-        result
+        let digits = self.prec_digits();
+        let value = self.value.ln(digits).unwrap_or_else(|_| CBig::zero());
+        Self {
+            value,
+            context: self.context.clone(),
+        }
     }
 
     /// Exponential function.
     pub fn exp(&self) -> Self {
-        let mut result = self.clone();
-        result.value.exp_mut();
-        result
+        let digits = self.prec_digits();
+        let value = self.value.exp(digits).unwrap_or_else(|_| CBig::zero());
+        Self {
+            value,
+            context: self.context.clone(),
+        }
     }
 
     /// Power function: self ^ exponent.
+    ///
+    /// Computed as `exp(exponent * ln(self))`.
     pub fn pow(&self, exp: &Self) -> Self {
-        // z^w = exp(w * ln(z))
-        let ln_self = self.ln();
-        let product = ln_self * exp.clone();
-        product.exp()
+        let digits = self.prec_digits();
+        let value = self
+            .value
+            .pow(&exp.value, digits)
+            .unwrap_or_else(|_| CBig::zero());
+        Self {
+            value,
+            context: self.context.clone(),
+        }
     }
 
     /// Square root.
     pub fn sqrt(&self) -> Self {
-        let mut result = self.clone();
-        result.value.sqrt_mut();
-        result
+        let digits = self.prec_digits();
+        let value = self.value.sqrt(digits).unwrap_or_else(|_| CBig::zero());
+        Self {
+            value,
+            context: self.context.clone(),
+        }
     }
 }
 
 impl fmt::Display for ArbitraryComplex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let re = self.value.real();
-        let im = self.value.imag();
-        if im.is_sign_positive() {
+        let (re, im) = self.value.to_f64_parts();
+        if im >= 0.0 {
             write!(f, "{} + {}i", re, im)
         } else {
-            write!(f, "{} - {}i", re, -im.clone())
+            write!(f, "{} - {}i", re, -im)
         }
     }
 }
@@ -1219,7 +1250,7 @@ impl fmt::Debug for ArbitraryComplex {
 
 impl PartialEq for ArbitraryComplex {
     fn eq(&self, other: &Self) -> bool {
-        self.value.eq(&other.value)
+        self.value == other.value
     }
 }
 

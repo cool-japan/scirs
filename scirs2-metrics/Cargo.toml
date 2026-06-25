@@ -31,7 +31,6 @@ scirs2-core = { workspace = true, features = ["parallel", "simd", "array", "rand
 thiserror = { workspace = true }
 approx = { workspace = true }
 parking_lot = { workspace = true }
-num_cpus = { workspace = true }
 crossbeam-utils = { workspace = true }
 crossbeam-channel = { workspace = true }
 serde = { workspace = true }

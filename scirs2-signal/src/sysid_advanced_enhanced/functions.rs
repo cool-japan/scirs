@@ -47,6 +47,7 @@ use super::types::{
 /// ```
 /// use scirs2_signal::sysid_advanced_enhanced::{advanced_enhanced_system_identification, AdvancedEnhancedSysIdConfig};
 /// use scirs2_core::ndarray::Array1;
+/// use std::f64::consts::PI;
 ///
 ///
 /// // Generate system input/output data

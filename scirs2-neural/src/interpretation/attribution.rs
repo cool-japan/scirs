@@ -964,13 +964,22 @@ fn concatenate_attribution_results<F>(
             "No attribution results to concatenate".to_string(),
     if results.len() == 1 {
         return Ok(results.into_iter().next().expect("Operation failed"));
-    // For simplicity, just return the first result concatenated with the others
-    // In a real implementation, this would properly concatenate along the batch dimension
-    let mut combined = results[0].clone();
-    for result in results.into_iter().skip(1) {
-        // This is a simplified concatenation - in practice would need proper dimension handling
-        combined = combined + result;
-    Ok(combined)
+    // Concatenate along the batch dimension (axis 0). Every result must share
+    // the same trailing (non-batch) shape for the stack to be well-defined.
+    let expected_tail: Vec<usize> = results[0].shape()[1..].to_vec();
+    for (idx, r) in results.iter().enumerate() {
+        if r.shape()[1..] != expected_tail[..] {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "attribution result {idx} has shape {:?}, incompatible with {:?} for batch concatenation",
+                r.shape(),
+                results[0].shape()
+            )));
+        }
+    }
+    let views: Vec<_> = results.iter().map(|r| r.view()).collect();
+    scirs2_core::ndarray::concatenate(Axis(0), &views).map_err(|e| {
+        NeuralError::ComputationError(format!("failed to concatenate attribution results: {e}"))
+    })
 /// Comprehensive attribution report
 pub struct AttributionReport<F> {
     /// Primary attribution values

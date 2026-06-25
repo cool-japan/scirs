@@ -20,15 +20,11 @@ impl<F: Float> Op<F> for DebugIdentityWithGradient {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        println!("DEBUG: DebugIdentityWithGradient::grad is called");
-
         // Get the output gradient
         let grad_output = ctx.output_grad();
-        println!("DEBUG: Output gradient tensor id: {}", grad_output.id);
 
         // Pass it straight through as the input gradient
         ctx.append_input_grad(0, Some(*grad_output));
-        println!("DEBUG: Input gradient appended");
     }
 }
 
@@ -47,8 +43,6 @@ impl<F: Float> Op<F> for DebugScalarOne {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        println!("DEBUG: DebugScalarOne::grad is called");
-
         // Get input shape
         let input = ctx.input(0);
         let g = ctx.graph();
@@ -58,10 +52,8 @@ impl<F: Float> Op<F> for DebugScalarOne {
             let gradient = scirs2_core::ndarray::Array::ones(input_array.raw_dim());
             let grad_tensor = crate::tensor_ops::convert_to_tensor(gradient, g);
             ctx.append_input_grad(0, Some(grad_tensor));
-            println!("DEBUG: DebugScalarOne full gradient appended");
         } else {
             // Fallback (shouldn't happen)
-            println!("DEBUG: DebugScalarOne fallback path (input eval failed)");
             ctx.append_input_grad(0, None);
         }
     }

@@ -221,6 +221,12 @@ pub trait Device: Send + Sync {
 /// CPU device implementation
 pub struct CpuDevice {
     device_type: DeviceType,
+    /// Tracks the layout used for each live allocation so that `deallocate`
+    /// can free memory correctly. The global allocator requires the exact
+    /// `Layout` that was used for `alloc` in order to `dealloc` without
+    /// undefined behavior, and that information is not recoverable from the
+    /// raw address alone.
+    allocations: Mutex<HashMap<usize, std::alloc::Layout>>,
 }
 
 impl CpuDevice {
@@ -228,6 +234,7 @@ impl CpuDevice {
     pub fn new() -> Self {
         Self {
             device_type: DeviceType::Cpu,
+            allocations: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -251,6 +258,11 @@ impl Device for CpuDevice {
             }
         })?;
 
+        // A zero-sized allocation has no backing storage to track or free.
+        if size == 0 {
+            return Ok(0);
+        }
+
         unsafe {
             let ptr = std::alloc::alloc(layout);
             if ptr.is_null() {
@@ -260,16 +272,54 @@ impl Device for CpuDevice {
                 }
                 .into())
             } else {
+                // Record the layout so the matching `deallocate` can free it.
+                self.allocations
+                    .lock()
+                    .map_err(|_| CrossDeviceError::AllocationFailed {
+                        device: "CPU".to_string(),
+                        reason: "Allocation registry lock poisoned".to_string(),
+                    })?
+                    .insert(ptr as usize, layout);
                 Ok(ptr as usize)
             }
         }
     }
 
     fn deallocate(&self, address: usize) -> CoreResult<()> {
-        // Note: In a real implementation, we'd need to track the layout
-        // For now, we'll skip the actual deallocation
-        let _ = address;
-        Ok(())
+        // A zero address corresponds to a zero-sized allocation, which has no
+        // backing storage to free.
+        if address == 0 {
+            return Ok(());
+        }
+
+        // Look up the layout recorded at allocation time. The global allocator
+        // requires the exact layout to free the block safely.
+        let layout = {
+            let mut allocations =
+                self.allocations
+                    .lock()
+                    .map_err(|_| CrossDeviceError::AllocationFailed {
+                        device: "CPU".to_string(),
+                        reason: "Allocation registry lock poisoned".to_string(),
+                    })?;
+            allocations.remove(&address)
+        };
+
+        match layout {
+            Some(layout) => {
+                // SAFETY: `address` was returned by `alloc` with this exact
+                // `layout` and has not been freed yet (we just removed it from
+                // the registry, so a double free is impossible).
+                unsafe {
+                    std::alloc::dealloc(address as *mut u8, layout);
+                }
+                Ok(())
+            }
+            None => Err(CrossDeviceError::MemoryNotFound(format!(
+                "CPU allocation at address {address:#x} is not tracked by this device"
+            ))
+            .into()),
+        }
     }
 
     unsafe fn copy_from_host(&self, src: *const u8, dst: usize, size: usize) -> CoreResult<()> {
@@ -312,10 +362,21 @@ impl Device for CpuDevice {
     }
 }
 
-/// GPU device wrapper
+/// GPU device wrapper.
+///
+/// Bridges the generic [`Device`] interface (which addresses memory through
+/// opaque `usize` handles) to the strongly-typed [`GpuContext`] buffer API.
+/// Because [`crate::gpu::GpuBuffer`] manages its device memory through RAII,
+/// this wrapper keeps each allocated buffer alive in a registry keyed by a
+/// stable handle. Copies are delegated to the real buffer, and `deallocate`
+/// drops the buffer (which releases the underlying device memory).
 pub struct GpuContextWrapper {
     inner: Arc<GpuContext>,
     device_type: DeviceType,
+    /// Live byte buffers keyed by the handle returned from `allocate`.
+    buffers: Mutex<HashMap<usize, crate::gpu::GpuBuffer<u8>>>,
+    /// Monotonic source of unique, non-zero allocation handles.
+    next_handle: Mutex<usize>,
 }
 
 impl GpuContextWrapper {
@@ -324,6 +385,8 @@ impl GpuContextWrapper {
         Self {
             inner: gpu_device,
             device_type: devicetype,
+            buffers: Mutex::new(HashMap::new()),
+            next_handle: Mutex::new(1),
         }
     }
 }
@@ -334,41 +397,144 @@ impl Device for GpuContextWrapper {
     }
 
     fn allocate(&self, size: usize) -> CoreResult<usize> {
-        // Use the GPU device's buffer allocation
-        let _buffer = self.inner.create_buffer::<u8>(size);
-        // In a real implementation, we'd extract the actual device pointer
-        // For now, we'll use a placeholder based on buffer properties
-        Ok(size) // Return the size as a placeholder ID
+        // Allocate a real device buffer and retain it so the memory stays
+        // valid until `deallocate` is called. The returned handle is an opaque
+        // registry key, not a device pointer; callers must treat it as opaque.
+        let buffer = self.inner.create_buffer::<u8>(size);
+
+        let handle = {
+            let mut next_handle =
+                self.next_handle
+                    .lock()
+                    .map_err(|_| CrossDeviceError::AllocationFailed {
+                        device: self.device_type.as_str().to_string(),
+                        reason: "Handle counter lock poisoned".to_string(),
+                    })?;
+            let handle = *next_handle;
+            *next_handle = next_handle.wrapping_add(1).max(1);
+            handle
+        };
+
+        self.buffers
+            .lock()
+            .map_err(|_| CrossDeviceError::AllocationFailed {
+                device: self.device_type.as_str().to_string(),
+                reason: "Buffer registry lock poisoned".to_string(),
+            })?
+            .insert(handle, buffer);
+
+        Ok(handle)
     }
 
     fn deallocate(&self, address: usize) -> CoreResult<()> {
-        // GPU buffers are automatically freed when dropped
+        // Dropping the stored buffer releases the underlying device memory.
+        let removed = self
+            .buffers
+            .lock()
+            .map_err(|_| CrossDeviceError::AllocationFailed {
+                device: self.device_type.as_str().to_string(),
+                reason: "Buffer registry lock poisoned".to_string(),
+            })?
+            .remove(&address);
+
+        if removed.is_none() {
+            return Err(CrossDeviceError::MemoryNotFound(format!(
+                "GPU allocation handle {address} is not tracked by this device"
+            ))
+            .into());
+        }
         Ok(())
     }
 
-    unsafe fn copy_from_host(&self, src: *const u8, _dst: usize, size: usize) -> CoreResult<()> {
-        // Would use GPU-specific memory copy operations
+    unsafe fn copy_from_host(&self, src: *const u8, dst: usize, size: usize) -> CoreResult<()> {
+        if src.is_null() || size == 0 {
+            return Ok(());
+        }
+
+        let buffers = self
+            .buffers
+            .lock()
+            .map_err(|_| CrossDeviceError::TransferFailed {
+                from: "host".to_string(),
+                to: self.device_type.as_str().to_string(),
+                reason: "Buffer registry lock poisoned".to_string(),
+            })?;
+        let buffer = buffers
+            .get(&dst)
+            .ok_or_else(|| CrossDeviceError::TransferFailed {
+                from: "host".to_string(),
+                to: self.device_type.as_str().to_string(),
+                reason: format!("Unknown destination handle {dst}"),
+            })?;
+
+        // SAFETY: caller guarantees `src` points to at least `size` valid bytes.
+        let host_slice = std::slice::from_raw_parts(src, size);
+        buffer
+            .copy_from_host(host_slice)
+            .map_err(|e| CrossDeviceError::TransferFailed {
+                from: "host".to_string(),
+                to: self.device_type.as_str().to_string(),
+                reason: e.to_string(),
+            })?;
         Ok(())
     }
 
-    unsafe fn copy_to_host(&self, src: usize, _dst: *mut u8, size: usize) -> CoreResult<()> {
-        // Would use GPU-specific memory copy operations
+    unsafe fn copy_to_host(&self, src: usize, dst: *mut u8, size: usize) -> CoreResult<()> {
+        if dst.is_null() || size == 0 {
+            return Ok(());
+        }
+
+        let buffers = self
+            .buffers
+            .lock()
+            .map_err(|_| CrossDeviceError::TransferFailed {
+                from: self.device_type.as_str().to_string(),
+                to: "host".to_string(),
+                reason: "Buffer registry lock poisoned".to_string(),
+            })?;
+        let buffer = buffers
+            .get(&src)
+            .ok_or_else(|| CrossDeviceError::TransferFailed {
+                from: self.device_type.as_str().to_string(),
+                to: "host".to_string(),
+                reason: format!("Unknown source handle {src}"),
+            })?;
+
+        // SAFETY: caller guarantees `dst` points to at least `size` writable bytes.
+        let host_slice = std::slice::from_raw_parts_mut(dst, size);
+        buffer
+            .copy_to_host(host_slice)
+            .map_err(|e| CrossDeviceError::TransferFailed {
+                from: self.device_type.as_str().to_string(),
+                to: "host".to_string(),
+                reason: e.to_string(),
+            })?;
         Ok(())
     }
 
     fn copy_peer(
         &self,
-        src: usize,
+        _src: usize,
         _dst_device: &dyn Device,
         _dst: usize,
         _size: usize,
     ) -> CoreResult<()> {
-        // Would implement GPU-to-GPU transfers
-        Ok(())
+        // Direct device-to-device (peer) transfer is not wired through this
+        // generic wrapper. Callers should route peer copies via the host using
+        // `copy_to_host` + `copy_from_host`, or use a backend-specific path.
+        Err(CrossDeviceError::TransferFailed {
+            from: self.device_type.as_str().to_string(),
+            to: "peer".to_string(),
+            reason: "Peer-to-peer transfer is not implemented for the generic GPU wrapper"
+                .to_string(),
+        }
+        .into())
     }
 
     fn synchronize(&self) -> CoreResult<()> {
-        // Would synchronize GPU streams/queues
+        // The high-level GpuContext buffer copy operations used above are
+        // synchronous (host<->device copies block until complete), so there is
+        // no outstanding asynchronous work to wait on here.
         Ok(())
     }
 

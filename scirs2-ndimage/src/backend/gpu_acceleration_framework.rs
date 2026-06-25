@@ -12,7 +12,7 @@ use scirs2_core::ndarray::{Array, ArrayView, Dimension};
 use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::backend::Backend;
-use crate::error::NdimageResult;
+use crate::error::{NdimageError, NdimageResult};
 
 /// GPU memory pool for efficient allocation management
 #[derive(Debug)]
@@ -769,18 +769,25 @@ impl GpuAccelerationManager {
 
     fn execute_kernel_operation<T, D>(
         &self,
-        kernel: &CompiledKernel,
-        input: &ArrayView<T, D>,
-        input_buffer: &GpuBuffer,
-        output_buffer: &GpuBuffer,
+        _kernel: &CompiledKernel,
+        _input: &ArrayView<T, D>,
+        _input_buffer: &GpuBuffer,
+        _output_buffer: &GpuBuffer,
     ) -> NdimageResult<Array<T, D>>
     where
         T: Float + FromPrimitive + Clone,
         D: Dimension,
     {
-        // This would contain the actual kernel execution logic
-        // For now, return a placeholder result
-        Ok(Array::zeros(input.raw_dim()))
+        // Real device-side kernel dispatch (uploading inputs, launching the
+        // compiled kernel and downloading the result) is not yet wired up in
+        // this generic framework. Returning a zero-filled array here would
+        // silently corrupt every downstream computation, so we surface an
+        // honest error instead of fabricating a result.
+        Err(NdimageError::NotImplementedError(
+            "GPU kernel execution via GpuAccelerationFramework is not yet implemented; \
+             no real device dispatch is available. Use the CPU code paths instead."
+                .to_string(),
+        ))
     }
 
     fn update_profiling_stats(

@@ -23,9 +23,6 @@ impl<F: Float> Op<F> for MatrixInverseOp {
 
         let n = shape[0];
 
-        // Debug information
-        println!("Computing matrix inverse of shape: {shape:?}");
-
         let input_2d = input_array
             .into_dimensionality::<Ix2>()
             .map_err(|_| OpError::IncompatibleShape("Failed to convert to 2D".into()))?;
@@ -33,16 +30,11 @@ impl<F: Float> Op<F> for MatrixInverseOp {
         // Compute inverse using Gauss-Jordan elimination
         let inv = compute_inverse(&input_2d)?;
 
-        // Verify the shape of the result
-        let resultshape = inv.shape();
-        println!("Matrix inverse result shape: {resultshape:?}");
-
         // No need to reshape, just use the computed inverse directly
         // but make a deep copy of it to ensure we have a clean array
         let output_inv = inv.to_owned();
 
         // Verify shape before output
-        println!("Final inverse shape: {:?}", output_inv.shape());
         assert_eq!(output_inv.shape(), &[n, n]);
 
         // Append the array as output
@@ -218,9 +210,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
             .into_dimensionality::<Ix2>()
             .map_err(|_| OpError::IncompatibleShape("Failed to convert to 2D".into()))?;
 
-        println!("Computing determinant for matrix of shape: {shape:?}");
         let det = compute_determinant_lu(&input_2d)?;
-        println!("Determinant result: {det}");
 
         // Create a scalar (0-dimensional) array with the determinant value
         // Use explicit arr0 to ensure we get a 0-dimensional array
@@ -228,7 +218,6 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
 
         // Verify the shape to make sure we're creating a scalar
         assert_eq!(det_array.ndim(), 0);
-        println!("Determinant array shape: {:?}", det_array.shape());
 
         // Output the determinant as a 0-dimensional array
         ctx.append_output(det_array.into_dyn());
@@ -241,13 +230,10 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
         let output = ctx.output();
         let g = ctx.graph();
 
-        println!("Computing gradient for determinant");
-
         // Evaluate tensors
         let grad_output_array = match grad_output.eval(g) {
             Ok(arr) => arr,
             Err(_) => {
-                println!("Failed to evaluate gradient output");
                 ctx.append_input_grad(0, None);
                 return;
             }
@@ -256,7 +242,6 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
         let output_array = match output.eval(g) {
             Ok(arr) => arr,
             Err(_) => {
-                println!("Failed to evaluate output");
                 ctx.append_input_grad(0, None);
                 return;
             }
@@ -265,7 +250,6 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
         let input_array = match input.eval(g) {
             Ok(arr) => arr,
             Err(_) => {
-                println!("Failed to evaluate input");
                 ctx.append_input_grad(0, None);
                 return;
             }
@@ -274,14 +258,12 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
         // Access scalar values
         let grad_scalar = grad_output_array[[0]];
         let det = output_array[[0]];
-        println!("Determinant: {det}, Gradient scale: {grad_scalar}");
 
         // Gradient of determinant: det(A) * A^{-T}
         if det.abs() > F::epsilon() {
             let input_2d = match input_array.view().into_dimensionality::<Ix2>() {
                 Ok(view) => view,
                 Err(_) => {
-                    println!("Failed to convert input to 2D");
                     ctx.append_input_grad(0, None);
                     return;
                 }
@@ -291,18 +273,15 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
                 Ok(inv) => {
                     // Scale transpose of inverse by det and grad_scalar
                     let inv_t = inv.t();
-                    println!("Inverse transpose shape: {:?}", inv_t.shape());
 
                     // Correctly compute gradient: grad = grad_scalar * det * A^(-T)
                     let scaled_grad = inv_t.mapv(|x| det * grad_scalar * x);
                     let grad_tensor =
                         crate::tensor_ops::convert_to_tensor(scaled_grad.into_dyn(), g);
 
-                    println!("Determinant gradient computed successfully");
                     ctx.append_input_grad(0, Some(grad_tensor));
                 }
                 Err(_) => {
-                    println!("Matrix is nearly singular, using approximate gradient");
                     // For nearly singular matrices, use regularized inverse
                     let eps =
                         F::epsilon() * F::from(10.0).expect("Failed to convert constant to float");
@@ -316,7 +295,6 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
                             crate::tensor_ops::convert_to_tensor(scaled_grad.into_dyn(), g);
                         ctx.append_input_grad(0, Some(grad_tensor));
                     } else {
-                        println!("Failed to compute even regularized inverse, returning zeros");
                         let zeros = scirs2_core::ndarray::Array::zeros(input_array.raw_dim());
                         let grad_tensor = crate::tensor_ops::convert_to_tensor(zeros, g);
                         ctx.append_input_grad(0, Some(grad_tensor));
@@ -326,7 +304,6 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
             return;
         }
 
-        println!("Matrix is singular, gradient is undefined, returning zeros");
         // If matrix is singular, gradient is undefined
         let zeros = scirs2_core::ndarray::Array::zeros(input_array.raw_dim());
         let grad_tensor = crate::tensor_ops::convert_to_tensor(zeros, g);

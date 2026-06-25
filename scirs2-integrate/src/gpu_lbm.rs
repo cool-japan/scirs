@@ -1,8 +1,13 @@
-//! GPU-accelerated Lattice Boltzmann Method (LBM) — D2Q9 simulation.
+//! Lattice Boltzmann Method (LBM) — D2Q9 simulation.
 //!
 //! This module provides a D2Q9 LBM solver with a BGK (Bhatnagar-Gross-Krook)
-//! single-relaxation-time collision operator.  On hardware that lacks a real
-//! GPU back-end the solver falls back to a pure-CPU path transparently.
+//! single-relaxation-time collision operator.
+//!
+//! **Execution:** the solver currently runs entirely on the CPU. The type is
+//! named `GpuLbm2D` and exposes a [`GpuLbmDispatch`] selector to keep the API
+//! stable for a future GPU back-end, but no GPU code path exists yet — every
+//! dispatch variant executes the same CPU numerics. See [`GpuLbmDispatch`] for
+//! details.
 //!
 //! ## Lattice geometry (D2Q9)
 //!
@@ -98,17 +103,22 @@ pub enum BoundaryCondition {
     FreeSlip,
 }
 
-/// Whether to use the (simulated) GPU code path or the standard CPU path.
+/// Selects the execution path for the LBM solver.
 ///
-/// `Simulated` triggers the same computation as `Cpu` but conceptually
-/// represents a batched kernel-style dispatch.  A real GPU back-end would
-/// require hardware support not yet wired in.
+/// No GPU back-end is currently wired in: both variants run identical CPU
+/// numerics.  `CpuReference` exists as an explicit, separately-named reference
+/// path so that a future GPU implementation can be validated against it (see
+/// `test_cpu_reference_matches_cpu`).  It does **not** execute on a GPU and
+/// makes no such claim.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GpuLbmDispatch {
     /// Standard sequential CPU execution.
     Cpu,
-    /// Simulated GPU execution (same numerics, different dispatch path).
-    Simulated,
+    /// CPU reference path used to validate (future) accelerated back-ends.
+    ///
+    /// Produces bit-for-bit the same results as [`GpuLbmDispatch::Cpu`]; it is
+    /// not a GPU execution path.
+    CpuReference,
 }
 
 /// Configuration for a `GpuLbm2D` simulation.
@@ -140,7 +150,7 @@ pub struct LbmState {
     pub step: usize,
 }
 
-/// D2Q9 GPU-accelerated (or CPU-simulated) LBM solver.
+/// D2Q9 LBM solver (CPU execution; GPU-ready API surface).
 pub struct GpuLbm2D {
     config: LbmConfig,
     state: LbmState,
@@ -428,8 +438,10 @@ impl GpuLbm2D {
                     self.step_cpu();
                 }
             }
-            GpuLbmDispatch::Simulated => {
-                // Simulated GPU: same numerics, conceptually batched
+            GpuLbmDispatch::CpuReference => {
+                // CPU reference path: identical numerics to `Cpu`. Kept as a
+                // distinct branch so a future GPU back-end can be validated
+                // against it without changing call sites.
                 for _ in 0..n_steps {
                     self.step_cpu();
                 }
@@ -637,9 +649,10 @@ mod tests {
         }
     }
 
-    /// Simulated dispatch produces the same result as CPU dispatch.
+    /// The CPU reference dispatch produces the same result as the standard CPU
+    /// dispatch (they must never diverge while both run CPU numerics).
     #[test]
-    fn test_simulated_dispatch_same_as_cpu() {
+    fn test_cpu_reference_matches_cpu() {
         let config_cpu = LbmConfig {
             nx: 8,
             ny: 8,
@@ -647,20 +660,20 @@ mod tests {
             boundary: BoundaryCondition::Periodic,
             dispatch: GpuLbmDispatch::Cpu,
         };
-        let config_sim = LbmConfig {
-            dispatch: GpuLbmDispatch::Simulated,
+        let config_ref = LbmConfig {
+            dispatch: GpuLbmDispatch::CpuReference,
             ..config_cpu.clone()
         };
         let mut sim_cpu = GpuLbm2D::new(config_cpu);
-        let mut sim_gpu = GpuLbm2D::new(config_sim);
+        let mut sim_ref = GpuLbm2D::new(config_ref);
         sim_cpu.step(20);
-        sim_gpu.step(20);
+        sim_ref.step(20);
         let mass_cpu = sim_cpu.total_mass();
-        let mass_gpu = sim_gpu.total_mass();
+        let mass_ref = sim_ref.total_mass();
         assert!(
-            (mass_cpu - mass_gpu).abs() < 1e-12,
-            "CPU and simulated GPU diverge: Δm = {:.3e}",
-            mass_cpu - mass_gpu
+            (mass_cpu - mass_ref).abs() < 1e-12,
+            "CPU and CPU-reference paths diverge: Δm = {:.3e}",
+            mass_cpu - mass_ref
         );
     }
 

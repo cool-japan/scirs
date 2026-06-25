@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use scirs2_core::ndarray::Array2;
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
@@ -207,19 +207,90 @@ impl<F: Float> TaskDistributionModel<F> {
         })
     }
 
-    /// Add a new task to the distribution model
+    /// Add a new task embedding to the distribution model.
+    ///
+    /// The first task added establishes the embedding dimensionality; every
+    /// subsequent task must use the same dimensionality. The embedding is stored
+    /// as a new row in `task_embeddings` so that `find_similar_tasks` can search
+    /// it.
     pub fn add_task(&mut self, task_embedding: Vec<F>) -> Result<()> {
-        // In practice, this would update the task embedding space
-        // and recompute similarity metrics
+        if task_embedding.is_empty() {
+            return Err(MetricsError::InvalidInput(
+                "Task embedding must not be empty".to_string(),
+            ));
+        }
+
+        let dim = task_embedding.len();
+
+        if self.task_embeddings.is_empty() {
+            // First task defines the embedding space dimensionality.
+            self.task_embeddings =
+                Array2::from_shape_vec((1, dim), task_embedding).map_err(|e| {
+                    MetricsError::ComputationError(format!(
+                        "Failed to initialize task embedding matrix: {e}"
+                    ))
+                })?;
+            return Ok(());
+        }
+
+        let expected_dim = self.task_embeddings.ncols();
+        if dim != expected_dim {
+            return Err(MetricsError::InvalidInput(format!(
+                "Task embedding dimension {dim} does not match existing dimension {expected_dim}"
+            )));
+        }
+
+        let row = Array1::from_vec(task_embedding);
+        self.task_embeddings.push_row(row.view()).map_err(|e| {
+            MetricsError::ComputationError(format!("Failed to append task embedding: {e}"))
+        })?;
+
         Ok(())
     }
 
-    /// Find similar tasks to a given task
+    /// Find the `k` tasks most similar to `task_embedding`.
+    ///
+    /// Performs a real nearest-neighbour search over the stored task embeddings,
+    /// ranking them by ascending squared Euclidean distance to the query and
+    /// returning the indices of the closest `k`. Returns an empty vector when no
+    /// tasks have been stored (or `k == 0`), and an error when the query
+    /// dimensionality does not match the stored embeddings.
     pub fn find_similar_tasks(&self, task_embedding: &[F], k: usize) -> Result<Vec<usize>> {
-        // Simplified similarity search
-        // In practice, this would use the similarity metrics
-        // to find the k most similar tasks
-        Ok((0..k.min(10)).collect()) // Return dummy indices
+        let num_tasks = self.task_embeddings.nrows();
+        if num_tasks == 0 || k == 0 {
+            return Ok(Vec::new());
+        }
+
+        let dim = self.task_embeddings.ncols();
+        if task_embedding.len() != dim {
+            return Err(MetricsError::InvalidInput(format!(
+                "Query embedding dimension {} does not match task embedding dimension {dim}",
+                task_embedding.len()
+            )));
+        }
+
+        // Rank stored tasks by ascending squared Euclidean distance to the query.
+        let mut distances: Vec<(usize, F)> = (0..num_tasks)
+            .map(|task_idx| {
+                let row = self.task_embeddings.row(task_idx);
+                let dist_sq = row.iter().zip(task_embedding.iter()).fold(
+                    F::zero(),
+                    |acc, (&stored, &query)| {
+                        let diff = stored - query;
+                        acc + diff * diff
+                    },
+                );
+                (task_idx, dist_sq)
+            })
+            .collect();
+
+        distances.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        Ok(distances
+            .into_iter()
+            .take(k.min(num_tasks))
+            .map(|(idx, _)| idx)
+            .collect())
     }
 }
 

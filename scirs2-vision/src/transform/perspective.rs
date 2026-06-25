@@ -33,29 +33,26 @@ pub use warping::{
     warp_perspective_simd,
 };
 
-pub use rectification::{auto_perspective_correction, extract_rectangle};
+pub use rectification::{auto_perspective_correction, detect_quadrilateral, extract_rectangle};
 
 // Backward compatibility aliases
 pub use auto_perspective_correction as correct_perspective;
 
-/// Detect quadrilateral in an image (simplified wrapper around auto_perspective_correction)
+/// Detect the dominant quadrilateral in an image.
+///
+/// Returns the four corners `(x, y)` of the largest detected quadrilateral whose
+/// area exceeds `min_quad_area`, using Sobel edge detection followed by contour
+/// tracing and polygon-to-quad approximation.
+///
+/// # Errors
+///
+/// Returns an error if no quadrilateral satisfying the area constraint is found.
 pub fn detect_quad(
     image: &scirs2_core::ndarray::Array2<f64>,
     edge_threshold: f64,
     min_quad_area: f64,
 ) -> crate::error::Result<[(f64, f64); 4]> {
-    // This is a simplified wrapper that extracts just the quadrilateral points
-    // In the original implementation this might have been more complex
-    let _transform = auto_perspective_correction(image, edge_threshold, min_quad_area)?;
-
-    // For backward compatibility, return a dummy quad
-    // In a real implementation, this would return the actual detected quadrilateral
-    Ok([
-        (0.0, 0.0),
-        (image.dim().1 as f64, 0.0),
-        (image.dim().1 as f64, image.dim().0 as f64),
-        (0.0, image.dim().0 as f64),
-    ])
+    rectification::detect_quadrilateral(image, edge_threshold, min_quad_area)
 }
 
 #[cfg(test)]

@@ -98,19 +98,31 @@ pub fn check_perfect_reconstruction(
         return Ok(false);
     }
 
-    // Check orthogonality condition between lowpass and highpass
-    let mut ortho_sum = 0.0;
-    for i in 0..filters.dec_lo.len() {
-        for j in 0..filters.dec_hi.len() {
-            // Only consider overlapping indices
-            if i + 2 * j < filters.dec_lo.len() {
-                ortho_sum += filters.dec_lo[i] * filters.dec_hi[j];
+    // Check double-shift orthonormality conditions for an orthogonal (QMF) wavelet:
+    //   1. Cross-orthogonality at all even shifts: Σ_k dec_lo[k]·dec_hi[k+2m] == 0
+    //   2. Lowpass autocorrelation at even shifts is the Kronecker delta:
+    //      Σ_k dec_lo[k]·dec_lo[k+2m] == δ(m)
+    let n = filters.dec_lo.len();
+    for m in -(n as isize - 1)..=(n as isize - 1) {
+        let mut cross = 0.0;
+        let mut auto = 0.0;
+        for k in 0..n {
+            let shifted = k as isize + 2 * m;
+            if shifted >= 0 && (shifted as usize) < n {
+                let s = shifted as usize;
+                cross += filters.dec_lo[k] * filters.dec_hi[s];
+                auto += filters.dec_lo[k] * filters.dec_lo[s];
             }
         }
-    }
 
-    if ortho_sum.abs() > tolerance {
-        return Ok(false);
+        if cross.abs() > tolerance {
+            return Ok(false);
+        }
+
+        let expected = if m == 0 { 1.0 } else { 0.0 };
+        if (auto - expected).abs() > tolerance {
+            return Ok(false);
+        }
     }
 
     // All checks passed
@@ -137,8 +149,9 @@ pub fn check_perfect_reconstruction(
 /// let wavelet = Wavelet::Haar;
 /// let filters = wavelet.filters().expect("operation should succeed");
 /// let center_freq = center_frequency(&filters.dec_hi);
-/// // Haar wavelet highpass filter has center frequency close to 0.25
-/// assert!(((center_freq - 0.25) as f64).abs() < 0.1);
+/// // The Haar highpass has |H(w)|^2 ~ sin^2(w/2), whose intensity-weighted
+/// // mean (normalized so Nyquist = 0.5) is ~0.351.
+/// assert!((center_freq - 0.3512).abs() < 1e-3);
 /// ```
 #[allow(dead_code)]
 pub fn center_frequency(filter: &[f64]) -> f64 {

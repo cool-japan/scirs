@@ -14,8 +14,6 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LinearSolveOp {
         let ashape = a.shape();
         let bshape = b.shape();
 
-        println!("Solving linear system: A({ashape:?}) * x = b({bshape:?})");
-
         if ashape.len() != 2 || ashape[0] != ashape[1] {
             return Err(OpError::IncompatibleShape(
                 "Linear solve requires square matrix A".into(),
@@ -39,210 +37,101 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LinearSolveOp {
                 .into_dimensionality::<Ix1>()
                 .map_err(|_| OpError::IncompatibleShape("Failed to convert b to 1D".into()))?;
 
-            println!("Solving 1D system (vector b)");
-            let x_result = solve_linear_system_1d(&a_2d, &b_1d)?;
-            println!("Solution x shape: {:?}", x_result.shape());
-            x_result
+            solve_linear_system_1d(&a_2d, &b_1d)?
         } else {
             let b_2d = b
                 .view()
                 .into_dimensionality::<Ix2>()
                 .map_err(|_| OpError::IncompatibleShape("Failed to convert b to 2D".into()))?;
 
-            println!("Solving 2D system (matrix b)");
-            let x_result = solve_linear_system_2d(&a_2d, &b_2d)?;
-            println!("Solution x shape: {:?}", x_result.shape());
-            x_result
+            solve_linear_system_2d(&a_2d, &b_2d)?
         };
-
-        // Verify the solution has the expected shape
-        println!("Final solution shape: {:?}", x.shape());
 
         ctx.append_output(x);
         Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Reverse-mode VJP of the linear solve `A x = b`:
+        //   grad_b = A⁻ᵀ · grad_x          (solve  Aᵀ · grad_b = grad_x)
+        //   grad_A = − grad_b · xᵀ
+        //
+        // NOTE on the well-known formula: `grad_A = −grad_b · xᵀ`, NOT
+        // `−grad_x · xᵀ`.  An earlier version used `grad_x` here, which is a
+        // genuine bug; the correct factor is the *already back-solved* `grad_b`.
+        //
+        // On any numerical failure we propagate `None` (non-differentiable for
+        // this evaluation) rather than fabricating a zero gradient, which would
+        // silently corrupt training.
         let grad_output = ctx.output_grad();
         let a = ctx.input(0);
-        let b = ctx.input(1);
         let x = ctx.output();
         let g = ctx.graph();
 
-        println!("Computing gradient for linear solver");
-
-        // Gradient computation for linear solve
-        // If Ax = b, then:
-        // dL/dA = -dL/dx @ x^T
-        // dL/db = A^{-T} @ dL/dx
-
-        // Evaluate tensors to arrays
         let a_array = match a.eval(g) {
             Ok(arr) => arr,
-            Err(_) => {
-                println!("Failed to evaluate matrix A");
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
+            Err(_) => return append_solver_no_grad(ctx),
         };
-
-        let b_array = match b.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                println!("Failed to evaluate vector b");
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
         let x_array = match x.eval(g) {
             Ok(arr) => arr,
-            Err(_) => {
-                println!("Failed to evaluate solution x");
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
+            Err(_) => return append_solver_no_grad(ctx),
         };
-
         let grad_output_array = match grad_output.eval(g) {
             Ok(arr) => arr,
-            Err(_) => {
-                println!("Failed to evaluate gradient");
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
+            Err(_) => return append_solver_no_grad(ctx),
         };
 
-        println!(
-            "A shape: {:?}, b shape: {:?}, x shape: {:?}, grad shape: {:?}",
-            a_array.shape(),
-            b_array.shape(),
-            x_array.shape(),
-            grad_output_array.shape()
-        );
-
-        // Convert to appropriate dimensions
         let a_2d = match a_array.view().into_dimensionality::<Ix2>() {
             Ok(view) => view,
-            Err(_) => {
-                println!("Failed to convert A to 2D");
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
+            Err(_) => return append_solver_no_grad(ctx),
         };
 
-        // First calculate gradient with respect to b: grad_b = A^{-T} @ grad_x
-        // This involves solving the transpose system: A^T @ grad_b = grad_x
-        println!("Computing gradient with respect to b (solving A^T @ grad_b = grad_x)");
-
+        // grad_b = A⁻ᵀ · grad_x  (solve Aᵀ · grad_b = grad_x).
         let grad_b = if grad_output_array.ndim() == 1 {
-            // For 1D grad_output (vector case)
             let grad_x_1d = match grad_output_array.view().into_dimensionality::<Ix1>() {
                 Ok(view) => view,
-                Err(_) => {
-                    println!("Failed to convert gradient to 1D");
-                    ctx.append_input_grad(0, None);
-                    ctx.append_input_grad(1, None);
-                    return;
-                }
+                Err(_) => return append_solver_no_grad(ctx),
             };
-
-            // Solve A^T @ grad_b = grad_x
             match solve_transpose_system(&a_2d, &grad_x_1d) {
-                Ok(result) => result.into_dyn(),
-                Err(e) => {
-                    println!("Error solving transpose system (1D): {e:?}");
-                    // Use regularized system instead
-                    let n = a_2d.shape()[0];
-                    let eps =
-                        F::epsilon() * F::from(10.0).expect("Failed to convert constant to float");
-                    let regularized = &a_2d + &(Array2::<F>::eye(n) * eps);
-
-                    match solve_transpose_system(&regularized.view(), &grad_x_1d) {
-                        Ok(result) => result.into_dyn(),
-                        Err(e2) => {
-                            println!("Error solving regularized system: {e2:?}");
-                            // Return zero gradient as fallback
-                            Array1::<F>::zeros(grad_x_1d.len()).into_dyn()
-                        }
-                    }
-                }
+                Ok(result) => result,
+                // Honest failure: singular Aᵀ ⇒ gradient undefined, emit None.
+                Err(_) => return append_solver_no_grad(ctx),
             }
         } else {
-            // For 2D grad_output (matrix case)
             let grad_x_2d = match grad_output_array.view().into_dimensionality::<Ix2>() {
                 Ok(view) => view,
-                Err(_) => {
-                    println!("Failed to convert gradient to 2D");
-                    ctx.append_input_grad(0, None);
-                    ctx.append_input_grad(1, None);
-                    return;
-                }
+                Err(_) => return append_solver_no_grad(ctx),
             };
-
-            // Solve A^T @ grad_b = grad_x for each column
             match solve_transpose_system_2d(&a_2d, &grad_x_2d) {
-                Ok(result) => result.into_dyn(),
-                Err(e) => {
-                    println!("Error solving transpose system (2D): {e:?}");
-                    // Use regularized system instead
-                    let n = a_2d.shape()[0];
-                    let eps =
-                        F::epsilon() * F::from(10.0).expect("Failed to convert constant to float");
-                    let regularized = &a_2d + &(Array2::<F>::eye(n) * eps);
-
-                    match solve_transpose_system_2d(&regularized.view(), &grad_x_2d) {
-                        Ok(result) => result.into_dyn(),
-                        Err(e2) => {
-                            println!("Error solving regularized system: {e2:?}");
-                            // Return zero gradient as fallback
-                            Array2::<F>::zeros(grad_x_2d.raw_dim()).into_dyn()
-                        }
-                    }
-                }
+                Ok(result) => result,
+                Err(_) => return append_solver_no_grad(ctx),
             }
         };
 
-        println!("Gradient for b computed, shape: {:?}", grad_b.shape());
-
-        // Now calculate gradient with respect to A: grad_A = -grad_x @ x^T
-        println!("Computing gradient with respect to A (outer product: -grad_x @ x^T)");
-
-        // Create view arrays for compute_outer_product_gradient
-        let grad_output_view = grad_output_array.view();
+        // grad_A = − grad_b · xᵀ  (outer product of the back-solved cotangent).
+        let grad_b_view = grad_b.view();
         let x_view = x_array.view();
-
-        // Compute outer product: grad_x @ x^T
-        let grad_a_result = compute_outer_product_gradient(&grad_output_view, &x_view);
-        let grad_a = match grad_a_result {
-            Ok(arr) => {
-                // Apply negative sign
-                arr.mapv(|v| -v)
-            }
-            Err(e) => {
-                println!("Error computing outer product: {e:?}");
-                // Return zero gradient as fallback
-                Array2::<F>::zeros((a_2d.shape()[0], a_2d.shape()[1])).into_dyn()
-            }
+        let grad_a = match compute_outer_product_gradient(&grad_b_view, &x_view) {
+            Ok(arr) => arr.mapv(|v| -v),
+            Err(_) => return append_solver_no_grad(ctx),
         };
 
-        println!("Gradient for A computed, shape: {:?}", grad_a.shape());
-
-        // Convert gradients to tensors
         let grad_a_tensor = crate::tensor_ops::convert_to_tensor(grad_a, g);
         let grad_b_tensor = crate::tensor_ops::convert_to_tensor(grad_b, g);
 
-        // Append with correct indices
         ctx.append_input_grad(0, Some(grad_a_tensor));
         ctx.append_input_grad(1, Some(grad_b_tensor));
-
-        println!("Linear solver gradient computation complete");
     }
+}
+
+/// Emit "no gradient" for both inputs of the linear solver.
+///
+/// Used when a tensor cannot be evaluated or the transpose system is singular:
+/// returning `None`/`None` is honest (the gradient is genuinely unavailable for
+/// this evaluation) and avoids fabricating a zero gradient.
+fn append_solver_no_grad<F: Float>(ctx: &mut GradientContext<F>) {
+    ctx.append_input_grad(0, None);
+    ctx.append_input_grad(1, None);
 }
 
 // Enhanced version of solve_transpose_system with better error handling
@@ -799,4 +688,127 @@ pub fn lstsq<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
         .append_input(b, false)
         .setshape(&bshape)  // Preserve shape information
         .build(LeastSquaresSolveOp)
+}
+
+#[cfg(test)]
+mod grad_tests {
+    use crate::tensor_ops as T;
+    use scirs2_core::ndarray::{array, Array2};
+
+    /// Reference solve `A X = B` (B a matrix) via Gaussian elimination, f64.
+    fn solve_ref(a: &Array2<f64>, b: &Array2<f64>) -> Array2<f64> {
+        let n = a.nrows();
+        let mc = b.ncols();
+        let mut aug = Array2::<f64>::zeros((n, n + mc));
+        for i in 0..n {
+            for j in 0..n {
+                aug[[i, j]] = a[[i, j]];
+            }
+            for j in 0..mc {
+                aug[[i, n + j]] = b[[i, j]];
+            }
+        }
+        for i in 0..n {
+            // partial pivot
+            let mut mr = i;
+            for k in (i + 1)..n {
+                if aug[[k, i]].abs() > aug[[mr, i]].abs() {
+                    mr = k;
+                }
+            }
+            for j in 0..(n + mc) {
+                aug.swap((i, j), (mr, j));
+            }
+            for k in (i + 1)..n {
+                let f = aug[[k, i]] / aug[[i, i]];
+                for j in i..(n + mc) {
+                    aug[[k, j]] -= f * aug[[i, j]];
+                }
+            }
+        }
+        let mut x = Array2::<f64>::zeros((n, mc));
+        for col in 0..mc {
+            for i in (0..n).rev() {
+                let mut s = aug[[i, n + col]];
+                for j in (i + 1)..n {
+                    s -= aug[[i, j]] * x[[j, col]];
+                }
+                x[[i, col]] = s / aug[[i, i]];
+            }
+        }
+        x
+    }
+
+    /// Verify the linear-solver VJP (grad_A and grad_b) against finite
+    /// differences for a 2×2 system with a 2-column RHS (fully 2D path).
+    #[test]
+    fn linear_solve_gradient_matches_fd() {
+        let a = array![[3.0_f64, 1.0], [0.5, 2.0]];
+        let b = array![[1.0_f64, 0.5], [-0.5, 2.0]];
+
+        // Analytic grads of sum_all(solve(A, B)) via the autograd graph.
+        let (ga, gb) = crate::run(|g| {
+            let av = T::variable(a.clone(), g);
+            let bv = T::variable(b.clone(), g);
+            let x = T::linalg_solve(&av, &bv);
+            let loss = T::sum_all(x);
+            let grads = T::grad(&[&loss], &[&av, &bv]);
+            let ga = grads[0]
+                .eval(g)
+                .expect("grad_a eval")
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .expect("ga 2D")
+                .to_owned();
+            let gb = grads[1]
+                .eval(g)
+                .expect("grad_b eval")
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .expect("gb 2D")
+                .to_owned();
+            (ga, gb)
+        });
+
+        let loss_of = |aa: &Array2<f64>, bb: &Array2<f64>| solve_ref(aa, bb).sum();
+        let h = 1e-6_f64;
+
+        // FD grad w.r.t. A.
+        let mut ga_fd = Array2::<f64>::zeros((2, 2));
+        for i in 0..2 {
+            for j in 0..2 {
+                let mut ap = a.clone();
+                let mut am = a.clone();
+                ap[[i, j]] += h;
+                am[[i, j]] -= h;
+                ga_fd[[i, j]] = (loss_of(&ap, &b) - loss_of(&am, &b)) / (2.0 * h);
+            }
+        }
+        // FD grad w.r.t. b.
+        let mut gb_fd = Array2::<f64>::zeros((2, 2));
+        for i in 0..2 {
+            for j in 0..2 {
+                let mut bp = b.clone();
+                let mut bm = b.clone();
+                bp[[i, j]] += h;
+                bm[[i, j]] -= h;
+                gb_fd[[i, j]] = (loss_of(&a, &bp) - loss_of(&a, &bm)) / (2.0 * h);
+            }
+        }
+
+        let err_a = ga
+            .iter()
+            .zip(ga_fd.iter())
+            .fold(0.0_f64, |m, (x, y)| (x - y).abs().max(m));
+        let err_b = gb
+            .iter()
+            .zip(gb_fd.iter())
+            .fold(0.0_f64, |m, (x, y)| (x - y).abs().max(m));
+        assert!(
+            err_a < 1e-4,
+            "linear_solve grad_A fd mismatch: err = {err_a}"
+        );
+        assert!(
+            err_b < 1e-4,
+            "linear_solve grad_b fd mismatch: err = {err_b}"
+        );
+    }
 }

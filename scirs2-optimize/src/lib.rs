@@ -43,7 +43,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-optimize = "0.5.0"
+//! scirs2-optimize = "0.5.1"
 //! ```
 //!
 //! ### Unconstrained Minimization (Rosenbrock Function)
@@ -547,7 +547,7 @@ pub use benchmarking::{
     BenchmarkRun, BenchmarkSummary, BenchmarkSystem, ProblemCharacteristics, RuntimeStats,
     TestProblem,
 };
-pub use constrained::minimize_constrained;
+pub use constrained::{minimize_constrained, minimize_constrained_with_jac};
 pub use distributed::{
     algorithms::{DistributedDifferentialEvolution, DistributedParticleSwarm},
     DistributedConfig, DistributedOptimizationContext, DistributedStats, DistributionStrategy,
@@ -666,7 +666,9 @@ pub mod prelude {
         BenchmarkRun, BenchmarkSummary, BenchmarkSystem, ProblemCharacteristics, RuntimeStats,
         TestProblem,
     };
-    pub use crate::constrained::{minimize_constrained, Method as ConstrainedMethod};
+    pub use crate::constrained::{
+        minimize_constrained, minimize_constrained_with_jac, Method as ConstrainedMethod,
+    };
     pub use crate::distributed::{
         algorithms::{DistributedDifferentialEvolution, DistributedParticleSwarm},
         DistributedConfig, DistributedOptimizationContext, DistributedStats, DistributionStrategy,

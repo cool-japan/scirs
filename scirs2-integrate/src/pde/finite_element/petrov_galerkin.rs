@@ -20,10 +20,10 @@ use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::pde::{BoundaryCondition, PDEResult, PDESolution, PDESolverInfo};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Petrov-Galerkin formulation types
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum PetrovGalerkinType<F: IntegrateFloat> {
     /// Streamline Upwind Petrov-Galerkin (SUPG) for convection-diffusion
     SUPG {
@@ -54,8 +54,42 @@ pub enum PetrovGalerkinType<F: IntegrateFloat> {
     /// Custom Petrov-Galerkin with user-defined test functions
     Custom {
         /// Test function generator
-        test_functions: Box<dyn Fn(F, F) -> Array1<F> + Send + Sync>,
+        test_functions: Arc<dyn Fn(F, F) -> Array1<F> + Send + Sync>,
     },
+}
+
+impl<F: IntegrateFloat> std::fmt::Debug for PetrovGalerkinType<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PetrovGalerkinType::SUPG {
+                convection,
+                diffusion,
+                tau,
+            } => f
+                .debug_struct("SUPG")
+                .field("convection", convection)
+                .field("diffusion", diffusion)
+                .field("tau", tau)
+                .finish(),
+            PetrovGalerkinType::GLS { tau } => f.debug_struct("GLS").field("tau", tau).finish(),
+            PetrovGalerkinType::DiscontinuousGalerkin { penalty } => f
+                .debug_struct("DiscontinuousGalerkin")
+                .field("penalty", penalty)
+                .finish(),
+            PetrovGalerkinType::Mixed {
+                velocity_degree,
+                pressure_degree,
+            } => f
+                .debug_struct("Mixed")
+                .field("velocity_degree", velocity_degree)
+                .field("pressure_degree", pressure_degree)
+                .finish(),
+            PetrovGalerkinType::Custom { .. } => f
+                .debug_struct("Custom")
+                .field("test_functions", &"<closure>")
+                .finish(),
+        }
+    }
 }
 
 /// Petrov-Galerkin finite element solver
@@ -102,7 +136,7 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
                 diffusion,
                 tau,
             } => self.solve_supg(convection, *diffusion, *tau, source, boundary_conditions),
-            _ => Err(IntegrateError::ValueError(
+            _ => Err(crate::pde::PDEError::FiniteElementError(
                 "SUPG formulation required for convection-diffusion".to_string(),
             )),
         }
@@ -204,7 +238,7 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
         let gauss_points = self.get_gauss_points();
         let gauss_weights = self.get_gauss_weights();
 
-        for (gp, &weight) in gauss_points.iter().zip(gaussweights.iter()) {
+        for (gp, &weight) in gauss_points.iter().zip(gauss_weights.iter()) {
             let (xi, eta) = (gp[0], gp[1]);
 
             // Trial shape functions and derivatives
@@ -225,7 +259,7 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
                 let global_i = element[i];
 
                 // RHS contribution
-                rhs[global_i] = rhs[global_i] + testshapes[i] * source_val * weight * area;
+                rhs[global_i] += testshapes[i] * source_val * weight * area;
 
                 for j in 0..element.len() {
                     let global_j = element[j];
@@ -239,8 +273,8 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
                     let convection_term = testshapes[i]
                         * (convection.0 * trial_grads[[j, 0]] + convection.1 * trial_grads[[j, 1]]);
 
-                    stiffness[[global_i, global_j]] = stiffness[[global_i, global_j]]
-                        + (diffusion_term + convection_term) * weight * area;
+                    stiffness[[global_i, global_j]] +=
+                        (diffusion_term + convection_term) * weight * area;
                 }
             }
         }
@@ -290,28 +324,33 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
         for i in 0..supg_test.len() {
             let streamline_derivative =
                 convection.0 * test_grads[[i, 0]] + convection.1 * test_grads[[i, 1]];
-            supg_test[i] = supg_test[i] + tau * streamline_derivative;
+            supg_test[i] += tau * streamline_derivative;
         }
 
         Ok(supg_test)
     }
 
     /// Trial shape functions (standard linear for now)
-    fn trialshape_functions(xi: F, eta: F) -> Array1<F> {
+    fn trialshape_functions(&self, xi: F, eta: F) -> Array1<F> {
         // Linear triangular shape functions
-        let zeta = F::one() - _xi - eta;
+        let zeta = F::one() - xi - eta;
         Array1::from_vec(vec![zeta, xi, eta])
     }
 
     /// Test shape functions (can be different from trial)
-    fn testshape_functions(xi: F, eta: F) -> Array1<F> {
+    fn testshape_functions(&self, xi: F, eta: F) -> Array1<F> {
         // For standard Galerkin, same as trial functions
         // For Petrov-Galerkin, these could be different
-        self.trialshape_functions(_xi, eta)
+        self.trialshape_functions(xi, eta)
     }
 
     /// Trial shape function gradients
-    fn trialshape_gradients(_xi: F, eta: F, invj: ArrayView2<F>) -> IntegrateResult<Array2<F>> {
+    fn trialshape_gradients(
+        &self,
+        _xi: F,
+        _eta: F,
+        inv_j: ArrayView2<F>,
+    ) -> IntegrateResult<Array2<F>> {
         // Linear triangular gradients in reference element
         let ref_grads = Array2::from_shape_vec(
             (3, 2),
@@ -329,9 +368,9 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
         // Transform to physical element
         let mut phys_grads = Array2::zeros((3, 2));
         for i in 0..3 {
-            for _j in 0..2 {
+            for j in 0..2 {
                 for k in 0..2 {
-                    phys_grads[[i_j]] = phys_grads[[i_j]] + ref_grads[[i, k]] * inv_j[[k_j]];
+                    phys_grads[[i, j]] += ref_grads[[i, k]] * inv_j[[k, j]];
                 }
             }
         }
@@ -340,14 +379,19 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
     }
 
     /// Test shape function gradients
-    fn testshape_gradients(_xi: F, eta: F, invj: ArrayView2<F>) -> IntegrateResult<Array2<F>> {
+    fn testshape_gradients(
+        &self,
+        xi: F,
+        eta: F,
+        inv_j: ArrayView2<F>,
+    ) -> IntegrateResult<Array2<F>> {
         // For standard formulation, same as trial gradients
-        self.trialshape_gradients(_xi, eta, inv_j)
+        self.trialshape_gradients(xi, eta, inv_j)
     }
 
     /// Get element coordinates
-    fn get_element_coordinates(element: ArrayView1<usize>) -> IntegrateResult<Array2<F>> {
-        let mut coords = Array2::zeros((_element.len(), 2));
+    fn get_element_coordinates(&self, element: ArrayView1<usize>) -> IntegrateResult<Array2<F>> {
+        let mut coords = Array2::zeros((element.len(), 2));
 
         for (i, &node_id) in element.iter().enumerate() {
             if node_id >= self.nodes.nrows() {
@@ -364,7 +408,7 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
     }
 
     /// Compute Jacobian matrix and its inverse
-    fn compute_jacobian(_nodecoords: &Array2<F>) -> IntegrateResult<(F, Array2<F>)> {
+    fn compute_jacobian(&self, node_coords: &Array2<F>) -> IntegrateResult<(F, Array2<F>)> {
         // For linear triangular elements
         let x1 = node_coords[[0, 0]];
         let y1 = node_coords[[0, 1]];
@@ -396,12 +440,12 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
     }
 
     /// Compute element characteristic size
-    fn compute_element_size(_nodecoords: &Array2<F>) -> F {
+    fn compute_element_size(&self, node_coords: &Array2<F>) -> F {
         // Diameter of element (max distance between nodes)
         let mut max_dist = F::zero();
 
-        for i in 0.._node_coords.nrows() {
-            for j in (i + 1).._node_coords.nrows() {
+        for i in 0..node_coords.nrows() {
+            for j in (i + 1)..node_coords.nrows() {
                 let dx = node_coords[[i, 0]] - node_coords[[j, 0]];
                 let dy = node_coords[[i, 1]] - node_coords[[j, 1]];
                 let dist = (dx * dx + dy * dy).sqrt();
@@ -416,22 +460,22 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
     }
 
     /// Map reference coordinates to physical coordinates
-    fn map_to_physical(_xi: F, eta: F, nodecoords: &Array2<F>) -> (F, F) {
-        let shapes = self.trialshape_functions(_xi, eta);
+    fn map_to_physical(&self, xi: F, eta: F, node_coords: &Array2<F>) -> (F, F) {
+        let shapes = self.trialshape_functions(xi, eta);
 
         let mut x = F::zero();
         let mut y = F::zero();
 
         for i in 0..node_coords.nrows() {
-            x = x + shapes[i] * node_coords[[i, 0]];
-            y = y + shapes[i] * node_coords[[i, 1]];
+            x += shapes[i] * node_coords[[i, 0]];
+            y += shapes[i] * node_coords[[i, 1]];
         }
 
         (x, y)
     }
 
     /// Gauss integration points for triangular elements
-    fn get_gauss_points() -> Vec<[F; 2]> {
+    fn get_gauss_points(&self) -> Vec<[F; 2]> {
         // 3-point Gauss rule for triangles
         vec![
             [
@@ -450,7 +494,7 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
     }
 
     /// Gauss integration weights for triangular elements
-    fn get_gauss_weights() -> Vec<F> {
+    fn get_gauss_weights(&self) -> Vec<F> {
         vec![
             F::from(1.0 / 6.0).expect("Failed to convert to float"),
             F::from(1.0 / 6.0).expect("Failed to convert to float"),
@@ -459,81 +503,122 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
     }
 
     /// Apply boundary conditions to system
+    ///
+    /// Boundary conditions are specified by `(dimension, location)`. The set of
+    /// mesh nodes lying on the requested boundary is determined geometrically by
+    /// comparing each node's coordinate in `dimension` against the minimum
+    /// (`Lower`) or maximum (`Upper`) coordinate of the mesh in that dimension.
     fn apply_boundary_conditions(
         &self,
         boundary_conditions: &[BoundaryCondition<F>],
         stiffness: &mut Array2<F>,
         rhs: &mut Array1<F>,
     ) -> IntegrateResult<()> {
-        use crate::pde::BoundaryConditionType;
+        use crate::pde::{BoundaryConditionType, BoundaryLocation};
 
         for bc in boundary_conditions {
-            match &bc.condition_type {
+            let nodes = self.boundary_nodes_for(bc.dimension, bc.location)?;
+
+            match bc.bc_type {
                 BoundaryConditionType::Dirichlet => {
-                    // For Dirichlet boundary _conditions: u = g on boundary
-                    // Modify system: set A[i,i] = 1, A[i,j] = 0 for j≠i, b[i] = g
-                    for &node_idx in &bc.nodes {
-                        if node_idx < stiffness.nrows() {
-                            // Clear row
-                            for j in 0..stiffness.ncols() {
-                                stiffness[[node_idx, j]] = F::zero();
-                            }
-                            // Clear column
-                            for i in 0..stiffness.nrows() {
-                                stiffness[[i, node_idx]] = F::zero();
-                            }
-                            // Set diagonal entry
-                            stiffness[[node_idx, node_idx]] = F::one();
-                            // Set RHS value
-                            rhs[node_idx] = bc.value;
+                    // Dirichlet condition u = g on the boundary.
+                    // Modify the system so that A[i,i] = 1, A[i,j] = 0 for j != i
+                    // and b[i] = g, while keeping the matrix symmetric by also
+                    // clearing column i and moving its contribution into the RHS.
+                    for &node_idx in &nodes {
+                        if node_idx >= stiffness.nrows() {
+                            continue;
                         }
+                        // Move column contribution into the RHS for symmetry.
+                        for i in 0..stiffness.nrows() {
+                            if i != node_idx {
+                                rhs[i] -= stiffness[[i, node_idx]] * bc.value;
+                            }
+                        }
+                        // Clear row.
+                        for j in 0..stiffness.ncols() {
+                            stiffness[[node_idx, j]] = F::zero();
+                        }
+                        // Clear column.
+                        for i in 0..stiffness.nrows() {
+                            stiffness[[i, node_idx]] = F::zero();
+                        }
+                        // Set diagonal entry and RHS value.
+                        stiffness[[node_idx, node_idx]] = F::one();
+                        rhs[node_idx] = bc.value;
                     }
                 }
                 BoundaryConditionType::Neumann => {
-                    // For Neumann boundary _conditions: ∂u/∂n = g on boundary
-                    // Add flux terms to RHS: ∫ g ψᵢ ds
-                    for &node_idx in &bc.nodes {
+                    // Neumann condition du/dn = g on the boundary.
+                    // Add the flux contribution to the RHS: integral of g * psi_i ds.
+                    for &node_idx in &nodes {
                         if node_idx < rhs.len() {
-                            // Simple approximation: add flux contribution to RHS
-                            // In a complete implementation, this would integrate over boundary edges
-                            let boundary_length = self.estimate_boundary_length_at_node(node_idx);
-                            rhs[node_idx] = rhs[node_idx] + bc.value * boundary_length;
+                            let boundary_length =
+                                self.estimate_boundary_length_at_node(node_idx, &nodes);
+                            rhs[node_idx] += bc.value * boundary_length;
                         }
                     }
                 }
                 BoundaryConditionType::Robin => {
-                    // For Robin boundary _conditions: α u + β ∂u/∂n = g on boundary
-                    // This modifies both stiffness matrix and RHS
-                    for &node_idx in &bc.nodes {
+                    // Robin condition a*u + b*du/dn = c on the boundary.
+                    // The coefficients [a, b, c] modify both the stiffness diagonal
+                    // and the RHS over the associated boundary segment.
+                    let [a_coef, _b_coef, c_coef] =
+                        bc.coefficients.unwrap_or([F::one(), F::one(), bc.value]);
+                    for &node_idx in &nodes {
                         if node_idx < stiffness.nrows() {
-                            let boundary_length = self.estimate_boundary_length_at_node(node_idx);
-                            // Add Robin term to diagonal: α * boundary_length
-                            let alpha = bc.robin_alpha.unwrap_or(F::one());
-                            stiffness[[node_idx, node_idx]] =
-                                stiffness[[node_idx, node_idx]] + alpha * boundary_length;
-                            // Add to RHS: g * boundary_length
-                            rhs[node_idx] = rhs[node_idx] + bc.value * boundary_length;
+                            let boundary_length =
+                                self.estimate_boundary_length_at_node(node_idx, &nodes);
+                            stiffness[[node_idx, node_idx]] += a_coef * boundary_length;
+                            rhs[node_idx] += c_coef * boundary_length;
                         }
                     }
                 }
                 BoundaryConditionType::Periodic => {
-                    // For periodic boundary conditions, couple corresponding nodes
-                    // This requires identifying paired nodes on opposite boundaries
-                    if bc.nodes.len() >= 2 {
-                        for i in 0..(bc.nodes.len() / 2) {
-                            let node1 = bc.nodes[i];
-                            let node2 = bc.nodes[bc.nodes.len() / 2 + i];
+                    // Periodic condition couples the nodes on the lower boundary of
+                    // `dimension` with their counterparts on the upper boundary.
+                    let lower_nodes =
+                        self.boundary_nodes_for(bc.dimension, BoundaryLocation::Lower)?;
+                    let upper_nodes =
+                        self.boundary_nodes_for(bc.dimension, BoundaryLocation::Upper)?;
 
+                    // Pair nodes by their coordinate in the orthogonal dimension.
+                    let ortho_dim = 1 - bc.dimension.min(1);
+                    let tol = F::from(1e-9).ok_or_else(|| {
+                        IntegrateError::ComputationError(
+                            "Failed to convert tolerance constant".to_string(),
+                        )
+                    })?;
+                    let penalty = F::from(1e6).ok_or_else(|| {
+                        IntegrateError::ComputationError(
+                            "Failed to convert penalty constant".to_string(),
+                        )
+                    })?;
+
+                    for &node1 in &lower_nodes {
+                        if node1 >= self.nodes.nrows() {
+                            continue;
+                        }
+                        let ortho1 = self.nodes[[node1, ortho_dim]];
+                        // Find the matching upper-boundary node.
+                        let mut matched: Option<usize> = None;
+                        for &node2 in &upper_nodes {
+                            if node2 >= self.nodes.nrows() {
+                                continue;
+                            }
+                            if (self.nodes[[node2, ortho_dim]] - ortho1).abs() < tol {
+                                matched = Some(node2);
+                                break;
+                            }
+                        }
+
+                        if let Some(node2) = matched {
                             if node1 < stiffness.nrows() && node2 < stiffness.nrows() {
-                                // Constraint: u[node1] - u[node2] = 0
-                                // Add penalty method: λ(u₁ - u₂) = 0
-                                let penalty =
-                                    F::from(1e6).expect("Failed to convert constant to float"); // Large penalty parameter
-
-                                stiffness[[node1, node1]] = stiffness[[node1, node1]] + penalty;
-                                stiffness[[node2, node2]] = stiffness[[node2, node2]] + penalty;
-                                stiffness[[node1, node2]] = stiffness[[node1, node2]] - penalty;
-                                stiffness[[node2, node1]] = stiffness[[node2, node1]] - penalty;
+                                // Penalty enforcement of u[node1] - u[node2] = 0.
+                                stiffness[[node1, node1]] += penalty;
+                                stiffness[[node2, node2]] += penalty;
+                                stiffness[[node1, node2]] -= penalty;
+                                stiffness[[node2, node1]] -= penalty;
                             }
                         }
                     }
@@ -544,15 +629,100 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
         Ok(())
     }
 
-    /// Estimate boundary length contribution at a node (simplified)
-    fn estimate_boundary_length_at_node(_nodeidx: usize) -> F {
-        // Simplified estimate - in a complete implementation this would
-        // compute the actual boundary segment length associated with the node
-        F::from(0.1).expect("Failed to convert constant to float") // Default boundary segment length
+    /// Identify the mesh nodes lying on a given boundary.
+    ///
+    /// A node is on the boundary of `dimension` at `location` when its coordinate
+    /// in that dimension equals the minimum (`Lower`) or maximum (`Upper`)
+    /// coordinate of the mesh along that dimension, within a small tolerance.
+    fn boundary_nodes_for(
+        &self,
+        dimension: usize,
+        location: crate::pde::BoundaryLocation,
+    ) -> IntegrateResult<Vec<usize>> {
+        use crate::pde::BoundaryLocation;
+
+        let n_nodes = self.nodes.nrows();
+        if n_nodes == 0 {
+            return Ok(Vec::new());
+        }
+        // Clamp the dimension to the spatial dimensions available (2D mesh).
+        let dim = dimension.min(self.nodes.ncols().saturating_sub(1));
+
+        // Determine the extreme coordinate along the requested dimension.
+        let mut extreme = self.nodes[[0, dim]];
+        for i in 1..n_nodes {
+            let coord = self.nodes[[i, dim]];
+            match location {
+                BoundaryLocation::Lower => {
+                    if coord < extreme {
+                        extreme = coord;
+                    }
+                }
+                BoundaryLocation::Upper => {
+                    if coord > extreme {
+                        extreme = coord;
+                    }
+                }
+            }
+        }
+
+        let tol = F::from(1e-9).ok_or_else(|| {
+            IntegrateError::ComputationError("Failed to convert tolerance constant".to_string())
+        })?;
+
+        let mut nodes = Vec::new();
+        for i in 0..n_nodes {
+            if (self.nodes[[i, dim]] - extreme).abs() < tol {
+                nodes.push(i);
+            }
+        }
+
+        Ok(nodes)
+    }
+
+    /// Estimate the boundary length contribution associated with a node.
+    ///
+    /// The contribution is approximated as half of the distance to each of the
+    /// node's nearest neighbours along the same boundary (the standard lumped
+    /// edge contribution for a piecewise-linear boundary integral).
+    fn estimate_boundary_length_at_node(&self, node_idx: usize, boundary_nodes: &[usize]) -> F {
+        if node_idx >= self.nodes.nrows() || boundary_nodes.len() < 2 {
+            // Fall back to a small default segment length when geometry is
+            // unavailable (e.g. an isolated boundary node).
+            return F::from(0.1).unwrap_or_else(F::one);
+        }
+
+        let xi = self.nodes[[node_idx, 0]];
+        let yi = self.nodes[[node_idx, 1]];
+
+        // Find the smallest distance to another node on the same boundary.
+        let mut nearest = F::infinity();
+        for &other in boundary_nodes {
+            if other == node_idx || other >= self.nodes.nrows() {
+                continue;
+            }
+            let dx = self.nodes[[other, 0]] - xi;
+            let dy = self.nodes[[other, 1]] - yi;
+            let dist = (dx * dx + dy * dy).sqrt();
+            if dist < nearest {
+                nearest = dist;
+            }
+        }
+
+        if nearest.is_finite() {
+            // Half of the adjacent edge length is lumped onto this node.
+            nearest / F::from(2.0).unwrap_or_else(F::one)
+        } else {
+            F::from(0.1).unwrap_or_else(F::one)
+        }
     }
 
     /// Solve linear system Ax = b
-    fn solve_linear_system(a: ArrayView2<F>, b: ArrayView1<F>) -> IntegrateResult<Array1<F>> {
+    fn solve_linear_system(
+        &self,
+        a: ArrayView2<F>,
+        b: ArrayView1<F>,
+    ) -> IntegrateResult<Array1<F>> {
         // Simple Gaussian elimination (for demonstration)
         let n = a.nrows();
         let mut aug = Array2::zeros((n, n + 1));
@@ -605,7 +775,7 @@ impl<F: IntegrateFloat> PetrovGalerkinSolver<F> {
         for i in (0..n).rev() {
             let mut sum = aug[[i, n]];
             for j in (i + 1)..n {
-                sum = sum - aug[[i, j]] * x[j];
+                sum -= aug[[i, j]] * x[j];
             }
             x[i] = sum / aug[[i, i]];
         }
@@ -629,12 +799,12 @@ impl StabilizedFormulations {
 
     /// Create GLS formulation for general stability
     pub fn gls<F: IntegrateFloat>(tau: F) -> PetrovGalerkinType<F> {
-        PetrovGalerkinType::GLS { _tau }
+        PetrovGalerkinType::GLS { tau }
     }
 
     /// Create discontinuous Galerkin formulation
     pub fn discontinuous_galerkin<F: IntegrateFloat>(penalty: F) -> PetrovGalerkinType<F> {
-        PetrovGalerkinType::DiscontinuousGalerkin { _penalty }
+        PetrovGalerkinType::DiscontinuousGalerkin { penalty }
     }
 }
 
@@ -693,12 +863,12 @@ mod tests {
 
         let elements = Array2::from_shape_vec((1, 3), vec![0, 1, 2]).expect("Operation failed");
         let formulation = StabilizedFormulations::supg((1.0, 0.0), 0.1);
-        let solver = PetrovGalerkinSolver::new(formulation, nodes, elements, 1, 1);
+        let solver = PetrovGalerkinSolver::new(formulation, nodes, elements.clone(), 1, 1);
 
         let element_coords = solver
             .get_element_coordinates(elements.row(0))
             .expect("Operation failed");
-        let (det_j_inv_j) = solver
+        let (det_j, _inv_j) = solver
             .compute_jacobian(&element_coords)
             .expect("Operation failed");
 

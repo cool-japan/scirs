@@ -1089,13 +1089,14 @@ impl<T: Clone + Send + Sync + std::fmt::Debug + 'static> GpuMemoryPool<T> {
     }
 
     fn allocate_new_buffer(&mut self, size: usize) -> LinalgResult<Box<dyn super::GpuBuffer<T>>> {
-        // Would allocate actual GPU buffer
+        // No physical GPU is available through this pool, so we hand out a real
+        // CPU-backed buffer that actually stores the data. This keeps results
+        // correct (host round-trip) instead of fabricating an opaque device buffer.
         self.allocation_count += 1;
         self.total_allocated += size;
         self.peak_usage = self.peak_usage.max(self.total_allocated);
 
-        // Return mock buffer for now
-        Ok(Box::new(MockGpuBuffer::new(size)))
+        Ok(Box::new(CpuFallbackBuffer::new(size)))
     }
 
     fn defragment(&mut self) -> LinalgResult<()> {
@@ -1201,40 +1202,53 @@ impl<T> CompressionEngine<T> {
     }
 }
 
-/// Mock GPU buffer implementation for testing
+/// Real CPU-backed buffer used as a fallback when no GPU device is present.
+///
+/// Unlike a mock, this buffer genuinely stores the data on the host, so
+/// `copy_from_host` / `copy_to_host` round-trip correctly and computations
+/// performed through it return real results rather than fabricated values.
 #[derive(Debug)]
-pub struct MockGpuBuffer<T> {
-    size: usize,
-    phantom: std::marker::PhantomData<T>,
+pub struct CpuFallbackBuffer<T> {
+    data: Vec<T>,
 }
 
-impl<T> MockGpuBuffer<T> {
+impl<T: Clone> CpuFallbackBuffer<T> {
+    /// Create an empty buffer with capacity reserved for `size` elements.
     pub fn new(size: usize) -> Self {
         Self {
-            size,
-            phantom: std::marker::PhantomData,
+            data: Vec::with_capacity(size),
         }
     }
 }
 
-impl<T> super::GpuBuffer<T> for MockGpuBuffer<T>
+impl<T> super::GpuBuffer<T> for CpuFallbackBuffer<T>
 where
     T: Clone + Send + Sync + std::fmt::Debug,
 {
     fn len(&self) -> usize {
-        self.size
+        self.data.len()
     }
 
     fn copy_from_host(&mut self, data: &[T]) -> LinalgResult<()> {
+        self.data.clear();
+        self.data.extend_from_slice(data);
         Ok(())
     }
 
     fn copy_to_host(&self, data: &mut [T]) -> LinalgResult<()> {
+        if data.len() != self.data.len() {
+            return Err(LinalgError::ShapeError(format!(
+                "Buffer size mismatch: host slice holds {} elements but device buffer holds {}",
+                data.len(),
+                self.data.len()
+            )));
+        }
+        data.clone_from_slice(&self.data);
         Ok(())
     }
 
     fn device_ptr(&self) -> *mut std::ffi::c_void {
-        std::ptr::null_mut()
+        self.data.as_ptr() as *mut std::ffi::c_void
     }
 }
 

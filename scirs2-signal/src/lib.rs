@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-signal = "0.5.0"
+//! scirs2-signal = "0.5.1"
 //! ```
 //!
 //! ```rust
@@ -49,7 +49,7 @@
 //! let filtered = convolve(&signal, &kernel, "same").expect("operation should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.5.0 (March 27, 2026)
+//! ## 🔒 Version: 0.5.1 (March 27, 2026)
 
 // Core error handling - ESSENTIAL
 pub mod error;
@@ -89,6 +89,7 @@ pub mod wavelets;
 pub mod dwt2d_advanced;
 pub mod wavelet_advanced;
 pub mod wpt;
+pub mod wpt2d;
 pub mod wpt_enhanced;
 
 // Additional signal processing modules

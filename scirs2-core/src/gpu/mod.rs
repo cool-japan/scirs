@@ -12,6 +12,7 @@ pub mod auto_tuning;
 pub mod backends;
 pub mod benchmarks;
 mod cpu_ops;
+pub mod device_info;
 pub mod heterogeneous;
 pub mod kernels;
 pub mod memory_management;
@@ -21,6 +22,7 @@ pub mod tensor_cores;
 pub use async_transfer::{
     AsyncTransferError, AsyncTransferPipeline, TransferDirection, TransferHandle,
 };
+pub use device_info::GpuDeviceInfo;
 pub use memory_management::unified_memory::{SyncState, UnifiedAllocator, UnifiedBuffer};
 pub use stream_allocator::{StreamAllocator, StreamId};
 
@@ -229,6 +231,26 @@ impl GpuDevice {
             backend: self.backend,
             entry_point: entrypoint.to_string(),
         })
+    }
+
+    /// Query the capabilities of this device.
+    ///
+    /// Returns a [`GpuDeviceInfo`] describing the device name, type, memory,
+    /// work-group limits and supported floating-point precisions. The values are
+    /// derived deterministically from this device's [`backend`](Self::backend).
+    ///
+    /// In the default Pure-Rust build no GPU SDK is linked, so the values for
+    /// hardware backends are conservative placeholders (see
+    /// [`GpuDeviceInfo`]); the method itself never fails in that configuration.
+    /// The `Result` return type reserves the ability to surface real adapter
+    /// query failures once live introspection is wired in.
+    ///
+    /// # Errors
+    ///
+    /// Currently always returns `Ok`. Reserved for future backends that perform
+    /// a fallible live adapter query.
+    pub fn get_info(&self) -> Result<GpuDeviceInfo, GpuError> {
+        Ok(GpuDeviceInfo::for_backend(self.backend))
     }
 }
 
@@ -1712,5 +1734,54 @@ mod tests {
 
         // dispatch_no_wait returns () — just verify no panic
         handle.dispatch_no_wait([4, 1, 1]);
+    }
+
+    #[test]
+    fn test_gpu_device_get_info_cpu() {
+        let device = GpuDevice::new(GpuBackend::Cpu, 0);
+        let info = device
+            .get_info()
+            .expect("get_info should succeed for the CPU backend");
+
+        // Backend and basic identity must round-trip.
+        assert_eq!(info.backend, GpuBackend::Cpu);
+        assert_eq!(info.device_name, "CPU");
+        assert_eq!(info.device_type, "CPU");
+
+        // The struct must be well-formed: non-empty descriptors and a valid
+        // work-group size. The CPU fallback emulates both precisions.
+        assert!(!info.device_name.is_empty());
+        assert!(!info.compute_capability.is_empty());
+        assert!(info.max_work_group_size >= 1);
+        assert!(info.supports_fp64);
+        assert!(info.supports_fp16);
+    }
+
+    #[test]
+    fn test_gpu_device_info_is_deterministic_per_backend() {
+        // Every backend must yield a well-formed, non-empty, deterministic info.
+        for backend in [
+            GpuBackend::Cpu,
+            GpuBackend::Cuda,
+            GpuBackend::Rocm,
+            GpuBackend::Wgpu,
+            GpuBackend::Metal,
+            GpuBackend::OpenCL,
+        ] {
+            let device = GpuDevice::new(backend, 0);
+            let info = device.get_info().expect("get_info should not fail");
+            let info_again = device.get_info().expect("get_info should not fail");
+
+            assert_eq!(info.backend, backend);
+            assert!(!info.device_name.is_empty());
+            assert!(!info.device_type.is_empty());
+            assert!(!info.compute_capability.is_empty());
+            assert!(info.max_work_group_size >= 1);
+
+            // Deterministic: two queries produce identical descriptors.
+            assert_eq!(info.device_name, info_again.device_name);
+            assert_eq!(info.max_work_group_size, info_again.max_work_group_size);
+            assert_eq!(info.supports_fp64, info_again.supports_fp64);
+        }
     }
 }

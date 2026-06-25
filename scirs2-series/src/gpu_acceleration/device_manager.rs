@@ -5,7 +5,7 @@
 
 use std::fmt::Debug;
 
-use super::config::{GpuBackend, GpuCapabilities, TensorCoresGeneration};
+use super::config::{GpuBackend, GpuCapabilities};
 use crate::error::{Result, TimeSeriesError};
 
 /// GPU device manager for detecting and managing GPU devices
@@ -93,110 +93,106 @@ impl GpuDeviceManager {
             .any(|dev| !matches!(dev.backend, GpuBackend::CpuFallback))
     }
 
-    /// Detect CUDA devices
+    /// Detect CUDA devices.
+    ///
+    /// This crate does not link the CUDA Runtime/Driver API, so it can only
+    /// detect the *presence* of an NVIDIA driver (via the device nodes under
+    /// `/dev` and `/proc`). It deliberately does **not** fabricate the device's
+    /// capabilities (compute capability, VRAM, tensor-core generation, etc.):
+    /// those are reported as unknown because they cannot be queried without the
+    /// runtime. Returns `None` when no driver is detected.
     fn detect_cuda_devices() -> Option<Vec<GpuCapabilities>> {
-        // In a real implementation, this would use CUDA Runtime API
-        // For now, simulate detection by checking for common NVIDIA indicators
         #[cfg(target_os = "linux")]
         {
             if std::path::Path::new("/dev/nvidia0").exists()
                 || std::path::Path::new("/proc/driver/nvidia").exists()
             {
-                return Some(vec![GpuCapabilities {
-                    backend: GpuBackend::Cuda,
-                    compute_capability: Some((8, 0)), // Simulated A100 capability
-                    memory: 40 * 1024 * 1024 * 1024,  // 40GB simulated
-                    multiprocessors: 108,
-                    supports_fp16: true,
-                    supports_tensor_cores: true,
-                    max_threads_per_block: 1024,
-                    tensor_cores_generation: Some(TensorCoresGeneration::V3), // A100 is gen 3
-                    memory_bandwidth: 1555.0,                                 // GB/s for A100
-                    tensor_performance: Some(312.0),                          // TOPS for A100 BF16
-                }]);
+                return Some(vec![Self::detected_device_unknown_specs(GpuBackend::Cuda)]);
             }
         }
 
         #[cfg(target_os = "windows")]
         {
-            // On Windows, could check for nvidia-ml.dll or query WMI
-            // For simulation, assume no CUDA devices
+            // On Windows, detecting CUDA would require querying nvml.dll or WMI,
+            // which is not wired in here. Report no device rather than guessing.
         }
 
         None
     }
 
-    /// Detect OpenCL devices
+    /// Build a [`GpuCapabilities`] for a device whose backend has been detected
+    /// but whose hardware specifications are unknown (because no vendor runtime
+    /// is linked to query them).
+    ///
+    /// All capability fields are set to conservative "unknown" values: zero
+    /// memory/bandwidth, no compute capability, no tensor-core support. This
+    /// signals that a device of the given backend is present without claiming
+    /// any specific (and potentially false) performance characteristics.
+    fn detected_device_unknown_specs(backend: GpuBackend) -> GpuCapabilities {
+        GpuCapabilities {
+            backend,
+            compute_capability: None, // unknown without the runtime
+            memory: 0,                // unknown (not 40 GB, etc.)
+            multiprocessors: 0,       // unknown
+            supports_fp16: false,     // unknown -> conservatively false
+            supports_tensor_cores: false,
+            max_threads_per_block: 0, // unknown
+            tensor_cores_generation: None,
+            memory_bandwidth: 0.0,    // unknown
+            tensor_performance: None, // unknown
+        }
+    }
+
+    /// Detect OpenCL devices.
+    ///
+    /// Only the presence of OpenCL ICD/driver libraries is detected; the actual
+    /// platform/device enumeration (and therefore the real capabilities) is not
+    /// performed because no OpenCL bindings are linked. Capabilities are
+    /// reported as unknown rather than fabricated. Returns `None` when no
+    /// OpenCL driver is found.
     fn detect_opencl_devices() -> Option<Vec<GpuCapabilities>> {
-        // In a real implementation, this would use OpenCL API
-        // Check for common OpenCL indicators
         #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
         {
-            // Simulated OpenCL device detection
-            // In real implementation, would enumerate platforms and devices
             if Self::has_opencl_drivers() {
-                return Some(vec![GpuCapabilities {
-                    backend: GpuBackend::OpenCL,
-                    compute_capability: None,
-                    memory: 8 * 1024 * 1024 * 1024, // 8GB simulated
-                    multiprocessors: 64,
-                    supports_fp16: true,
-                    supports_tensor_cores: false,
-                    max_threads_per_block: 256,
-                    tensor_cores_generation: None,
-                    memory_bandwidth: 500.0, // GB/s estimate
-                    tensor_performance: None,
-                }]);
+                return Some(vec![Self::detected_device_unknown_specs(
+                    GpuBackend::OpenCL,
+                )]);
             }
         }
 
         None
     }
 
-    /// Detect Metal devices (Apple Silicon)
+    /// Detect Metal devices (Apple Silicon).
+    ///
+    /// Detects whether the process runs on Apple Silicon / has the Metal
+    /// framework available, but does not query the actual GPU via Metal, so the
+    /// device's real capabilities are reported as unknown rather than
+    /// fabricated. Returns `None` when no Metal-capable device is detected.
     fn detect_metal_devices() -> Option<Vec<GpuCapabilities>> {
         #[cfg(target_os = "macos")]
         {
-            // Check for Apple Silicon or dedicated GPU
             if Self::is_apple_silicon() || Self::has_metal_gpu() {
-                return Some(vec![GpuCapabilities {
-                    backend: GpuBackend::Metal,
-                    compute_capability: None,
-                    memory: 16 * 1024 * 1024 * 1024, // 16GB unified memory
-                    multiprocessors: 32,             // GPU cores
-                    supports_fp16: true,
-                    supports_tensor_cores: true, // Neural Engine
-                    max_threads_per_block: 1024,
-                    tensor_cores_generation: Some(TensorCoresGeneration::V3), // Apple Silicon Neural Engine
-                    memory_bandwidth: 400.0,                                  // GB/s for M1 Pro/Max
-                    tensor_performance: Some(15.8), // TOPS for M1 Neural Engine
-                }]);
+                return Some(vec![Self::detected_device_unknown_specs(GpuBackend::Metal)]);
             }
         }
 
         None
     }
 
-    /// Detect ROCm devices (AMD)
+    /// Detect ROCm devices (AMD).
+    ///
+    /// Only the presence of a ROCm installation / KFD device node is detected;
+    /// the device's real capabilities are not queried (no ROCm bindings are
+    /// linked) and are therefore reported as unknown rather than fabricated.
+    /// Returns `None` when no ROCm device is detected.
     fn detect_rocm_devices() -> Option<Vec<GpuCapabilities>> {
         #[cfg(target_os = "linux")]
         {
-            // Check for AMD ROCm installation
             if std::path::Path::new("/opt/rocm").exists()
                 || std::path::Path::new("/dev/kfd").exists()
             {
-                return Some(vec![GpuCapabilities {
-                    backend: GpuBackend::Rocm,
-                    compute_capability: None,
-                    memory: 32 * 1024 * 1024 * 1024, // 32GB simulated
-                    multiprocessors: 120,
-                    supports_fp16: true,
-                    supports_tensor_cores: false, // AMD uses Matrix Cores, not Tensor Cores
-                    max_threads_per_block: 1024,
-                    tensor_cores_generation: None, // AMD has MFMA instructions instead
-                    memory_bandwidth: 1600.0,      // GB/s for MI250X
-                    tensor_performance: Some(383.0), // TOPS for MI250X BF16
-                }]);
+                return Some(vec![Self::detected_device_unknown_specs(GpuBackend::Rocm)]);
             }
         }
 

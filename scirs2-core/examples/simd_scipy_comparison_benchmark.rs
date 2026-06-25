@@ -389,7 +389,10 @@ fn benchmark_f32_operations(size: usize, results: &mut Vec<BenchmarkResult>) {
     });
 }
 
-fn save_results_to_csv(results: &[BenchmarkResult], filename: &str) -> std::io::Result<()> {
+fn save_results_to_csv(
+    results: &[BenchmarkResult],
+    filename: &std::path::Path,
+) -> std::io::Result<()> {
     let mut file = File::create(filename)?;
 
     // Write header
@@ -432,11 +435,11 @@ fn main() {
     }
 
     // Save results
-    let csv_file = "/tmp/scirs2_benchmark_results.csv";
-    if let Err(e) = save_results_to_csv(&results, csv_file) {
+    let csv_file = std::env::temp_dir().join("scirs2_benchmark_results.csv");
+    if let Err(e) = save_results_to_csv(&results, &csv_file) {
         eprintln!("Error saving results: {}", e);
     } else {
-        println!("\n\nResults saved to: {}", csv_file);
+        println!("\n\nResults saved to: {}", csv_file.display());
     }
 
     println!("\n{}", "=".repeat(80));

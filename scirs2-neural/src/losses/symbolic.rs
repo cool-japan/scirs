@@ -36,6 +36,7 @@ use std::sync::Arc;
 /// # #[cfg(feature = "symbolic")]
 /// # fn main() -> scirs2_neural::error::Result<()> {
 /// use scirs2_neural::losses::symbolic::SymbolicLoss;
+/// use scirs2_neural::losses::Loss;
 /// use scirs2_symbolic::eml::op::LoweredOp;
 /// use scirs2_core::ndarray::Array;
 /// use std::sync::Arc;

@@ -7,7 +7,7 @@
 
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::Float;
-use scirs2_core::ndarray::{Array2, Ix2};
+use scirs2_core::ndarray::{Array2, Ix1, Ix2};
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -269,6 +269,220 @@ impl<F: Float> Op<F> for QRExtractBackwardOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SVD backward op
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// f64 one-sided Jacobi reduced SVD: `A = U·diag(s)·Vᵀ`.
+///
+/// Returns `(U m×k, s len-k descending, Vt k×n)` with `k = min(m,n)`.
+/// Self-contained (no `FromPrimitive`/`ScalarOperand` bound) so it can be called
+/// from the `Float`-only gradient dispatch path.
+fn svd_jacobi_f64(a: &Array2<f64>) -> (Array2<f64>, Vec<f64>, Array2<f64>) {
+    let (m, n) = (a.nrows(), a.ncols());
+    let k = m.min(n);
+    let mut w = a.clone(); // working copy; columns become U·diag(s)
+    let mut v = Array2::<f64>::eye(n);
+
+    let max_sweeps = 60;
+    let eps = 1e-15;
+    for _ in 0..max_sweeps {
+        let mut converged = true;
+        for i in 0..n {
+            for j in (i + 1)..n {
+                // 2×2 sub-Gram entries on columns i, j.
+                let mut alpha = 0.0; // ‖w_i‖²
+                let mut beta = 0.0; // ‖w_j‖²
+                let mut gamma = 0.0; // w_iᵀ w_j
+                for r in 0..m {
+                    alpha += w[[r, i]] * w[[r, i]];
+                    beta += w[[r, j]] * w[[r, j]];
+                    gamma += w[[r, i]] * w[[r, j]];
+                }
+                if gamma.abs() <= eps * (alpha * beta).sqrt() {
+                    continue;
+                }
+                converged = false;
+                let zeta = (beta - alpha) / (2.0 * gamma);
+                let t = if zeta == 0.0 {
+                    1.0
+                } else {
+                    zeta.signum() / (zeta.abs() + (1.0 + zeta * zeta).sqrt())
+                };
+                let c = 1.0 / (1.0 + t * t).sqrt();
+                let s = c * t;
+                // Apply Jacobi rotation to columns i, j of w and v.
+                for r in 0..m {
+                    let wi = w[[r, i]];
+                    let wj = w[[r, j]];
+                    w[[r, i]] = c * wi - s * wj;
+                    w[[r, j]] = s * wi + c * wj;
+                }
+                for r in 0..n {
+                    let vi = v[[r, i]];
+                    let vj = v[[r, j]];
+                    v[[r, i]] = c * vi - s * vj;
+                    v[[r, j]] = s * vi + c * vj;
+                }
+            }
+        }
+        if converged {
+            break;
+        }
+    }
+
+    // Singular values = column norms of w; U columns = normalized w columns.
+    let mut sigma = vec![0.0_f64; n];
+    for jcol in 0..n {
+        let mut nrm = 0.0;
+        for r in 0..m {
+            nrm += w[[r, jcol]] * w[[r, jcol]];
+        }
+        sigma[jcol] = nrm.sqrt();
+    }
+    // Sort columns by descending singular value.
+    let mut idx: Vec<usize> = (0..n).collect();
+    idx.sort_by(|&ia, &ib| sigma[ib].total_cmp(&sigma[ia]));
+
+    let mut u = Array2::<f64>::zeros((m, k));
+    let mut s_out = vec![0.0_f64; k];
+    let mut vt = Array2::<f64>::zeros((k, n));
+    for (newc, &oldc) in idx.iter().take(k).enumerate() {
+        let sv = sigma[oldc];
+        s_out[newc] = sv;
+        if sv > 1e-300 {
+            for r in 0..m {
+                u[[r, newc]] = w[[r, oldc]] / sv;
+            }
+        }
+        for r in 0..n {
+            vt[[newc, r]] = v[[r, oldc]];
+        }
+    }
+    (u, s_out, vt)
+}
+
+/// Backward op for SVD component extraction.
+///
+/// `component`: 0 = U, 1 = singular values (S), 2 = Vᵀ.
+/// Inputs: `[original_input A, upstream_gradient dComponent]`.
+///
+/// Recomputes the reduced SVD of `A` in f64, places the upstream cotangent in
+/// the corresponding slot, and applies the exact reduced-SVD VJP
+/// ([`crate::tensor_ops::decomposition_backward::svd_backward`]).
+///
+/// Returns an honest `OpError` when the singular values are (near-)degenerate,
+/// because the `dU`/`dV` part of the VJP is then ill-defined — emitting a loud
+/// error instead of a fabricated gradient.
+pub(crate) struct SVDBackwardOp {
+    pub(crate) component: usize,
+}
+
+impl<F: Float> Op<F> for SVDBackwardOp {
+    fn name(&self) -> &'static str {
+        "SVDBackward"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a_input = ctx.input(0);
+        let dg_input = ctx.input(1);
+
+        let a_2d = a_input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("SVDBackward: A must be 2D".into()))?;
+
+        let (m, n) = (a_2d.nrows(), a_2d.ncols());
+        let k = m.min(n);
+
+        // Convert A to f64 and recompute the reduced SVD.
+        let mut a_f64 = Array2::<f64>::zeros((m, n));
+        for i in 0..m {
+            for j in 0..n {
+                a_f64[[i, j]] = a_2d[[i, j]].to_f64().unwrap_or(0.0);
+            }
+        }
+        let (u, s, vt) = svd_jacobi_f64(&a_f64);
+
+        // Degenerate singular values ⇒ dU/dV VJP undefined: raise honest error
+        // unless only the singular-value gradient (component 1) is requested,
+        // which remains well-defined under repeated singular values.
+        if self.component != 1
+            && crate::tensor_ops::decomposition_backward::svd_has_repeated_singular_values(&s)
+        {
+            return Err(OpError::Other(
+                "SVD backward: repeated/degenerate singular values make the U/V \
+                 gradient mathematically undefined; refusing to fabricate a gradient"
+                    .into(),
+            ));
+        }
+
+        // Build per-component cotangents (only the requested slot is nonzero).
+        let mut grad_u = Array2::<f64>::zeros((m, k));
+        let mut grad_s = vec![0.0_f64; k];
+        let mut grad_vt = Array2::<f64>::zeros((k, n));
+
+        match self.component {
+            0 => {
+                let dg = dg_input
+                    .view()
+                    .into_dimensionality::<Ix2>()
+                    .map_err(|_| OpError::IncompatibleShape("SVDBackward: dU must be 2D".into()))?;
+                for i in 0..m.min(dg.nrows()) {
+                    for j in 0..k.min(dg.ncols()) {
+                        grad_u[[i, j]] = dg[[i, j]].to_f64().unwrap_or(0.0);
+                    }
+                }
+            }
+            1 => {
+                // Singular-value gradient: dg is a length-k vector.
+                let dg = dg_input
+                    .view()
+                    .into_dimensionality::<Ix1>()
+                    .map_err(|_| OpError::IncompatibleShape("SVDBackward: dS must be 1D".into()))?;
+                for j in 0..k.min(dg.len()) {
+                    grad_s[j] = dg[j].to_f64().unwrap_or(0.0);
+                }
+            }
+            2 => {
+                let dg = dg_input.view().into_dimensionality::<Ix2>().map_err(|_| {
+                    OpError::IncompatibleShape("SVDBackward: dVt must be 2D".into())
+                })?;
+                for i in 0..k.min(dg.nrows()) {
+                    for j in 0..n.min(dg.ncols()) {
+                        grad_vt[[i, j]] = dg[[i, j]].to_f64().unwrap_or(0.0);
+                    }
+                }
+            }
+            _ => {
+                return Err(OpError::IncompatibleShape(
+                    "SVDBackward: invalid component".into(),
+                ))
+            }
+        }
+
+        let da_f64 = crate::tensor_ops::decomposition_backward::svd_backward(
+            &u, &s, &vt, &grad_u, &grad_s, &grad_vt,
+        );
+
+        // Convert dA back to F.
+        let mut da = Array2::<F>::zeros((m, n));
+        for i in 0..m {
+            for j in 0..n {
+                da[[i, j]] = F::from(da_f64[[i, j]]).unwrap_or_else(F::zero);
+            }
+        }
+        ctx.append_output(da.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Second-order gradient unsupported.
         ctx.append_input_grad(0, None);
         ctx.append_input_grad(1, None);
     }

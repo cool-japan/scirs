@@ -222,88 +222,54 @@ impl CloudProvider {
         _local_path: P,
         _remote_path: &str,
     ) -> Result<()> {
-        #[cfg(feature = "aws-sdk-s3")]
-        {
-            // Implementation with AWS SDK would go here
-            // For now, return a placeholder implementation
-            Ok(())
-        }
-        #[cfg(not(feature = "aws-sdk-s3"))]
-        Err(IoError::ConfigError(
-            "AWS S3 support requires 'aws-sdk-s3' feature".to_string(),
+        // The `aws-sdk-s3` feature flag does not yet pull in or wire up a real
+        // AWS SDK client, so there is no implementation that can actually upload
+        // an object. Returning Ok here would silently pretend the upload
+        // happened; instead surface an honest error.
+        let _ = (_config, _local_path, _remote_path);
+        Err(IoError::Other(
+            "AWS S3 upload is not implemented: no AWS SDK client is integrated".to_string(),
         ))
     }
 
     async fn s3_download<P: AsRef<Path>>(
         &self,
         _config: &S3Config,
-        _path: &str,
+        path: &str,
         _local_path: P,
     ) -> Result<()> {
-        #[cfg(feature = "aws-sdk-s3")]
-        {
-            // Implementation with AWS SDK would go here
-            Ok(())
-        }
-        #[cfg(not(feature = "aws-sdk-s3"))]
-        Err(IoError::ConfigError(
-            "AWS S3 support requires 'aws-sdk-s3' feature".to_string(),
-        ))
+        let _ = (_config, _local_path);
+        Err(IoError::Other(format!(
+            "AWS S3 download of '{path}' is not implemented: no AWS SDK client is integrated"
+        )))
     }
 
     async fn s3_list(_config: &S3Config, path: &str) -> Result<Vec<String>> {
-        #[cfg(feature = "aws-sdk-s3")]
-        {
-            // Implementation with AWS SDK would go here
-            Ok(vec![])
-        }
-        #[cfg(not(feature = "aws-sdk-s3"))]
-        Err(IoError::ConfigError(
-            "AWS S3 support requires 'aws-sdk-s3' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "AWS S3 listing of '{path}' is not implemented: no AWS SDK client is integrated"
+        )))
     }
 
     async fn s3_exists(_config: &S3Config, path: &str) -> Result<bool> {
-        #[cfg(feature = "aws-sdk-s3")]
-        {
-            // Implementation with AWS SDK would go here
-            Ok(false)
-        }
-        #[cfg(not(feature = "aws-sdk-s3"))]
-        Err(IoError::ConfigError(
-            "AWS S3 support requires 'aws-sdk-s3' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "AWS S3 existence check for '{path}' is not implemented: no AWS SDK client is integrated"
+        )))
     }
 
     async fn s3_metadata(_config: &S3Config, path: &str) -> Result<FileMetadata> {
-        #[cfg(feature = "aws-sdk-s3")]
-        {
-            // Implementation with AWS SDK would go here
-            Ok(FileMetadata {
-                name: path.to_string(),
-                size: 0,
-                last_modified: SystemTime::now(),
-                content_type: None,
-                etag: None,
-                metadata: HashMap::new(),
-            })
-        }
-        #[cfg(not(feature = "aws-sdk-s3"))]
-        Err(IoError::ConfigError(
-            "AWS S3 support requires 'aws-sdk-s3' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "AWS S3 metadata for '{path}' is not implemented: no AWS SDK client is integrated"
+        )))
     }
 
     async fn s3_delete(_config: &S3Config, path: &str) -> Result<()> {
-        #[cfg(feature = "aws-sdk-s3")]
-        {
-            // Implementation with AWS SDK would go here
-            Ok(())
-        }
-        #[cfg(not(feature = "aws-sdk-s3"))]
-        Err(IoError::ConfigError(
-            "AWS S3 support requires 'aws-sdk-s3' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "AWS S3 deletion of '{path}' is not implemented: no AWS SDK client is integrated"
+        )))
     }
 
     // Google Cloud Storage implementations
@@ -313,87 +279,54 @@ impl CloudProvider {
         _local_path: P,
         _remote_path: &str,
     ) -> Result<()> {
-        #[cfg(feature = "google-cloud-storage")]
-        {
-            // Implementation with GCS SDK would go here
-            Ok(())
-        }
-        #[cfg(not(feature = "google-cloud-storage"))]
-        Err(IoError::ConfigError(
-            "Google Cloud Storage support requires 'google-cloud-storage' feature".to_string(),
+        // The `google-cloud-storage` feature flag does not pull in or wire up a
+        // real GCS client, so no upload can actually be performed. Surface an
+        // honest error rather than silently pretending success.
+        let _ = (_config, _local_path, _remote_path);
+        Err(IoError::Other(
+            "Google Cloud Storage upload is not implemented: no GCS client is integrated"
+                .to_string(),
         ))
     }
 
     async fn gcs_download<P: AsRef<Path>>(
         &self,
         _config: &GcsConfig,
-        _path: &str,
+        path: &str,
         _local_path: P,
     ) -> Result<()> {
-        #[cfg(feature = "google-cloud-storage")]
-        {
-            // Implementation with GCS SDK would go here
-            Ok(())
-        }
-        #[cfg(not(feature = "google-cloud-storage"))]
-        Err(IoError::ConfigError(
-            "Google Cloud Storage support requires 'google-cloud-storage' feature".to_string(),
-        ))
+        let _ = (_config, _local_path);
+        Err(IoError::Other(format!(
+            "Google Cloud Storage download of '{path}' is not implemented: no GCS client is integrated"
+        )))
     }
 
     async fn gcs_list(_config: &GcsConfig, path: &str) -> Result<Vec<String>> {
-        #[cfg(feature = "google-cloud-storage")]
-        {
-            // Implementation with GCS SDK would go here
-            Ok(vec![])
-        }
-        #[cfg(not(feature = "google-cloud-storage"))]
-        Err(IoError::ConfigError(
-            "Google Cloud Storage support requires 'google-cloud-storage' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "Google Cloud Storage listing of '{path}' is not implemented: no GCS client is integrated"
+        )))
     }
 
     async fn gcs_exists(_config: &GcsConfig, path: &str) -> Result<bool> {
-        #[cfg(feature = "google-cloud-storage")]
-        {
-            // Implementation with GCS SDK would go here
-            Ok(false)
-        }
-        #[cfg(not(feature = "google-cloud-storage"))]
-        Err(IoError::ConfigError(
-            "Google Cloud Storage support requires 'google-cloud-storage' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "Google Cloud Storage existence check for '{path}' is not implemented: no GCS client is integrated"
+        )))
     }
 
     async fn gcs_metadata(_config: &GcsConfig, path: &str) -> Result<FileMetadata> {
-        #[cfg(feature = "google-cloud-storage")]
-        {
-            // Implementation with GCS SDK would go here
-            Ok(FileMetadata {
-                name: path.to_string(),
-                size: 0,
-                last_modified: SystemTime::now(),
-                content_type: None,
-                etag: None,
-                metadata: HashMap::new(),
-            })
-        }
-        #[cfg(not(feature = "google-cloud-storage"))]
-        Err(IoError::ConfigError(
-            "Google Cloud Storage support requires 'google-cloud-storage' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "Google Cloud Storage metadata for '{path}' is not implemented: no GCS client is integrated"
+        )))
     }
 
     async fn gcs_delete(_config: &GcsConfig, path: &str) -> Result<()> {
-        #[cfg(feature = "google-cloud-storage")]
-        {
-            // Implementation with GCS SDK would go here
-            Ok(())
-        }
-        #[cfg(not(feature = "google-cloud-storage"))]
-        Err(IoError::ConfigError(
-            "Google Cloud Storage support requires 'google-cloud-storage' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "Google Cloud Storage deletion of '{path}' is not implemented: no GCS client is integrated"
+        )))
     }
 
     // Azure Blob Storage implementations
@@ -403,87 +336,54 @@ impl CloudProvider {
         _local_path: P,
         _remote_path: &str,
     ) -> Result<()> {
-        #[cfg(feature = "azure-storage-blobs")]
-        {
-            // Implementation with Azure SDK would go here
-            Ok(())
-        }
-        #[cfg(not(feature = "azure-storage-blobs"))]
-        Err(IoError::ConfigError(
-            "Azure Blob Storage support requires 'azure-storage-blobs' feature".to_string(),
+        // The `azure-storage-blobs` feature flag does not pull in or wire up a
+        // real Azure client, so no upload can actually be performed. Surface an
+        // honest error rather than silently pretending success.
+        let _ = (_config, _local_path, _remote_path);
+        Err(IoError::Other(
+            "Azure Blob Storage upload is not implemented: no Azure client is integrated"
+                .to_string(),
         ))
     }
 
     async fn azure_download<P: AsRef<Path>>(
         &self,
         _config: &AzureConfig,
-        _path: &str,
+        path: &str,
         _local_path: P,
     ) -> Result<()> {
-        #[cfg(feature = "azure-storage-blobs")]
-        {
-            // Implementation with Azure SDK would go here
-            Ok(())
-        }
-        #[cfg(not(feature = "azure-storage-blobs"))]
-        Err(IoError::ConfigError(
-            "Azure Blob Storage support requires 'azure-storage-blobs' feature".to_string(),
-        ))
+        let _ = (_config, _local_path);
+        Err(IoError::Other(format!(
+            "Azure Blob Storage download of '{path}' is not implemented: no Azure client is integrated"
+        )))
     }
 
     async fn azure_list(_config: &AzureConfig, path: &str) -> Result<Vec<String>> {
-        #[cfg(feature = "azure-storage-blobs")]
-        {
-            // Implementation with Azure SDK would go here
-            Ok(vec![])
-        }
-        #[cfg(not(feature = "azure-storage-blobs"))]
-        Err(IoError::ConfigError(
-            "Azure Blob Storage support requires 'azure-storage-blobs' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "Azure Blob Storage listing of '{path}' is not implemented: no Azure client is integrated"
+        )))
     }
 
     async fn azure_exists(_config: &AzureConfig, path: &str) -> Result<bool> {
-        #[cfg(feature = "azure-storage-blobs")]
-        {
-            // Implementation with Azure SDK would go here
-            Ok(false)
-        }
-        #[cfg(not(feature = "azure-storage-blobs"))]
-        Err(IoError::ConfigError(
-            "Azure Blob Storage support requires 'azure-storage-blobs' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "Azure Blob Storage existence check for '{path}' is not implemented: no Azure client is integrated"
+        )))
     }
 
     async fn azure_metadata(_config: &AzureConfig, path: &str) -> Result<FileMetadata> {
-        #[cfg(feature = "azure-storage-blobs")]
-        {
-            // Implementation with Azure SDK would go here
-            Ok(FileMetadata {
-                name: path.to_string(),
-                size: 0,
-                last_modified: SystemTime::now(),
-                content_type: None,
-                etag: None,
-                metadata: HashMap::new(),
-            })
-        }
-        #[cfg(not(feature = "azure-storage-blobs"))]
-        Err(IoError::ConfigError(
-            "Azure Blob Storage support requires 'azure-storage-blobs' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "Azure Blob Storage metadata for '{path}' is not implemented: no Azure client is integrated"
+        )))
     }
 
     async fn azure_delete(_config: &AzureConfig, path: &str) -> Result<()> {
-        #[cfg(feature = "azure-storage-blobs")]
-        {
-            // Implementation with Azure SDK would go here
-            Ok(())
-        }
-        #[cfg(not(feature = "azure-storage-blobs"))]
-        Err(IoError::ConfigError(
-            "Azure Blob Storage support requires 'azure-storage-blobs' feature".to_string(),
-        ))
+        let _ = _config;
+        Err(IoError::Other(format!(
+            "Azure Blob Storage deletion of '{path}' is not implemented: no Azure client is integrated"
+        )))
     }
 }
 
@@ -581,7 +481,7 @@ pub fn generate_signed_url(
     let mut hasher = Sha256::new();
     hasher.update(path.as_bytes());
     hasher.update(timestamp.to_string().as_bytes());
-    let signature = hex::encode(hasher.finalize());
+    let signature = crate::encoding_utils::hex_encode(hasher.finalize());
     let short_sig = &signature[0..16]; // Use first 16 chars
 
     let signed_url = match provider {

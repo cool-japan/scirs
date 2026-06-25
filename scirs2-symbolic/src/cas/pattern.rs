@@ -21,7 +21,7 @@
 #![warn(missing_docs)]
 
 use crate::eml::LoweredOp;
-use hashbrown::HashMap;
+use std::collections::HashMap;
 
 /// Binding map: wildcard index → matched subexpression.
 pub type Bindings = HashMap<u32, LoweredOp>;

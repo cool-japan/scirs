@@ -251,7 +251,7 @@ where
 
         // Compute constraint violation and optimality
         let constraint_violation = state.compute_constraint_violation(&c_eq, &c_ineq);
-        let optimality = compute_optimality(&fun, &x, &c_eq, &c_ineq, &state);
+        let optimality = compute_optimality(&fun, &x, &eq_constraints, &ineq_constraints, &state);
 
         // Check convergence
         if constraint_violation < options.constraint_tol && optimality < options.optimality_tol {
@@ -285,7 +285,7 @@ where
     let c_eq = eq_constraints.as_ref().map(|f| f(&x.view()));
     let c_ineq = ineq_constraints.as_ref().map(|f| f(&x.view()));
     let final_violation = state.compute_constraint_violation(&c_eq, &c_ineq);
-    let final_optimality = compute_optimality(&fun, &x, &c_eq, &c_ineq, &state);
+    let final_optimality = compute_optimality(&fun, &x, &eq_constraints, &ineq_constraints, &state);
 
     let final_fun = fun(&x.view());
     Ok(AugmentedLagrangianResult {
@@ -346,33 +346,74 @@ where
     }
 }
 
-/// Compute optimality measure  
+/// Compute the first-order (KKT stationarity) optimality measure.
+///
+/// Returns the norm of the gradient of the Lagrangian
+/// `L(x, lambda) = f(x) + lambda_eq . c_eq(x) + lambda_ineq . c_ineq(x)`
+/// evaluated with the current Lagrange-multiplier estimates. The objective and
+/// constraint Jacobians are approximated by forward finite differences.
+///
+/// Together with the constraint violation this forms the standard augmented
+/// Lagrangian convergence test: at a KKT point the constraints are satisfied
+/// (so the multiplier estimates have stabilized at their optimal values) and
+/// the Lagrangian gradient vanishes. Inactive inequality constraints carry a
+/// zero multiplier (enforced by the projected multiplier update), so they drop
+/// out of the sum and complementary slackness is respected.
 #[allow(dead_code)]
-fn compute_optimality<F>(
+fn compute_optimality<F, EqCon, IneqCon>(
     fun: &F,
     x: &Array1<f64>,
-    _c_eq: &Option<Array1<f64>>,
-    _c_ineq: &Option<Array1<f64>>,
-    _state: &AugmentedLagrangianState,
+    eq_constraints: &Option<EqCon>,
+    ineq_constraints: &Option<IneqCon>,
+    state: &AugmentedLagrangianState,
 ) -> f64
 where
     F: Fn(&ArrayView1<f64>) -> f64,
+    EqCon: Fn(&ArrayView1<f64>) -> Array1<f64>,
+    IneqCon: Fn(&ArrayView1<f64>) -> Array1<f64>,
 {
-    // Compute finite difference gradient of objective
+    let n = x.len();
     let eps = 1e-8;
-    let mut grad = Array1::zeros(x.len());
-    let f0 = fun(&x.view());
 
-    for i in 0..x.len() {
+    // Gradient of the objective via forward finite differences.
+    let mut grad: Array1<f64> = Array1::zeros(n);
+    let f0 = fun(&x.view());
+    for i in 0..n {
         let mut x_plus = x.clone();
         x_plus[i] += eps;
-        let f_plus = fun(&x_plus.view());
-        grad[i] = (f_plus - f0) / eps;
+        grad[i] = (fun(&x_plus.view()) - f0) / eps;
     }
 
-    // For now, just return the norm of the objective gradient
-    // In practice, we would need to include constraint gradient contributions
-    grad.mapv(|x| x.abs()).sum()
+    // Add equality-constraint contributions: sum_i lambda_eq[i] * grad(c_eq_i).
+    if let (Some(eq_con), Some(lambda_eq)) = (eq_constraints, state.lambda_eq.as_ref()) {
+        let c0 = eq_con(&x.view());
+        for j in 0..n {
+            let mut x_plus = x.clone();
+            x_plus[j] += eps;
+            let c_plus = eq_con(&x_plus.view());
+            for i in 0..lambda_eq.len() {
+                let dci_dxj = (c_plus[i] - c0[i]) / eps;
+                grad[j] += lambda_eq[i] * dci_dxj;
+            }
+        }
+    }
+
+    // Add inequality-constraint contributions: sum_i lambda_ineq[i] * grad(c_ineq_i).
+    if let (Some(ineq_con), Some(lambda_ineq)) = (ineq_constraints, state.lambda_ineq.as_ref()) {
+        let c0 = ineq_con(&x.view());
+        for j in 0..n {
+            let mut x_plus = x.clone();
+            x_plus[j] += eps;
+            let c_plus = ineq_con(&x_plus.view());
+            for i in 0..lambda_ineq.len() {
+                let dci_dxj = (c_plus[i] - c0[i]) / eps;
+                grad[j] += lambda_ineq[i] * dci_dxj;
+            }
+        }
+    }
+
+    // First-order optimality measure: L1 norm of the Lagrangian gradient.
+    grad.mapv(|g| g.abs()).sum()
 }
 
 /// Minimize with equality constraints only

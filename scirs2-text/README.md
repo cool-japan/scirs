@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-text.svg)](https://crates.io/crates/scirs2-text)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-text)](https://docs.rs/scirs2-text)
-[![Version](https://img.shields.io/badge/version-0.5.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
 
 Comprehensive natural language processing and text processing library for the SciRS2 scientific computing ecosystem. Provides tokenization, vectorization, word embeddings, NER, CRF sequence labelling, BPE, dependency parsing, topic modeling, summarization, question answering, knowledge graph extraction, and much more — all in pure, safe Rust with parallel processing. v0.5.0 features include the `TransformerTextEncoder` (multi-head self-attention + sinusoidal positional encoding), `BertClassifier` (frozen-encoder fine-tuning with SGD head), `NeuralNer` (BIO-9 tagging with token-level F1), the Hierarchical Dirichlet Process Chinese Restaurant Franchise Gibbs sampler, the `UniversalSentenceEncoder` with six pooling strategies, and a language-agnostic Unicode tokenizer.
 
@@ -120,7 +120,7 @@ Comprehensive natural language processing and text processing library for the Sc
 
 ```toml
 [dependencies]
-scirs2-text = "0.5.0"
+scirs2-text = "0.5.1"
 ```
 
 ## Quick Start

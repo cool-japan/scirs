@@ -93,12 +93,12 @@ pub fn calculate_checksum(data: &[u8], algorithm: ChecksumAlgorithm) -> String {
         ChecksumAlgorithm::SHA256 => {
             let mut hasher = Sha256::new();
             hasher.update(data);
-            hex::encode(hasher.finalize())
+            crate::encoding_utils::hex_encode(hasher.finalize())
         }
         ChecksumAlgorithm::BLAKE3 => {
             let mut hasher = Blake3Hasher::new();
             hasher.update(data);
-            hex::encode(hasher.finalize().as_bytes())
+            crate::encoding_utils::hex_encode(hasher.finalize().as_bytes())
         }
     }
 }
@@ -156,7 +156,7 @@ pub fn calculate_file_checksum<P: AsRef<Path>>(
                 hasher.update(&buffer[..bytes_read]);
             }
 
-            Ok(hex::encode(hasher.finalize()))
+            Ok(crate::encoding_utils::hex_encode(hasher.finalize()))
         }
         ChecksumAlgorithm::BLAKE3 => {
             let mut hasher = Blake3Hasher::new();
@@ -174,7 +174,9 @@ pub fn calculate_file_checksum<P: AsRef<Path>>(
                 hasher.update(&buffer[..bytes_read]);
             }
 
-            Ok(hex::encode(hasher.finalize().as_bytes()))
+            Ok(crate::encoding_utils::hex_encode(
+                hasher.finalize().as_bytes(),
+            ))
         }
     }
 }

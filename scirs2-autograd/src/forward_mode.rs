@@ -63,7 +63,7 @@
 //! assert!((h[[1, 1]] - 4.0).abs() < 1e-10);
 //! ```
 
-use num::Float as NumFloat;
+use num_traits::Float as NumFloat;
 use scirs2_core::ndarray::{Array1, Array2};
 use std::fmt;
 use std::ops::{Add, Div, Mul, Neg, Sub};

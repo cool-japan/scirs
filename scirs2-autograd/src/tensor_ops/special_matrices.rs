@@ -286,11 +286,6 @@ impl<F: Float> Op<F> for LowerTriangularOp {
         let input = ctx.input(0);
         let shape = input.shape();
 
-        println!(
-            "Computing lower triangular with diagonal={}, input shape: {:?}",
-            self.diagonal, shape
-        );
-
         if shape.len() != 2 {
             return Err(OpError::Other(
                 "Lower triangular extraction requires 2D matrix".into(),
@@ -306,8 +301,6 @@ impl<F: Float> Op<F> for LowerTriangularOp {
         let mut lower = matrix.to_owned();
         let (rows, cols) = (lower.shape()[0], lower.shape()[1]);
 
-        println!("Processing lower triangular matrix: {rows} rows x {cols} columns");
-
         // Zero out elements above the specified diagonal
         for i in 0..rows {
             for j in 0..cols {
@@ -316,9 +309,6 @@ impl<F: Float> Op<F> for LowerTriangularOp {
                 }
             }
         }
-
-        // Verify the output shape
-        println!("Lower triangular result shape: {:?}", lower.shape());
 
         ctx.append_output(lower.into_dyn());
         Ok(())
@@ -379,11 +369,6 @@ impl<F: Float> Op<F> for UpperTriangularOp {
         let input = ctx.input(0);
         let shape = input.shape();
 
-        println!(
-            "Computing upper triangular with diagonal={}, input shape: {:?}",
-            self.diagonal, shape
-        );
-
         if shape.len() != 2 {
             return Err(OpError::Other(
                 "Upper triangular extraction requires 2D matrix".into(),
@@ -399,8 +384,6 @@ impl<F: Float> Op<F> for UpperTriangularOp {
         let mut upper = matrix.to_owned();
         let (rows, cols) = (upper.shape()[0], upper.shape()[1]);
 
-        println!("Processing upper triangular matrix: {rows} rows x {cols} columns");
-
         // Zero out elements below the specified diagonal
         for i in 0..rows {
             for j in 0..cols {
@@ -409,9 +392,6 @@ impl<F: Float> Op<F> for UpperTriangularOp {
                 }
             }
         }
-
-        // Verify the output shape
-        println!("Upper triangular result shape: {:?}", upper.shape());
 
         ctx.append_output(upper.into_dyn());
         Ok(())
@@ -473,11 +453,6 @@ impl<F: Float> Op<F> for BandMatrixOp {
         let input = ctx.input(0);
         let shape = input.shape();
 
-        println!(
-            "Computing band matrix with lower={}, upper={}, input shape: {:?}",
-            self.lower, self.upper, shape
-        );
-
         if shape.len() != 2 {
             return Err(OpError::Other(
                 "Band matrix extraction requires 2D matrix".into(),
@@ -493,8 +468,6 @@ impl<F: Float> Op<F> for BandMatrixOp {
         let mut band = matrix.to_owned();
         let (rows, cols) = (band.shape()[0], band.shape()[1]);
 
-        println!("Processing band matrix: {rows} rows x {cols} columns");
-
         // Zero out elements outside the band
         for i in 0..rows {
             for j in 0..cols {
@@ -504,9 +477,6 @@ impl<F: Float> Op<F> for BandMatrixOp {
                 }
             }
         }
-
-        // Verify the output shape
-        println!("Band matrix result shape: {:?}", band.shape());
 
         ctx.append_output(band.into_dyn());
         Ok(())

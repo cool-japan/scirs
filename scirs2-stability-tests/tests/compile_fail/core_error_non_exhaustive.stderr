@@ -1,18 +1,18 @@
 error[E0004]: non-exhaustive patterns: `_` not covered
- --> tests/compile_fail/core_error_non_exhaustive.rs:6:11
-  |
-6 |     match e {
-  |           ^ pattern `_` not covered
-  |
+  --> tests/compile_fail/core_error_non_exhaustive.rs:27:11
+   |
+27 |     match e {
+   |           ^ pattern `_` not covered
+   |
 note: `CoreError` defined here
- --> $WORKSPACE/scirs2-core/src/error/error.rs
-  |
-  | pub enum CoreError {
-  | ^^^^^^^^^^^^^^^^^^
-  = note: the matched value is of type `CoreError`
-  = note: `CoreError` is marked as non-exhaustive, so a wildcard `_` is necessary to match exhaustively
+  --> $WORKSPACE/scirs2-core/src/error/error.rs
+   |
+   | pub enum CoreError {
+   | ^^^^^^^^^^^^^^^^^^
+   = note: the matched value is of type `CoreError`
+   = note: `CoreError` is marked as non-exhaustive, so a wildcard `_` is necessary to match exhaustively
 help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
-  |
-8 ~         CoreError::DomainError(_) => {},
-9 +         _ => todo!()
-  |
+   |
+61 ~         CoreError::SecurityError(_) => {},
+62 +         _ => todo!()
+   |

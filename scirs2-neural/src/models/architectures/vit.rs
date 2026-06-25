@@ -116,7 +116,29 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
     for TransformerMlp<F>
 {
     fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
-        let mut x = self.dense1.forward(input)?;
+        // The Dense layers operate on 2D `[rows, features]` tensors. For the
+        // 3D `[batch, seq, embed]` activations produced by the encoder, flatten
+        // the leading axes to `[batch * seq, embed]`, apply the MLP, then
+        // restore the original shape.
+        let original_shape = input.shape().to_vec();
+        let needs_flatten = original_shape.len() > 2;
+        let feature_dim = *original_shape
+            .last()
+            .ok_or_else(|| NeuralError::InferenceError("Empty MLP input shape".to_string()))?;
+
+        let input_2d = if needs_flatten {
+            let rows: usize = original_shape[..original_shape.len() - 1].iter().product();
+            input
+                .clone()
+                .into_shape_with_order(IxDyn(&[rows, feature_dim]))
+                .map_err(|e| {
+                    NeuralError::InferenceError(format!("Failed to flatten MLP input: {e}"))
+                })?
+        } else {
+            input.clone()
+        };
+
+        let mut x = self.dense1.forward(&input_2d)?;
         // Apply GELU activation inline
         x = x.mapv(|v| {
             // GELU approximation: x * 0.5 * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
@@ -127,6 +149,14 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
                         .tanh())
         });
         x = self.dense2.forward(&x)?;
+
+        if needs_flatten {
+            x = x
+                .into_shape_with_order(IxDyn(&original_shape))
+                .map_err(|e| {
+                    NeuralError::InferenceError(format!("Failed to restore MLP output shape: {e}"))
+                })?;
+        }
         Ok(x)
     }
 

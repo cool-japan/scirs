@@ -621,17 +621,34 @@ impl<F: Float + SimdUnifiedOps + Send + Sync + std::iter::Sum> QuantumMetricsCom
             }
             let classical_time = start.elapsed();
 
-            // Benchmark quantum correlation
+            // Benchmark quantum correlation. Capture the gate count applied so
+            // a real, model-based fidelity can be derived from the noise model
+            // rather than reported as a fixed constant.
+            let depth_before = self.quantum_processor.circuit_depth;
             let start = Instant::now();
             for _ in 0..iterations {
                 let _ = self.quantum_correlation(&test_data_x.view(), &test_data_y.view())?;
             }
             let quantum_time = start.elapsed();
+            let depth_after = self.quantum_processor.circuit_depth;
 
             // Calculate speedup
             let speedup = classical_time.as_nanos() as f64 / quantum_time.as_nanos() as f64;
 
-            results.add_measurement(size, classical_time, quantum_time, speedup);
+            // Estimate the fidelity of a single circuit execution from the
+            // average number of gates applied per iteration.
+            let gates_per_circuit = depth_after.saturating_sub(depth_before) / iterations.max(1);
+            let quantum_fidelity = self
+                .quantum_processor
+                .estimated_fidelity_for_depth(gates_per_circuit);
+
+            results.add_measurement(
+                size,
+                classical_time,
+                quantum_time,
+                speedup,
+                quantum_fidelity,
+            );
         }
 
         Ok(results)
@@ -1228,6 +1245,10 @@ pub struct BenchmarkMeasurement {
     pub classical_time: Duration,
     pub quantum_time: Duration,
     pub speedup: f64,
+    /// Model-based estimate of the quantum circuit fidelity for this run,
+    /// computed from the simulation's noise model and executed circuit depth
+    /// (`(1 - single_qubit_error_rate)^gate_count`). Not a measured device
+    /// fidelity; equals 1.0 when no quantum gates were executed.
     pub quantum_fidelity: f64,
 }
 
@@ -1247,13 +1268,16 @@ impl QuantumBenchmarkResults {
         classical_time: Duration,
         quantum_time: Duration,
         speedup: f64,
+        quantum_fidelity: f64,
     ) {
         let measurement = BenchmarkMeasurement {
             data_size: size,
             classical_time,
             quantum_time,
             speedup,
-            quantum_fidelity: 0.99, // Simulated fidelity
+            // Model-based fidelity derived from the noise model and the circuit
+            // depth actually executed (see `estimated_fidelity_for_depth`).
+            quantum_fidelity,
         };
 
         self.measurements.push(measurement);
@@ -1288,6 +1312,20 @@ impl<F: Float> QuantumProcessor<F> {
             noise_model: NoiseModel::default(),
             measurement_cache: HashMap::new(),
         })
+    }
+
+    /// Estimate the state fidelity of a circuit with `gate_count` gates under
+    /// this processor's noise model.
+    ///
+    /// The overall fidelity is modeled as the product of the per-gate
+    /// fidelities, `(1 - single_qubit_error_rate)^gate_count`, derived from the
+    /// simulation's own noise parameters. A circuit with no quantum gates
+    /// (`gate_count == 0`, e.g. when the classical fallback was taken) has a
+    /// fidelity of 1.0 because no noisy operation was applied. This is a
+    /// model-based estimate, not a measured device fidelity.
+    fn estimated_fidelity_for_depth(&self, gate_count: usize) -> f64 {
+        let per_gate_fidelity = (1.0 - self.noise_model.single_qubit_error_rate).clamp(0.0, 1.0);
+        per_gate_fidelity.powf(gate_count as f64)
     }
 
     fn apply_qft(&mut self, numqubits: usize) -> Result<()> {
@@ -1754,17 +1792,21 @@ mod tests {
     fn test_quantum_benchmark_results() {
         let mut results = QuantumBenchmarkResults::new();
 
+        // Fidelity values here are explicit test inputs exercising the
+        // aggregation bookkeeping, not computed results.
         results.add_measurement(
             100,
             Duration::from_millis(10),
             Duration::from_millis(5),
             2.0,
+            1.0,
         );
         results.add_measurement(
             200,
             Duration::from_millis(20),
             Duration::from_millis(8),
             2.5,
+            1.0,
         );
 
         assert_eq!(results.measurements.len(), 2);

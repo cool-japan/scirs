@@ -430,7 +430,6 @@ enum StatOperation {
     Mean,
     Variance(usize), // ddof
     Quantile(f64),
-    #[allow(dead_code)]
     StandardScaling,
 }
 
@@ -461,16 +460,30 @@ impl<F: Float + NumCast + std::iter::Sum + std::fmt::Display> LazyStatComputatio
         self
     }
 
+    /// Add z-score (standard) scaling of the underlying data.
+    ///
+    /// When evaluated by [`compute`](Self::compute), this appends one value per
+    /// input element: `(x_i - mean) / std`, using the sample standard
+    /// deviation (`ddof = 1`). Because this operation expands to `data.len()`
+    /// outputs rather than a single scalar, prefer placing it last (or using a
+    /// dedicated computation) when mixing it with scalar reductions.
+    pub fn standard_scaling(mut self) -> Self {
+        self.operations.push(StatOperation::StandardScaling);
+        self
+    }
+
     /// Execute all operations efficiently
     pub fn compute(&self) -> StatsResult<Vec<F>> {
         let mut results = Vec::new();
         let data = &*self.data_ref;
 
         // Check which operations we need
-        let need_mean = self
-            .operations
-            .iter()
-            .any(|op| matches!(op, StatOperation::Mean | StatOperation::Variance(_)));
+        let need_mean = self.operations.iter().any(|op| {
+            matches!(
+                op,
+                StatOperation::Mean | StatOperation::Variance(_) | StatOperation::StandardScaling
+            )
+        });
         let need_sorted = self
             .operations
             .iter()
@@ -528,9 +541,32 @@ impl<F: Float + NumCast + std::iter::Sum + std::fmt::Display> LazyStatComputatio
                     results.push(result);
                 }
                 StatOperation::StandardScaling => {
-                    // This would require returning transformed data
-                    // For now, just return a placeholder
-                    results.push(F::one());
+                    // Z-score standardization: (x_i - mean) / std, with the
+                    // sample standard deviation (ddof = 1). Emits one value per
+                    // input element.
+                    if data.len() < 2 {
+                        return Err(StatsError::invalid_argument(
+                            "standard scaling requires at least 2 data points",
+                        ));
+                    }
+                    let m = mean.expect("mean is computed when standard scaling is requested");
+                    let var = data
+                        .iter()
+                        .map(|&x| {
+                            let diff = x - m;
+                            diff * diff
+                        })
+                        .sum::<F>()
+                        / F::from(data.len() - 1).expect("Operation failed");
+                    let std = var.sqrt();
+                    if std <= F::zero() {
+                        return Err(StatsError::invalid_argument(
+                            "standard scaling is undefined for data with zero variance",
+                        ));
+                    }
+                    for &x in data.iter() {
+                        results.push((x - m) / std);
+                    }
                 }
             }
         }
@@ -704,6 +740,44 @@ mod tests {
         assert_relative_eq!(results[0], 3.0, epsilon = 1e-10); // mean
         assert_relative_eq!(results[1], 2.5, epsilon = 1e-10); // variance
         assert_relative_eq!(results[2], 3.0, epsilon = 1e-10); // median
+    }
+
+    #[test]
+    fn test_lazy_standard_scaling() {
+        // mean = 3, sample std (ddof=1) = sqrt(2.5) ≈ 1.5811388.
+        let data = vec![1.0_f64, 2.0, 3.0, 4.0, 5.0];
+        let results = LazyStatComputation::new(data)
+            .standard_scaling()
+            .compute()
+            .expect("standard scaling should succeed");
+
+        // One standardized value per input element.
+        assert_eq!(results.len(), 5);
+
+        let std = 2.5_f64.sqrt();
+        let expected = [-2.0 / std, -1.0 / std, 0.0, 1.0 / std, 2.0 / std];
+        for (got, want) in results.iter().zip(expected.iter()) {
+            assert_relative_eq!(*got, *want, epsilon = 1e-10);
+        }
+
+        // The standardized data must itself have (approximately) zero mean and
+        // unit sample variance.
+        let m = results.iter().sum::<f64>() / results.len() as f64;
+        assert_relative_eq!(m, 0.0, epsilon = 1e-10);
+        let var =
+            results.iter().map(|x| (x - m) * (x - m)).sum::<f64>() / (results.len() - 1) as f64;
+        assert_relative_eq!(var, 1.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_lazy_standard_scaling_zero_variance_errors() {
+        // Constant data has zero variance: standardization is undefined and
+        // must return an honest error rather than a fabricated value.
+        let data = vec![7.0_f64, 7.0, 7.0, 7.0];
+        assert!(LazyStatComputation::new(data)
+            .standard_scaling()
+            .compute()
+            .is_err());
     }
 
     #[test]

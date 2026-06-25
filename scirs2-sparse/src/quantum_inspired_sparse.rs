@@ -709,7 +709,17 @@ impl QuantumSparseProcessor {
     fn calculate_processing_energy(&self, order: &[usize], indptr: &[usize]) -> f64 {
         let mut energy = 0.0;
         let mut _cache_hits = 0;
-        let cache_size = 64; // Simulated cache size
+        // Row-cache budget for the processing-order energy heuristic.
+        //
+        // This is a modeled (not hardware-emulated) capacity expressing how many
+        // recently-touched rows are assumed to remain "warm" between accesses.
+        // It is derived from a conservative L1 data-cache footprint: a typical
+        // 32 KiB L1d cache with 64-byte lines holds ~512 lines, and we reserve a
+        // fraction of that for row-index/metadata reuse, yielding a documented
+        // default of 64 rows. The heuristic only affects the *ordering* search;
+        // the SpMV result it guards is computed exactly regardless of this value.
+        const ROW_CACHE_BUDGET: usize = 64;
+        let cache_size = ROW_CACHE_BUDGET;
         let mut cache = std::collections::VecDeque::new();
 
         for &row in order {

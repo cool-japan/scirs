@@ -44,10 +44,50 @@
 //! assert!(result.success);
 //! ```
 
-use crate::constrained::{Constraint, ConstraintFn, ConstraintKind, Options};
+use crate::constrained::{Constraint, ConstraintKind, Options};
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1};
+
+/// Fill one row of the constraint Jacobian using the constraint's analytical
+/// Jacobian when present, otherwise forward finite differences.
+///
+/// Returns the number of constraint evaluations performed (so the caller can
+/// keep `nfev` accurate). On an analytical-Jacobian length mismatch, falls back
+/// to finite differences (no panic, no unwrap).
+fn fill_constraint_jac_row<S>(
+    a: &mut Array2<f64>,
+    row: usize,
+    constraint: &Constraint,
+    x: &ArrayBase<S, Ix1>,
+    c_val: f64,
+    n: usize,
+    eps: f64,
+) -> usize
+where
+    S: Data<Elem = f64>,
+{
+    if let Some(ref jac_fn) = constraint.jac {
+        let grad = jac_fn(x.as_slice().expect("Operation failed"));
+        if grad.len() == n {
+            for j in 0..n {
+                a[[row, j]] = grad[j];
+            }
+            return 0;
+        }
+        // Length mismatch: fall through to finite differences.
+    }
+
+    let mut evals = 0;
+    for j in 0..n {
+        let mut x_h = x.to_owned();
+        x_h[j] += eps;
+        let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
+        a[[row, j]] = (c_h - c_val) / eps;
+        evals += 1;
+    }
+    evals
+}
 
 /// Hessian update strategy for quasi-Newton methods
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -67,12 +107,18 @@ pub type GradientFn = fn(&[f64]) -> Array1<f64>;
 /// Type alias for Hessian function
 pub type HessianFn = fn(&[f64]) -> Array2<f64>;
 
+/// Minimizes a function with constraints using the trust-region method.
+///
+/// `obj_jac` optionally supplies an analytical objective gradient (issue #127);
+/// when `None`, finite differences are used. Per-constraint analytical
+/// Jacobians attached via [`Constraint::with_jacobian`] are honoured.
 #[allow(clippy::many_single_char_names)]
 #[allow(dead_code)]
 pub fn minimize_trust_constr<F, S>(
     func: F,
     x0: &ArrayBase<S, Ix1>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
+    obj_jac: Option<&dyn Fn(&[f64]) -> Array1<f64>>,
     options: &Options,
 ) -> OptimizeResult<OptimizeResults<f64>>
 where
@@ -95,15 +141,20 @@ where
     // Initialize the Lagrange multipliers
     let mut lambda = Array1::zeros(constraints.len());
 
-    // Calculate initial gradient using finite differences
-    let mut g = Array1::zeros(n);
-    for i in 0..n {
-        let mut x_h = x.clone();
-        x_h[i] += eps;
-        let f_h = func(x_h.as_slice().expect("Operation failed"));
-        g[i] = (f_h - f) / eps;
-        nfev += 1;
-    }
+    // Calculate initial gradient (analytical if supplied, else finite differences)
+    let mut g = if let Some(grad_fn) = obj_jac {
+        grad_fn(x.as_slice().expect("Operation failed"))
+    } else {
+        let mut grad = Array1::zeros(n);
+        for i in 0..n {
+            let mut x_h = x.clone();
+            x_h[i] += eps;
+            let f_h = func(x_h.as_slice().expect("Operation failed"));
+            grad[i] = (f_h - f) / eps;
+            nfev += 1;
+        }
+        grad
+    };
 
     // Evaluate initial constraints
     let mut c = Array1::zeros(constraints.len());
@@ -122,17 +173,11 @@ where
         }
     }
 
-    // Calculate constraint Jacobian
+    // Calculate constraint Jacobian (analytical per-constraint if attached)
     let mut a = Array2::zeros((constraints.len(), n));
     for (i, constraint) in constraints.iter().enumerate() {
         if !constraint.is_bounds() {
-            for j in 0..n {
-                let mut x_h = x.clone();
-                x_h[j] += eps;
-                let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
-                a[[i, j]] = (c_h - c[i]) / eps;
-                nfev += 1;
-            }
+            nfev += fill_constraint_jac_row(&mut a, i, constraint, &x, c[i], n, eps);
         }
     }
 
@@ -265,27 +310,26 @@ where
                 break;
             }
 
-            // Compute new gradient
-            let mut g_new = Array1::zeros(n);
-            for i in 0..n {
-                let mut x_h = x.clone();
-                x_h[i] += eps;
-                let f_h = func(x_h.as_slice().expect("Operation failed"));
-                g_new[i] = (f_h - f) / eps;
-                nfev += 1;
-            }
+            // Compute new gradient (analytical if supplied, else finite differences)
+            let g_new = if let Some(grad_fn) = obj_jac {
+                grad_fn(x.as_slice().expect("Operation failed"))
+            } else {
+                let mut grad = Array1::zeros(n);
+                for i in 0..n {
+                    let mut x_h = x.clone();
+                    x_h[i] += eps;
+                    let f_h = func(x_h.as_slice().expect("Operation failed"));
+                    grad[i] = (f_h - f) / eps;
+                    nfev += 1;
+                }
+                grad
+            };
 
-            // Compute new constraint Jacobian
+            // Compute new constraint Jacobian (analytical per-constraint if attached)
             let mut a_new = Array2::zeros((constraints.len(), n));
             for (i, constraint) in constraints.iter().enumerate() {
                 if !constraint.is_bounds() {
-                    for j in 0..n {
-                        let mut x_h = x.clone();
-                        x_h[j] += eps;
-                        let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
-                        a_new[[i, j]] = (c_h - c[i]) / eps;
-                        nfev += 1;
-                    }
+                    nfev += fill_constraint_jac_row(&mut a_new, i, constraint, &x, c[i], n, eps);
                 }
             }
 
@@ -437,7 +481,7 @@ where
 pub fn minimize_trust_constr_with_derivatives<F, S, G, H>(
     func: F,
     x0: &ArrayBase<S, Ix1>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
     options: &Options,
     jac: Option<G>,
     hess: Option<H>,
@@ -496,17 +540,11 @@ where
         }
     }
 
-    // Calculate constraint Jacobian
+    // Calculate constraint Jacobian (analytical per-constraint if attached)
     let mut a = Array2::zeros((constraints.len(), n));
     for (i, constraint) in constraints.iter().enumerate() {
         if !constraint.is_bounds() {
-            for j in 0..n {
-                let mut x_h = x.clone();
-                x_h[j] += eps;
-                let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
-                a[[i, j]] = (c_h - c[i]) / eps;
-                nfev += 1;
-            }
+            nfev += fill_constraint_jac_row(&mut a, i, constraint, &x, c[i], n, eps);
         }
     }
 
@@ -643,17 +681,11 @@ where
                 grad
             };
 
-            // Compute new constraint Jacobian
+            // Compute new constraint Jacobian (analytical per-constraint if attached)
             let mut a_new = Array2::zeros((constraints.len(), n));
             for (i, constraint) in constraints.iter().enumerate() {
                 if !constraint.is_bounds() {
-                    for j in 0..n {
-                        let mut x_h = x.clone();
-                        x_h[j] += eps;
-                        let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
-                        a_new[[i, j]] = (c_h - c[i]) / eps;
-                        nfev += 1;
-                    }
+                    nfev += fill_constraint_jac_row(&mut a_new, i, constraint, &x, c[i], n, eps);
                 }
             }
 
@@ -759,7 +791,7 @@ fn compute_trust_region_step_constrained(
     a: &Array2<f64>,
     c: &Array1<f64>,
     delta: f64,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
     ctol: f64,
 ) -> (Array1<f64>, f64) {
     let n = g.len();

@@ -73,10 +73,14 @@ slow-timeout = { period = "600s" }
 threads-required = 2
 
 [[profile.default.overrides]]
-# compile_fail_harness spawns its own `cargo` build (trybuild) which can take
-# minutes to compile the sandbox crate's deps; default 60s SLOW + 2 cycles is
-# too short. Allow up to 600s × 3 cycles (30 min) and reserve threads.
-filter = 'test(compile_fail_harness)'
+# Both trybuild compile-fail harnesses spawn their own `cargo` build, which can
+# take minutes to compile the sandbox crate's deps:
+#   - `compile_fail_tests`  (scirs2-stability-tests)
+#   - `compile_fail_doc` / `compile_fail_harness`  (scirs2 facade)
+# The default 60s SLOW + 2 cycles (=120s) is too short and was killing
+# `compile_fail_harness` (~145s: 50s build + 95s trybuild). Allow up to
+# 600s × 3 cycles (30 min) and reserve threads.
+filter = 'binary(compile_fail_tests) | binary(compile_fail_doc)'
 slow-timeout = { period = "600s", terminate-after = 3 }
 threads-required = 4
 

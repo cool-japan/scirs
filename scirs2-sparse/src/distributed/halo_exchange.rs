@@ -191,15 +191,21 @@ impl DistributedVector {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Simulated halo exchange
+// Single-process halo exchange
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Simulate the halo exchange step: for each partition build a
-/// [`DistributedVector`] that contains both local and ghost x-values.
+/// Perform the halo-exchange step for the single-process model: for each
+/// partition build a [`DistributedVector`] that contains both local and ghost
+/// x-values.
 ///
-/// In a real MPI implementation each worker would send its owned x-values to
-/// any worker that lists them as ghost rows.  Here we simply read directly from
-/// the global x array, which is equivalent but avoids actual message passing.
+/// This crate's "distributed" SpMV runs all partitions in one process (using
+/// [`std::thread::scope`]), so every worker already shares the same address
+/// space and can read the global `x` array directly. In a multi-node MPI
+/// deployment each worker would instead receive its ghost x-values via message
+/// passing from the owning rank; here we copy them out of the shared `x`, which
+/// produces *identical numerical results* for the single-process case without
+/// any inter-process communication. It is therefore an exact stand-in for the
+/// single-process scenario, not a fabricated multi-node exchange.
 pub fn simulate_halo_exchange(
     partitions: &[DistributedCsr],
     x_global: &[f64],

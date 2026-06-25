@@ -1128,9 +1128,14 @@ impl HDF5File {
                     Ok(AttributeValue::StringArray(strings))
                 }
             }
-            _ => {
-                // Fallback: return a default value
-                Ok(AttributeValue::String("unknown".to_string()))
+            other => {
+                // The attribute uses an HDF5 type we do not decode (e.g. compound,
+                // enum, opaque, or array types). Returning a placeholder value
+                // here would silently misrepresent the file's contents, so report
+                // the unsupported descriptor honestly instead.
+                Err(IoError::FormatError(format!(
+                    "Unsupported HDF5 attribute type descriptor: {other:?}"
+                )))
             }
         }
     }
@@ -1514,18 +1519,34 @@ impl HDF5File {
         }
     }
 
-    /// Write a slice of data to a dataset
+    /// Write a hyper-rectangular slice of data into an existing dataset.
+    ///
+    /// This method is generic over an unconstrained element type `T`, but the
+    /// backing store holds concretely-typed arrays ([`DataArray`]). There is no
+    /// safe way to map an arbitrary `T` onto that typed store, so a correct
+    /// implementation is not possible at this signature. Rather than silently
+    /// discarding the data (which would falsely report success), this returns an
+    /// honest error. For real `f64` slice writes use
+    /// [`HDF5File::write_f64_dataset_slice`], which operates on the in-memory
+    /// representation via read-modify-write.
     pub fn write_dataset_slice<T>(&mut self, name: &str, data: &[T], offset: &[usize]) -> Result<()>
     where
         T: Clone + std::fmt::Debug,
     {
-        // This is a placeholder implementation
-        // In production, this would write to the actual HDF5 file
         let _ = (name, data, offset);
-        Ok(())
+        Err(IoError::Other(
+            "write_dataset_slice is not implemented for arbitrary element types; \
+             use write_f64_dataset_slice for f64 datasets"
+                .to_string(),
+        ))
     }
 
-    /// Read a slice of data from a dataset
+    /// Read a hyper-rectangular slice of data from a dataset.
+    ///
+    /// As with [`HDF5File::write_dataset_slice`], the unconstrained generic
+    /// element type cannot be mapped onto the concretely-typed backing store, so
+    /// this returns an honest error instead of fabricating zero-filled data. For
+    /// real `f64` slice reads use [`HDF5File::read_f64_dataset_slice`].
     pub fn read_dataset_slice<T>(
         &self,
         name: &str,
@@ -1535,11 +1556,194 @@ impl HDF5File {
     where
         T: Clone + Default,
     {
-        // This is a placeholder implementation
-        // In production, this would read from the actual HDF5 file
-        let _ = (name, offset);
+        let _ = (name, shape, offset);
+        Err(IoError::Other(
+            "read_dataset_slice is not implemented for arbitrary element types; \
+             use read_f64_dataset_slice for f64 datasets"
+                .to_string(),
+        ))
+    }
+
+    /// Read a contiguous hyper-rectangular `f64` slice from a dataset.
+    ///
+    /// `offset` and `shape` describe the region to extract and must match the
+    /// rank of the stored dataset. The full dataset is read from the in-memory
+    /// representation (or the native handle when the `hdf5` feature is active)
+    /// and the requested region is gathered in row-major order. This is a real
+    /// computation over the actual stored values, not a placeholder.
+    pub fn read_f64_dataset_slice(
+        &self,
+        name: &str,
+        shape: &[usize],
+        offset: &[usize],
+    ) -> Result<Vec<f64>> {
+        if offset.len() != shape.len() {
+            return Err(IoError::Other(
+                "read_f64_dataset_slice: offset and shape must have the same length".to_string(),
+            ));
+        }
+
+        let full = self.read_dataset(name)?;
+        let full_shape = full.shape().to_vec();
+        let ndim = full_shape.len();
+
+        if offset.len() != ndim {
+            return Err(IoError::Other(format!(
+                "read_f64_dataset_slice: region rank {} does not match dataset rank {ndim}",
+                offset.len()
+            )));
+        }
+
+        // Validate the region lies within the dataset bounds.
+        for ax in 0..ndim {
+            if offset[ax] + shape[ax] > full_shape[ax] {
+                return Err(IoError::Other(format!(
+                    "read_f64_dataset_slice: region [{}..{}) exceeds axis {ax} length {}",
+                    offset[ax],
+                    offset[ax] + shape[ax],
+                    full_shape[ax]
+                )));
+            }
+        }
+
+        let full_flat = full
+            .as_slice()
+            .ok_or_else(|| IoError::Other("Dataset is not contiguous".to_string()))?;
+
+        // Row-major strides for the full array.
+        let mut strides = vec![1usize; ndim];
+        for ax in (0..ndim.saturating_sub(1)).rev() {
+            strides[ax] = strides[ax + 1] * full_shape[ax + 1];
+        }
+
         let total: usize = shape.iter().product();
-        Ok(vec![T::default(); total])
+        let mut result = Vec::with_capacity(total);
+        let mut coords = vec![0usize; ndim];
+        // Empty region (any axis of length 0) yields an empty result.
+        if total != 0 {
+            loop {
+                let flat_idx: usize = coords
+                    .iter()
+                    .enumerate()
+                    .map(|(ax, &c)| (offset[ax] + c) * strides[ax])
+                    .sum();
+                result.push(*full_flat.get(flat_idx).ok_or_else(|| {
+                    IoError::Other(
+                        "read_f64_dataset_slice: computed index out of bounds".to_string(),
+                    )
+                })?);
+
+                let mut carry = true;
+                for ax in (0..ndim).rev() {
+                    if carry {
+                        coords[ax] += 1;
+                        if coords[ax] < shape[ax] {
+                            carry = false;
+                        } else {
+                            coords[ax] = 0;
+                        }
+                    }
+                }
+                if carry {
+                    break;
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Write a contiguous hyper-rectangular `f64` slice into an existing dataset.
+    ///
+    /// `data` is laid out row-major with dimensions `shape`, written at `offset`
+    /// into the dataset of the same rank. This performs a real read-modify-write
+    /// against the in-memory representation: the full dataset is read, the region
+    /// is patched, and the updated array is stored back. The dataset must already
+    /// exist and be large enough to contain the region.
+    pub fn write_f64_dataset_slice(
+        &mut self,
+        name: &str,
+        data: &[f64],
+        shape: &[usize],
+        offset: &[usize],
+    ) -> Result<()> {
+        if offset.len() != shape.len() {
+            return Err(IoError::Other(
+                "write_f64_dataset_slice: offset and shape must have the same length".to_string(),
+            ));
+        }
+        let expected: usize = shape.iter().product();
+        if data.len() != expected {
+            return Err(IoError::Other(format!(
+                "write_f64_dataset_slice: data length {} does not match region size {expected}",
+                data.len()
+            )));
+        }
+
+        let full = self.read_dataset(name)?;
+        let full_shape = full.shape().to_vec();
+        let ndim = full_shape.len();
+
+        if offset.len() != ndim {
+            return Err(IoError::Other(format!(
+                "write_f64_dataset_slice: region rank {} does not match dataset rank {ndim}",
+                offset.len()
+            )));
+        }
+        for ax in 0..ndim {
+            if offset[ax] + shape[ax] > full_shape[ax] {
+                return Err(IoError::Other(format!(
+                    "write_f64_dataset_slice: region [{}..{}) exceeds axis {ax} length {}",
+                    offset[ax],
+                    offset[ax] + shape[ax],
+                    full_shape[ax]
+                )));
+            }
+        }
+
+        let mut full_vec = full
+            .as_slice()
+            .ok_or_else(|| IoError::Other("Dataset is not contiguous".to_string()))?
+            .to_vec();
+
+        let mut strides = vec![1usize; ndim];
+        for ax in (0..ndim.saturating_sub(1)).rev() {
+            strides[ax] = strides[ax + 1] * full_shape[ax + 1];
+        }
+
+        let mut coords = vec![0usize; ndim];
+        let mut src_idx = 0usize;
+        if expected != 0 {
+            loop {
+                let flat_idx: usize = coords
+                    .iter()
+                    .enumerate()
+                    .map(|(ax, &c)| (offset[ax] + c) * strides[ax])
+                    .sum();
+                full_vec[flat_idx] = data[src_idx];
+                src_idx += 1;
+
+                let mut carry = true;
+                for ax in (0..ndim).rev() {
+                    if carry {
+                        coords[ax] += 1;
+                        if coords[ax] < shape[ax] {
+                            carry = false;
+                        } else {
+                            coords[ax] = 0;
+                        }
+                    }
+                }
+                if carry {
+                    break;
+                }
+            }
+        }
+
+        let updated = ArrayD::from_shape_vec(IxDyn(&full_shape), full_vec)
+            .map_err(|e| IoError::FormatError(format!("Failed to rebuild dataset: {e}")))?;
+        self.create_dataset_from_array(name, &updated, None)?;
+        Ok(())
     }
 
     /// List all items (groups and datasets) recursively
@@ -1754,6 +1958,46 @@ mod legacy_tests {
         let file = HDF5File::create(path.to_str().unwrap()).expect("Operation failed");
         assert_eq!(file.mode, FileMode::Create);
         assert_eq!(file.root.name, "/");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_f64_dataset_slice_roundtrip() {
+        let tmp = std::env::temp_dir();
+        let path = tmp.join("scirs2_test_hdf5_slice.h5");
+        let mut file = HDF5File::create(path.to_str().unwrap()).expect("create failed");
+
+        // 4x4 dataset filled row-major with 0..16.
+        let base: Vec<f64> = (0..16).map(|v| v as f64).collect();
+        let array = ArrayD::from_shape_vec(IxDyn(&[4, 4]), base).expect("array build failed");
+        file.create_dataset_from_array("grid", &array, None)
+            .expect("create dataset failed");
+
+        // Read the inner 2x2 block at offset (1, 1): rows 1..3, cols 1..3.
+        let slice = file
+            .read_f64_dataset_slice("grid", &[2, 2], &[1, 1])
+            .expect("slice read failed");
+        // Flat positions: (1,1)=5, (1,2)=6, (2,1)=9, (2,2)=10.
+        assert_eq!(slice, vec![5.0, 6.0, 9.0, 10.0]);
+
+        // Patch that same block, then verify both the patched and untouched cells.
+        file.write_f64_dataset_slice("grid", &[100.0, 101.0, 102.0, 103.0], &[2, 2], &[1, 1])
+            .expect("slice write failed");
+        let full = file.read_dataset("grid").expect("read back failed");
+        let full = full.as_slice().expect("contiguous");
+        assert_eq!(full[5], 100.0);
+        assert_eq!(full[6], 101.0);
+        assert_eq!(full[9], 102.0);
+        assert_eq!(full[10], 103.0);
+        // A cell outside the written region must be unchanged.
+        assert_eq!(full[0], 0.0);
+        assert_eq!(full[15], 15.0);
+
+        // An out-of-bounds region must error honestly, not fabricate data.
+        assert!(file
+            .read_f64_dataset_slice("grid", &[2, 2], &[3, 3])
+            .is_err());
+
         let _ = std::fs::remove_file(&path);
     }
 

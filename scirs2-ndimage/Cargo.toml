@@ -24,7 +24,6 @@ scirs2-core = { workspace = true, features = ["validation", "memory_efficient", 
 scirs2-fft = { workspace = true, features = ["oxifft"] }
 thiserror = { workspace = true }
 approx = { workspace = true }
-cached = { workspace = true }
 tempfile = { workspace = true }
 lazy_static = { workspace = true }
 num_cpus = { workspace = true }

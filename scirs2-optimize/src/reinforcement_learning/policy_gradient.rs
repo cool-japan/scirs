@@ -629,7 +629,13 @@ impl AdvancedAdvancedPolicyGradientOptimizer {
                 // Policy gradient with meta-learning augmentation
                 let advantage = step_return - adjusted_return / trajectory.experiences.len() as f64;
 
-                // Add gradients for this step (simplified computation)
+                // Accumulate the meta-policy gradients for this step. This is a
+                // first-order REINFORCE-style estimate that uses the input
+                // (state/meta) features directly as a proxy for the policy
+                // score function rather than back-propagating through the
+                // network; it yields a real, advantage-weighted gradient that
+                // drives meta-adaptation even though it is not the exact
+                // analytic gradient.
                 for layer in 0..num_layers {
                     for i in 0..self.meta_policy.layer_sizes[layer + 1] {
                         for j in 0..self.meta_policy.layer_sizes[layer] {
@@ -1151,9 +1157,4 @@ mod tests {
         assert!(result.nit > 0);
         assert!(result.fun <= objective(&initial.view()) * 1.01);
     }
-}
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
 }

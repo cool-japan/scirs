@@ -33,7 +33,7 @@ scirs2-integration-tests/
 
 ### Documentation Files
 ```
-/Users/kitasan/work/scirs/
+<scirs-repo>/
 └── INTEGRATION_TESTING.md          # Testing strategy (377 lines)
 ```
 

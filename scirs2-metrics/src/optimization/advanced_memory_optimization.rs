@@ -550,22 +550,31 @@ impl AdvancedMemoryPool {
     }
 
     fn simulate_gpu_malloc(&self, size: usize) -> Result<usize> {
-        // Simulate GPU memory allocation - in real implementation would use CUDA/OpenCL
-        static mut NEXT_PTR: usize = 0x1000_0000; // Simulate GPU memory space
+        use std::sync::atomic::{AtomicUsize, Ordering};
 
-        unsafe {
-            let ptr = NEXT_PTR;
-            NEXT_PTR += size;
+        // This pool models a GPU address space; the returned pointer is an
+        // opaque, monotonically increasing block handle (see the documentation
+        // on `MemoryBlock::device_ptr`), not a real device address. A real
+        // implementation would call CUDA/OpenCL here.
+        //
+        // Allocation is gated by the configured pool budget `config.max_pool_size`
+        // (a real configuration value), NOT a fabricated device memory size.
+        const BASE_PTR: usize = 0x1000_0000;
+        static NEXT_OFFSET: AtomicUsize = AtomicUsize::new(0);
 
-            // Check if we exceed simulated GPU memory
-            if NEXT_PTR > 0x1000_0000 + self.config.max_pool_size {
-                return Err(MetricsError::ComputationError(
-                    "GPU memory exhausted".to_string(),
-                ));
-            }
+        let limit = self.config.max_pool_size;
+        let previous = NEXT_OFFSET.fetch_add(size, Ordering::Relaxed);
+        let new_offset = previous.saturating_add(size);
 
-            Ok(ptr)
+        if new_offset > limit {
+            // Roll back the reservation that pushed us past the configured budget.
+            NEXT_OFFSET.fetch_sub(size, Ordering::Relaxed);
+            return Err(MetricsError::ComputationError(
+                "Memory pool budget (config.max_pool_size) exhausted".to_string(),
+            ));
         }
+
+        Ok(BASE_PTR + previous)
     }
 
     fn generate_block_id(&self) -> usize {

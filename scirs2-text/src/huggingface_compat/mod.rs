@@ -126,33 +126,54 @@ mod tests {
     }
 
     #[test]
-    fn test_hub_list_models() {
+    fn test_hub_list_models_requires_network() {
         let hub = HfHub::new();
-        let models = hub.list_models(None).expect("Operation failed");
-        assert!(!models.is_empty());
-
-        let filtered = hub.list_models(Some("bert")).expect("Operation failed");
-        assert!(filtered.iter().any(|m| m.contains("bert")));
+        // Without a networking backend, listing models must return an honest
+        // error rather than a fabricated catalogue.
+        assert!(hub.list_models(None).is_err());
+        assert!(hub.list_models(Some("bert")).is_err());
     }
 
     #[test]
-    fn test_model_manager() {
+    fn test_hub_model_info_cache_roundtrip() {
+        let mut hub = HfHub::new();
+
+        // Uncached lookups require the network and must error honestly.
+        assert!(hub.model_info("bert-base-uncased").is_err());
+
+        // Explicitly cached metadata is returned without any network access.
+        let info = HfModelInfo {
+            model_id: "bert-base-uncased".to_string(),
+            tags: vec!["pytorch".to_string()],
+            pipeline_tag: Some("fill-mask".to_string()),
+            downloads: 0,
+            likes: 0,
+            library_name: Some("transformers".to_string()),
+        };
+        hub.cache_model_info(info.clone());
+
+        let fetched = hub
+            .model_info("bert-base-uncased")
+            .expect("cached model info should be returned");
+        assert_eq!(fetched.model_id, "bert-base-uncased");
+        assert_eq!(fetched.pipeline_tag.as_deref(), Some("fill-mask"));
+    }
+
+    #[test]
+    fn test_model_manager_load_without_local_model_errors() {
         let mut manager = HfModelManager::new();
 
-        // Test loading model (will use mock/default config)
-        let config = manager.load_model("test-model");
-        assert!(config.is_ok());
+        // No local model files exist and downloading requires the network, so
+        // loading must fail honestly instead of fabricating a config.
+        let config = manager.load_model("definitely-not-a-real-local-model");
+        assert!(config.is_err());
 
-        // Test caching
+        // The failed load must not have populated the cache.
         let cached_models = manager.list_cached_models();
-        assert!(cached_models.contains(&"test-model".to_string()));
+        assert!(cached_models.is_empty());
 
-        // Test unloading
-        let unloaded = manager.unload_model("test-model");
-        assert!(unloaded);
-
-        let cached_after_unload = manager.list_cached_models();
-        assert!(!cached_after_unload.contains(&"test-model".to_string()));
+        // Unloading a model that was never loaded reports false.
+        assert!(!manager.unload_model("definitely-not-a-real-local-model"));
     }
 
     #[test]

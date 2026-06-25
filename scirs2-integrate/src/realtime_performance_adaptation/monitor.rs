@@ -31,26 +31,88 @@ impl PerformanceMonitoringEngine {
         Ok(())
     }
 
-    /// Collect current performance metrics
+    /// Collect current performance metrics.
+    ///
+    /// This lightweight monitor reports only the quantities it can genuinely
+    /// observe from the host:
+    ///
+    /// * `timestamp` — the real wall-clock instant of the sample.
+    /// * `step_time` — the elapsed time since the previous sample (the
+    ///   sampling cadence). On the very first sample this is zero.
+    /// * `memory_usage` — the process resident set size (RSS) read from the
+    ///   operating system. Returns `0` on platforms where it cannot be read.
+    ///
+    /// The remaining fields (CPU/GPU utilisation, cache-hit rate, network
+    /// bandwidth, solver error/convergence) require hardware performance
+    /// counters or solver-level instrumentation that this monitor does not
+    /// have. Rather than fabricating plausible-looking values, they are
+    /// reported as `0.0` to signal "not measured". Callers that need those
+    /// quantities must feed them in through a dedicated instrumentation path.
     pub fn collect_metrics(&mut self) -> IntegrateResult<PerformanceMetrics> {
         let timestamp = Instant::now();
 
-        // Mock implementation - in real code this would collect actual metrics
+        // Real sampling interval: time elapsed since the previous sample.
+        let step_time = self
+            .performance_history
+            .metrics_history
+            .back()
+            .map(|prev| timestamp.saturating_duration_since(prev.timestamp))
+            .unwrap_or_else(|| Duration::from_secs(0));
+
+        // Real process resident-set-size in bytes (0 if unavailable).
+        let memory_usage = Self::process_resident_memory_bytes();
+
+        // Throughput is samples-per-second of the monitor itself when we have
+        // a positive interval; otherwise it is unknown (0.0).
+        let throughput = if step_time > Duration::from_secs(0) {
+            1.0 / step_time.as_secs_f64()
+        } else {
+            0.0
+        };
+
         let metrics = PerformanceMetrics::new(
             timestamp,
-            Duration::from_millis(10),
-            100.0,
-            1024 * 1024,
-            50.0,
-            30.0,
-            0.85,
-            1000.0,
-            0.99,
-            0.95,
+            step_time,
+            throughput,
+            memory_usage,
+            0.0, // cpu_utilization: requires per-core counters (not measured)
+            0.0, // gpu_utilization: requires a GPU runtime (not measured)
+            0.0, // cache_hit_rate: requires hardware counters (not measured)
+            0.0, // network_bandwidth: requires NIC counters (not measured)
+            0.0, // error_accuracy: requires solver instrumentation (not measured)
+            0.0, // convergence_rate: requires solver instrumentation (not measured)
         );
 
         self.performance_history.add_metrics(metrics.clone());
         Ok(metrics)
+    }
+
+    /// Read the current process resident set size (RSS) in bytes.
+    ///
+    /// Returns `0` when the value cannot be determined on the current
+    /// platform (e.g. `/proc` is unavailable).
+    fn process_resident_memory_bytes() -> usize {
+        #[cfg(target_os = "linux")]
+        {
+            // `/proc/self/status` exposes `VmRSS` directly in kibibytes, which
+            // avoids any dependency on the system page size.
+            if let Ok(contents) = std::fs::read_to_string("/proc/self/status") {
+                for line in contents.lines() {
+                    if let Some(rest) = line.strip_prefix("VmRSS:") {
+                        if let Some(kb_str) = rest.split_whitespace().next() {
+                            if let Ok(kb) = kb_str.parse::<usize>() {
+                                return kb.saturating_mul(1024);
+                            }
+                        }
+                    }
+                }
+            }
+            0
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            0
+        }
     }
 
     /// Get performance analysis from collected metrics

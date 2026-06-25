@@ -320,7 +320,9 @@ impl ElasticWeightConsolidation {
         params: &HashMap<String, Vec<f64>>,
     ) -> Result<HashMap<String, Vec<f64>>> {
         if self.num_tasks == 0 {
-            // Return zero gradients
+            // No tasks have been consolidated yet, so the EWC penalty is exactly
+            // zero and therefore so is its gradient. This zero is the correct
+            // analytic value, not a placeholder.
             return Ok(params
                 .iter()
                 .map(|(k, v)| (k.clone(), vec![0.0; v.len()]))

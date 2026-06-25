@@ -1181,10 +1181,6 @@ where
                 bp_zeros.push(zero * bw / 2.0 + sqrt_disc);
                 bp_zeros.push(zero * bw / 2.0 - sqrt_disc);
             }
-            // Additional zeros at DC (origin) — one per prototype order
-            for _ in 0..order {
-                bp_zeros.push(Complex64::new(0.0, 0.0));
-            }
             let gain = bw.powi(order as i32);
             (bp_zeros, bp_poles, gain)
         }
@@ -1532,10 +1528,18 @@ pub fn bessel_bandpass_bandstop(
         .iter()
         .map(|&p| bilinear_pole_transform(p))
         .collect();
-    let digital_zeros: Vec<_> = analog_zeros
+    let mut digital_zeros: Vec<_> = analog_zeros
         .iter()
         .map(|&z| bilinear_pole_transform(z))
         .collect();
+
+    // Balance numerator degree to denominator degree: an all-pole prototype
+    // (Bessel) bandpass has its analog DC zeros mapped to z=1 by the bilinear
+    // transform; the remaining zeros required to make the transfer function
+    // proper appear at z=-1 (Nyquist), matching scipy's lp2bp + bilinear result.
+    while digital_zeros.len() < digital_poles.len() {
+        digital_zeros.push(Complex64::new(-1.0, 0.0));
+    }
 
     zpk_to_tf(&digital_zeros, &digital_poles, gain)
 }

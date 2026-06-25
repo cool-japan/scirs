@@ -43,8 +43,8 @@ fn example_out_of_core_processing() -> Result<(), Box<dyn std::error::Error>> {
     println!("---------------------------------");
 
     // Create a sample large CSV file
-    let csv_path = "/tmp/large_dataset.csv";
-    create_sample_csv(csv_path, 10000, 50)?;
+    let csv_path = std::env::temp_dir().join("large_dataset.csv");
+    create_sample_csv(&csv_path, 10000, 50)?;
     println!("Created sample CSV with 10,000 rows and 50 columns");
 
     // Create out-of-core normalizer
@@ -52,19 +52,19 @@ fn example_out_of_core_processing() -> Result<(), Box<dyn std::error::Error>> {
 
     // Fit on chunks
     println!("Fitting normalizer on data chunks...");
-    let chunks = csv_chunks(csv_path, 1000, false)?;
+    let chunks = csv_chunks(&csv_path, 1000, false)?;
     normalizer.fit_chunks(chunks)?;
 
     // Transform data in chunks
     println!("Transforming data in chunks...");
-    let chunks = csv_chunks(csv_path, 1000, false)?;
+    let chunks = csv_chunks(&csv_path, 1000, false)?;
     let writer = normalizer.transform_chunks(chunks)?;
 
     let output_path = writer.finalize()?;
     println!("Transformed data saved to: {}", output_path);
 
     // Clean up
-    std::fs::remove_file(csv_path)?;
+    std::fs::remove_file(&csv_path)?;
     std::fs::remove_file(output_path)?;
 
     println!();
@@ -215,7 +215,7 @@ fn example_streaming_quantiles() -> Result<(), Box<dyn std::error::Error>> {
 /// Helper function to create a sample CSV file
 #[allow(dead_code)]
 fn create_sample_csv(
-    path: &str,
+    path: impl AsRef<std::path::Path>,
     n_rows: usize,
     n_cols: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {

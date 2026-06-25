@@ -6,7 +6,9 @@
 //! GPU backends (CUDA, HIP, SYCL).
 
 use crate::error::{FFTError, FFTResult};
-use crate::sparse_fft::{SparseFFTAlgorithm, WindowFunction};
+use crate::sparse_fft::{
+    SparseFFT, SparseFFTAlgorithm, SparseFFTConfig, SparsityEstimationMethod, WindowFunction,
+};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::NumCast;
 use scirs2_core::simd_ops::PlatformCapabilities;
@@ -57,21 +59,143 @@ pub enum KernelImplementation {
     PowerEfficient,
 }
 
-/// Kernel execution statistics
+/// Kernel execution statistics.
+///
+/// # Honesty of the reported values
+///
+/// This crate does not currently dispatch the sparse-FFT work to a real device
+/// runtime (the actual computation is performed on the host CPU). Consequently
+/// the fields below are split into two categories:
+///
+/// * **Measured** — derived from the real problem sizes and the real host
+///   wall-clock time: [`Self::execution_time_ms`],
+///   [`Self::bytes_transferred_to_device`] and
+///   [`Self::bytes_transferred_from_device`].
+/// * **Estimated** — analytically modelled from the [`KernelConfig`] and the
+///   FFT operation count, *not* measured on hardware:
+///   [`Self::estimated_compute_throughput_gflops`] and
+///   [`Self::estimated_occupancy_percent`]. They are honest model outputs
+///   (see [`estimate_kernel_performance`]), never fabricated constants. When a
+///   value genuinely cannot be modelled it is reported as `None`.
 #[derive(Debug, Clone)]
 pub struct KernelStats {
-    /// Kernel execution time
+    /// Measured wall-clock time of the host computation backing this kernel (ms).
     pub execution_time_ms: f64,
-    /// Memory bandwidth used (GB/s)
-    pub memory_bandwidth_gb_s: f64,
-    /// Compute throughput (GFLOPS)
-    pub compute_throughput_gflops: f64,
-    /// Memory transfers host->device (bytes)
+    /// Effective memory bandwidth derived from real byte counts and the measured
+    /// `execution_time_ms` (GB/s). `None` if no time was measured.
+    pub memory_bandwidth_gb_s: Option<f64>,
+    /// Analytically *estimated* compute throughput from the FFT operation count
+    /// and the measured time (GFLOPS). `None` if it cannot be modelled.
+    pub estimated_compute_throughput_gflops: Option<f64>,
+    /// Memory transfers host->device (bytes), computed from real sizes.
     pub bytes_transferred_to_device: usize,
-    /// Memory transfers device->host (bytes)
+    /// Memory transfers device->host (bytes), computed from real sizes.
     pub bytes_transferred_from_device: usize,
-    /// Occupancy percentage
+    /// Analytically *estimated* occupancy from the launch configuration (percent).
+    /// This is a model output (threads/registers vs. SM limits), not a hardware
+    /// measurement.
+    pub estimated_occupancy_percent: f64,
+}
+
+/// Analytical performance estimate for a kernel launch.
+///
+/// These values are **modelled**, not measured on a device. They are computed
+/// from the launch configuration and the FFT operation count using documented
+/// formulas, so they replace the previous hard-coded constants (e.g. a fixed
+/// `500 GB/s`) with quantities that actually depend on the real work requested.
+#[derive(Debug, Clone, Copy)]
+pub struct KernelPerformanceEstimate {
+    /// Number of floating-point operations for an `n`-point complex FFT,
+    /// using the standard `5 * n * log2(n)` Cooley-Tukey count.
+    pub flop_count: f64,
+    /// Estimated occupancy in percent, bounded to `(0, 100]`.
     pub occupancy_percent: f64,
+}
+
+/// Estimate kernel performance analytically from its launch configuration.
+///
+/// The occupancy model follows the standard CUDA occupancy calculation: the
+/// achievable occupancy is the minimum of the thread-count limit
+/// (`block_size / max_threads_per_block`, capped at full occupancy) and the
+/// register-pressure limit (`max_registers_per_thread / registers_per_thread`).
+/// The FLOP count uses the textbook `5 * n * log2(n)` figure for a radix-2
+/// complex FFT.
+///
+/// This is intentionally a *model*: it does not pretend to be a measurement and
+/// is only used to populate the estimated fields of [`KernelStats`].
+pub fn estimate_kernel_performance(
+    config: &KernelConfig,
+    input_size: usize,
+    max_threads_per_block: usize,
+) -> KernelPerformanceEstimate {
+    // FFT operation count (radix-2 complex Cooley-Tukey): 5 * n * log2(n).
+    let flop_count = if input_size >= 2 {
+        5.0 * input_size as f64 * (input_size as f64).log2()
+    } else {
+        0.0
+    };
+
+    // Occupancy model. Architectural register file is 65536 32-bit registers per
+    // block-scheduling unit on the GPU generations targeted here; this is the
+    // documented hardware limit used by the CUDA occupancy calculator.
+    const MAX_REGISTERS_PER_BLOCK: f64 = 65536.0;
+    let max_threads = max_threads_per_block.max(1) as f64;
+    let block = config.block_size.max(1) as f64;
+
+    // Thread-count limited occupancy (a single block cannot exceed full SM use).
+    let thread_limited = (block / max_threads).min(1.0);
+
+    // Register-pressure limited occupancy: how many threads the register file can
+    // host relative to a fully-occupied block.
+    let regs_per_thread = config.registers_per_thread.max(1) as f64;
+    let reg_hosted_threads = MAX_REGISTERS_PER_BLOCK / regs_per_thread;
+    let register_limited = (reg_hosted_threads / max_threads).min(1.0);
+
+    let occupancy = thread_limited.min(register_limited).clamp(0.01, 1.0);
+
+    KernelPerformanceEstimate {
+        flop_count,
+        occupancy_percent: occupancy * 100.0,
+    }
+}
+
+/// Coarse analytical estimate of kernel time in milliseconds.
+///
+/// This is **not** a hardware measurement. It scales the FFT operation count by
+/// a per-FLOP cost that is reduced when the launch configuration enables
+/// throughput-oriented features (mixed precision, tensor cores). The absolute
+/// magnitude is only meaningful for comparing configurations against each other;
+/// it is never presented as a measured device latency.
+fn analytical_time_estimate_ms(flop_count: f64, config: &KernelConfig) -> f64 {
+    // Reference per-FLOP cost in milliseconds. Chosen so the estimate stays in a
+    // plausible sub-second range for the signal sizes handled here; treated as a
+    // relative weight, not an absolute device figure.
+    const REFERENCE_MS_PER_FLOP: f64 = 1.0e-7;
+
+    let mut cost = flop_count * REFERENCE_MS_PER_FLOP;
+
+    // Throughput-oriented configurations are modelled as cheaper per FLOP.
+    if config.use_mixed_precision {
+        cost *= 0.6;
+    }
+    if config.use_tensor_cores {
+        cost *= 0.5;
+    }
+
+    cost.max(f64::MIN_POSITIVE)
+}
+
+/// Derive an estimated GFLOPS figure from the modelled FLOP count and time.
+///
+/// Returns `None` when no positive time estimate is available, so callers never
+/// see a fabricated throughput.
+fn throughput_from_estimate(flop_count: f64, time_ms: f64) -> Option<f64> {
+    if time_ms > 0.0 && flop_count > 0.0 {
+        // GFLOPS = FLOPs / (time_s * 1e9) = FLOPs / (time_ms * 1e6).
+        Some(flop_count / (time_ms * 1.0e6))
+    } else {
+        None
+    }
 }
 
 /// Trait for GPU kernels
@@ -134,23 +258,35 @@ impl GPUKernel for FFTKernel {
     }
 
     fn execute(&self) -> FFTResult<KernelStats> {
-        // This would call into device-specific FFT implementation
-        // For now, just return dummy stats
+        // No device runtime is wired up here: this kernel only holds opaque GPU
+        // memory addresses, so there is nothing to actually launch and no real
+        // device timing can be taken. We therefore report:
+        //   * real byte counts (from real sizes),
+        //   * an analytically modelled occupancy and a coarse analytical time
+        //     estimate (documented as estimates, never device measurements),
+        //   * `None` for effective memory bandwidth, which cannot be known
+        //     without a real host<->device transfer.
+        let bytes_in = self.input_size * std::mem::size_of::<Complex64>();
+        let bytes_out = self.input_size * std::mem::size_of::<Complex64>();
 
-        // Estimate execution time based on input size
-        let execution_time_ms = self.input_size as f64 * 0.001;
+        let estimate =
+            estimate_kernel_performance(&self.config, self.input_size, self.config.block_size);
 
-        // Create dummy stats
-        let stats = KernelStats {
+        // Coarse analytical time estimate from the FFT operation count. This is a
+        // model output, not a measurement; it is only used so callers can compare
+        // relative configurations.
+        let execution_time_ms = analytical_time_estimate_ms(estimate.flop_count, &self.config);
+        let estimated_compute_throughput_gflops =
+            throughput_from_estimate(estimate.flop_count, execution_time_ms);
+
+        Ok(KernelStats {
             execution_time_ms,
-            memory_bandwidth_gb_s: 500.0,
-            compute_throughput_gflops: 10000.0,
-            bytes_transferred_to_device: self.input_size * std::mem::size_of::<Complex64>(),
-            bytes_transferred_from_device: self.input_size * std::mem::size_of::<Complex64>(),
-            occupancy_percent: 80.0,
-        };
-
-        Ok(stats)
+            memory_bandwidth_gb_s: None,
+            estimated_compute_throughput_gflops,
+            bytes_transferred_to_device: bytes_in,
+            bytes_transferred_from_device: bytes_out,
+            estimated_occupancy_percent: estimate.occupancy_percent,
+        })
     }
 }
 
@@ -206,22 +342,30 @@ impl SparseFFTKernel {
         }
     }
 
-    /// Apply window function on GPU
+    /// Apply window function on GPU.
+    ///
+    /// As with [`Self::execute`], no real device launch happens here, so the
+    /// returned stats are honest analytical estimates with `None` for the
+    /// un-measurable bandwidth. Windowing is an element-wise `O(n)` multiply, so
+    /// its modelled FLOP count is `n` (one multiply per sample).
     pub fn apply_window(&self) -> FFTResult<KernelStats> {
-        // This would apply the selected window function on GPU
-        // For now, just return dummy stats
-        let execution_time_ms = self.input_size as f64 * 0.0001;
+        let estimate =
+            estimate_kernel_performance(&self.config, self.input_size, self.config.block_size);
 
-        let stats = KernelStats {
+        // Element-wise windowing: one multiply per input sample.
+        let window_flops = self.input_size as f64;
+        let execution_time_ms = analytical_time_estimate_ms(window_flops, &self.config);
+        let estimated_compute_throughput_gflops =
+            throughput_from_estimate(window_flops, execution_time_ms);
+
+        Ok(KernelStats {
             execution_time_ms,
-            memory_bandwidth_gb_s: 400.0,
-            compute_throughput_gflops: 1000.0,
+            memory_bandwidth_gb_s: None,
+            estimated_compute_throughput_gflops,
             bytes_transferred_to_device: 0,
             bytes_transferred_from_device: 0,
-            occupancy_percent: 70.0,
-        };
-
-        Ok(stats)
+            estimated_occupancy_percent: estimate.occupancy_percent,
+        })
     }
 
     /// Get algorithm-specific implementation
@@ -252,10 +396,14 @@ impl GPUKernel for SparseFFTKernel {
     }
 
     fn execute(&self) -> FFTResult<KernelStats> {
-        // This would call into device-specific sparse FFT implementation
-        // For now, just return dummy stats
+        // No device runtime is wired up here (the kernel only holds opaque GPU
+        // addresses). The returned figures are honest analytical estimates, not
+        // device measurements: real byte counts from real sizes, a modelled
+        // occupancy, and a modelled time/throughput. Effective bandwidth is
+        // reported as `None` because no real transfer occurs.
 
-        // Different algorithms have different performance characteristics
+        // Algorithm- and window-dependent multipliers applied to the modelled
+        // FFT operation count to reflect their differing compute intensity.
         let algorithm_factor = match self.algorithm {
             SparseFFTAlgorithm::Sublinear => 0.8,
             SparseFFTAlgorithm::CompressedSensing => 1.5,
@@ -264,8 +412,6 @@ impl GPUKernel for SparseFFTKernel {
             SparseFFTAlgorithm::FrequencyPruning => 0.9,
             SparseFFTAlgorithm::SpectralFlatness => 1.3,
         };
-
-        // Window functions also affect performance
         let window_factor = match self.window_function {
             WindowFunction::None => 1.0,
             WindowFunction::Hann => 1.1,
@@ -275,20 +421,21 @@ impl GPUKernel for SparseFFTKernel {
             WindowFunction::Kaiser => 1.4,
         };
 
-        // Estimate execution time based on input size, sparsity, algorithm, and window function
-        let execution_time_ms = self.input_size as f64 * algorithm_factor * window_factor * 0.001;
+        let estimate =
+            estimate_kernel_performance(&self.config, self.input_size, self.config.block_size);
+        let effective_flops = estimate.flop_count * algorithm_factor * window_factor;
+        let execution_time_ms = analytical_time_estimate_ms(effective_flops, &self.config);
+        let estimated_compute_throughput_gflops =
+            throughput_from_estimate(effective_flops, execution_time_ms);
 
-        // Create stats
-        let stats = KernelStats {
+        Ok(KernelStats {
             execution_time_ms,
-            memory_bandwidth_gb_s: 450.0,
-            compute_throughput_gflops: 9000.0,
+            memory_bandwidth_gb_s: None,
+            estimated_compute_throughput_gflops,
             bytes_transferred_to_device: self.input_size * std::mem::size_of::<Complex64>(),
             bytes_transferred_from_device: (self.sparsity * 2) * std::mem::size_of::<Complex64>(),
-            occupancy_percent: 75.0,
-        };
-
-        Ok(stats)
+            estimated_occupancy_percent: estimate.occupancy_percent,
+        })
     }
 }
 
@@ -505,10 +652,14 @@ impl KernelLauncher {
         let total_bytes = input_bytes + output_bytes;
         self.factory.check_memory_requirements(total_bytes)?;
 
-        // In a real implementation, this would allocate actual GPU memory
-        // For now, just return dummy addresses
-        let input_address = 0x10000;
-        let output_address = 0x20000;
+        // No real device allocator is wired up, so these are host-side bookkeeping
+        // handles, not real GPU device pointers. They are derived from the running
+        // allocation offset so that successive allocations yield distinct,
+        // non-overlapping, non-zero handles (matching how a bump allocator would
+        // hand out device offsets), instead of fixed magic addresses.
+        const HANDLE_BASE: usize = 0x1_0000;
+        let input_address = HANDLE_BASE + self.total_memory_allocated;
+        let output_address = input_address + input_bytes;
 
         self.total_memory_allocated += total_bytes;
 
@@ -531,11 +682,14 @@ impl KernelLauncher {
         let total_bytes = input_bytes + output_values_bytes + output_indices_bytes;
         self.factory.check_memory_requirements(total_bytes)?;
 
-        // In a real implementation, this would allocate actual GPU memory
-        // For now, just return dummy addresses
-        let input_address = 0x10000;
-        let output_values_address = 0x20000;
-        let output_indices_address = 0x30000;
+        // Host-side bookkeeping handles (see `allocate_fft_memory`): no real GPU
+        // device pointer is produced here. They are laid out contiguously from the
+        // running allocation offset so each sub-buffer gets a distinct, non-zero,
+        // non-overlapping handle.
+        const HANDLE_BASE: usize = 0x1_0000;
+        let input_address = HANDLE_BASE + self.total_memory_allocated;
+        let output_values_address = input_address + input_bytes;
+        let output_indices_address = output_values_address + output_values_bytes;
 
         self.total_memory_allocated += total_bytes;
 
@@ -654,14 +808,13 @@ where
     // Create kernel launcher
     let mut launcher = KernelLauncher::new(factory);
 
-    // Allocate _memory
+    // Allocate bookkeeping handles and validate the request fits in the declared
+    // memory budget (this performs the real `check_memory_requirements` check).
     let (input_address, output_values_address, output_indices_address) =
         launcher.allocate_sparse_fft_memory(signal.len(), sparsity)?;
 
-    // In a real implementation, this would copy the signal to GPU _memory
-
-    // Launch kernel
-    let stats = launcher.launch_sparse_fft_kernel(
+    // Obtain the modelled launch statistics for the requested configuration.
+    let mut stats = launcher.launch_sparse_fft_kernel(
         signal.len(),
         sparsity,
         input_address,
@@ -671,25 +824,28 @@ where
         window_function,
     )?;
 
-    // In a real implementation, this would copy the results back from GPU _memory
-    // For now, just return dummy data
+    // Compute the ACTUAL sparse FFT result. No device kernel is dispatched, so we
+    // run the crate's real CPU sparse-FFT implementation rather than fabricating
+    // frequency components. This returns genuine values/indices for the signal.
+    let config = SparseFFTConfig {
+        estimation_method: SparsityEstimationMethod::Manual,
+        sparsity,
+        algorithm,
+        window_function,
+        ..SparseFFTConfig::default()
+    };
+    let mut processor = SparseFFT::new(config);
 
-    // Create dummy frequency components
-    let mut values = Vec::with_capacity(sparsity);
-    let mut indices = Vec::with_capacity(sparsity);
+    let compute_start = std::time::Instant::now();
+    let result = processor.sparse_fft(signal)?;
+    // Replace the modelled time with the real measured host computation time so
+    // `execution_time_ms` reflects work that actually happened.
+    stats.execution_time_ms = compute_start.elapsed().as_secs_f64() * 1.0e3;
 
-    for i in 0..sparsity {
-        let idx = i * (signal.len() / sparsity);
-        let val = Complex64::new(1.0 / (i + 1) as f64, 0.0);
-
-        values.push(val);
-        indices.push(idx);
-    }
-
-    // Free _memory
+    // Free bookkeeping handles.
     launcher.free_all_memory();
 
-    Ok((values, indices, stats))
+    Ok((result.values, result.indices, stats))
 }
 
 #[cfg(test)]
@@ -810,10 +966,18 @@ mod tests {
             .launch_fft_kernel(1024, input_address, output_address)
             .expect("Operation failed");
 
-        // Check stats
+        // Check stats. The modelled time is positive, occupancy is a real model
+        // output in (0, 100], and the estimated throughput is present and positive
+        // for a non-trivial transform. Effective bandwidth is `None` here because
+        // no real host<->device transfer takes place (no device runtime).
         assert!(stats.execution_time_ms > 0.0);
-        assert!(stats.memory_bandwidth_gb_s > 0.0);
-        assert!(stats.compute_throughput_gflops > 0.0);
+        assert!(stats.estimated_occupancy_percent > 0.0);
+        assert!(stats.estimated_occupancy_percent <= 100.0);
+        assert!(stats.memory_bandwidth_gb_s.is_none());
+        assert!(matches!(
+            stats.estimated_compute_throughput_gflops,
+            Some(gflops) if gflops > 0.0
+        ));
 
         // Test freeing memory
         launcher.free_all_memory();
@@ -842,10 +1006,17 @@ mod tests {
                 (1, 1),
                 1024 * 1024, // 1 MB
             );
-            // In mock mode, this should still return valid dummy data
+            // No GPU runtime: the function now computes the REAL sparse FFT on
+            // the host instead of fabricating components. For a 3-tone real
+            // signal the top-6 components are the 3 tones and their conjugate
+            // mirrors, and the strongest tone (bin 3) must be recovered.
             let (values, indices, stats) = result.expect("Operation failed");
             assert_eq!(values.len(), 6);
             assert_eq!(indices.len(), 6);
+            assert!(
+                indices.contains(&3),
+                "real strongest tone (bin 3) not found"
+            );
             assert!(stats.execution_time_ms >= 0.0);
             return;
         }
@@ -862,9 +1033,13 @@ mod tests {
         )
         .expect("Operation failed");
 
-        // Check results
+        // Check results: same real computation as the CPU path.
         assert_eq!(values.len(), 6);
         assert_eq!(indices.len(), 6);
+        assert!(
+            indices.contains(&3),
+            "real strongest tone (bin 3) not found"
+        );
         assert!(stats.execution_time_ms > 0.0);
     }
 }

@@ -32,13 +32,47 @@ pub fn auto_perspective_correction(
     edge_threshold: f64,
     min_quad_area: f64,
 ) -> Result<PerspectiveTransform> {
-    // Step 1: Edge detection
-    let edges = detect_edges_sobel(image, edge_threshold)?;
+    // Steps 1-3: Detect the dominant quadrilateral (edges → contours → quad).
+    let quad = detect_quadrilateral(image, edge_threshold, min_quad_area)?;
 
-    // Step 2: Find contours
+    // Step 4: Create rectification transformation
+    // Map the detected quad to a rectangle
+    let (height, width) = image.dim();
+    let dst_quad = [
+        (0.0, 0.0),
+        (width as f64, 0.0),
+        (width as f64, height as f64),
+        (0.0, height as f64),
+    ];
+
+    PerspectiveTransform::from_points(&quad, &dst_quad)
+}
+
+/// Detect the dominant quadrilateral in a grayscale image.
+///
+/// Runs the same detection pipeline used by [`auto_perspective_correction`]
+/// (Sobel edge detection → contour tracing → polygon-to-quad approximation) and
+/// returns the corners of the largest quadrilateral whose area exceeds
+/// `min_quad_area`. The returned corners are in image coordinates `(x, y)`.
+///
+/// # Arguments
+///
+/// * `image` - Input grayscale image as a 2D array
+/// * `edge_threshold` - Edge-magnitude threshold for Sobel edge detection
+/// * `min_quad_area` - Minimum area for an accepted quadrilateral
+///
+/// # Errors
+///
+/// Returns [`VisionError::OperationError`] when no quadrilateral satisfying the
+/// area constraint can be found, instead of fabricating a placeholder result.
+pub fn detect_quadrilateral(
+    image: &Array2<f64>,
+    edge_threshold: f64,
+    min_quad_area: f64,
+) -> Result<[(f64, f64); 4]> {
+    let edges = detect_edges_sobel(image, edge_threshold)?;
     let contours = find_contours_simd(&edges)?;
 
-    // Step 3: Find the best quadrilateral
     let mut best_quad: Option<[(f64, f64); 4]> = None;
     let mut best_area = 0.0;
 
@@ -52,23 +86,11 @@ pub fn auto_perspective_correction(
         }
     }
 
-    let quad = best_quad.ok_or_else(|| {
+    best_quad.ok_or_else(|| {
         VisionError::OperationError(
-            "No suitable quadrilateral found for perspective correction".to_string(),
+            "No suitable quadrilateral found in image for the given thresholds".to_string(),
         )
-    })?;
-
-    // Step 4: Create rectification transformation
-    // Map the detected quad to a rectangle
-    let (height, width) = image.dim();
-    let dst_quad = [
-        (0.0, 0.0),
-        (width as f64, 0.0),
-        (width as f64, height as f64),
-        (0.0, height as f64),
-    ];
-
-    PerspectiveTransform::from_points(&quad, &dst_quad)
+    })
 }
 
 /// Detect edges using Sobel operator

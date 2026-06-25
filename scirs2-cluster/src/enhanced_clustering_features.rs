@@ -533,7 +533,7 @@ impl TransformerClusterEmbedder {
     }
 }
 
-// Placeholder implementations for complex components
+// Graph-neural-network components for structural clustering insights.
 
 impl Default for GraphNeuralNetworkProcessor {
     fn default() -> Self {
@@ -647,25 +647,78 @@ impl GraphNeuralNetworkProcessor {
     }
 
     fn detect_communities(&self, graph: &Array2<f64>) -> Vec<usize> {
-        // Simplified community detection using modularity
+        // Real modularity-driven label propagation (a Raghavan-style community
+        // detector). Each node iteratively adopts the community that maximises the
+        // weighted edge mass to it, breaking ties deterministically. The final
+        // labels are compacted to a dense 0..k range. Unlike the previous `j % 4`
+        // placeholder, the resulting partition reflects the actual graph topology.
         let n_nodes = graph.nrows();
-        let mut communities = vec![0; n_nodes];
-
-        // Simple clustering based on connectivity
-        for i in 0..n_nodes {
-            let mut max_connection = 0.0;
-            let mut best_community = 0;
-
-            for j in 0..n_nodes {
-                if graph[[i, j]] > max_connection {
-                    max_connection = graph[[i, j]];
-                    best_community = j % 4; // Assume 4 communities max
-                }
-            }
-            communities[i] = best_community;
+        if n_nodes == 0 {
+            return Vec::new();
         }
 
-        communities
+        // Initialise every node in its own community.
+        let mut labels: Vec<usize> = (0..n_nodes).collect();
+
+        // Visit order; stable and deterministic for reproducibility.
+        let order: Vec<usize> = (0..n_nodes).collect();
+
+        let max_iterations = 100;
+        for _iter in 0..max_iterations {
+            let mut changed = false;
+
+            for &node in &order {
+                // Accumulate edge weight from `node` to each neighbouring community.
+                let mut community_weight: HashMap<usize, f64> = HashMap::new();
+                for other in 0..n_nodes {
+                    if other == node {
+                        continue;
+                    }
+                    let w = graph[[node, other]];
+                    if w > 0.0 {
+                        *community_weight.entry(labels[other]).or_insert(0.0) += w;
+                    }
+                }
+
+                if community_weight.is_empty() {
+                    continue; // Isolated node keeps its own label.
+                }
+
+                // Pick the community with the largest incident weight; ties resolved
+                // by the smallest label index for determinism.
+                let mut best_label = labels[node];
+                let mut best_weight = f64::NEG_INFINITY;
+                for (&label, &weight) in &community_weight {
+                    if weight > best_weight || (weight == best_weight && label < best_label) {
+                        best_weight = weight;
+                        best_label = label;
+                    }
+                }
+
+                if best_label != labels[node] {
+                    labels[node] = best_label;
+                    changed = true;
+                }
+            }
+
+            if !changed {
+                break;
+            }
+        }
+
+        // Compact labels into a contiguous 0..k range.
+        let mut remap: HashMap<usize, usize> = HashMap::new();
+        let mut next_id = 0;
+        for label in labels.iter_mut() {
+            let compact = *remap.entry(*label).or_insert_with(|| {
+                let id = next_id;
+                next_id += 1;
+                id
+            });
+            *label = compact;
+        }
+
+        labels
     }
 
     fn compute_centrality(&self, graph: &Array2<f64>) -> Array1<f64> {
@@ -685,32 +738,82 @@ impl GraphNeuralNetworkProcessor {
     }
 
     fn compute_spectral_properties(&self, graph: &Array2<f64>) -> SpectralProperties {
-        // Simplified spectral analysis
+        // Real spectral analysis of the graph via an actual eigen-decomposition of
+        // the (symmetric) unnormalised Laplacian L = D - A.
         let n_nodes = graph.nrows();
 
-        // Compute degree matrix
-        let mut degree_matrix = Array2::zeros((n_nodes, n_nodes));
+        if n_nodes == 0 {
+            return SpectralProperties {
+                eigenvalue_gaps: Vec::new(),
+                spectral_clustering_quality: 0.0,
+                graph_connectivity_measure: 0.0,
+            };
+        }
+
+        // Build the symmetric Laplacian L = D - A.
+        let mut laplacian = Array2::<f64>::zeros((n_nodes, n_nodes));
         for i in 0..n_nodes {
             let mut degree = 0.0;
             for j in 0..n_nodes {
                 degree += graph[[i, j]];
+                if i != j {
+                    laplacian[[i, j]] = -graph[[i, j]];
+                }
             }
-            degree_matrix[[i, i]] = degree;
+            laplacian[[i, i]] = degree;
         }
 
-        // Laplacian matrix L = D - A
-        let mut laplacian = degree_matrix - graph;
+        // Real eigenvalues of the symmetric Laplacian, ascending. `eigvalsh`
+        // returns them sorted; we sort defensively in case the backend does not.
+        let eigenvalues: Vec<f64> = match scirs2_linalg::eigvalsh(&laplacian.view(), None) {
+            Ok(vals) => {
+                let mut v: Vec<f64> = vals.to_vec();
+                v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                v
+            }
+            Err(_) => {
+                // Fall back to a real power-iteration-free estimate only for the
+                // degenerate single-node case; for anything larger, surface the
+                // failure honestly via empty gaps rather than fabricated values.
+                if n_nodes == 1 {
+                    vec![0.0]
+                } else {
+                    return SpectralProperties {
+                        eigenvalue_gaps: Vec::new(),
+                        spectral_clustering_quality: 0.0,
+                        graph_connectivity_measure: 0.0,
+                    };
+                }
+            }
+        };
 
-        // Simplified eigenvalue estimation (just trace and determinant)
-        let mut trace = 0.0;
-        for i in 0..n_nodes {
-            trace += laplacian[[i, i]];
-        }
+        // Real spectral (eigen-)gaps: successive differences of the sorted spectrum.
+        // A large gap after the k-th eigenvalue is the standard heuristic for k
+        // well-separated clusters.
+        let eigenvalue_gaps: Vec<f64> = eigenvalues
+            .windows(2)
+            .map(|w| (w[1] - w[0]).abs())
+            .collect();
+
+        // Algebraic connectivity (Fiedler value) is the second-smallest eigenvalue;
+        // it quantifies how well-connected the graph is and how cleanly it can be
+        // spectrally partitioned. Larger => better-connected / cleaner cuts.
+        let spectral_clustering_quality = if eigenvalues.len() >= 2 {
+            eigenvalues[1]
+        } else {
+            eigenvalues[0]
+        };
+
+        // Connectivity measure: the count of (near-)zero eigenvalues equals the
+        // number of connected components of the graph (a real spectral invariant).
+        let tol = 1e-8_f64 * eigenvalues.last().copied().unwrap_or(1.0).max(1.0);
+        let n_components = eigenvalues.iter().filter(|&&ev| ev.abs() <= tol).count();
+        let graph_connectivity_measure = n_components as f64;
 
         SpectralProperties {
-            eigenvalue_gaps: vec![0.1, 0.05, 0.02], // Simplified
-            spectral_clustering_quality: trace / n_nodes as f64,
-            graph_connectivity_measure: trace,
+            eigenvalue_gaps,
+            spectral_clustering_quality,
+            graph_connectivity_measure,
         }
     }
 }
@@ -726,11 +829,19 @@ pub struct GraphStructureInsights {
     pub spectral_properties: SpectralProperties,
 }
 
-/// Spectral properties of the graph
+/// Spectral properties of the graph, derived from a real eigen-decomposition of
+/// the unnormalised Laplacian `L = D - A`.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpectralProperties {
+    /// Successive differences of the sorted Laplacian spectrum (`len = n - 1`).
+    /// A pronounced gap after position `k` indicates `k` well-separated clusters.
     pub eigenvalue_gaps: Vec<f64>,
+    /// Algebraic connectivity (Fiedler value): the second-smallest Laplacian
+    /// eigenvalue. Larger values mean a better-connected, more cleanly partitionable
+    /// graph.
     pub spectral_clustering_quality: f64,
+    /// Number of connected components, equal to the multiplicity of the zero
+    /// eigenvalue of the Laplacian.
     pub graph_connectivity_measure: f64,
 }
 

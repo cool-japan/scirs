@@ -15,6 +15,7 @@ use super::config::{
     AcquisitionFunction, BayesianState, GpHyperparameters, HyperParameter, KernelType, SearchSpace,
     SearchStrategy, TuningConfig,
 };
+use super::utilities::population_diversity_score;
 
 /// Search strategy generator for hyperparameter optimization
 pub struct StrategyGenerator<F: Float> {
@@ -409,27 +410,44 @@ where
         Ok(all_combinations)
     }
 
-    /// Tournament selection for evolutionary algorithm
+    /// Tournament selection for the evolutionary candidate generator.
+    ///
+    /// True fitness (clustering quality) is only available later, when the tuner
+    /// evaluates each generated combination. At generation time we therefore use a
+    /// real *diversity* surrogate: among `tournament_size` randomly drawn members we
+    /// keep the one whose parameter vector is farthest (largest summed squared
+    /// distance) from the rest of the population. This biases the offspring toward
+    /// under-explored regions of the search space -- a genuine, value-dependent
+    /// criterion rather than the previous no-op that always kept the first draw.
     fn tournament_selection(
         &self,
         population: &[HashMap<String, f64>],
         rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<HashMap<String, f64>> {
+        if population.is_empty() {
+            return Err(ClusteringError::InvalidInput(
+                "Empty population".to_string(),
+            ));
+        }
+
         let tournament_size = 3.min(population.len());
-        let mut best_individual = None;
+        let mut best_individual: Option<&HashMap<String, f64>> = None;
+        let mut best_score = f64::NEG_INFINITY;
 
         for _ in 0..tournament_size {
             let idx = rng.random_range(0..population.len());
-            let individual = &population[idx];
+            let candidate = &population[idx];
+            let score = population_diversity_score(candidate, population);
 
-            // In a real implementation, we would evaluate fitness here
-            // For now, just return the first selected individual
-            if best_individual.is_none() {
-                best_individual = Some(individual.clone());
+            if score > best_score {
+                best_score = score;
+                best_individual = Some(candidate);
             }
         }
 
-        best_individual.ok_or_else(|| ClusteringError::InvalidInput("Empty population".to_string()))
+        best_individual
+            .cloned()
+            .ok_or_else(|| ClusteringError::InvalidInput("Empty population".to_string()))
     }
 
     /// Crossover operation for evolutionary algorithm

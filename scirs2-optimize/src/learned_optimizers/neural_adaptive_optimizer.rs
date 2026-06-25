@@ -1696,6 +1696,7 @@ impl LearnedOptimizer for NeuralAdaptiveOptimizer {
     {
         let mut current_params = initial_params.to_owned();
         let mut best_value = objective(initial_params);
+        let mut best_params = current_params.clone();
         let mut iterations = 0;
 
         for step_number in 0..1000 {
@@ -1722,6 +1723,7 @@ impl LearnedOptimizer for NeuralAdaptiveOptimizer {
 
             if current_value < best_value {
                 best_value = current_value;
+                best_params = current_params.clone();
             }
 
             // Record performance for adaptation
@@ -1734,7 +1736,7 @@ impl LearnedOptimizer for NeuralAdaptiveOptimizer {
         }
 
         Ok(OptimizeResults::<f64> {
-            x: current_params,
+            x: best_params,
             fun: best_value,
             success: true,
             nit: iterations,
@@ -1970,9 +1972,4 @@ mod tests {
         assert_eq!(result.x.len(), 2);
         assert!(result.success);
     }
-}
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
 }

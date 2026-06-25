@@ -66,7 +66,8 @@
 //! writer.finish().expect("finish");
 //!
 //! // Read back
-//! let mut reader = ArrowStreamReader::new(&mut buf.as_slice()).expect("create reader");
+//! let mut slice = buf.as_slice();
+//! let mut reader = ArrowStreamReader::new(&mut slice).expect("create reader");
 //! while let Some(rb) = reader.read_next_batch().expect("read") {
 //!     println!("batch rows = {}", rb.num_rows());
 //! }

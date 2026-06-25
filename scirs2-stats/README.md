@@ -25,7 +25,7 @@ Modern statistical workflows demand more than descriptive statistics and p-value
 
 ---
 
-## Feature List (v0.5.0)
+## Feature List (v0.5.1)
 
 ### Descriptive Statistics
 - Mean, median, trimmed mean, geometric mean, harmonic mean
@@ -143,7 +143,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.5.0"
+scirs2-stats = "0.5.1"
 ```
 
 ### Basic Descriptive Statistics

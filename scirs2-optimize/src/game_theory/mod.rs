@@ -11,7 +11,7 @@
 //!
 //! ```rust
 //! use scirs2_optimize::game_theory::normal_form::{NormalFormGame, find_pure_nash_equilibria};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // Prisoner's Dilemma: Cooperate (0) or Defect (1)
 //! let payoff_1 = array![[-1.0, -3.0], [0.0, -2.0]];
@@ -26,7 +26,7 @@
 //!
 //! ```rust
 //! use scirs2_optimize::game_theory::zero_sum::minimax_solve;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let payoff = array![[2.0, -1.0], [-1.0, 2.0]];
 //! let result = minimax_solve(payoff.view()).expect("valid input");

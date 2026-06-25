@@ -28,11 +28,9 @@ pollster = { workspace = true, optional = true }
 
 # Statistics specific dependencies
 statrs = { workspace = true }
-special = { workspace = true }
 num_cpus = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-either = { workspace = true }
 chrono = { workspace = true }
 memmap2 = { workspace = true }
 quickcheck = { workspace = true }

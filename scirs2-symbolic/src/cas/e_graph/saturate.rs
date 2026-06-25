@@ -20,7 +20,7 @@
 //! When the budget is exhausted the e-graph is in a valid (partial saturation)
 //! state; the caller should still extract and return a valid form.
 
-use hashbrown::HashMap;
+use std::collections::HashMap;
 
 use super::build::EGraph;
 use super::extract::extract_class;
@@ -80,7 +80,7 @@ pub(crate) fn saturate(
 
         // Snapshot: extract cheapest representative for each class.
         // Collect and sort class ids so that saturation order is deterministic.
-        // hashbrown::HashMap uses a randomised hash seed, making `.keys()`
+        // std::collections::HashMap uses a randomised hash seed, making `.keys()`
         // iteration order non-deterministic across runs and threads. Sorting by
         // the monotonically-assigned `ClassId` (u32) gives a stable traversal
         // order that does not depend on the OS thread scheduler or the hash seed,
@@ -92,9 +92,9 @@ pub(crate) fn saturate(
         let mut snapshot: HashMap<ClassId, LoweredOp> = HashMap::new();
         for &cls in &class_ids {
             let root = egraph.find(cls);
-            if !snapshot.contains_key(&root) {
+            if let std::collections::hash_map::Entry::Vacant(entry) = snapshot.entry(root) {
                 let rep = extract_class(egraph, root);
-                snapshot.insert(root, rep);
+                entry.insert(rep);
             }
         }
 

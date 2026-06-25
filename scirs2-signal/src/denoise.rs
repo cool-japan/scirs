@@ -58,6 +58,7 @@ pub enum ThresholdSelect {
 /// ```rust
 /// use scirs2_signal::denoise::{denoise_wavelet, ThresholdMethod, ThresholdSelect};
 /// use scirs2_signal::dwt::Wavelet;
+/// use std::f64::consts::PI;
 ///
 ///
 /// // Create a clean signal

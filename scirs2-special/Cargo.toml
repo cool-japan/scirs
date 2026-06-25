@@ -42,8 +42,8 @@ gpu = ["scirs2-core/gpu"]  # GPU accessed through core
 cuda_kernels = []          # CUDA/ROCm kernel dispatch (default off — requires C libs, feature-gated per Pure Rust Policy)
 wgpu_kernels = ["dep:wgpu", "dep:pollster"]  # Pure-Rust wgpu compute kernels for special functions
 # array-api = ["arrayfire", "candle"]  # Disabled - placeholder for future implementation
-high-precision = ["rug"]               # Arbitrary precision computations
-arbitrary_precision = ["high-precision"] # Alias: gamma_mpfr, erf_mpfr, bessel_j0_mpfr, bessel_k0_mpfr via MPFR
+high-precision = ["dep:oxinum-float"]   # Arbitrary precision computations (Pure Rust, no C/Fortran FFI)
+arbitrary_precision = ["high-precision"] # Alias: gamma_mpfr, erf_mpfr, bessel_j0_mpfr, bessel_k0_mpfr via oxinum-float
 python-interop = ["regex"]             # Python interoperability features
 plotting = ["plotters"]                # Visualization and plotting support
 pdf = ["dep:printpdf"]                 # PDF export support (gates printpdf dep)
@@ -86,7 +86,7 @@ optional = true
 # version = "0.6"
 # optional = true
 
-[dependencies.rug]
+[dependencies.oxinum-float]
 workspace = true
 optional = true
 

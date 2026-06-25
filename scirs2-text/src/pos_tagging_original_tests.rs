@@ -1,6 +1,4 @@
 use super::*;
-
-use super::*;
 use crate::stemming::Stemmer;
 use crate::tokenize::WordTokenizer;
 

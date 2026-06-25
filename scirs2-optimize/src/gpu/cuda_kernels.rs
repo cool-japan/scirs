@@ -225,8 +225,3 @@ impl DifferentialEvolutionKernel {
         Ok(mutants)
     }
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
-}

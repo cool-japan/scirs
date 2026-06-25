@@ -8,7 +8,7 @@ use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2, ArrayView3};
 use scirs2_core::numeric::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
-use crate::attention::{AttentionConfig, AttentionMask};
+use crate::attention::{apply_mask, AttentionConfig, AttentionMask};
 use crate::error::{check_dimensions, LinalgError, LinalgResult};
 
 /// Multi-query batched attention
@@ -76,25 +76,7 @@ where
 
         // Apply mask if provided
         if let Some(mask_ref) = mask {
-            match mask_ref {
-                AttentionMask::Causal => {
-                    // Apply causal mask (upper triangular with -inf)
-                    for i in 0..seq_len_q {
-                        for j in 0..seq_len_k {
-                            if j > i {
-                                scores[[i, j]] = F::neg_infinity();
-                            }
-                        }
-                    }
-                }
-                // Other mask types not implemented for batched version yet
-                _ => {
-                    return Err(LinalgError::NotImplementedError(
-                        "Only causal masks are currently supported for batch_multi_query_attention"
-                            .to_string(),
-                    ))
-                }
-            }
+            apply_mask(&mut scores, mask_ref, b)?;
         }
 
         // Apply softmax to each row
@@ -301,25 +283,7 @@ where
 
             // Apply mask if provided
             if let Some(mask_ref) = mask {
-                match mask_ref {
-                    AttentionMask::Causal => {
-                        if config.causal {
-                            // Apply causal mask (upper triangular with -inf)
-                            for i in 0..seq_len_q {
-                                for j in 0..seq_len_k {
-                                    if j > i {
-                                        scores[[i, j]] = F::neg_infinity();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // Other mask types not implemented for batched version yet
-                    _ => return Err(LinalgError::NotImplementedError(
-                        "Only causal masks are currently supported for batch_multi_head_attention"
-                            .to_string(),
-                    )),
-                }
+                apply_mask(&mut scores, mask_ref, b)?;
             } else if config.causal {
                 // Apply causal mask if specified in config
                 for i in 0..seq_len_q {
@@ -793,5 +757,153 @@ mod tests {
 
         assert_relative_eq!(result[[1, 2, 0]], 3.0, epsilon = 1e-5);
         assert_relative_eq!(result[[1, 2, 1]], 4.0, epsilon = 1e-5);
+    }
+
+    #[test]
+    fn test_batch_multi_query_attention_additive_mask() {
+        use scirs2_core::ndarray::Array3 as NdArray3;
+        let batch_size = 2usize;
+        let seq_len_q = 3usize;
+        let seq_len_k = 3usize;
+        let d_model = 2usize;
+
+        let batch_query = Array3::from_shape_fn((batch_size, seq_len_q, d_model), |_| 1.0f64);
+        let key = Array::from_shape_fn((seq_len_k, d_model), |_| 1.0f64);
+        let value = Array::from_shape_fn((seq_len_k, d_model), |_| 1.0f64);
+        let scale = 1.0 / (d_model as f64).sqrt();
+
+        let mut mask_data = NdArray3::<f32>::zeros((1, seq_len_q, seq_len_k));
+        mask_data[[0, 0, 1]] = -1e9;
+        let mask = AttentionMask::Additive(mask_data);
+
+        let result = batch_multi_query_attention(
+            &batch_query.view(),
+            &key.view(),
+            &value.view(),
+            Some(&mask),
+            scale,
+        );
+        assert!(
+            result.is_ok(),
+            "Additive mask should succeed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_batch_multi_query_attention_boolean_mask() {
+        use scirs2_core::ndarray::Array3 as NdArray3;
+        let batch_size = 2usize;
+        let seq_len_q = 3usize;
+        let seq_len_k = 3usize;
+        let d_model = 2usize;
+
+        let batch_query = Array3::from_shape_fn((batch_size, seq_len_q, d_model), |_| 1.0f64);
+        let key = Array::from_shape_fn((seq_len_k, d_model), |_| 1.0f64);
+        let value = Array::from_shape_fn((seq_len_k, d_model), |_| 1.0f64);
+        let scale = 1.0 / (d_model as f64).sqrt();
+
+        let mut mask_data = NdArray3::<bool>::from_elem((1, seq_len_q, seq_len_k), true);
+        for i in 0..seq_len_q {
+            for j in 0..seq_len_k {
+                if j > i {
+                    mask_data[[0, i, j]] = false;
+                }
+            }
+        }
+        let mask = AttentionMask::Boolean(mask_data);
+
+        let result = batch_multi_query_attention(
+            &batch_query.view(),
+            &key.view(),
+            &value.view(),
+            Some(&mask),
+            scale,
+        );
+        assert!(
+            result.is_ok(),
+            "Boolean mask should succeed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_batch_multi_query_attention_multiplicative_mask() {
+        use scirs2_core::ndarray::Array3 as NdArray3;
+        let batch_size = 1usize;
+        let seq_len_q = 3usize;
+        let seq_len_k = 3usize;
+        let d_model = 2usize;
+
+        let batch_query = Array3::from_shape_fn((batch_size, seq_len_q, d_model), |_| 1.0f64);
+        let key = Array::from_shape_fn((seq_len_k, d_model), |_| 1.0f64);
+        let value = Array::from_shape_fn((seq_len_k, d_model), |_| 1.0f64);
+        let scale = 1.0 / (d_model as f64).sqrt();
+
+        let mut mask_data = NdArray3::<f32>::ones((1, seq_len_q, seq_len_k));
+        for i in 0..seq_len_q.min(seq_len_k) {
+            mask_data[[0, i, i]] = 0.0;
+        }
+        let mask = AttentionMask::Multiplicative(mask_data);
+
+        let result = batch_multi_query_attention(
+            &batch_query.view(),
+            &key.view(),
+            &value.view(),
+            Some(&mask),
+            scale,
+        );
+        assert!(
+            result.is_ok(),
+            "Multiplicative mask should succeed: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_batch_multi_head_attention_additive_mask() {
+        use scirs2_core::ndarray::Array3 as NdArray3;
+        let batch_size = 2usize;
+        let seq_len = 4usize;
+        let d_model = 4usize;
+        let num_heads = 2usize;
+        let head_dim = d_model / num_heads;
+
+        let batch_query = Array3::from_shape_fn((batch_size, seq_len, d_model), |_| 0.1f64);
+        let batch_key = Array3::from_shape_fn((batch_size, seq_len, d_model), |_| 0.1f64);
+        let batch_value = Array3::from_shape_fn((batch_size, seq_len, d_model), |_| 0.1f64);
+        let wq = Array2::from_shape_fn((d_model, d_model), |_| 0.1f64);
+        let wk = Array2::from_shape_fn((d_model, d_model), |_| 0.1f64);
+        let wv = Array2::from_shape_fn((d_model, d_model), |_| 0.1f64);
+        let wo = Array2::from_shape_fn((d_model, d_model), |_| 0.1f64);
+
+        let mut mask_data = NdArray3::<f32>::zeros((1, seq_len, seq_len));
+        mask_data[[0, 0, 3]] = -1e9;
+        let mask = AttentionMask::Additive(mask_data);
+
+        let config = AttentionConfig {
+            num_heads,
+            head_dim,
+            dropout_prob: 0.0,
+            causal: false,
+            scale: Some(1.0 / (head_dim as f32).sqrt()),
+        };
+
+        let result = batch_multi_head_attention(
+            &batch_query.view(),
+            &batch_key.view(),
+            &batch_value.view(),
+            &wq.view(),
+            &wk.view(),
+            &wv.view(),
+            &wo.view(),
+            Some(&mask),
+            &config,
+        );
+        assert!(
+            result.is_ok(),
+            "Multi-head additive mask should succeed: {:?}",
+            result.err()
+        );
     }
 }

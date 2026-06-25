@@ -40,10 +40,6 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenOp {
             compute_general_eigen(&input_2d)?
         };
 
-        // Verify the shapes of the computed arrays
-        println!("Eigenvalues shape: {:?}", eigenvalues.shape());
-        println!("Eigenvectors shape: {:?}", eigenvectors.shape());
-
         // Ensure eigenvalues is a 1D array of length n
         assert_eq!(eigenvalues.len(), shape[0]);
 
@@ -174,18 +170,9 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenvaluesOp {
 
         let eigenvalues = compute_eigenvalues_only(&input_2d)?;
 
-        // Verify the shape of the computed eigenvalues array
-        println!("Eigenvalues shape: {:?}", eigenvalues.shape());
-
         // Ensure eigenvalues is a 1D array of length n
         let n = shape[0];
         if eigenvalues.len() != n {
-            println!(
-                "WARNING: Eigenvalues shape mismatch! Expected length {}, got {}",
-                n,
-                eigenvalues.len()
-            );
-
             // Create a new array with the correct shape
             let mut reshaped_vals = scirs2_core::ndarray::Array1::<F>::zeros(n);
 
@@ -366,14 +353,12 @@ fn compute_general_eigen<F: Float + ScalarOperand + FromPrimitive>(
     // This is a more robust implementation for non-symmetric matrices
 
     let n = matrix.shape()[0];
-    println!("Computing eigendecomposition for general matrix of size: {n}");
 
     // Check if the matrix is close to symmetric within a tolerance
     let tol_scale = F::from(100.0).unwrap_or_else(|| F::one());
     let is_nearly_symmetric = is_nearly_symmetric_matrix(matrix, F::epsilon() * tol_scale);
 
     if is_nearly_symmetric {
-        println!("Matrix is nearly symmetric, using symmetric algorithm");
         // If nearly symmetric, symmetrize and use the more efficient Jacobi method
         let mut sym_matrix = Array2::<F>::zeros((n, n));
         let half = scirs2_core::numeric::FromPrimitive::from_f64(0.5).unwrap_or_else(|| F::one());
@@ -384,8 +369,6 @@ fn compute_general_eigen<F: Float + ScalarOperand + FromPrimitive>(
         }
         return compute_symmetric_eigen(&sym_matrix.view());
     }
-
-    println!("Using QR algorithm for general eigendecomposition");
 
     // Implementation of the QR algorithm for eigendecomposition
     // We'll perform a series of QR decompositions to find the eigenvalues and vectors
@@ -435,7 +418,6 @@ fn compute_general_eigen<F: Float + ScalarOperand + FromPrimitive>(
         let n_f = F::from(n as f64).unwrap_or_else(|| F::one());
         let diff = (&a - &prev_a).mapv(|x| x.abs()).sum() / n_f;
         if iter > 0 && diff < tol {
-            println!("QR algorithm converged after {} iterations", iter + 1);
             break;
         }
 
@@ -457,7 +439,6 @@ fn compute_general_eigen<F: Float + ScalarOperand + FromPrimitive>(
         }
 
         if is_triangular {
-            println!("Matrix is nearly triangular after {} iterations", iter + 1);
             break;
         }
     }
@@ -618,8 +599,6 @@ fn eigendecomposition_gradient<F: Float + ScalarOperand + FromPrimitive>(
     let n = eigenvalues.len();
     let mut grad = Array2::<F>::zeros((n, n));
 
-    println!("Computing eigendecomposition gradient for matrix of size: {n}");
-
     // Gradient for eigenvalues part
     // For each eigenvalue, we add the corresponding component to the gradient
     for i in 0..n {
@@ -721,7 +700,6 @@ fn eigendecomposition_gradient<F: Float + ScalarOperand + FromPrimitive>(
         grad[[i, i]] += eps;
     }
 
-    println!("Completed eigendecomposition gradient computation");
     grad
 }
 

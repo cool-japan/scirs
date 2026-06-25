@@ -51,7 +51,7 @@ use crate::error::{OptimizeError, OptimizeResult};
 /// use scirs2_optimize::multiobjective::hypervolume::hypervolume_2d;
 /// let front = &[(0.0, 1.0), (0.5, 0.5), (1.0, 0.0)];
 /// let hv = hypervolume_2d(front, (2.0, 2.0)).expect("valid input");
-/// assert!((hv - 2.75).abs() < 1e-10);
+/// assert!((hv - 3.25).abs() < 1e-10);
 /// ```
 pub fn hypervolume_2d(front: &[(f64, f64)], reference: (f64, f64)) -> OptimizeResult<f64> {
     if front.is_empty() {
@@ -210,7 +210,7 @@ pub fn hypervolume_3d(front: &[[f64; 3]], reference: &[f64; 3]) -> OptimizeResul
 /// use scirs2_optimize::multiobjective::hypervolume::hypervolume_wfg;
 /// let front = vec![vec![0.0, 1.0], vec![0.5, 0.5], vec![1.0, 0.0]];
 /// let hv = hypervolume_wfg(&front, &[2.0, 2.0]).expect("valid input");
-/// assert!((hv - 2.75).abs() < 1e-10);
+/// assert!((hv - 3.25).abs() < 1e-10);
 /// ```
 pub fn hypervolume_wfg(front: &[Vec<f64>], reference: &[f64]) -> OptimizeResult<f64> {
     if front.is_empty() {

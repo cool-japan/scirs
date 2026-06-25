@@ -3,22 +3,26 @@
 //! This module implements primal-dual interior point methods for solving
 //! constrained optimization problems with equality and inequality constraints.
 
-use super::{Constraint, ConstraintFn, ConstraintKind};
+use super::{Constraint, ConstraintKind};
 use crate::error::OptimizeError;
 use crate::unconstrained::OptimizeResult;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
-/// Type alias for equality constraint function
-type EqualityConstraintFn = dyn FnMut(&ArrayView1<f64>) -> Array1<f64>;
+/// Type alias for equality constraint function.
+///
+/// Carries an explicit lifetime so that callers may pass closures that borrow
+/// from the (non-`'static`) `Constraint` slice; the boxed constraint callables
+/// (issue #126) cannot be copied out, so they are evaluated by reference.
+type EqualityConstraintFn<'a> = dyn FnMut(&ArrayView1<f64>) -> Array1<f64> + 'a;
 
-/// Type alias for equality constraint jacobian function  
-type EqualityJacobianFn = dyn FnMut(&ArrayView1<f64>) -> Array2<f64>;
+/// Type alias for equality constraint jacobian function
+type EqualityJacobianFn<'a> = dyn FnMut(&ArrayView1<f64>) -> Array2<f64> + 'a;
 
 /// Type alias for inequality constraint function
-type InequalityConstraintFn = dyn FnMut(&ArrayView1<f64>) -> Array1<f64>;
+type InequalityConstraintFn<'a> = dyn FnMut(&ArrayView1<f64>) -> Array1<f64> + 'a;
 
 /// Type alias for inequality constraint jacobian function
-type InequalityJacobianFn = dyn FnMut(&ArrayView1<f64>) -> Array2<f64>;
+type InequalityJacobianFn<'a> = dyn FnMut(&ArrayView1<f64>) -> Array2<f64> + 'a;
 
 /// Type alias for Newton direction result to reduce type complexity
 type NewtonDirectionResult = (Array1<f64>, Array1<f64>, Array1<f64>, Array1<f64>);
@@ -125,10 +129,10 @@ impl<'a> InteriorPointSolver<'a> {
         &mut self,
         fun: &mut F,
         grad: &mut G,
-        mut eq_con: Option<&mut EqualityConstraintFn>,
-        mut eq_jac: Option<&mut EqualityJacobianFn>,
-        mut ineq_con: Option<&mut InequalityConstraintFn>,
-        mut ineq_jac: Option<&mut InequalityJacobianFn>,
+        mut eq_con: Option<&mut EqualityConstraintFn<'_>>,
+        mut eq_jac: Option<&mut EqualityJacobianFn<'_>>,
+        mut ineq_con: Option<&mut InequalityConstraintFn<'_>>,
+        mut ineq_jac: Option<&mut InequalityJacobianFn<'_>>,
         x0: &Array1<f64>,
     ) -> Result<InteriorPointResult, OptimizeError>
     where
@@ -947,35 +951,58 @@ where
     grad
 }
 
-/// Compute Jacobian using finite differences for multiple constraint functions
+/// Compute the Jacobian of multiple constraints.
+///
+/// For each constraint, the analytical Jacobian attached via
+/// [`Constraint::with_jacobian`] (issue #127) is used when present; otherwise a
+/// forward finite-difference approximation is computed. An analytical Jacobian
+/// of the wrong length falls back to finite differences (no panic, no unwrap).
 #[allow(dead_code)]
-fn finite_diff_jacobian(
-    constraint_fns: &[ConstraintFn],
+fn finite_diff_jacobian_constraints(
+    constraints: &[&Constraint],
     x: &ArrayView1<f64>,
     eps: f64,
 ) -> Array2<f64> {
     let n = x.len();
-    let m = constraint_fns.len();
+    let m = constraints.len();
     let mut jac = Array2::zeros((m, n));
     let x_slice = x.as_slice().expect("Operation failed");
 
-    // Evaluate constraints at current point
-    let f0: Vec<f64> = constraint_fns.iter().map(|f| f(x_slice)).collect();
+    // Evaluate constraints at current point (reused by the finite-difference path)
+    let f0: Vec<f64> = constraints.iter().map(|c| (c.fun)(x_slice)).collect();
 
-    let mut x_pert = x.to_owned();
-
-    for j in 0..n {
-        let h = eps * (1.0 + x[j].abs());
-        x_pert[j] = x[j] + h;
-        let x_pert_slice = x_pert.as_slice().expect("Operation failed");
-
-        // Evaluate constraints at perturbed point
-        for i in 0..m {
-            let f_plus = constraint_fns[i](x_pert_slice);
-            jac[[i, j]] = (f_plus - f0[i]) / h;
+    // Track which rows still need finite differences (analytical not available)
+    let mut needs_fd = vec![true; m];
+    for (i, c) in constraints.iter().enumerate() {
+        if let Some(ref jac_fn) = c.jac {
+            let grad = jac_fn(x_slice);
+            if grad.len() == n {
+                for j in 0..n {
+                    jac[[i, j]] = grad[j];
+                }
+                needs_fd[i] = false;
+            }
         }
+    }
 
-        x_pert[j] = x[j]; // Reset
+    if needs_fd.iter().any(|&b| b) {
+        let mut x_pert = x.to_owned();
+
+        for j in 0..n {
+            let h = eps * (1.0 + x[j].abs());
+            x_pert[j] = x[j] + h;
+            let x_pert_slice = x_pert.as_slice().expect("Operation failed");
+
+            // Evaluate constraints at perturbed point (FD rows only)
+            for i in 0..m {
+                if needs_fd[i] {
+                    let f_plus = (constraints[i].fun)(x_pert_slice);
+                    jac[[i, j]] = (f_plus - f0[i]) / h;
+                }
+            }
+
+            x_pert[j] = x[j]; // Reset
+        }
     }
 
     jac
@@ -987,7 +1014,7 @@ fn finite_diff_jacobian(
 pub fn minimize_interior_point_constrained<F>(
     func: F,
     x0: Array1<f64>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
     options: Option<InteriorPointOptions>,
 ) -> Result<OptimizeResult<f64>, OptimizeError>
 where
@@ -1022,46 +1049,55 @@ where
         finite_diff_gradient(&mut fun_fd, x, 1e-8)
     };
 
-    // Prepare constraint functions and Jacobians if needed
-    let mut eq_con_mut: Option<Box<dyn FnMut(&ArrayView1<f64>) -> Array1<f64>>> = if m_eq > 0 {
-        let eq_fns: Vec<ConstraintFn> = eq_constraints.iter().map(|c| c.fun).collect();
-        Some(Box::new(move |x: &ArrayView1<f64>| -> Array1<f64> {
+    // Prepare constraint functions and Jacobians if needed.
+    //
+    // The constraint callables are boxed trait objects (issue #126) and cannot
+    // be copied out of the `Constraint` slice. Instead, each closure captures a
+    // shared reference to the partitioned constraint list and evaluates the
+    // constraints in place, preserving the original numerical behaviour. The
+    // closures borrow `eq_constraints` / `ineq_constraints` (and through them
+    // `constraints`), so they are scoped to this function via `+ '_`.
+    #[allow(clippy::type_complexity)]
+    let mut eq_con_mut: Option<Box<dyn FnMut(&ArrayView1<f64>) -> Array1<f64> + '_>> = if m_eq > 0 {
+        Some(Box::new(|x: &ArrayView1<f64>| -> Array1<f64> {
             let x_slice = x.as_slice().expect("Operation failed");
-            Array1::from_vec(eq_fns.iter().map(|f| f(x_slice)).collect())
+            Array1::from_vec(eq_constraints.iter().map(|c| (c.fun)(x_slice)).collect())
         }))
     } else {
         None
     };
 
-    let mut eq_jac_mut: Option<Box<dyn FnMut(&ArrayView1<f64>) -> Array2<f64>>> = if m_eq > 0 {
-        let eq_fns: Vec<ConstraintFn> = eq_constraints.iter().map(|c| c.fun).collect();
-        Some(Box::new(move |x: &ArrayView1<f64>| -> Array2<f64> {
+    #[allow(clippy::type_complexity)]
+    let mut eq_jac_mut: Option<Box<dyn FnMut(&ArrayView1<f64>) -> Array2<f64> + '_>> = if m_eq > 0 {
+        Some(Box::new(|x: &ArrayView1<f64>| -> Array2<f64> {
             let eps = 1e-8;
-            finite_diff_jacobian(&eq_fns, x, eps)
+            finite_diff_jacobian_constraints(&eq_constraints, x, eps)
         }))
     } else {
         None
     };
 
-    let mut ineq_con_mut: Option<Box<dyn FnMut(&ArrayView1<f64>) -> Array1<f64>>> = if m_ineq > 0 {
-        let ineq_fns: Vec<ConstraintFn> = ineq_constraints.iter().map(|c| c.fun).collect();
-        Some(Box::new(move |x: &ArrayView1<f64>| -> Array1<f64> {
-            let x_slice = x.as_slice().expect("Operation failed");
-            Array1::from_vec(ineq_fns.iter().map(|f| f(x_slice)).collect())
-        }))
-    } else {
-        None
-    };
+    #[allow(clippy::type_complexity)]
+    let mut ineq_con_mut: Option<Box<dyn FnMut(&ArrayView1<f64>) -> Array1<f64> + '_>> =
+        if m_ineq > 0 {
+            Some(Box::new(|x: &ArrayView1<f64>| -> Array1<f64> {
+                let x_slice = x.as_slice().expect("Operation failed");
+                Array1::from_vec(ineq_constraints.iter().map(|c| (c.fun)(x_slice)).collect())
+            }))
+        } else {
+            None
+        };
 
-    let mut ineq_jac_mut: Option<Box<dyn FnMut(&ArrayView1<f64>) -> Array2<f64>>> = if m_ineq > 0 {
-        let ineq_fns: Vec<ConstraintFn> = ineq_constraints.iter().map(|c| c.fun).collect();
-        Some(Box::new(move |x: &ArrayView1<f64>| -> Array2<f64> {
-            let eps = 1e-8;
-            finite_diff_jacobian(&ineq_fns, x, eps)
-        }))
-    } else {
-        None
-    };
+    #[allow(clippy::type_complexity)]
+    let mut ineq_jac_mut: Option<Box<dyn FnMut(&ArrayView1<f64>) -> Array2<f64> + '_>> =
+        if m_ineq > 0 {
+            Some(Box::new(|x: &ArrayView1<f64>| -> Array2<f64> {
+                let eps = 1e-8;
+                finite_diff_jacobian_constraints(&ineq_constraints, x, eps)
+            }))
+        } else {
+            None
+        };
 
     // Solve with constraints
     let result = solver.solve(
@@ -1341,7 +1377,7 @@ mod tests {
     #[test]
     fn test_interior_point_constrained_helper() {
         // Test the minimize_interior_point_constrained function
-        use crate::constrained::{Constraint, ConstraintFn, ConstraintKind};
+        use crate::constrained::{Constraint, ConstraintKind};
 
         let func = |x: &[f64]| -> f64 { x[0].powi(2) + x[1].powi(2) };
 
@@ -1350,12 +1386,7 @@ mod tests {
         }
 
         let x0 = Array1::from_vec(vec![0.1, 0.1]);
-        let constraints = vec![Constraint {
-            fun: ineq_constraint as fn(&[f64]) -> f64,
-            kind: ConstraintKind::Inequality,
-            lb: None,
-            ub: None,
-        }];
+        let constraints = vec![Constraint::new(ineq_constraint, ConstraintKind::Inequality)];
 
         let options = InteriorPointOptions {
             tol: 1e-3,

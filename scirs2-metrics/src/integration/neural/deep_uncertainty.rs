@@ -681,8 +681,12 @@ impl<
             log_posterior = log_posterior - const_f64::<F>(0.5) * prior_precision * weight * weight;
         }
 
-        // Likelihood component (approximated)
-        let n_data = const_f64::<F>(1000.0); // Simulated dataset size
+        // Likelihood component (approximated). The effective number of
+        // observations is the count of SWA trajectory snapshots that back these
+        // statistics (`swa_stats.n_epochs`), a real in-scope quantity, rather
+        // than a fabricated dataset size.
+        let n_data = F::from(swa_stats.n_epochs.max(1))
+            .expect("Failed to convert observation count to float");
         let noise_precision = const_f64::<F>(1.0);
 
         // Approximate likelihood using SWA statistics
@@ -914,8 +918,20 @@ impl<
             / (F::one()
                 + const_f64::<F>(2.0) * self.compute_autocorrelation_of_vector(&log_posteriors)?);
 
-        // Acceptance rate (simplified)
-        let acceptance_rate = const_f64::<F>(0.5); // Mock value
+        // SWAG draws weights directly from the fitted Gaussian posterior, so
+        // there is no Metropolis-style acceptance test. Report the fraction of
+        // samples with a finite log-posterior (numerically valid draws) instead
+        // of a constant; a value below 1.0 indicates degenerate samples.
+        let acceptance_rate = if weight_samples.is_empty() {
+            F::zero()
+        } else {
+            let valid = weight_samples
+                .iter()
+                .filter(|s| s.log_posterior.is_finite())
+                .count();
+            F::from(valid).expect("Failed to convert valid-sample count to float")
+                / F::from(weight_samples.len()).expect("Failed to convert sample count to float")
+        };
 
         // R-hat statistic (simplified single chain version)
         let r_hat = F::one() + var_log_posterior / (var_log_posterior + const_f64::<F>(1e-6));
@@ -1366,9 +1382,14 @@ impl<
     fn initialize_realistic_weights(&self, n_weights: usize) -> Result<Vec<F>> {
         let mut weights = Vec::with_capacity(n_weights);
 
-        // Xavier initialization: _weights ~ N(0, 2/(n_in + n_out))
-        let fan_in = 100; // Simulated input dimension
-        let fan_out = 10; // Simulated output dimension
+        // Xavier/Glorot initialization: weights ~ N(0, 2/(fan_in + fan_out)).
+        // The individual layer fans are unknown here, so derive them from the
+        // real weight count in scope by treating the weight vector as an
+        // approximately square layer (fan_in = fan_out = round(sqrt(n_weights)))
+        // instead of hard-coding fabricated dimensions.
+        let fan = (n_weights as f64).sqrt().round().max(1.0) as usize;
+        let fan_in = fan;
+        let fan_out = fan;
         let std = (const_f64::<F>(2.0)
             / F::from(fan_in + fan_out).expect("Failed to convert to float"))
         .sqrt();

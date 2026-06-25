@@ -1,62 +1,157 @@
-//! SQLite database implementation
+//! SQLite database implementation — Pure Rust via `oxisql-sqlite-compat` (Limbo engine).
 //!
-//! # noffi migration status
+//! # Architecture: sync/async bridge
 //!
-//! TODO(noffi-migration): Replace `rusqlite` with `oxisql-sqlite-compat` (Pure Rust SQLite via Limbo).
+//! The `DatabaseConnection` trait used in scirs2-io is **synchronous**, while
+//! `oxisql-sqlite-compat` (and the underlying Limbo engine) is fully async (tokio).
 //!
-//! **API mapping** (rusqlite → oxisql-sqlite-compat):
-//! - `rusqlite::Connection::open(path)` → `SqliteConnection::open(path).await`
-//! - `conn.prepare(sql)` → `conn.prepare(sql).await` (returns `SqlitePrepared`)
-//! - `stmt.execute(params)` → `conn.execute(sql, params).await`
-//! - `stmt.query(params)` → `conn.query(sql, params).await` (returns `Vec<Row>`)
-//! - `row.get_ref(i)` / `ValueRef` → `Row` is `Vec<Value>` in oxisql
-//! - `conn.transaction()` → `conn.transaction().await` (returns `SqliteTransaction`)
-//! - `tx.commit()` → `txn.commit().await`
+//! The bridge function `run_sync` resolves this impedance mismatch:
+//! - If a tokio runtime is already active (`Handle::try_current()` succeeds) it
+//!   uses `block_in_place` + `Handle::block_on` so that the current thread can
+//!   block without parking the entire executor.
+//! - Otherwise it spins up a fresh single-threaded `Runtime` for the call.
 //!
-//! **Architecture blocker**: The `DatabaseConnection` trait used here is **synchronous**.
-//! `oxisql-sqlite-compat` is fully async (Limbo/tokio-based). Migrating requires either:
-//!   (a) making `DatabaseConnection` async (trait-level change), or
-//!   (b) using `tokio::runtime::Handle::block_on` / `futures::executor::block_on` as a shim.
+//! # Limbo 0.0.22 caveats
 //!
-//! **Alpha caveats** (oxisql-sqlite-compat 0.1.0 / Limbo 0.0.22):
-//! - ROLLBACK is not supported by the Limbo engine (returns error). No ROLLBACK/savepoints
-//!   are used in this file, so this is not a current blocker.
-//! - `params_from_iter` / `ToSql` trait have no direct equivalent; use `&[&dyn ToSqlValue]`.
-//! - `rusqlite::types::ValueRef` → `oxisql_core::Value` enum.
-//!
-//! Until the sync/async impedance mismatch is resolved, this file keeps `rusqlite`.
-//! The `sqlite-stable` feature is available to use only `rusqlite` without oxisql deps.
-//! See `~/work/noffi/oxisql/` for reference API.
+//! - **ROLLBACK**: not implemented by Limbo; `SqliteTransaction::rollback()`
+//!   returns an error.  This file does not call `rollback()` — `commit()` is
+//!   the only transaction completion path used here.
+//! - **Affected-row count**: retrieved via `SELECT changes()` internally by
+//!   `oxisql-sqlite-compat`, adding one round-trip per DML.
 
 use crate::database::{
     ColumnDef, DataType, DatabaseConfig, DatabaseConnection, Index, QueryBuilder, QueryType,
     ResultSet, TableSchema,
 };
 use crate::error::{IoError, Result};
-use rusqlite::{params_from_iter, Connection as SqliteConn, ToSql};
+use oxisql_core::{Connection as OxiConnection, Row as OxiRow, ToSqlValue, Transaction, Value};
+use oxisql_sqlite_compat::SqliteConnection;
 use scirs2_core::ndarray::ArrayView2;
+use std::future::Future;
 use std::sync::Mutex;
 
-/// SQLite connection wrapper
+// ── sync/async bridge ──────────────────────────────────────────────────────────
+
+/// Run an async future to completion on the current thread, blocking it.
+///
+/// Works both inside an existing tokio multi-threaded runtime (via
+/// `block_in_place`) and outside any runtime (via a freshly created
+/// single-threaded `Runtime`).
+fn run_sync<F, T, E>(fut: F) -> std::result::Result<T, E>
+where
+    F: Future<Output = std::result::Result<T, E>>,
+{
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => {
+            // We are inside an existing async runtime. Use block_in_place so
+            // that the current tokio worker thread is temporarily allowed to
+            // perform blocking work without stalling the scheduler.
+            tokio::task::block_in_place(|| handle.block_on(fut))
+        }
+        Err(_) => {
+            // No runtime active — create a minimal one for this call.
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|_| {
+                    // This path is only reachable if tokio runtime creation
+                    // fails (extremely rare). We can't propagate IoError here
+                    // because the error type is generic E, so we have to panic.
+                    // In practice this should never happen.
+                    panic!("scirs2-io sqlite: failed to create tokio runtime for sync bridge")
+                })
+                .expect("tokio runtime creation cannot fail in practice");
+            rt.block_on(fut)
+        }
+    }
+}
+
+/// Convert an [`oxisql_core::OxiSqlError`] into our [`IoError`].
+fn oxi_err(e: oxisql_core::OxiSqlError) -> IoError {
+    IoError::DatabaseError(e.to_string())
+}
+
+/// Convert a single [`oxisql_core::Value`] into a [`serde_json::Value`].
+fn oxi_value_to_json(v: &Value) -> serde_json::Value {
+    match v {
+        Value::Null => serde_json::Value::Null,
+        Value::Bool(b) => serde_json::json!(*b),
+        Value::I64(n) => serde_json::json!(*n),
+        Value::F64(f) => serde_json::json!(*f),
+        Value::Text(s) => serde_json::json!(s),
+        Value::Blob(b) => serde_json::json!(crate::encoding_utils::base64_encode(b)),
+        Value::Timestamp(ts) => serde_json::json!(*ts),
+        Value::Date(d) => serde_json::json!(*d),
+        Value::Time(t) => serde_json::json!(*t),
+        Value::Uuid(u) => serde_json::json!(format!("{v}")),
+        Value::Json(j) => serde_json::from_str(j).unwrap_or_else(|_| serde_json::json!(j)),
+        Value::Decimal(d) => serde_json::json!(d),
+        Value::Array(arr) => serde_json::Value::Array(arr.iter().map(oxi_value_to_json).collect()),
+        // A typed array carries the same element values as a plain array plus a
+        // nominal element type; the type annotation has no JSON representation,
+        // so serialize the elements as a JSON array.
+        Value::TypedArray { values, .. } => {
+            serde_json::Value::Array(values.iter().map(oxi_value_to_json).collect())
+        }
+    }
+}
+
+/// Convert a [`serde_json::Value`] parameter into a boxed [`ToSqlValue`].
+fn json_param_to_oxi(p: &serde_json::Value) -> Value {
+    match p {
+        serde_json::Value::String(s) => Value::Text(s.clone()),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                Value::I64(i)
+            } else {
+                Value::F64(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        serde_json::Value::Bool(b) => Value::Bool(*b),
+        serde_json::Value::Null => Value::Null,
+        serde_json::Value::Array(_) | serde_json::Value::Object(_) => Value::Text(p.to_string()),
+    }
+}
+
+// ── SQLiteConnection ──────────────────────────────────────────────────────────
+
+/// SQLite connection wrapper backed by `oxisql-sqlite-compat` (Pure Rust / Limbo).
 pub struct SQLiteConnection {
     config: DatabaseConfig,
-    connection: Option<Mutex<SqliteConn>>,
+    /// The underlying async Limbo connection, wrapped in `Mutex` so that the
+    /// synchronous `DatabaseConnection` methods can access it from any thread.
+    connection: Option<Mutex<SqliteConnection>>,
 }
 
 impl SQLiteConnection {
-    /// Create a new SQLite connection
+    /// Open or create the SQLite database at the path given in `config.database`.
+    ///
+    /// Use `":memory:"` for an ephemeral in-memory database.
     pub fn new(config: &DatabaseConfig) -> Result<Self> {
-        let conn = SqliteConn::open(&config.database)
-            .map_err(|e| IoError::DatabaseError(format!("SQLite connection failed: {}", e)))?;
+        let conn = run_sync(SqliteConnection::open(&config.database)).map_err(oxi_err)?;
 
-        // Enable foreign key constraints
-        conn.execute("PRAGMA foreign_keys = ON", [])
-            .map_err(|e| IoError::DatabaseError(format!("Failed to enable foreign keys: {}", e)))?;
+        // Enable foreign key constraints (best-effort; ignore error on failure).
+        let _ = run_sync(conn.execute("PRAGMA foreign_keys = ON", &[]));
 
         Ok(Self {
             config: config.clone(),
             connection: Some(Mutex::new(conn)),
         })
+    }
+
+    /// Obtain a lock on the inner connection, returning an error if the
+    /// connection was never initialised.
+    fn with_conn<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce(&SqliteConnection) -> Result<T>,
+    {
+        let guard = self
+            .connection
+            .as_ref()
+            .ok_or_else(|| IoError::DatabaseError("SQLite connection not initialised".to_string()))?
+            .lock()
+            .map_err(|_| IoError::DatabaseError("SQLite connection mutex poisoned".to_string()))?;
+        f(&guard)
     }
 }
 
@@ -68,254 +163,222 @@ impl DatabaseConnection for SQLiteConnection {
     }
 
     fn execute_sql(&self, sql: &str, params: &[serde_json::Value]) -> Result<ResultSet> {
-        let conn = self.connection.as_ref().ok_or_else(|| {
-            IoError::DatabaseError("SQLite connection not initialized".to_string())
-        })?;
+        self.with_conn(|conn| {
+            // Convert serde_json params → oxisql Values, then collect refs.
+            let oxi_params: Vec<Value> = params.iter().map(json_param_to_oxi).collect();
+            let param_refs: Vec<&dyn ToSqlValue> =
+                oxi_params.iter().map(|v| v as &dyn ToSqlValue).collect();
 
-        let mut conn = conn.lock().expect("Operation failed");
+            let rows = run_sync(conn.query(sql, &param_refs)).map_err(oxi_err)?;
 
-        // Convert JSON params to SQLite values
-        let sqlite_params: Vec<Box<dyn ToSql>> = params
-            .iter()
-            .map(|p| -> Box<dyn ToSql> {
-                match p {
-                    serde_json::Value::String(s) => Box::new(s.clone()),
-                    serde_json::Value::Number(n) => {
-                        if let Some(i) = n.as_i64() {
-                            Box::new(i)
-                        } else {
-                            Box::new(n.as_f64().expect("Operation failed"))
-                        }
-                    }
-                    serde_json::Value::Bool(b) => Box::new(*b),
-                    serde_json::Value::Null => Box::new(None::<String>),
-                    serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                        Box::new(p.to_string())
-                    }
-                }
-            })
-            .collect();
+            // Derive column names from the first row, or an empty vec if no rows.
+            let column_names: Vec<String> = rows
+                .first()
+                .map(|r| r.columns().to_vec())
+                .unwrap_or_default();
 
-        let mut stmt = conn.prepare(sql).map_err(|e| {
-            IoError::DatabaseError(format!("SQLite query preparation failed: {}", e))
-        })?;
+            let mut result = ResultSet::new(column_names.clone());
 
-        let column_count = stmt.column_count();
-        let mut column_names = Vec::new();
-        for i in 0..column_count {
-            column_names.push(
-                stmt.column_name(i)
-                    .map(String::from)
-                    .unwrap_or_else(|_| format!("column_{}", i)),
-            );
-        }
-
-        let mut result = ResultSet::new(column_names);
-
-        // Note: This is a simplified implementation
-        // In production, you'd need more sophisticated parameter handling
-        if params.is_empty() {
-            let mut rows = stmt
-                .query([])
-                .map_err(|e| IoError::DatabaseError(format!("Query execution failed: {}", e)))?;
-
-            while let Some(row) = rows
-                .next()
-                .map_err(|e| IoError::DatabaseError(format!("Row fetch failed: {}", e)))?
-            {
-                let mut row_data = Vec::new();
-                for i in 0..column_count {
-                    let value = match row.get_ref(i) {
-                        Ok(val) => match val {
-                            rusqlite::types::ValueRef::Null => serde_json::Value::Null,
-                            rusqlite::types::ValueRef::Integer(i) => serde_json::json!(i),
-                            rusqlite::types::ValueRef::Real(f) => serde_json::json!(f),
-                            rusqlite::types::ValueRef::Text(s) => {
-                                serde_json::json!(String::from_utf8_lossy(s))
-                            }
-                            rusqlite::types::ValueRef::Blob(b) => {
-                                serde_json::json!(data_encoding::BASE64.encode(b))
-                            }
-                        },
-                        Err(_) => serde_json::Value::Null,
-                    };
-                    row_data.push(value);
+            for row in &rows {
+                let col_count = row.column_count();
+                let mut row_data = Vec::with_capacity(col_count);
+                for i in 0..col_count {
+                    let v = row
+                        .get_by_index(i)
+                        .map(oxi_value_to_json)
+                        .unwrap_or(serde_json::Value::Null);
+                    row_data.push(v);
                 }
                 result.add_row(row_data);
             }
-        }
 
-        Ok(result)
+            Ok(result)
+        })
     }
 
     fn insert_array(&self, table: &str, data: ArrayView2<f64>, columns: &[&str]) -> Result<usize> {
-        let conn = self.connection.as_ref().ok_or_else(|| {
-            IoError::DatabaseError("SQLite connection not initialized".to_string())
-        })?;
-
-        let mut conn = conn.lock().expect("Operation failed");
-
         if columns.len() != data.ncols() {
             return Err(IoError::ValidationError(
                 "Number of columns doesn't match data dimensions".to_string(),
             ));
         }
 
-        let placeholders: Vec<String> = (0..columns.len()).map(|_| "?".to_string()).collect();
-        let insert_sql = format!(
-            "INSERT INTO {} ({}) VALUES ({})",
-            table,
-            columns.join(", "),
-            placeholders.join(", ")
-        );
+        self.with_conn(|conn| {
+            let placeholders: Vec<String> =
+                (1..=columns.len()).map(|i| format!("${}", i)).collect();
+            let insert_sql = format!(
+                "INSERT INTO {} ({}) VALUES ({})",
+                table,
+                columns.join(", "),
+                placeholders.join(", ")
+            );
 
-        let mut total_inserted = 0;
-        let tx = conn
-            .transaction()
-            .map_err(|e| IoError::DatabaseError(format!("Transaction start failed: {}", e)))?;
-
-        {
-            let mut stmt = tx.prepare(&insert_sql).map_err(|e| {
-                IoError::DatabaseError(format!("Insert statement preparation failed: {}", e))
-            })?;
+            // Open a transaction for the bulk insert.
+            let mut txn = run_sync(conn.transaction()).map_err(oxi_err)?;
 
             for row in data.rows() {
-                let row_params: Vec<f64> = row.iter().copied().collect();
-                stmt.execute(params_from_iter(row_params.iter()))
-                    .map_err(|e| IoError::DatabaseError(format!("Row insert failed: {}", e)))?;
-                total_inserted += 1;
+                let row_vals: Vec<Value> = row.iter().map(|&f| Value::F64(f)).collect();
+                let row_refs: Vec<&dyn ToSqlValue> =
+                    row_vals.iter().map(|v| v as &dyn ToSqlValue).collect();
+                run_sync(txn.execute(&insert_sql, &row_refs)).map_err(oxi_err)?;
             }
-        }
 
-        tx.commit()
-            .map_err(|e| IoError::DatabaseError(format!("Transaction commit failed: {}", e)))?;
-
-        Ok(total_inserted)
+            run_sync(txn.commit()).map_err(oxi_err)?;
+            // Any failed insert returns early above, so all rows were inserted.
+            Ok(data.nrows())
+        })
     }
 
     fn create_table(&self, table: &str, schema: &TableSchema) -> Result<()> {
-        let conn = self.connection.as_ref().ok_or_else(|| {
-            IoError::DatabaseError("SQLite connection not initialized".to_string())
-        })?;
+        self.with_conn(|conn| {
+            let column_defs: Vec<String> = schema
+                .columns
+                .iter()
+                .map(|col| {
+                    let sqlite_type = match col.data_type {
+                        DataType::Integer | DataType::BigInt => "INTEGER",
+                        DataType::Float | DataType::Double => "REAL",
+                        DataType::Decimal(_, _) => "REAL",
+                        DataType::Varchar(_) | DataType::Text => "TEXT",
+                        DataType::Boolean => "INTEGER",
+                        DataType::Date | DataType::Timestamp => "TEXT",
+                        DataType::Json => "TEXT",
+                        DataType::Binary => "BLOB",
+                    };
+                    let nullable = if col.nullable { "" } else { " NOT NULL" };
+                    format!("{} {}{}", col.name, sqlite_type, nullable)
+                })
+                .collect();
 
-        let mut conn = conn.lock().expect("Operation failed");
+            let mut create_sql = format!("CREATE TABLE {} (", table);
+            create_sql.push_str(&column_defs.join(", "));
 
-        let mut create_sql = format!("CREATE TABLE {} (", table);
+            if let Some(ref pk_cols) = schema.primary_key {
+                create_sql.push_str(&format!(", PRIMARY KEY ({})", pk_cols.join(", ")));
+            }
+            create_sql.push(')');
 
-        let column_defs: Vec<String> = schema
-            .columns
-            .iter()
-            .map(|col| {
-                let sqlite_type = match col.data_type {
-                    DataType::Integer => "INTEGER",
-                    DataType::BigInt => "INTEGER",
-                    DataType::Float | DataType::Double => "REAL",
-                    DataType::Decimal(_, _) => "REAL",
-                    DataType::Varchar(_) | DataType::Text => "TEXT",
-                    DataType::Boolean => "INTEGER",
-                    DataType::Date | DataType::Timestamp => "TEXT",
-                    DataType::Json => "TEXT",
-                    DataType::Binary => "BLOB",
-                };
-
-                let nullable = if col.nullable { "" } else { " NOT NULL" };
-                format!("{} {}{}", col.name, sqlite_type, nullable)
-            })
-            .collect();
-
-        create_sql.push_str(&column_defs.join(", "));
-
-        if let Some(ref pk_cols) = schema.primary_key {
-            create_sql.push_str(&format!(", PRIMARY KEY ({})", pk_cols.join(", ")));
-        }
-
-        create_sql.push(')');
-
-        conn.execute(&create_sql, [])
-            .map_err(|e| IoError::DatabaseError(format!("Table creation failed: {}", e)))?;
-
-        Ok(())
+            run_sync(conn.execute(&create_sql, &[])).map_err(oxi_err)?;
+            Ok(())
+        })
     }
 
     fn table_exists(&self, table: &str) -> Result<bool> {
-        let conn = self.connection.as_ref().ok_or_else(|| {
-            IoError::DatabaseError("SQLite connection not initialized".to_string())
-        })?;
+        self.with_conn(|conn| {
+            let table_val = Value::Text(table.to_string());
+            let params: &[&dyn ToSqlValue] = &[&table_val];
+            let rows = run_sync(conn.query(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$1",
+                params,
+            ))
+            .map_err(oxi_err)?;
 
-        let mut conn = conn.lock().expect("Operation failed");
+            let count = rows
+                .first()
+                .and_then(|r| r.get_by_index(0))
+                .and_then(|v| {
+                    if let Value::I64(n) = v {
+                        Some(*n)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0);
 
-        let count: i32 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
-                [table],
-                |row| row.get(0),
-            )
-            .map_err(|e| IoError::DatabaseError(format!("Table existence check failed: {}", e)))?;
-
-        Ok(count > 0)
+            Ok(count > 0)
+        })
     }
 
     fn get_schema(&self, table: &str) -> Result<TableSchema> {
-        let conn = self.connection.as_ref().ok_or_else(|| {
-            IoError::DatabaseError("SQLite connection not initialized".to_string())
-        })?;
+        self.with_conn(|conn| {
+            // PRAGMA table_info returns: cid, name, type, notnull, dflt_value, pk
+            let sql = format!("PRAGMA table_info({})", table);
+            let rows = run_sync(conn.query(&sql, &[])).map_err(oxi_err)?;
 
-        let mut conn = conn.lock().expect("Operation failed");
+            let mut columns = Vec::new();
+            let mut primary_key: Vec<String> = Vec::new();
 
-        // Get column information using PRAGMA
-        let mut stmt = conn
-            .prepare(&format!("PRAGMA table_info({})", table))
-            .map_err(|e| IoError::DatabaseError(format!("Schema query failed: {}", e)))?;
+            for row in &rows {
+                let name = row
+                    .get_by_index(1)
+                    .and_then(|v| {
+                        if let Value::Text(s) = v {
+                            Some(s.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default();
 
-        let column_rows = stmt
-            .query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(1)?,         // name
-                    row.get::<_, String>(2)?,         // type
-                    row.get::<_, i32>(3)?,            // notnull
-                    row.get::<_, Option<String>>(4)?, // default
-                    row.get::<_, i32>(5)?,            // pk
-                ))
-            })
-            .map_err(|e| IoError::DatabaseError(format!("Schema query failed: {}", e)))?;
+                let type_str = row
+                    .get_by_index(2)
+                    .and_then(|v| {
+                        if let Value::Text(s) = v {
+                            Some(s.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_default();
 
-        let mut columns = Vec::new();
-        let mut primary_key = Vec::new();
+                let notnull = row
+                    .get_by_index(3)
+                    .and_then(|v| {
+                        if let Value::I64(n) = v {
+                            Some(*n)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(0);
 
-        for row_result in column_rows {
-            let (name, type_str, notnull, default, pk) = row_result.map_err(|e| {
-                IoError::DatabaseError(format!("Schema row processing failed: {}", e))
-            })?;
+                let default_val = row.get_by_index(4).and_then(|v| match v {
+                    Value::Text(s) => Some(serde_json::Value::String(s.clone())),
+                    Value::Null => None,
+                    other => Some(serde_json::json!(format!("{:?}", other))),
+                });
 
-            let data_type = match type_str.to_uppercase().as_str() {
-                "INTEGER" => DataType::Integer,
-                "REAL" => DataType::Double,
-                "TEXT" => DataType::Text,
-                "BLOB" => DataType::Binary,
-                _ => DataType::Text,
-            };
+                let pk_flag = row
+                    .get_by_index(5)
+                    .and_then(|v| {
+                        if let Value::I64(n) = v {
+                            Some(*n)
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or(0);
 
-            columns.push(ColumnDef {
-                name: name.clone(),
-                data_type,
-                nullable: notnull == 0,
-                default: default.map(|s| serde_json::Value::String(s)),
-            });
+                let data_type = match type_str.to_uppercase().as_str() {
+                    "INTEGER" => DataType::Integer,
+                    "REAL" => DataType::Double,
+                    "TEXT" => DataType::Text,
+                    "BLOB" => DataType::Binary,
+                    _ => DataType::Text,
+                };
 
-            if pk > 0 {
-                primary_key.push(name);
+                columns.push(ColumnDef {
+                    name: name.clone(),
+                    data_type,
+                    nullable: notnull == 0,
+                    default: default_val,
+                });
+
+                if pk_flag > 0 {
+                    primary_key.push(name);
+                }
             }
-        }
 
-        Ok(TableSchema {
-            name: table.to_string(),
-            columns,
-            primary_key: if primary_key.is_empty() {
-                None
-            } else {
-                Some(primary_key)
-            },
-            indexes: Vec::new(), // Could query sqlite_master for indexes
+            Ok(TableSchema {
+                name: table.to_string(),
+                columns,
+                primary_key: if primary_key.is_empty() {
+                    None
+                } else {
+                    Some(primary_key)
+                },
+                indexes: Vec::new(),
+            })
         })
     }
 }

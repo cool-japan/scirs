@@ -46,7 +46,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-stats = "0.5.0"
+//! scirs2-stats = "0.5.1"
 //! ```
 //!
 //! ```rust
@@ -204,7 +204,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.5.0
+//! - **Version**: 0.5.1
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-stats](https://docs.rs/scirs2-stats)
@@ -616,6 +616,7 @@ pub mod bayesian; // Bayesian statistics
 pub mod contingency; // Contingency table functions
 pub mod distributions; // Statistical distributions
 pub mod dynamic_factor; // Dynamic Factor Model (DFM)
+pub mod either; // Crate-local Either sum type (replaces the external either crate)
 pub mod extreme_value; // Extreme Value Theory
 pub mod gaussian_process; // Gaussian Process regression
 pub mod kde; // Kernel Density Estimation (1D, 2D, bandwidth selection)
@@ -766,6 +767,7 @@ pub use simd_enhanced_core::{
 };
 
 // Property-based testing framework
+pub use crate::either::Either;
 pub use adaptive_memory_advanced::{
     create_adaptive_memory_manager, create_optimized_memory_manager, AdaptiveMemoryConfig,
     AdaptiveMemoryManager as AdvancedAdaptiveMemoryManager, AllocationStrategy,
@@ -792,7 +794,6 @@ pub use cross_platform_regression_detection::{
     PlatformComparison, PlatformInfo, RegressionAnalysisResult, RegressionReport, RegressionStatus,
     RegressionSummaryStatistics, TrendAnalysis, TrendDirection as RegressionTrendDirection,
 };
-pub use either::Either;
 pub use mcmc_advanced::{
     AdaptationConfig, AdvancedAdvancedConfig, AdvancedAdvancedMCMC, AdvancedAdvancedResults,
     AdvancedTarget, ConvergenceDiagnostics, PerformanceMetrics as MCMCPerformanceMetrics,

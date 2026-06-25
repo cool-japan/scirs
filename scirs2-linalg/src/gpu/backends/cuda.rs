@@ -23,10 +23,14 @@ pub mod cuda_impl {
     const CUDA_SUCCESS: CudaResult = 0;
     const CUDA_ERROR_NO_DEVICE: CudaResult = 38;
 
-    // Mock CUDA functions (in real implementation, these would be extern "C" bindings)
+    // Placeholder CUDA entry points. No real cudart bindings are linked, so these
+    // never talk to a device. `cuda_get_device_count` deliberately reports zero
+    // devices, which makes `CudaBackend::is_available()` return false and keeps the
+    // backend honestly unavailable — the descriptive device fields below are never
+    // returned to a caller.
     fn cuda_get_device_count() -> (CudaResult, i32) {
-        // Mock implementation - would use cudart sys bindings
-        (CUDA_SUCCESS, 0) // Return 0 devices for safety in this mock
+        // No CUDA runtime is linked: honestly report zero available devices.
+        (CUDA_SUCCESS, 0)
     }
 
     fn cuda_get_device_properties(
@@ -62,12 +66,10 @@ pub mod cuda_impl {
     }
 
     fn cuda_mem_get_info() -> (CudaResult, usize, usize) {
-        #[cfg(target_pointer_width = "32")]
-        let (free, total) = (512 * 1024 * 1024, 1024 * 1024 * 1024); // Mock 512MB free, 1GB total for 32-bit
-        #[cfg(target_pointer_width = "64")]
-        let (free, total) = (8usize * 1024 * 1024 * 1024, 16usize * 1024 * 1024 * 1024); // Mock 8GB free, 16GB total for 64-bit
-
-        (CUDA_SUCCESS, free, total)
+        // No CUDA device is present, so there is no device memory to report.
+        // Return an honest "no device" status rather than fabricating a VRAM size;
+        // the caller turns this into an error instead of a made-up free-memory value.
+        (CUDA_ERROR_NO_DEVICE, 0, 0)
     }
 
     /// Comprehensive CUDA backend with advanced features
@@ -133,7 +135,11 @@ pub mod cuda_impl {
 
             let mut devices = Vec::with_capacity(device_count as usize);
 
-            // Enumerate all CUDA devices
+            // Enumerate all CUDA devices. Because `cuda_get_device_count` reports
+            // zero devices when no real CUDA runtime is linked, this loop does not
+            // execute in that case and none of the descriptive constants below are
+            // ever returned. The fields are retained only so the struct mirrors the
+            // shape of a real `cudaDeviceProp` for when genuine bindings are added.
             for device_id in 0..device_count {
                 let mut properties = [0u8; 352];
                 let result = cuda_get_device_properties(&mut properties, device_id);

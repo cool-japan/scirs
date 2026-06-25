@@ -1436,6 +1436,7 @@ impl LearnedOptimizer for AdaptiveTransformerOptimizer {
     {
         let mut current_params = initial_params.to_owned();
         let mut best_value = objective(initial_params);
+        let mut best_params = current_params.clone();
         let mut iterations = 0;
 
         // Create default problem for encoding
@@ -1467,6 +1468,7 @@ impl LearnedOptimizer for AdaptiveTransformerOptimizer {
 
             if current_value < best_value {
                 best_value = current_value;
+                best_params = current_params.clone();
             }
 
             // Check convergence
@@ -1476,7 +1478,7 @@ impl LearnedOptimizer for AdaptiveTransformerOptimizer {
         }
 
         Ok(OptimizeResults::<f64> {
-            x: current_params,
+            x: best_params,
             fun: best_value,
             success: true,
             nit: iterations,
@@ -1616,9 +1618,4 @@ mod tests {
         assert_eq!(result.x.len(), 2);
         assert!(result.success);
     }
-}
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
 }

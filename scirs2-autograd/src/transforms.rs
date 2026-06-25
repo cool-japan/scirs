@@ -55,7 +55,7 @@
 
 use crate::error::AutogradError;
 use crate::forward_mode::DualNumber;
-use num::Float as NumFloat;
+use num_traits::Float as NumFloat;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use std::fmt;
 use std::sync::Arc;

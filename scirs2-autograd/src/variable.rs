@@ -79,9 +79,9 @@ use crate::graph::Context;
 use crate::{uuid::Uuid, Float, FxHashMap, Graph, NdArray, NdArrayView, NdArrayViewMut, Tensor};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use smallvec::alloc::fmt::{Display, Formatter};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::sync::{Arc, RwLock};
 
 use std::error::Error;

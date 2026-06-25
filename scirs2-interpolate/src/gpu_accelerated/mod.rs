@@ -33,7 +33,7 @@
 //! };
 //!
 //! // Create sample scattered data
-//! let x = Array1::linspace(0.0, 10.0, 1000);
+//! let x = Array1::<f64>::linspace(0.0, 10.0, 1000);
 //! let y = x.mapv(|x| x.sin() + 0.1 * (5.0 * x).cos());
 //!
 //! // Create GPU-accelerated RBF interpolator

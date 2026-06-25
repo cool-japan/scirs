@@ -476,9 +476,10 @@ mod tests {
         }
     }
 
-    /// CPU dispatch mode must reproduce same results as Simulated.
+    /// Both dispatch modes compute real RBF values on the CPU; the chunked
+    /// (`Simulated`) path must reproduce the plain CPU reference exactly.
     #[test]
-    fn test_cpu_dispatch_same_as_simulated() {
+    fn test_cpu_reference_matches_chunked_dispatch() {
         let points = vec![[0.0_f64, 0.0], [1.0, 0.0], [0.0, 1.0]];
         let values = vec![1.0, 2.0, 3.0];
         let query = vec![[0.5_f64, 0.5], [0.1, 0.9]];
@@ -501,7 +502,7 @@ mod tests {
         for (c, s) in cpu_out.iter().zip(sim_out.iter()) {
             assert!(
                 (c - s).abs() < 1e-12,
-                "CPU and Simulated dispatch differ: {c} vs {s}"
+                "CPU reference vs chunked dispatch differ: {c} vs {s}"
             );
         }
     }

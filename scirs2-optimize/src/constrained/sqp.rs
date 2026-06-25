@@ -16,7 +16,7 @@
 //! - Nocedal & Wright, "Numerical Optimization", Chapter 18
 //! - Boggs & Tolle, "Sequential Quadratic Programming", Acta Numerica 1995
 
-use crate::constrained::{Constraint, ConstraintFn, ConstraintKind};
+use crate::constrained::{Constraint, ConstraintKind};
 use crate::error::OptimizeError;
 use crate::result::OptimizeResults;
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
@@ -197,8 +197,8 @@ impl SqpSolver {
     /// Evaluate constraints and their Jacobians
     fn evaluate_constraints(
         &mut self,
-        eq_constraints: &[(usize, &Constraint<ConstraintFn>)],
-        ineq_constraints: &[(usize, &Constraint<ConstraintFn>)],
+        eq_constraints: &[(usize, &Constraint)],
+        ineq_constraints: &[(usize, &Constraint)],
         x: &Array1<f64>,
     ) {
         let x_slice = x.as_slice().unwrap_or(&[]);
@@ -347,8 +347,8 @@ impl SqpSolver {
         &mut self,
         func: &F,
         x: &Array1<f64>,
-        eq_constraints: &[(usize, &Constraint<ConstraintFn>)],
-        ineq_constraints: &[(usize, &Constraint<ConstraintFn>)],
+        eq_constraints: &[(usize, &Constraint)],
+        ineq_constraints: &[(usize, &Constraint)],
     ) -> f64
     where
         F: Fn(&[f64]) -> f64,
@@ -412,8 +412,8 @@ impl SqpSolver {
         &mut self,
         func: &F,
         d: &Array1<f64>,
-        eq_constraints: &[(usize, &Constraint<ConstraintFn>)],
-        ineq_constraints: &[(usize, &Constraint<ConstraintFn>)],
+        eq_constraints: &[(usize, &Constraint)],
+        ineq_constraints: &[(usize, &Constraint)],
     ) -> f64
     where
         F: Fn(&[f64]) -> f64,
@@ -546,8 +546,8 @@ impl SqpSolver {
     fn solve<F>(
         &mut self,
         func: &F,
-        eq_constraints: &[(usize, &Constraint<ConstraintFn>)],
-        ineq_constraints: &[(usize, &Constraint<ConstraintFn>)],
+        eq_constraints: &[(usize, &Constraint)],
+        ineq_constraints: &[(usize, &Constraint)],
     ) -> Result<SqpResult, OptimizeError>
     where
         F: Fn(&[f64]) -> f64,
@@ -782,7 +782,7 @@ fn solve_general_system(a: &Array2<f64>, b: &Array1<f64>) -> Result<Array1<f64>,
 pub fn minimize_sqp<F, S>(
     func: F,
     x0: &ArrayBase<S, Ix1>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
     options: Option<SqpOptions>,
 ) -> Result<SqpResult, OptimizeError>
 where
@@ -816,7 +816,7 @@ where
 pub fn minimize_sqp_compat<F, S>(
     func: F,
     x0: &ArrayBase<S, Ix1>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
     options: &crate::constrained::Options,
 ) -> crate::error::OptimizeResult<OptimizeResults<f64>>
 where
@@ -861,7 +861,7 @@ mod tests {
         let func = |x: &[f64]| -> f64 { (x[0] - 2.0).powi(2) + (x[1] - 3.0).powi(2) };
 
         let x0 = array![0.0, 0.0];
-        let constraints: Vec<Constraint<ConstraintFn>> = vec![];
+        let constraints: Vec<Constraint> = vec![];
 
         let result = minimize_sqp(func, &x0, &constraints, None);
         assert!(result.is_ok());
@@ -882,12 +882,7 @@ mod tests {
         }
 
         let x0 = array![0.0, 0.0];
-        let constraints = vec![Constraint {
-            fun: eq_constraint as fn(&[f64]) -> f64,
-            kind: ConstraintKind::Equality,
-            lb: None,
-            ub: None,
-        }];
+        let constraints = vec![Constraint::new(eq_constraint, ConstraintKind::Equality)];
 
         let mut opts = SqpOptions::default();
         opts.tol = 1e-6;
@@ -919,12 +914,7 @@ mod tests {
         }
 
         let x0 = array![0.5, 0.5];
-        let constraints = vec![Constraint {
-            fun: ineq_constraint as fn(&[f64]) -> f64,
-            kind: ConstraintKind::Inequality,
-            lb: None,
-            ub: None,
-        }];
+        let constraints = vec![Constraint::new(ineq_constraint, ConstraintKind::Inequality)];
 
         let result = minimize_sqp(func, &x0, &constraints, None);
         assert!(result.is_ok());
@@ -959,18 +949,8 @@ mod tests {
 
         let x0 = array![1.5, 0.5];
         let constraints = vec![
-            Constraint {
-                fun: eq_con as fn(&[f64]) -> f64,
-                kind: ConstraintKind::Equality,
-                lb: None,
-                ub: None,
-            },
-            Constraint {
-                fun: ineq_con as fn(&[f64]) -> f64,
-                kind: ConstraintKind::Inequality,
-                lb: None,
-                ub: None,
-            },
+            Constraint::new(eq_con, ConstraintKind::Equality),
+            Constraint::new(ineq_con, ConstraintKind::Inequality),
         ];
 
         let result = minimize_sqp(func, &x0, &constraints, None);
@@ -1001,12 +981,10 @@ mod tests {
         }
 
         let x0 = array![0.5, 0.5];
-        let constraints = vec![Constraint {
-            fun: circle_constraint as fn(&[f64]) -> f64,
-            kind: ConstraintKind::Inequality,
-            lb: None,
-            ub: None,
-        }];
+        let constraints = vec![Constraint::new(
+            circle_constraint,
+            ConstraintKind::Inequality,
+        )];
 
         let mut opts = SqpOptions::default();
         opts.max_iter = 500;
@@ -1042,24 +1020,9 @@ mod tests {
 
         let x0 = array![0.1, 0.1];
         let constraints = vec![
-            Constraint {
-                fun: con_x_pos as fn(&[f64]) -> f64,
-                kind: ConstraintKind::Inequality,
-                lb: None,
-                ub: None,
-            },
-            Constraint {
-                fun: con_y_pos as fn(&[f64]) -> f64,
-                kind: ConstraintKind::Inequality,
-                lb: None,
-                ub: None,
-            },
-            Constraint {
-                fun: con_sum as fn(&[f64]) -> f64,
-                kind: ConstraintKind::Inequality,
-                lb: None,
-                ub: None,
-            },
+            Constraint::new(con_x_pos, ConstraintKind::Inequality),
+            Constraint::new(con_y_pos, ConstraintKind::Inequality),
+            Constraint::new(con_sum, ConstraintKind::Inequality),
         ];
 
         let result = minimize_sqp(func, &x0, &constraints, None);
@@ -1096,7 +1059,7 @@ mod tests {
     fn test_sqp_result_fields() {
         let func = |x: &[f64]| -> f64 { x[0].powi(2) };
         let x0 = array![2.0];
-        let constraints: Vec<Constraint<ConstraintFn>> = vec![];
+        let constraints: Vec<Constraint> = vec![];
 
         let result = minimize_sqp(func, &x0, &constraints, None);
         assert!(result.is_ok());
@@ -1112,7 +1075,7 @@ mod tests {
     fn test_sqp_compat_interface() {
         let func = |x: &[f64]| -> f64 { x[0].powi(2) + x[1].powi(2) };
         let x0 = array![1.0, 1.0];
-        let constraints: Vec<Constraint<ConstraintFn>> = vec![];
+        let constraints: Vec<Constraint> = vec![];
 
         let options = crate::constrained::Options::default();
         let result = minimize_sqp_compat(func, &x0, &constraints, &options);

@@ -27,7 +27,7 @@
 //! The reconstruction step uses an explicit frame-stack to avoid OS stack
 //! overflow on deep trees.
 
-use hashbrown::HashMap;
+use std::collections::HashMap;
 
 use super::build::EGraph;
 use super::node::{lowered_binary, lowered_leaf, lowered_unary, ClassId, NodeKind};
@@ -120,7 +120,7 @@ pub(crate) fn extract_class(egraph: &EGraph, root: ClassId) -> LoweredOp {
 /// Children are canonicalized via immutable union-find root lookup.
 fn collect_reachable(
     uf: &UnionFind,
-    classes: &hashbrown::HashMap<ClassId, super::node::EClass>,
+    classes: &HashMap<ClassId, super::node::EClass>,
     root: ClassId,
 ) -> Vec<ClassId> {
     let mut visited: HashMap<ClassId, ()> = HashMap::new();

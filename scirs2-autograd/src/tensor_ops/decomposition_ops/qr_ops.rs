@@ -23,8 +23,6 @@ impl<F: Float> Op<F> for QROp {
         let n = shape[1];
         let k = m.min(n);
 
-        println!("Computing QR decomposition for matrix of shape: [{m}, {n}]");
-
         let input_2d = input
             .view()
             .into_dimensionality::<Ix2>()
@@ -76,10 +74,6 @@ impl<F: Float> Op<F> for QROp {
                 r[[j, col]] = dot_product;
             }
         }
-
-        // Debug output
-        println!("QR decomposition results:");
-        println!("Q shape: {:?}, R shape: {:?}", q.shape(), r.shape());
 
         // Append the outputs with their shapes preserved
         ctx.append_output(q.into_dyn());

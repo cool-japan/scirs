@@ -39,7 +39,6 @@ tokio = { workspace = true, optional = true, features = ["full"] }
 serde = { workspace = true, optional = true, features = ["derive"] }
 oxicode = { workspace = true, optional = true }  # Binary serialization (SIMD-optimized)
 prometheus = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
 
 # Future dependency for PandRS with appropriate abstractions
 # pandrs_wrapper = { path = "../wrappers/pandrs_wrapper", optional = true }
@@ -50,7 +49,7 @@ simd = ["scirs2-core/simd"]
 gpu = ["scirs2-core/gpu"]
 distributed = ["dep:tokio", "dep:serde", "dep:oxicode"]  # SIMD-optimized serialization
 auto-feature-engineering = []
-monitoring = ["dep:prometheus", "dep:serde_json"]
+monitoring = ["dep:prometheus"]
 # Enable external ML library wrappers
 # pandrs = ["dep:pandrs_wrapper"]
 

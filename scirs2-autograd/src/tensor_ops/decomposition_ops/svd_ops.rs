@@ -43,30 +43,17 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for S
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let shape = input_array.shape();
-        if shape.len() != 2 {
-            ctx.append_input_grad(0, None);
-            return;
-        }
-
-        let m = shape[0];
-        let n = shape[1];
-
-        // Return zero gradient as a safe default for SVD (complex to compute correctly)
-        let gradient_matrix = Array2::<F>::zeros((m, n));
-        let grad_tensor = convert_to_tensor(gradient_matrix.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // NOTE: This multi-output `Op::grad` is NOT the live gradient path.
+        // The crate's reverse-mode engine (gradient.rs::compute_grad_for_input)
+        // dispatches SVD gradients per component via `SVDExtractU/S/Vt`
+        // → `SVDBackwardOp`, which implements the exact reduced-SVD VJP
+        // (see tensor_ops::decomposition_backward::svd_backward).
+        //
+        // We deliberately return `None` (truly non-differentiable through THIS
+        // op) instead of a fabricated zero gradient: a zero would silently and
+        // incorrectly claim ∂loss/∂A = 0.  The honest VJP is available through
+        // the public `svd()` API which builds `SVDExtractOp`s.
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -114,19 +101,22 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for S
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Exact reduced-SVD VJP for this component, delivered via SVDBackwardOp
+        // (recomputes the SVD of A and applies the analytic Townsend/Wan-Zhang
+        // formula).  This mirrors the live gradient path in gradient.rs so a
+        // direct `Op::grad` invocation is also correct — never a fabricated
+        // pass-through of the (wrongly-shaped) component cotangent.
         let gy = ctx.output_grad();
+        let input = ctx.input(0);
         let g = ctx.graph();
 
-        // Pass through gradient (best-effort: chain rule for component extraction)
-        let grad_tensor = match gy.eval(g) {
-            Ok(arr) => convert_to_tensor(arr, g),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        ctx.append_input_grad(0, Some(grad_tensor));
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(input, false)
+            .append_input(gy, false)
+            .build(crate::tensor_ops::decomposition_ops::SVDBackwardOp {
+                component: self.component,
+            });
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 
@@ -251,7 +241,104 @@ pub fn svd<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
         .append_input(matrix, false)
         .build(SVDExtractOp { component: 2 });
 
-    println!("SVD function: Extracted U, S, V components using specialized operators");
-
     (u, s, v)
+}
+
+#[cfg(test)]
+mod grad_tests {
+    use crate::tensor_ops as T;
+    use scirs2_core::ndarray::{array, Array2};
+
+    /// d(Σ singular values)/dA via the autograd graph (SVDExtractS path).
+    fn svd_s_grad(a: &Array2<f64>) -> Array2<f64> {
+        crate::run(|g| {
+            let av = T::variable(a.clone(), g);
+            let (_u, s, _v) = super::svd(&av);
+            let loss = T::sum_all(s);
+            let grads = T::grad(&[&loss], &[&av]);
+            grads[0]
+                .eval(g)
+                .expect("grad eval")
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .expect("2D")
+                .to_owned()
+        })
+    }
+
+    /// Reference Σ singular values via eigenvalues of AᵀA.
+    fn sum_singular_values(a: &Array2<f64>) -> f64 {
+        let ata = a.t().dot(a);
+        let n = ata.nrows();
+        // symmetric Jacobi eigenvalues
+        let mut m = ata.clone();
+        let mut iter = 0;
+        loop {
+            let mut p = 0;
+            let mut q = 1;
+            let mut mx = 0.0;
+            for i in 0..n {
+                for j in (i + 1)..n {
+                    if m[[i, j]].abs() > mx {
+                        mx = m[[i, j]].abs();
+                        p = i;
+                        q = j;
+                    }
+                }
+            }
+            if mx < 1e-14 || iter > 200 {
+                break;
+            }
+            iter += 1;
+            let theta = 0.5 * (2.0 * m[[p, q]]).atan2(m[[p, p]] - m[[q, q]]);
+            let (c, sn) = (theta.cos(), theta.sin());
+            for i in 0..n {
+                let mip = m[[i, p]];
+                let miq = m[[i, q]];
+                m[[i, p]] = c * mip + sn * miq;
+                m[[i, q]] = -sn * mip + c * miq;
+            }
+            for i in 0..n {
+                let mpi = m[[p, i]];
+                let mqi = m[[q, i]];
+                m[[p, i]] = c * mpi + sn * mqi;
+                m[[q, i]] = -sn * mpi + c * mqi;
+            }
+        }
+        (0..n).map(|i| m[[i, i]].max(0.0).sqrt()).sum()
+    }
+
+    #[test]
+    fn svd_singular_value_gradient_matches_fd() {
+        // Non-symmetric square matrix with distinct singular values.
+        let a = array![[3.0_f64, 1.0, 0.0], [0.5, 2.5, 0.2], [0.1, 0.3, 1.7]];
+        let analytic = svd_s_grad(&a);
+
+        // The gradient must NOT be a pass-through of the (length-k) S cotangent
+        // nor all-zero — verify against central FD of Σσ.
+        let (m, n) = (a.nrows(), a.ncols());
+        let h = 1e-6_f64;
+        let mut numeric = Array2::<f64>::zeros((m, n));
+        for i in 0..m {
+            for j in 0..n {
+                let mut ap = a.clone();
+                let mut am = a.clone();
+                ap[[i, j]] += h;
+                am[[i, j]] -= h;
+                numeric[[i, j]] = (sum_singular_values(&ap) - sum_singular_values(&am)) / (2.0 * h);
+            }
+        }
+        let err = analytic
+            .iter()
+            .zip(numeric.iter())
+            .fold(0.0_f64, |mx, (x, y)| (x - y).abs().max(mx));
+        let max_g = analytic.iter().fold(0.0_f64, |mx, &x| x.abs().max(mx));
+        assert!(
+            max_g > 1e-6,
+            "SVD singular-value gradient is all-zero (regression!)"
+        );
+        assert!(
+            err < 1e-4,
+            "svd_singular_value_gradient fd mismatch: err = {err}"
+        );
+    }
 }

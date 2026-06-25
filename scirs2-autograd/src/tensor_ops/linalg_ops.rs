@@ -51,9 +51,6 @@ impl<F: Float> Op<F> for TraceOp {
             trace += diag_val;
         }
 
-        // For debugging
-        println!("Calculated trace of {shape:?}: result = {trace:?}");
-
         // Create a proper scalar output
         ctx.append_output(scirs2_core::ndarray::arr0(trace).into_dyn());
         Ok(())
@@ -99,6 +96,70 @@ impl<F: Float> Op<F> for TraceOp {
             0,
             Some(crate::tensor_ops::convert_to_tensor(grad, ctx.graph())),
         );
+    }
+}
+
+/// Backward op for [`TraceOp`].
+///
+/// `trace` maps an `n × n` matrix `A` to the scalar `Σ_i A_ii`, so its
+/// reverse-mode VJP w.r.t. `A` for an upstream scalar cotangent `gy` is the
+/// `n × n` matrix `gy · I_n` (the diagonal carries `gy`, off-diagonals are
+/// zero).  This is delivered through a dedicated backward op rather than the
+/// `Op::grad` trait method because the string-dispatch gradient path in
+/// `gradient.rs::compute_grad_for_input` does not invoke `Op::grad`; returning
+/// the bare scalar `gy` there (the previous behaviour) produced a 0-dimensional
+/// gradient that downstream matrix backward ops could not consume.
+///
+/// Inputs: `(x_input, gy)` — `x_input` provides the matrix dimension `n` (its
+/// values are unused, so no spurious dependency on the forward graph is
+/// introduced for higher-order differentiation); `gy` is the upstream scalar.
+pub(crate) struct TraceBackwardOp;
+
+impl<F: Float> Op<F> for TraceBackwardOp {
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+
+        let x_shape = x.shape();
+        if x_shape.len() != 2 || x_shape[0] != x_shape[1] {
+            return Err(OpError::IncompatibleShape(
+                "TraceBackward: input must be a square matrix".into(),
+            ));
+        }
+        let n = x_shape[0];
+
+        // Extract the scalar cotangent (trace produces a 0-d output, but be
+        // permissive about a single-element representation).
+        let gy_scalar = if gy.ndim() == 0 {
+            gy[scirs2_core::ndarray::IxDyn(&[])]
+        } else if gy.len() == 1 {
+            match gy.iter().next() {
+                Some(&v) => v,
+                None => {
+                    return Err(OpError::IncompatibleShape(
+                        "TraceBackward: empty cotangent".into(),
+                    ))
+                }
+            }
+        } else {
+            return Err(OpError::IncompatibleShape(
+                "TraceBackward: cotangent of trace must be a scalar".into(),
+            ));
+        };
+
+        let mut grad = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            grad[[i, i]] = gy_scalar;
+        }
+        ctx.append_output(grad.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Second-order gradient unsupported (mirrors the other matrix backward
+        // ops); first-order trace gradients are exact.
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
     }
 }
 

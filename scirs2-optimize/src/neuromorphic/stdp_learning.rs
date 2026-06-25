@@ -910,8 +910,3 @@ mod tests {
         assert!(final_obj <= initial_obj * 2.0); // Allow some tolerance for stochastic method
     }
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
-}

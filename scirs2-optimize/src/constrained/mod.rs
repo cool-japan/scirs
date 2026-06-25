@@ -161,10 +161,23 @@ impl Default for Options {
     }
 }
 
-/// Constraint type for constrained optimization
-pub struct Constraint<F> {
+/// Constraint type for constrained optimization.
+///
+/// The constraint callable is stored as a boxed trait object so that a
+/// `Vec<Constraint>` can hold heterogeneous closures (issue #126). Closures
+/// that capture outer variables (for example a `threshold`) are accepted via
+/// [`Constraint::new`]. An optional analytical Jacobian (gradient of the
+/// constraint with respect to each variable) can be attached via
+/// [`Constraint::with_jacobian`] (issue #127); when present the solvers use it
+/// instead of finite differences.
+pub struct Constraint {
     /// The constraint function
-    pub fun: F,
+    pub fun: Box<dyn Fn(&[f64]) -> f64 + Send + Sync>,
+
+    /// Optional analytical Jacobian (gradient) of the constraint, returning a
+    /// length-`n` vector of partial derivatives. `None` selects finite
+    /// differences.
+    pub jac: Option<Box<dyn Fn(&[f64]) -> Array1<f64> + Send + Sync>>,
 
     /// The type of constraint (equality or inequality)
     pub kind: ConstraintKind,
@@ -174,6 +187,18 @@ pub struct Constraint<F> {
 
     /// Upper bound for a box constraint
     pub ub: Option<f64>,
+}
+
+impl fmt::Debug for Constraint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // The boxed closures are not `Debug`; elide them.
+        f.debug_struct("Constraint")
+            .field("kind", &self.kind)
+            .field("lb", &self.lb)
+            .field("ub", &self.ub)
+            .field("has_jac", &self.jac.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 /// The kind of constraint
@@ -186,17 +211,24 @@ pub enum ConstraintKind {
     Inequality,
 }
 
-impl Constraint<fn(&[f64]) -> f64> {
+impl Constraint {
     /// Constant for equality constraint
     pub const EQUALITY: ConstraintKind = ConstraintKind::Equality;
 
     /// Constant for inequality constraint
     pub const INEQUALITY: ConstraintKind = ConstraintKind::Inequality;
 
-    /// Create a new constraint
-    pub fn new(fun: fn(&[f64]) -> f64, kind: ConstraintKind) -> Self {
+    /// Create a new constraint.
+    ///
+    /// Accepts any callable implementing `Fn(&[f64]) -> f64`, including
+    /// closures that capture outer variables and plain `fn` pointers.
+    pub fn new<F>(fun: F, kind: ConstraintKind) -> Self
+    where
+        F: Fn(&[f64]) -> f64 + Send + Sync + 'static,
+    {
         Constraint {
-            fun,
+            fun: Box::new(fun),
+            jac: None,
             kind,
             lb: None,
             ub: None,
@@ -206,15 +238,28 @@ impl Constraint<fn(&[f64]) -> f64> {
     /// Create a new box constraint
     pub fn new_bounds(lb: Option<f64>, ub: Option<f64>) -> Self {
         Constraint {
-            fun: |_| 0.0, // Dummy function for box constraints
+            fun: Box::new(|_| 0.0), // Dummy function for box constraints
+            jac: None,
             kind: ConstraintKind::Inequality,
             lb,
             ub,
         }
     }
-}
 
-impl<F> Constraint<F> {
+    /// Attach an analytical Jacobian (gradient) for this constraint (issue #127).
+    ///
+    /// The supplied callable returns the length-`n` gradient of the constraint
+    /// with respect to each variable, which fills one row of the constraint
+    /// Jacobian matrix. When present, the solvers use it instead of finite
+    /// differences.
+    pub fn with_jacobian<J>(mut self, jac: J) -> Self
+    where
+        J: Fn(&[f64]) -> Array1<f64> + Send + Sync + 'static,
+    {
+        self.jac = Some(Box::new(jac));
+        self
+    }
+
     /// Check if this is a box constraint
     pub fn is_bounds(&self) -> bool {
         self.lb.is_some() || self.ub.is_some()
@@ -269,7 +314,7 @@ impl<F> Constraint<F> {
 pub fn minimize_constrained<F, S>(
     func: F,
     x0: &ArrayBase<S, Ix1>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
     method: Method,
     options: Option<Options>,
 ) -> OptimizeResult<OptimizeResults<f64>>
@@ -277,12 +322,95 @@ where
     F: Fn(&[f64]) -> f64 + Clone,
     S: Data<Elem = f64>,
 {
+    // Delegate to the gradient-aware variant with no analytical objective gradient
+    // (finite differences are used for the objective; per-constraint analytical
+    // Jacobians, if attached via `Constraint::with_jacobian`, are still honoured).
+    minimize_constrained_with_jac(
+        func,
+        None::<fn(&[f64]) -> Array1<f64>>,
+        x0,
+        constraints,
+        method,
+        options,
+    )
+}
+
+/// Minimizes a scalar function of one or more variables with constraints,
+/// optionally using an analytical objective gradient (issue #127).
+///
+/// This is the gradient-aware counterpart of [`minimize_constrained`]. When
+/// `jac` is `Some`, the supplied objective gradient is used in place of finite
+/// differences by the gradient-based methods (SLSQP and Trust-Constr).
+/// Per-constraint analytical Jacobians attached via
+/// [`Constraint::with_jacobian`] are honoured regardless of `jac`.
+///
+/// # Arguments
+///
+/// * `func` - The objective function to minimize
+/// * `jac` - Optional analytical gradient of the objective, returning a
+///   length-`n` vector. `None` selects finite differences.
+/// * `x0` - The initial guess
+/// * `constraints` - Vector of constraints
+/// * `method` - The optimization method to use
+/// * `options` - Options for the optimizer
+///
+/// # Example
+///
+/// ```no_run
+/// use scirs2_core::ndarray::{array, Array1};
+/// use scirs2_optimize::constrained::{minimize_constrained_with_jac, Method, Constraint};
+///
+/// fn objective(x: &[f64]) -> f64 {
+///     (x[0] - 1.0).powi(2) + (x[1] - 2.5).powi(2)
+/// }
+///
+/// fn objective_grad(x: &[f64]) -> Array1<f64> {
+///     array![2.0 * (x[0] - 1.0), 2.0 * (x[1] - 2.5)]
+/// }
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let x0 = array![0.0, 0.0];
+/// let constraints = vec![Constraint::new(|x: &[f64]| 3.0 - x[0] - x[1], Constraint::INEQUALITY)];
+///
+/// let result = minimize_constrained_with_jac(
+///     objective,
+///     Some(objective_grad),
+///     &x0,
+///     &constraints,
+///     Method::SLSQP,
+///     None,
+/// )?;
+/// # Ok(())
+/// # }
+/// ```
+#[allow(dead_code)]
+pub fn minimize_constrained_with_jac<F, G, S>(
+    func: F,
+    jac: Option<G>,
+    x0: &ArrayBase<S, Ix1>,
+    constraints: &[Constraint],
+    method: Method,
+    options: Option<Options>,
+) -> OptimizeResult<OptimizeResults<f64>>
+where
+    F: Fn(&[f64]) -> f64 + Clone,
+    G: Fn(&[f64]) -> Array1<f64> + Clone,
+    S: Data<Elem = f64>,
+{
     let options = options.unwrap_or_default();
+
+    // Box the optional objective gradient so it can be threaded into the
+    // internal solvers as a trait object (`&dyn Fn(&[f64]) -> Array1<f64>`).
+    let obj_jac: Option<Box<dyn Fn(&[f64]) -> Array1<f64>>> =
+        jac.map(|g| Box::new(g) as Box<dyn Fn(&[f64]) -> Array1<f64>>);
+    let obj_jac_ref: Option<&dyn Fn(&[f64]) -> Array1<f64>> = obj_jac.as_ref().map(|b| b.as_ref());
 
     // Implementation of various methods will go here
     match method {
-        Method::SLSQP => minimize_slsqp(func, x0, constraints, &options),
-        Method::TrustConstr => minimize_trust_constr(func, x0, constraints, &options),
+        Method::SLSQP => minimize_slsqp(func, x0, constraints, obj_jac_ref, &options),
+        Method::TrustConstr => minimize_trust_constr(func, x0, constraints, obj_jac_ref, &options),
+        // COBYLA is derivative-free by design; the analytical objective gradient
+        // is intentionally not used here.
         Method::COBYLA => minimize_cobyla(func, x0, constraints, &options),
         Method::InteriorPoint => {
             // Convert constraints to interior point format
@@ -325,22 +453,32 @@ where
 
             let x0_arr = Array1::from_vec(x0.to_vec());
 
-            // Partition constraints into equality and inequality groups
-            let eq_fns: Arc<Vec<ConstraintFn>> = Arc::new(
+            // Partition constraints into equality and inequality index groups.
+            // The boxed closures cannot be copied out of the `Constraint` slice,
+            // so instead we capture the indices (cheaply `Clone`-able via `Arc`)
+            // and a shared reference to the original `constraints` slice, then
+            // evaluate the constraints in place. `Send + Sync` on the boxed
+            // closures preserves the threaded augmented-Lagrangian behaviour.
+            let eq_idx: Arc<Vec<usize>> = Arc::new(
                 constraints
                     .iter()
-                    .filter(|c| c.kind == ConstraintKind::Equality)
-                    .map(|c| c.fun)
+                    .enumerate()
+                    .filter(|(_, c)| c.kind == ConstraintKind::Equality)
+                    .map(|(i, _)| i)
                     .collect(),
             );
 
-            let ineq_fns: Arc<Vec<ConstraintFn>> = Arc::new(
+            let ineq_idx: Arc<Vec<usize>> = Arc::new(
                 constraints
                     .iter()
-                    .filter(|c| c.kind == ConstraintKind::Inequality)
-                    .map(|c| c.fun)
+                    .enumerate()
+                    .filter(|(_, c)| c.kind == ConstraintKind::Inequality)
+                    .map(|(i, _)| i)
                     .collect(),
             );
+
+            let has_eq = !eq_idx.is_empty();
+            let has_ineq = !ineq_idx.is_empty();
 
             // Wrap the objective to accept an ArrayView
             let func_clone = func.clone();
@@ -360,16 +498,21 @@ where
                 x.iter().copied().collect()
             }
 
-            let result = if !eq_fns.is_empty() && !ineq_fns.is_empty() {
-                let eq_arc = Arc::clone(&eq_fns);
+            let result = if has_eq && has_ineq {
+                let eq_arc = Arc::clone(&eq_idx);
                 let eq_closure = move |x: &ArrayView1<f64>| {
                     let xs = view_to_slice(x);
-                    Array1::from_vec(eq_arc.iter().map(|f| f(&xs)).collect())
+                    Array1::from_vec(eq_arc.iter().map(|&i| (constraints[i].fun)(&xs)).collect())
                 };
-                let ineq_arc = Arc::clone(&ineq_fns);
+                let ineq_arc = Arc::clone(&ineq_idx);
                 let ineq_closure = move |x: &ArrayView1<f64>| {
                     let xs = view_to_slice(x);
-                    Array1::from_vec(ineq_arc.iter().map(|f| f(&xs)).collect())
+                    Array1::from_vec(
+                        ineq_arc
+                            .iter()
+                            .map(|&i| (constraints[i].fun)(&xs))
+                            .collect(),
+                    )
                 };
                 minimize_augmented_lagrangian(
                     al_fun,
@@ -378,11 +521,11 @@ where
                     Some(ineq_closure),
                     Some(al_options),
                 )?
-            } else if !eq_fns.is_empty() {
-                let eq_arc = Arc::clone(&eq_fns);
+            } else if has_eq {
+                let eq_arc = Arc::clone(&eq_idx);
                 let eq_closure = move |x: &ArrayView1<f64>| {
                     let xs = view_to_slice(x);
-                    Array1::from_vec(eq_arc.iter().map(|f| f(&xs)).collect())
+                    Array1::from_vec(eq_arc.iter().map(|&i| (constraints[i].fun)(&xs)).collect())
                 };
                 minimize_augmented_lagrangian(
                     al_fun,
@@ -392,10 +535,15 @@ where
                     Some(al_options),
                 )?
             } else {
-                let ineq_arc = Arc::clone(&ineq_fns);
+                let ineq_arc = Arc::clone(&ineq_idx);
                 let ineq_closure = move |x: &ArrayView1<f64>| {
                     let xs = view_to_slice(x);
-                    Array1::from_vec(ineq_arc.iter().map(|f| f(&xs)).collect())
+                    Array1::from_vec(
+                        ineq_arc
+                            .iter()
+                            .map(|&i| (constraints[i].fun)(&xs))
+                            .collect(),
+                    )
                 };
                 minimize_augmented_lagrangian(
                     al_fun,

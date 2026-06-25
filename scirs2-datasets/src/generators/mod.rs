@@ -19,6 +19,8 @@ pub mod classification;
 pub mod concept_drift;
 pub mod config;
 pub mod gpu;
+/// Real `GpuNdarray` dispatch for the heavy linear-algebra steps of the GPU generators.
+pub(crate) mod gpu_dispatch;
 /// Graph dataset generators (karate club, random graph, Barabasi-Albert, Watts-Strogatz)
 pub mod graph;
 /// Mixed numeric/categorical feature generators

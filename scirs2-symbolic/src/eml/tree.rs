@@ -20,8 +20,8 @@
 //!   keyed on the structural u128 hash. Disable with `SCIRS2_SYMBOLIC_NO_HASHCONS=1`.
 
 use crate::eml::hash::hash_u128;
-use hashbrown::HashMap;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::env;
 use std::sync::{Arc, OnceLock, Weak};
 

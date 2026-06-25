@@ -28,30 +28,18 @@ thiserror = { workspace = true }
 approx = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-oxicode = { workspace = true }  # Binary serialization (SIMD-optimized)
 oxiarc-deflate = { workspace = true }  # Pure Rust GZIP compression (COOLJAPAN Policy)
 chrono = { workspace = true }
 num_cpus = { workspace = true }
 
 # Optional serialization formats
 serde_yaml = { workspace = true, optional = true }
-rmp-serde = { workspace = true, optional = true }
-ciborium = { workspace = true, optional = true }
-
-# Optional compression algorithms
-oxiarc-lz4 = { workspace = true, optional = true }  # Pure Rust LZ4 compression (COOLJAPAN Policy)
-oxiarc-zstd = { workspace = true, optional = true }  # Pure Rust Zstandard compression (COOLJAPAN Policy)
-oxiarc-bzip2 = { workspace = true, optional = true }
 
 # Temporary file handling
 tempfile = { workspace = true }
 
 # UUID generation for model versioning
 uuid = { workspace = true }
-
-# Optional Python bindings
-pyo3 = { workspace = true, optional = true }
-numpy = { workspace = true, optional = true }
 
 # Optional visualization libraries
 plotters = { workspace = true, default-features = false, optional = true }
@@ -67,14 +55,14 @@ default = ["json", "binary"]
 json = []
 binary = []
 yaml = ["serde_yaml"]
-msgpack = ["rmp-serde"]
-cbor = ["ciborium"]
+msgpack = []
+cbor = []
 all_formats = ["yaml", "msgpack", "cbor"]
 
 # Compression features
-lz4_compression = ["oxiarc-lz4"]
-zstd_compression = ["oxiarc-zstd"]
-bzip2_compression = ["oxiarc-bzip2"]
+lz4_compression = []
+zstd_compression = []
+bzip2_compression = []
 all_compression = ["lz4_compression", "zstd_compression", "bzip2_compression"]
 
 # SIMD acceleration for clustering operations

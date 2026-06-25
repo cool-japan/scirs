@@ -271,19 +271,31 @@ pub fn generate_sas_token(params: &AzureSasParams, account_key: &[u8]) -> String
     );
 
     let sig_bytes = mock_sign(string_to_sign.as_bytes(), account_key);
-    let sig_hex = hex::encode(sig_bytes);
+    let sig_hex = crate::encoding_utils::hex_encode(sig_bytes);
 
     // Assemble the query string.
     let mut parts: Vec<String> = Vec::new();
-    parts.push(format!("sv={}", urlencoding::encode(SAS_VERSION)));
+    parts.push(format!(
+        "sv={}",
+        crate::encoding_utils::percent_encode(SAS_VERSION)
+    ));
     parts.push(format!("ss={}", resource_code));
     parts.push("srt=o".to_owned()); // resource type: object
-    parts.push(format!("sp={}", urlencoding::encode(&perm_str)));
+    parts.push(format!(
+        "sp={}",
+        crate::encoding_utils::percent_encode(&perm_str)
+    ));
     if let Some(ref s) = start_str {
-        parts.push(format!("st={}", urlencoding::encode(s)));
+        parts.push(format!("st={}", crate::encoding_utils::percent_encode(s)));
     }
-    parts.push(format!("se={}", urlencoding::encode(&expiry_str)));
-    parts.push(format!("sig={}", urlencoding::encode(&sig_hex)));
+    parts.push(format!(
+        "se={}",
+        crate::encoding_utils::percent_encode(&expiry_str)
+    ));
+    parts.push(format!(
+        "sig={}",
+        crate::encoding_utils::percent_encode(&sig_hex)
+    ));
 
     parts.join("&")
 }
@@ -296,13 +308,13 @@ pub fn generate_sas_token(params: &AzureSasParams, account_key: &[u8]) -> String
 pub fn build_sas_url(params: &AzureSasParams, account_key: &[u8]) -> String {
     let token = generate_sas_token(params, account_key);
     let blob_path = match &params.blob {
-        Some(b) => format!("/{}", urlencoding::encode(b)),
+        Some(b) => format!("/{}", crate::encoding_utils::percent_encode(b)),
         None => String::new(),
     };
     format!(
         "https://{}.blob.core.windows.net/{}{blob_path}?{token}",
         params.account_name,
-        urlencoding::encode(&params.container),
+        crate::encoding_utils::percent_encode(&params.container),
     )
 }
 
@@ -324,8 +336,7 @@ pub fn parse_sas_token(token: &str) -> Result<HashMap<String, String>, AzureErro
             .ok_or_else(|| AzureError::Parse(format!("missing '=' in token segment: {part}")))?;
         let key = &part[..eq_pos];
         let raw_value = &part[eq_pos + 1..];
-        let value = urlencoding::decode(raw_value)
-            .map(|s| s.into_owned())
+        let value = crate::encoding_utils::percent_decode(raw_value)
             .unwrap_or_else(|_| raw_value.to_owned());
         map.insert(key.to_owned(), value);
     }

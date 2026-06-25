@@ -16,6 +16,10 @@ workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[package.metadata.cargo-machete]
+# oxih5-* are staged noffi-migration placeholders (hdf5 -> oxih5)
+ignored = ["oxih5-core", "oxih5-format"]
+
 
 [dependencies]
 # Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
@@ -33,7 +37,6 @@ statrs = { workspace = true }
 reqwest = { workspace = true, optional = true, features = ["stream"] }
 futures-util = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["time"] }
-oxiarc-archive = { workspace = true }  # Pure Rust archive support (COOLJAPAN Policy)
 blake3 = { workspace = true }
 sha2 = { workspace = true }
 lazy_static = { workspace = true }
@@ -74,6 +77,9 @@ parallel = ["scirs2-core/parallel"]
 # v0.2.0 features
 lazy-loading = ["memmap2"]
 augmentation = ["scirs2-core/gpu"]
+# Real GPU-accelerated dataset generation via scirs2-core's wgpu-backed GpuNdarray.
+# Mirrors scirs2-optimize's `gpu` feature, which enables `scirs2-core/array_protocol_wgpu`.
+gpu_wgpu = ["scirs2-core/array_protocol_wgpu"]
 formats = ["scirs2-io", "dep:arrow", "dep:parquet"]
 distributed = ["tokio"]
 benchmarks = ["criterion"]

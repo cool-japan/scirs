@@ -471,9 +471,14 @@ fn run_version_policy(workspace_path: &Path) -> i32 {
                         if let Some(rest) = trimmed.strip_prefix("version") {
                             let rest = rest.trim_start();
                             if let Some(rest) = rest.strip_prefix('=') {
-                                let rest = rest.trim().trim_matches('"');
-                                if !rest.is_empty() {
-                                    return Some(rest.to_string());
+                                let s = rest.trim();
+                                if let Some(inner) = s.strip_prefix('"') {
+                                    if let Some(end) = inner.find('"') {
+                                        let ver = &inner[..end];
+                                        if !ver.is_empty() {
+                                            return Some(ver.to_string());
+                                        }
+                                    }
                                 }
                             }
                         }

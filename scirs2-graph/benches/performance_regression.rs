@@ -3,7 +3,7 @@
 //! This benchmark suite validates that performance doesn't regress between versions
 //! and establishes baseline performance metrics for various graph operations.
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, BenchmarkId, Criterion, Throughput};
 use scirs2_core::random::{rngs::StdRng, Rng, RngExt, SeedableRng};
 use scirs2_graph::*;
 use std::hint::black_box;
@@ -585,7 +585,6 @@ fn bench_large_graph_scalability(c: &mut Criterion) {
 }
 
 /// Regression checker function
-#[allow(dead_code)]
 fn check_performance_regression() {
     println!("\n=== Performance Regression Check ===");
     println!("Baseline performance expectations:");
@@ -615,15 +614,15 @@ criterion_group!(
 #[cfg(feature = "parallel")]
 criterion_group!(parallel_benches, bench_parallel_algorithms,);
 
-#[cfg(feature = "parallel")]
-criterion_main!(benches, parallel_benches);
+/// Explicit main (replaces `criterion_main!`): prints the regression-baseline
+/// banner exactly once before any benchmark group runs (formerly done via a
+/// `#[ctor::ctor]` constructor), then drives the criterion groups.
+fn main() {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    INIT.call_once(check_performance_regression);
 
-#[cfg(not(feature = "parallel"))]
-criterion_main!(benches);
-
-// Initialize regression checker on import
-#[ctor::ctor]
-#[allow(dead_code)]
-fn init() {
-    check_performance_regression();
+    benches();
+    #[cfg(feature = "parallel")]
+    parallel_benches();
+    Criterion::default().configure_from_args().final_summary();
 }

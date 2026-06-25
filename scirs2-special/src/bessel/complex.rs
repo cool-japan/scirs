@@ -296,8 +296,8 @@ pub fn i0_complex(z: Complex64) -> Complex64 {
 ///
 /// let z = Complex64::new(1.0, 0.0);
 /// let result = k0_complex(z);
-/// // For real arguments, should match real K₀(1) ≈ 0.4611
-/// assert!((result.re - 0.4610685044).abs() < 1e-8);
+/// // For real arguments, should match real K₀(1) ≈ 0.4210244382407083 (scipy verified)
+/// assert!((result.re - 0.4210244382407083).abs() < 1e-8);
 /// assert!(result.im.abs() < 1e-10);
 /// ```
 #[allow(dead_code)]

@@ -294,7 +294,7 @@ fn sha256_hex(data: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();
     h.update(data);
-    hex::encode(h.finalize())
+    crate::encoding_utils::hex_encode(h.finalize())
 }
 
 // ---------------------------------------------------------------------------

@@ -109,14 +109,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-cluster = "0.5.0"
+scirs2-cluster = "0.5.1"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-cluster = { version = "0.5.0", features = ["parallel"] }
+scirs2-cluster = { version = "0.5.1", features = ["parallel"] }
 ```
 
 ### K-means Clustering

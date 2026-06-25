@@ -10,16 +10,8 @@
 //! | [`StreamSource`]  | Kafka-like channel-based message consumption    |
 //! | [`GeneratorSource`]| Produce data from a user closure               |
 //!
-//! # noffi migration status (DatabaseSource)
-//!
-//! TODO(noffi-migration): Replace `rusqlite` in `DatabaseSource::load_rows` with
-//! `oxisql-sqlite-compat` (Pure Rust SQLite via Limbo).
-//!
-//! The `load_rows` method uses `Connection::open`, `conn.prepare`, `stmt.query`,
-//! and `ValueRef` row iteration — all synchronous. `oxisql-sqlite-compat` is async
-//! (Limbo/tokio). Migration requires an async shim or making `DataSource` async.
-//! Keep `rusqlite` until the sync/async impedance mismatch is resolved.
-//! See `~/work/noffi/oxisql/` for reference API.
+//! `DatabaseSource` uses `oxisql-sqlite-compat` (Pure Rust SQLite via Limbo engine)
+//! with a sync/async bridge via `tokio::task::block_in_place` / a fresh `Runtime`.
 
 #![allow(missing_docs)]
 
@@ -328,49 +320,79 @@ impl DatabaseSource {
 
     #[cfg(feature = "sqlite")]
     fn load_rows(&mut self) -> Result<()> {
-        use rusqlite::{types::ValueRef, Connection};
+        use oxisql_core::{Connection as OxiConnection, Value as OxiValue};
+        use oxisql_sqlite_compat::SqliteConnection;
+        use std::future::Future;
 
-        let conn = Connection::open(&self.connection_string)
-            .map_err(|e| IoError::DatabaseError(e.to_string()))?;
-        let mut stmt = conn
-            .prepare(&self.query)
-            .map_err(|e| IoError::DatabaseError(e.to_string()))?;
-
-        let column_names: Vec<String> = stmt
-            .column_names()
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        let mut rows_vec = Vec::new();
-        let mut rows = stmt
-            .query([])
-            .map_err(|e| IoError::DatabaseError(e.to_string()))?;
-
-        while let Some(row) = rows
-            .next()
-            .map_err(|e| IoError::DatabaseError(e.to_string()))?
+        /// Run an async future to completion, bridging from sync context.
+        fn run_sync_local<F, T, E>(fut: F) -> std::result::Result<T, E>
+        where
+            F: Future<Output = std::result::Result<T, E>>,
         {
+            match tokio::runtime::Handle::try_current() {
+                Ok(handle) => tokio::task::block_in_place(|| handle.block_on(fut)),
+                Err(_) => tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("tokio runtime for sqlite source")
+                    .block_on(fut),
+            }
+        }
+
+        let conn = run_sync_local(SqliteConnection::open(&self.connection_string))
+            .map_err(|e| IoError::DatabaseError(e.to_string()))?;
+
+        let oxi_rows = run_sync_local(conn.query(&self.query, &[]))
+            .map_err(|e| IoError::DatabaseError(e.to_string()))?;
+
+        let mut rows_vec = Vec::with_capacity(oxi_rows.len());
+
+        for row in &oxi_rows {
             let mut obj = serde_json::Map::new();
-            for (i, col) in column_names.iter().enumerate() {
-                let val = match row
-                    .get_ref(i)
-                    .map_err(|e| IoError::DatabaseError(e.to_string()))?
-                {
-                    ValueRef::Null => Value::Null,
-                    ValueRef::Integer(n) => Value::Number(n.into()),
-                    ValueRef::Real(f) => Value::Number(
-                        serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
+            let col_count = row.column_count();
+            let col_names = row.columns().to_vec();
+
+            for i in 0..col_count {
+                let col_name = col_names
+                    .get(i)
+                    .cloned()
+                    .unwrap_or_else(|| format!("column_{i}"));
+                let json_val = match row.get_by_index(i) {
+                    Some(OxiValue::Null) | None => Value::Null,
+                    Some(OxiValue::Bool(b)) => Value::Bool(*b),
+                    Some(OxiValue::I64(n)) => Value::Number((*n).into()),
+                    Some(OxiValue::F64(f)) => Value::Number(
+                        serde_json::Number::from_f64(*f).unwrap_or(serde_json::Number::from(0)),
                     ),
-                    ValueRef::Text(t) => {
-                        Value::String(std::str::from_utf8(t).unwrap_or("").to_string())
+                    Some(OxiValue::Text(t)) => Value::String(t.clone()),
+                    Some(OxiValue::Blob(b)) => Value::String(format!("<blob {} bytes>", b.len())),
+                    Some(OxiValue::Json(j)) => {
+                        serde_json::from_str(j).unwrap_or_else(|_| Value::String(j.clone()))
                     }
-                    ValueRef::Blob(b) => Value::String(format!("<blob {} bytes>", b.len())),
+                    Some(OxiValue::Decimal(d)) => Value::String(d.clone()),
+                    Some(OxiValue::Timestamp(ts)) => Value::Number((*ts).into()),
+                    Some(OxiValue::Date(d)) => Value::Number((*d).into()),
+                    Some(OxiValue::Time(t)) => Value::Number((*t).into()),
+                    Some(OxiValue::Uuid(_)) => {
+                        // Format UUID using Display impl on OxiValue.
+                        Value::String(format!(
+                            "{}",
+                            row.get_by_index(i)
+                                .expect("index checked above in outer match")
+                        ))
+                    }
+                    Some(OxiValue::Array(_)) => Value::String(format!("{:?}", row.get_by_index(i))),
+                    // Typed arrays carry the same element data as a plain array
+                    // plus a nominal element type; represent them the same way.
+                    Some(OxiValue::TypedArray { .. }) => {
+                        Value::String(format!("{:?}", row.get_by_index(i)))
+                    }
                 };
-                obj.insert(col.clone(), val);
+                obj.insert(col_name, json_val);
             }
             rows_vec.push(Value::Object(obj));
         }
+
         self.rows = Some(rows_vec.into());
         Ok(())
     }

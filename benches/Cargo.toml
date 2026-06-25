@@ -89,14 +89,10 @@ scirs2-stats = { workspace = true }
 scirs2-fft = { workspace = true, features = ["oxifft"] }
 scirs2-integrate = { workspace = true }
 scirs2-cluster = { workspace = true }
-scirs2-interpolate = { workspace = true }
 scirs2-signal = { workspace = true }
-scirs2-sparse = { workspace = true }
 scirs2-special = { workspace = true }
-scirs2-ndimage = { workspace = true }
 scirs2-neural = { workspace = true }
 scirs2-autograd = { workspace = true }
-scirs2-spatial = { workspace = true }
 scirs2-optimize = { workspace = true }
 scirs2-series = { workspace = true }
 scirs2-metrics = { workspace = true }
@@ -112,18 +108,8 @@ ndarray = { workspace = true, default-features = false }
 ndarray-rand = { workspace = true }
 ndarray-stats = { workspace = true }
 
-# Random number generation
-rand = { workspace = true }
-rand_chacha = { workspace = true }
-rand_distr = { workspace = true }
-
 # Parallel processing
 rayon = { workspace = true }
-
-# Scientific computing utilities
-num-traits = { workspace = true, default-features = false }
-num-complex = { workspace = true, default-features = false }
-approx = { workspace = true }
 
 # Serialization for results
 serde = { workspace = true }

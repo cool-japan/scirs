@@ -143,84 +143,140 @@ impl SimdMetrics {
         self
     }
 
-    /// Detect GPU capabilities with real hardware detection
+    /// Detect GPU capabilities through real system queries.
+    ///
+    /// Probes `nvidia-smi` (CUDA) and `clinfo` (OpenCL) for an actual device.
+    /// When neither reports a device this returns `Ok(None)` and every metric
+    /// is computed with the CPU SIMD path. A device is never fabricated, and
+    /// fields a query does not expose are reported as `0` ("unknown") rather
+    /// than guessed.
     fn detect_gpu_capabilities() -> Result<Option<GpuInfo>> {
-        // Try to detect CUDA-capable devices first
+        // Try to detect a CUDA-capable device via the NVIDIA driver.
         if let Ok(gpu_info) = Self::detect_cuda_capabilities() {
             return Ok(Some(gpu_info));
         }
 
-        // Try OpenCL devices
+        // Try OpenCL devices via clinfo.
         if let Ok(gpu_info) = Self::detect_opencl_capabilities() {
             return Ok(Some(gpu_info));
         }
 
-        // Fall back to environment variable simulation
-        if std::env::var("SCIRS2_ENABLE_GPU").is_ok() {
-            Ok(Some(GpuInfo {
-                device_name: "Simulated GPU".to_string(),
-                compute_capability: (8, 6), // Simulate RTX 30xx series
-                total_memory: 12 * 1024 * 1024 * 1024, // 12GB
-                available_memory: 10 * 1024 * 1024 * 1024, // 10GB available
-                multiprocessor_count: 84,
-                max_threads_per_block: 1024,
-                supports_double_precision: true,
-            }))
-        } else {
-            Ok(None)
-        }
+        // No accelerator detected; computation falls back to CPU SIMD kernels.
+        Ok(None)
     }
 
-    /// Detect CUDA capabilities (simplified implementation)
+    /// Detect a CUDA device by querying `nvidia-smi`.
+    ///
+    /// Returns the device name, memory and compute capability as reported by the
+    /// driver. Returns an error when no NVIDIA GPU/driver is present instead of
+    /// fabricating a device. Memory values that cannot be parsed are reported as
+    /// `0` ("unknown").
     fn detect_cuda_capabilities() -> Result<GpuInfo> {
-        // In a real implementation, this would use CUDA runtime API
-        // For now, we check for CUDA-like environment indicators
+        let output = std::process::Command::new("nvidia-smi")
+            .arg("--query-gpu=name,memory.total,memory.free,compute_cap")
+            .arg("--format=csv,noheader,nounits")
+            .output()
+            .map_err(|_| {
+                MetricsError::ComputationError(
+                    "CUDA not available: nvidia-smi could not be executed".to_string(),
+                )
+            })?;
 
-        if std::env::var("CUDA_VISIBLE_DEVICES").is_ok()
-            || std::path::Path::new("/usr/local/cuda").exists()
-            || std::path::Path::new("/opt/cuda").exists()
-        {
-            // Mock CUDA device detection
-            Ok(GpuInfo {
-                device_name: "NVIDIA RTX 4090".to_string(),
-                compute_capability: (8, 9),
-                total_memory: 24 * 1024 * 1024 * 1024, // 24GB
-                available_memory: 22 * 1024 * 1024 * 1024, // 22GB available
-                multiprocessor_count: 128,
-                max_threads_per_block: 1024,
-                supports_double_precision: true,
-            })
-        } else {
-            Err(MetricsError::ComputationError(
-                "CUDA not available".to_string(),
-            ))
+        if !output.status.success() {
+            return Err(MetricsError::ComputationError(
+                "CUDA not available: nvidia-smi returned an error".to_string(),
+            ));
         }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let first_line = stdout.trim().lines().next().ok_or_else(|| {
+            MetricsError::ComputationError("nvidia-smi reported no CUDA devices".to_string())
+        })?;
+
+        let parts: Vec<&str> = first_line.split(',').map(|s| s.trim()).collect();
+        if parts.len() < 4 {
+            return Err(MetricsError::ComputationError(
+                "Unexpected nvidia-smi output format".to_string(),
+            ));
+        }
+
+        let device_name = parts[0].to_string();
+        // nvidia-smi reports memory in MiB; 0 marks a value we could not parse.
+        let total_memory = parts[1]
+            .parse::<usize>()
+            .map(|mib| mib * 1024 * 1024)
+            .unwrap_or(0);
+        let available_memory = parts[2]
+            .parse::<usize>()
+            .map(|mib| mib * 1024 * 1024)
+            .unwrap_or(0);
+
+        let compute_capability = parts[3]
+            .split_once('.')
+            .and_then(|(major, minor)| {
+                Some((major.parse::<u32>().ok()?, minor.parse::<u32>().ok()?))
+            })
+            .unwrap_or((0, 0));
+
+        Ok(GpuInfo {
+            device_name,
+            compute_capability,
+            total_memory,
+            available_memory,
+            // nvidia-smi does not report the SM count; 0 marks it as unknown.
+            multiprocessor_count: 0,
+            // CUDA architectural maximum threads per block.
+            max_threads_per_block: 1024,
+            supports_double_precision: compute_capability.0 >= 2,
+        })
     }
 
-    /// Detect OpenCL capabilities (simplified implementation)
+    /// Detect an OpenCL GPU device by querying `clinfo`.
+    ///
+    /// Returns an error when no OpenCL device is reported instead of fabricating
+    /// a device. Memory and compute details that `clinfo -l` does not expose are
+    /// reported as `0` ("unknown") and double-precision support is reported
+    /// conservatively as `false`.
     fn detect_opencl_capabilities() -> Result<GpuInfo> {
-        // In a real implementation, this would use OpenCL API
-        // Check for OpenCL runtime libraries
+        let output = std::process::Command::new("clinfo")
+            .arg("-l")
+            .output()
+            .map_err(|_| {
+                MetricsError::ComputationError(
+                    "OpenCL not available: clinfo could not be executed".to_string(),
+                )
+            })?;
 
-        if std::path::Path::new("/usr/lib/x86_64-linux-gnu/libOpenCL.so").exists()
-            || std::path::Path::new("/usr/lib/libOpenCL.so").exists()
-            || std::env::var("OPENCL_VENDOR_PATH").is_ok()
-        {
-            // Mock OpenCL device detection
-            Ok(GpuInfo {
-                device_name: "AMD RX 7900 XTX".to_string(),
-                compute_capability: (3, 0),            // OpenCL version
-                total_memory: 20 * 1024 * 1024 * 1024, // 20GB
-                available_memory: 18 * 1024 * 1024 * 1024, // 18GB available
-                multiprocessor_count: 96,
-                max_threads_per_block: 256,
-                supports_double_precision: true,
-            })
-        } else {
-            Err(MetricsError::ComputationError(
-                "OpenCL not available".to_string(),
-            ))
+        if !output.status.success() {
+            return Err(MetricsError::ComputationError(
+                "OpenCL not available: clinfo returned an error".to_string(),
+            ));
         }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let device_line = stdout
+            .lines()
+            .find(|line| line.to_lowercase().contains("device #"))
+            .ok_or_else(|| {
+                MetricsError::ComputationError("clinfo reported no OpenCL devices".to_string())
+            })?;
+
+        let device_name = device_line
+            .split_once(':')
+            .map(|(_, name)| name.trim().to_string())
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| "OpenCL Device".to_string());
+
+        Ok(GpuInfo {
+            device_name,
+            // clinfo -l does not expose these details; 0 marks them as unknown.
+            compute_capability: (0, 0),
+            total_memory: 0,
+            available_memory: 0,
+            multiprocessor_count: 0,
+            max_threads_per_block: 256,
+            supports_double_precision: false,
+        })
     }
 
     /// SIMD-accelerated mean squared error computation
@@ -593,7 +649,11 @@ impl SimdMetrics {
         }
     }
 
-    /// GPU kernel execution for batch metrics
+    /// Batch metrics path taken when a GPU device was detected.
+    ///
+    /// Because no native GPU kernel is linked in this module, the reductions are
+    /// performed on the CPU and return exact results; the detected device limits
+    /// are only used to derive launch geometry.
     fn gpu_compute_batch_metrics<F>(
         &self,
         y_true_batch: &ArrayView2<F>,
@@ -607,14 +667,12 @@ impl SimdMetrics {
         let batch_size = y_true_batch.nrows();
         let mut results = Vec::with_capacity(batch_size);
 
-        // Simulate GPU computation with appropriate delays and _batch processing
-        let threads_per_block = gpu_info.max_threads_per_block.min(1024);
+        // Derive launch geometry from the reported device limits. This is
+        // computed for completeness only: this module does not link a native
+        // GPU kernel, so the per-sample reductions below execute on the CPU and
+        // return exact results. No artificial transfer/compute delay is added.
+        let threads_per_block = gpu_info.max_threads_per_block.max(1).min(1024);
         let _blocks_needed = batch_size.div_ceil(threads_per_block as usize);
-
-        // Simulate memory transfer to GPU
-        std::thread::sleep(std::time::Duration::from_micros(
-            (y_true_batch.len() * std::mem::size_of::<F>() / 1000) as u64,
-        ));
 
         for batch_idx in 0..batch_size {
             let y_true_sample = y_true_batch.row(batch_idx);
@@ -636,20 +694,14 @@ impl SimdMetrics {
             results.push(sample_results);
         }
 
-        // Simulate memory transfer from GPU
-        std::thread::sleep(std::time::Duration::from_micros(
-            (results.len() * metrics.len() * std::mem::size_of::<F>() / 1000) as u64,
-        ));
-
         Ok(results)
     }
 
-    /// Simulated GPU kernel for MSE computation
+    /// CPU reduction used by the batch path for MSE (no native GPU kernel linked).
     fn gpu_mse_kernel<F>(&self, y_true: &ArrayView1<F>, ypred: &ArrayView1<F>) -> Result<F>
     where
         F: Float + std::iter::Sum,
     {
-        // Simulate GPU parallel reduction
         let diff_squared: F = y_true
             .iter()
             .zip(ypred.iter())
@@ -659,7 +711,7 @@ impl SimdMetrics {
         Ok(diff_squared / F::from(y_true.len()).expect("Operation failed"))
     }
 
-    /// Simulated GPU kernel for MAE computation
+    /// CPU reduction used by the batch path for MAE (no native GPU kernel linked).
     fn gpu_mae_kernel<F>(&self, y_true: &ArrayView1<F>, ypred: &ArrayView1<F>) -> Result<F>
     where
         F: Float + std::iter::Sum,
@@ -673,7 +725,7 @@ impl SimdMetrics {
         Ok(abs_diff / F::from(y_true.len()).expect("Operation failed"))
     }
 
-    /// Simulated GPU kernel for R² computation
+    /// CPU reduction used by the batch path for R² (no native GPU kernel linked).
     fn gpu_r2_kernel<F>(&self, y_true: &ArrayView1<F>, ypred: &ArrayView1<F>) -> Result<F>
     where
         F: Float + std::iter::Sum,
@@ -699,7 +751,7 @@ impl SimdMetrics {
         }
     }
 
-    /// Simulated GPU kernel for correlation computation
+    /// CPU reduction used by the batch path for correlation (no native GPU kernel linked).
     fn gpu_correlation_kernel<F>(&self, x: &ArrayView1<F>, y: &ArrayView1<F>) -> Result<F>
     where
         F: Float + std::iter::Sum,
@@ -1267,15 +1319,18 @@ mod tests {
         // Test the CUDA detection logic
         let result = SimdMetrics::detect_cuda_capabilities();
 
-        // Should either succeed if CUDA is available or fail gracefully
+        // Should either succeed if CUDA is available or fail gracefully.
         match result {
             Ok(gpu_info) => {
+                // A real detected device must report a non-empty name and a
+                // positive thread-per-block limit. Memory and SM count may be
+                // 0 ("unknown") when the driver query does not expose them, so
+                // they are intentionally not asserted positive.
                 assert!(!gpu_info.device_name.is_empty());
-                assert!(gpu_info.total_memory > 0);
-                assert!(gpu_info.multiprocessor_count > 0);
+                assert!(gpu_info.max_threads_per_block > 0);
             }
             Err(_) => {
-                // CUDA not available, which is fine
+                // CUDA not available, which is fine.
             }
         }
     }
@@ -1285,15 +1340,18 @@ mod tests {
         // Test the OpenCL detection logic
         let result = SimdMetrics::detect_opencl_capabilities();
 
-        // Should either succeed if OpenCL is available or fail gracefully
+        // Should either succeed if OpenCL is available or fail gracefully.
         match result {
             Ok(gpu_info) => {
+                // A real detected device must report a non-empty name and a
+                // positive thread-per-block limit. Memory and SM count may be
+                // 0 ("unknown") when `clinfo -l` does not expose them, so they
+                // are intentionally not asserted positive.
                 assert!(!gpu_info.device_name.is_empty());
-                assert!(gpu_info.total_memory > 0);
-                assert!(gpu_info.multiprocessor_count > 0);
+                assert!(gpu_info.max_threads_per_block > 0);
             }
             Err(_) => {
-                // OpenCL not available, which is fine
+                // OpenCL not available, which is fine.
             }
         }
     }

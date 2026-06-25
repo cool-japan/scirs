@@ -334,7 +334,7 @@ fn generate_test_signal(length: usize, fs: f64) -> Array1<f64> {
         signal[i] += 0.25 * (2.0 * std::f64::consts::PI * 0.35 * fs * t).sin();
 
         // Add small amount of noise
-        signal[i] += 0.01 * (fastrand::f64() * 2.0 - 1.0);
+        signal[i] += 0.01 * (scirs2_core::random::random::<f64>() * 2.0 - 1.0);
     }
 
     signal

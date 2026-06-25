@@ -318,7 +318,12 @@ fn demo_real_time_metrics_and_alerts() -> CoreResult<()> {
         severity: AlertSeverity::Critical,
         notification_channels: vec![
             NotificationChannel::Console,
-            NotificationChannel::File("/tmp/dashboard_alerts.log".to_string()),
+            NotificationChannel::File(
+                std::env::temp_dir()
+                    .join("dashboard_alerts.log")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
         ],
         cooldown_period: Duration::from_secs(60),
     };

@@ -12,7 +12,7 @@
 //!
 //! ```no_run
 //! use std::path::Path;
-//! use crate::dep_audit::run_dep_audit;
+//! use cargo_scirs2_policy::dep_audit::run_dep_audit;
 //!
 //! let result = run_dep_audit(Path::new("/path/to/workspace"), Some(850));
 //! println!("{}", result.summary);

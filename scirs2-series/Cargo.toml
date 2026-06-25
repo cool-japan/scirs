@@ -21,7 +21,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
 scirs2-core = { workspace = true, features = ["linalg", "array", "random"] }
 scirs2-linalg = { workspace = true }
-scirs2-stats = { workspace = true }
 scirs2-fft = { workspace = true, features = ["oxifft"] }
 thiserror = { workspace = true }
 memmap2 = { workspace = true }
@@ -29,17 +28,12 @@ num_cpus = { workspace = true }
 
 # WASM dependencies
 wasm-bindgen = { workspace = true, optional = true }
-wasm-bindgen-futures = { workspace = true, optional = true }
-js-sys = { workspace = true, optional = true }
 web-sys = { workspace = true, features = ["console"], optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }
 console_error_panic_hook = { workspace = true, optional = true }
 
-# PyO3 for Python bindings
-pyo3 = { workspace = true, optional = true }
-numpy = { workspace = true, optional = true }
 statrs.workspace = true
 
 # Future dependency for PandRS with appropriate abstractions
@@ -57,7 +51,7 @@ serde = ["dep:serde"]
 # Enable external ML library wrappers
 # pandrs = ["dep:pandrs_wrapper"]
 # WASM support for browser-based time series analysis
-wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:js-sys", "dep:web-sys", "serde", "dep:serde_json", "dep:serde-wasm-bindgen", "dep:console_error_panic_hook"]
+wasm = ["dep:wasm-bindgen", "dep:web-sys", "serde", "dep:serde_json", "dep:serde-wasm-bindgen", "dep:console_error_panic_hook"]
 # Python interoperability via scirs2-core conversion utilities
 python = ["scirs2-core/python"]
 # R integration for R ecosystem compatibility

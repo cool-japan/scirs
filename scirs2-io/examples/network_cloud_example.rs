@@ -8,6 +8,8 @@
 //! - Local caching for offline access and performance optimization
 //! - Retry logic and error recovery for network operations
 
+#[cfg(feature = "reqwest")]
+use scirs2_io::network::batch_download;
 use scirs2_io::network::cloud::{
     create_mock_metadata, validate_config, AzureConfig, CloudProvider, GcsConfig, S3Config,
 };
@@ -17,8 +19,6 @@ use scirs2_io::network::http::{
 use scirs2_io::network::streaming::{
     copy_with_progress, ChunkedReader, ChunkedWriter, StreamConfig, StreamProgress,
 };
-#[cfg(feature = "reqwest")]
-use scirs2_io::network::{batch_download, download_file, upload_file};
 use scirs2_io::network::{
     batch_upload_to_cloud, create_cloud_client, NetworkClient, NetworkConfig,
 };
@@ -80,7 +80,12 @@ async fn demonstrate_network_configuration() -> Result<(), Box<dyn std::error::E
         user_agent: "scirs2-io-example/1.0".to_string(),
         headers,
         compression: true,
-        cache_dir: Some("/tmp/scirs2_cache".to_string()),
+        cache_dir: Some(
+            std::env::temp_dir()
+                .join("scirs2_cache")
+                .to_string_lossy()
+                .into_owned(),
+        ),
         max_cache_size: 512, // 512MB
     };
 

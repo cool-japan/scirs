@@ -13,7 +13,7 @@ use crate::error::AutogradError;
 use crate::forward_mode::DualNumber;
 use crate::tensor::Tensor;
 use crate::{Context, Float, Result};
-use num::Float as NumFloat;
+use num_traits::Float as NumFloat;
 use scirs2_core::ndarray::{Array1, Array2};
 use std::fmt;
 

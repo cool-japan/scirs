@@ -158,6 +158,3 @@ where
     // Optimize on the original objective
     meta_optimizer.optimize_new_task(&objective, initial_params, steps_per_task)
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {}

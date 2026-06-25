@@ -8,7 +8,9 @@ mod qr_ops;
 mod svd_ops;
 
 // Public re-exports — maintain exactly the same public API as the original file
-pub(crate) use backward_ops::{CholeskyBackwardOp, LUExtractBackwardOp, QRExtractBackwardOp};
+pub(crate) use backward_ops::{
+    CholeskyBackwardOp, LUExtractBackwardOp, QRExtractBackwardOp, SVDBackwardOp,
+};
 pub use cholesky_eigen_ops::{cholesky, matrix_exp, matrix_log, matrix_power, symmetric_eigen};
 pub use cholesky_eigen_ops::{
     CholeskyOp, MatrixExpOp, MatrixLogOp, MatrixPowerOp, SymmetricEigenOp,

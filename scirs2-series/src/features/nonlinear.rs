@@ -14,8 +14,8 @@
 //! use scirs2_core::ndarray::Array1;
 //! use scirs2_series::features::nonlinear::*;
 //!
-//! let ts = Array1::from_vec(vec![1.0f64, 2.0, 1.5, 3.0, 2.5, 4.0, 3.5, 5.0, 2.0, 1.0, 3.0, 4.5]);
-//! let se = sample_entropy(&ts, 2, 0.2).expect("sample entropy");
+//! let ts: Array1<f64> = (0..48).map(|i| 1.0 + 0.1 * ((i as f64) * 0.5).sin()).collect();
+//! let se = sample_entropy(&ts, 2, 0.5).expect("sample entropy");
 //! let pe = permutation_entropy(&ts, 3, 1).expect("permutation entropy");
 //! let h  = hurst_exponent(&ts).expect("hurst exponent");
 //! ```

@@ -162,20 +162,10 @@ impl GpuMetricsComputer {
             return Ok(Some(rocm_info));
         }
 
-        // Fall back to environment variable for testing
-        if std::env::var("SCIRS2_ENABLE_GPU").is_ok() {
-            Ok(Some(GpuInfo {
-                device_name: "Simulated GPU".to_string(),
-                compute_capability: (8, 6),
-                total_memory: 12 * 1024 * 1024 * 1024, // 12GB
-                available_memory: 10 * 1024 * 1024 * 1024, // 10GB available
-                multiprocessor_count: 84,
-                max_threads_per_block: 1024,
-                supports_double_precision: true,
-            }))
-        } else {
-            Ok(None)
-        }
+        // No real accelerator was reported by nvidia-smi / clinfo / rocm-smi.
+        // Report that honestly so callers fall back to the CPU SIMD path rather
+        // than fabricating a device from an environment variable.
+        Ok(None)
     }
 
     /// Detect CUDA-capable devices
@@ -1178,19 +1168,17 @@ impl AdvancedGpuOrchestrator {
         })
     }
 
-    /// Discover available GPU devices
+    /// Discover available GPU devices.
+    ///
+    /// Uses the same real driver queries as [`GpuMetricsComputer`]
+    /// (`nvidia-smi` / `clinfo` / `rocm-smi`). Returns an empty list when no
+    /// accelerator is present instead of fabricating a device, so callers must
+    /// be prepared to operate with zero discovered devices.
     fn discover_devices() -> Result<Vec<GpuInfo>> {
-        // Placeholder for actual GPU device discovery
-        // In a real implementation, this would query CUDA/OpenCL/Vulkan
-        Ok(vec![GpuInfo {
-            device_name: "Mock GPU Device".to_string(),
-            compute_capability: (8, 6),
-            total_memory: 8 * 1024 * 1024 * 1024,     // 8GB
-            available_memory: 7 * 1024 * 1024 * 1024, // 7GB
-            multiprocessor_count: 68,
-            max_threads_per_block: 1024,
-            supports_double_precision: true,
-        }])
+        match GpuMetricsComputer::detect_gpu_capabilities()? {
+            Some(device) => Ok(vec![device]),
+            None => Ok(Vec::new()),
+        }
     }
 
     /// Execute metrics computation across multiple GPUs
@@ -1203,6 +1191,13 @@ impl AdvancedGpuOrchestrator {
     where
         F: Float + SimdUnifiedOps + Send + Sync + std::iter::Sum + 'static,
     {
+        if self.devices.is_empty() {
+            return Err(MetricsError::ComputationError(
+                "No GPU devices were discovered; distributed GPU computation is unavailable"
+                    .to_string(),
+            ));
+        }
+
         let batch_size = y_true_batch.nrows();
         let work_distribution = self
             .load_balancer

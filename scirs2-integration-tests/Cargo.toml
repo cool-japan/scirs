@@ -25,23 +25,19 @@ scirs2-signal = { workspace = true }
 scirs2-sparse = { workspace = true }
 scirs2-linalg = { workspace = true }
 scirs2-ndimage = { workspace = true }
-scirs2-vision = { workspace = true }
 scirs2-stats = { workspace = true }
 scirs2-special = { workspace = true }
 scirs2-datasets = { workspace = true }
 scirs2-text = { workspace = true }
-scirs2-series = { workspace = true }
 scirs2-integrate = { workspace = true }
 scirs2-graph = { workspace = true }
 
 # Testing dependencies
 proptest = { workspace = true }
 approx = { workspace = true }
-criterion = { workspace = true }
 
 # Utilities
 num_cpus = { workspace = true }
-tempfile = { workspace = true }
 num-traits = { workspace = true, default-features = false }
 
 [[test]]

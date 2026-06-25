@@ -44,7 +44,6 @@ bytemuck = { workspace = true, optional = true }
 tempfile = { workspace = true }
 criterion = { workspace = true, features = ["html_reports"] }
 num_cpus = { workspace = true }
-ctor = { workspace = true }
 approx = { workspace = true }
 
 [features]

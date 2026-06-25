@@ -11,7 +11,7 @@ name = "numerical"
 harness = false
 
 [dev-dependencies]
-trybuild = "1"
+trybuild = { workspace = true }
 criterion = { workspace = true }
 ndarray = { workspace = true }
 scirs2-core = { path = "../scirs2-core", features = [] }

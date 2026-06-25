@@ -223,9 +223,6 @@ impl<F: Float> Optimizer<F> for AdamW<F> {
                     weight_decay: self.weight_decay,
                 });
 
-            // Log AdamW operation construction
-            eprintln!("Created AdamWOp with all 5 inputs");
-
             // Add the updated parameter to the result
             ret.push(adamw_op);
         }

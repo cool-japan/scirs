@@ -1,7 +1,7 @@
 //! Data augmentation for training neural networks
 
-use crate::error::{NeuralError, Result};
-use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use crate::error::Result;
+use scirs2_core::ndarray::{Array, Axis, IxDyn, ScalarOperand, Slice};
 use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::random::rngs::SmallRng;
 use scirs2_core::random::Distribution;
@@ -15,6 +15,12 @@ pub trait Augmentation<F: Float + NumAssign + Debug + ScalarOperand> {
 
     /// Get a description of the augmentation
     fn description(&self) -> String;
+
+    /// Clone this augmentation into a boxed trait object.
+    ///
+    /// This enables `ComposeAugmentation` (which stores `Box<dyn Augmentation>`)
+    /// to be cloned without losing its contents.
+    fn clone_box(&self) -> Box<dyn Augmentation<F>>;
 }
 
 /// Gaussian noise augmentation
@@ -31,16 +37,16 @@ impl<F: Float + NumAssign + Debug + ScalarOperand> GaussianNoise<F> {
     }
 }
 
-impl<F: Float + NumAssign + Debug + ScalarOperand> Augmentation<F> for GaussianNoise<F> {
+impl<F: Float + NumAssign + Debug + ScalarOperand + 'static> Augmentation<F> for GaussianNoise<F> {
     fn apply(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
         let mut rng = SmallRng::from_rng(&mut thread_rng());
         let mut result = input.clone();
 
-        for item in result.iter_mut() {
-            // Create a normal distribution
-            let normal = scirs2_core::random::Normal::new(0.0, self.std.to_f64().unwrap_or(0.1))
-                .expect("Failed to create normal distribution");
+        // Create a normal distribution once for the whole tensor
+        let normal = scirs2_core::random::Normal::new(0.0, self.std.to_f64().unwrap_or(0.1))
+            .expect("Failed to create normal distribution");
 
+        for item in result.iter_mut() {
             // Sample from the distribution
             let noise = F::from(rng.sample(normal)).unwrap_or(F::zero());
             *item += noise;
@@ -54,6 +60,10 @@ impl<F: Float + NumAssign + Debug + ScalarOperand> Augmentation<F> for GaussianN
             "GaussianNoise (std: {:.3})",
             self.std.to_f64().unwrap_or(0.0)
         )
+    }
+
+    fn clone_box(&self) -> Box<dyn Augmentation<F>> {
+        Box::new(self.clone())
     }
 }
 
@@ -73,7 +83,7 @@ impl<F: Float + NumAssign + Debug + ScalarOperand> RandomErasing<F> {
     }
 }
 
-impl<F: Float + NumAssign + Debug + ScalarOperand> Augmentation<F> for RandomErasing<F> {
+impl<F: Float + NumAssign + Debug + ScalarOperand + 'static> Augmentation<F> for RandomErasing<F> {
     fn apply(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
         let mut rng = SmallRng::from_rng(&mut thread_rng());
         let mut result = input.clone();
@@ -83,13 +93,50 @@ impl<F: Float + NumAssign + Debug + ScalarOperand> Augmentation<F> for RandomEra
             return Ok(result);
         }
 
-        // Only apply to 3D or higher arrays (like images with channels)
-        if result.ndim() < 3 {
+        // Only apply to 3D or higher arrays (like images with channels).
+        // The last two axes are treated as the spatial (height, width) plane.
+        let ndim = result.ndim();
+        if ndim < 3 {
             return Ok(result);
         }
 
-        // Note: This is a simplified implementation
-        // In practice, you'd need to handle different tensor layouts
+        let shape = result.shape().to_vec();
+        let height = shape[ndim - 2];
+        let width = shape[ndim - 1];
+        if height == 0 || width == 0 {
+            return Ok(result);
+        }
+
+        // Sample an erasing rectangle covering between ~2% and ~40% of the area,
+        // following the spirit of Zhong et al. (2017) "Random Erasing".
+        let area = (height * width) as f64;
+        let target_area = area * (0.02 + rng.random::<f64>() * 0.38);
+        let aspect = 0.3 + rng.random::<f64>() * (3.0 - 0.3);
+        let mut rect_h = ((target_area * aspect).sqrt().round() as usize).max(1);
+        let mut rect_w = ((target_area / aspect).sqrt().round() as usize).max(1);
+        rect_h = rect_h.min(height);
+        rect_w = rect_w.min(width);
+
+        let top =
+            ((rng.random::<f64>() * (height - rect_h + 1) as f64) as usize).min(height - rect_h);
+        let left =
+            ((rng.random::<f64>() * (width - rect_w + 1) as f64) as usize).min(width - rect_w);
+
+        // Erase the sampled rectangle on the spatial plane for every leading
+        // (batch/channel) index. `slice_each_axis_mut` keeps this layout-agnostic.
+        let erase_value = self.value;
+        result
+            .slice_each_axis_mut(|ax| {
+                let axis = ax.axis.index();
+                if axis == ndim - 2 {
+                    Slice::new(top as isize, Some((top + rect_h) as isize), 1)
+                } else if axis == ndim - 1 {
+                    Slice::new(left as isize, Some((left + rect_w) as isize), 1)
+                } else {
+                    Slice::new(0, None, 1)
+                }
+            })
+            .fill(erase_value);
 
         Ok(result)
     }
@@ -100,6 +147,10 @@ impl<F: Float + NumAssign + Debug + ScalarOperand> Augmentation<F> for RandomEra
             self.probability,
             self.value.to_f64().unwrap_or(0.0)
         )
+    }
+
+    fn clone_box(&self) -> Box<dyn Augmentation<F>> {
+        Box::new(self.clone())
     }
 }
 
@@ -122,24 +173,36 @@ impl<F: Float + NumAssign + Debug + ScalarOperand> RandomHorizontalFlip<F> {
     }
 }
 
-impl<F: Float + NumAssign + Debug + ScalarOperand> Augmentation<F> for RandomHorizontalFlip<F> {
+impl<F: Float + NumAssign + Debug + ScalarOperand + 'static> Augmentation<F>
+    for RandomHorizontalFlip<F>
+{
     fn apply(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
         let mut rng = SmallRng::from_rng(&mut thread_rng());
-        let result = input.clone();
+        let mut result = input.clone();
 
         // Only apply based on probability
         if rng.random::<f64>() > self.probability {
             return Ok(result);
         }
 
-        // In practice, you'd implement the actual horizontal flip here
-        // This would depend on the tensor layout (CHW, HWC, etc.)
+        // A horizontal flip reverses the width axis. We treat the last axis as
+        // width (valid for CHW, HWC and plain HW layouts). For scalars there is
+        // nothing to flip.
+        let ndim = result.ndim();
+        if ndim == 0 {
+            return Ok(result);
+        }
+        result.invert_axis(Axis(ndim - 1));
 
         Ok(result)
     }
 
     fn description(&self) -> String {
         format!("RandomHorizontalFlip (prob: {:.2})", self.probability)
+    }
+
+    fn clone_box(&self) -> Box<dyn Augmentation<F>> {
+        Box::new(self.clone())
     }
 }
 
@@ -161,13 +224,16 @@ pub struct ComposeAugmentation<F: Float + NumAssign + Debug + ScalarOperand> {
     augmentations: Vec<Box<dyn Augmentation<F>>>,
 }
 
-impl<F: Float + NumAssign + Debug + ScalarOperand> Clone for ComposeAugmentation<F> {
+impl<F: Float + NumAssign + Debug + ScalarOperand + 'static> Clone for ComposeAugmentation<F> {
     fn clone(&self) -> Self {
-        // We can't clone trait objects directly, so we need to implement a custom Clone
-        // In a real implementation, we would need a way to clone each augmentation
-        // For now, we'll return an empty list which is not ideal but will let the code compile
+        // Clone each contained augmentation through its `clone_box` method.
+        // This preserves the full pipeline instead of dropping it.
         Self {
-            augmentations: Vec::new(),
+            augmentations: self
+                .augmentations
+                .iter()
+                .map(|augmentation| augmentation.clone_box())
+                .collect(),
         }
     }
 }
@@ -191,7 +257,9 @@ impl<F: Float + NumAssign + Debug + ScalarOperand> ComposeAugmentation<F> {
     }
 }
 
-impl<F: Float + NumAssign + Debug + ScalarOperand> Augmentation<F> for ComposeAugmentation<F> {
+impl<F: Float + NumAssign + Debug + ScalarOperand + 'static> Augmentation<F>
+    for ComposeAugmentation<F>
+{
     fn apply(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
         let mut data = input.clone();
         for augmentation in &self.augmentations {
@@ -204,5 +272,9 @@ impl<F: Float + NumAssign + Debug + ScalarOperand> Augmentation<F> for ComposeAu
         let descriptions: Vec<String> =
             self.augmentations.iter().map(|a| a.description()).collect();
         format!("Compose({})", descriptions.join(", "))
+    }
+
+    fn clone_box(&self) -> Box<dyn Augmentation<F>> {
+        Box::new(self.clone())
     }
 }

@@ -24,7 +24,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.5.0", features = ["blas"] }
+//! scirs2-autograd = { version = "0.5.1", features = ["blas"] }
 //! ```
 //!
 //! ### BLAS Acceleration (Recommended)
@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.5.0", features = ["blas"] }
+//! scirs2-autograd = { version = "0.5.1", features = ["blas"] }
 //! ```
 //!
 //! ## 🚀 Quick Start
@@ -316,7 +316,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.5.0**
+//! Current version: **0.5.1**
 
 #[allow(unused_imports)]
 // Re-export from scirs2-core for POLICY compliance
@@ -328,12 +328,10 @@ pub use scirs2_core::random as rand;
 extern crate approx;
 extern crate libc;
 extern crate matrixmultiply;
-extern crate num;
 // extern crate rayon;  // Now use scirs2-core parallel abstractions
 extern crate rustc_hash;
 extern crate serde;
 extern crate serde_json;
-pub(crate) extern crate smallvec;
 extern crate special;
 extern crate uuid;
 
@@ -424,7 +422,7 @@ pub trait Float:
 #[doc(hidden)]
 /// Internal trait.
 pub trait Int:
-    num::Integer
+    num_integer::Integer
     + scirs2_core::numeric::NumAssignOps
     + scirs2_core::numeric::ToPrimitive
     + Copy
@@ -438,7 +436,7 @@ pub trait Int:
 }
 
 impl<T> Float for T where
-    T: num::Float
+    T: num_traits::Float
         + scirs2_core::numeric::NumAssignOps
         + Copy
         + Send
@@ -453,7 +451,7 @@ impl<T> Float for T where
 }
 
 impl<T> Int for T where
-    T: num::Integer
+    T: num_integer::Integer
         + scirs2_core::numeric::NumAssignOps
         + scirs2_core::numeric::ToPrimitive
         + Copy

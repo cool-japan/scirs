@@ -873,7 +873,7 @@ impl MetadataVersionControl {
         let json = serde_json::to_string(metadata).unwrap_or_default();
         let mut hasher = Sha256::new();
         hasher.update(json.as_bytes());
-        hex::encode(hasher.finalize())
+        crate::encoding_utils::hex_encode(hasher.finalize())
     }
 }
 
@@ -1214,7 +1214,7 @@ impl MetadataProvenance {
         }
         let json = serde_json::to_string(metadata).unwrap_or_default();
         hasher.update(json.as_bytes());
-        hex::encode(hasher.finalize())
+        crate::encoding_utils::hex_encode(hasher.finalize())
     }
 
     /// Export provenance as a verifiable certificate
@@ -1308,7 +1308,11 @@ impl MetadataRepository {
 
     /// Search repository
     pub fn search(&self, query: &str) -> Result<Vec<String>> {
-        let url = format!("{}/search?q={}", self.url, urlencoding::encode(query));
+        let url = format!(
+            "{}/search?q={}",
+            self.url,
+            crate::encoding_utils::percent_encode(query)
+        );
         let response = self
             .client
             .get(&url)

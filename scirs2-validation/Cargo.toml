@@ -14,9 +14,6 @@ publish = false
 workspace = true
 
 [dependencies]
-serde = { workspace = true, features = ["derive"], optional = true }
-serde_json = { workspace = true, optional = true }
 
 [features]
 default = []
-serialization = ["serde", "serde_json"]

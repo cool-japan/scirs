@@ -59,6 +59,12 @@ pub struct EventDrivenOptimizer {
     pub current_time: f64,
     /// Current parameters
     pub parameters: Array1<f64>,
+    /// Best parameters found so far
+    pub best_params: Array1<f64>,
+    /// Objective value at `best_params`
+    pub best_value: f64,
+    /// Learning rate applied on gradient-computation events
+    pub learning_rate: f64,
 }
 
 impl EventDrivenOptimizer {
@@ -67,7 +73,10 @@ impl EventDrivenOptimizer {
         Self {
             event_queue: BinaryHeap::new(),
             current_time: 0.0,
+            best_params: initial_params.clone(),
             parameters: initial_params,
+            best_value: f64::INFINITY,
+            learning_rate: 0.05,
         }
     }
 
@@ -94,17 +103,39 @@ impl EventDrivenOptimizer {
                     }
                 }
                 EventType::GradientComputation => {
-                    // Compute gradient (simplified)
-                    let _gradient = self.compute_finite_difference_gradient(objective);
+                    // Compute the objective gradient and take a real descent
+                    // step, so the event genuinely improves the parameters with
+                    // respect to the objective.
+                    let gradient = self.compute_finite_difference_gradient(objective);
+                    for i in 0..self.parameters.len() {
+                        self.parameters[i] -= self.learning_rate * gradient[i];
+                    }
                 }
                 EventType::ObjectiveEvaluation => {
-                    let _obj_val = objective(&self.parameters.view());
+                    // Evaluation events only refresh the incumbent, which is
+                    // handled uniformly below.
                 }
             }
+
+            // Track the best objective value observed after applying the event.
+            self.record_current(objective);
 
             Ok(true)
         } else {
             Ok(false)
+        }
+    }
+
+    /// Evaluate the objective at the current parameters and update the
+    /// incumbent best solution when it improves.
+    fn record_current<F>(&mut self, objective: &F)
+    where
+        F: Fn(&ArrayView1<f64>) -> f64,
+    {
+        let value = objective(&self.parameters.view());
+        if value < self.best_value {
+            self.best_value = value;
+            self.best_params = self.parameters.clone();
         }
     }
 
@@ -141,12 +172,17 @@ where
 {
     let mut optimizer = EventDrivenOptimizer::new(initial_params.to_owned());
 
-    // Schedule initial events
-    for i in 0..10 {
+    // Seed the incumbent with the initial point.
+    optimizer.record_current(&objective);
+
+    // Schedule a sequence of gradient-computation events. Each event performs a
+    // real objective-gradient descent step, so the result is driven by the
+    // objective rather than by a fixed perturbation schedule.
+    for i in 0..max_events {
         let event = OptimizationEvent {
             time: i as f64 * 0.1,
-            event_type: EventType::ParameterUpdate,
-            data: Array1::from(vec![0.01; initial_params.len()]),
+            event_type: EventType::GradientComputation,
+            data: Array1::zeros(initial_params.len()),
         };
         optimizer.schedule_event(event);
     }
@@ -158,10 +194,5 @@ where
         }
     }
 
-    Ok(optimizer.parameters)
-}
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
+    Ok(optimizer.best_params)
 }

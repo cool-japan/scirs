@@ -1426,9 +1426,9 @@ impl<T: InterpolationFloat> StableReleaseValidator<T> {
 
         for i in 0..n_points {
             // Random 3D points
-            points[[i, 0]] = T::from_f64(fastrand::f64()).unwrap() * T::from_f64(100.0).unwrap(); // x: 0-100
-            points[[i, 1]] = T::from_f64(fastrand::f64()).unwrap() * T::from_f64(100.0).unwrap(); // y: 0-100
-            points[[i, 2]] = T::from_f64(fastrand::f64()).unwrap() * T::from_f64(10.0).unwrap(); // z: 0-10 (altitude)
+            points[[i, 0]] = T::from_f64(scirs2_core::random::random::<f64>()).unwrap() * T::from_f64(100.0).unwrap(); // x: 0-100
+            points[[i, 1]] = T::from_f64(scirs2_core::random::random::<f64>()).unwrap() * T::from_f64(100.0).unwrap(); // y: 0-100
+            points[[i, 2]] = T::from_f64(scirs2_core::random::random::<f64>()).unwrap() * T::from_f64(10.0).unwrap(); // z: 0-10 (altitude)
 
             let x = points[[i, 0]];
             let y = points[[i, 1]];
@@ -1500,11 +1500,11 @@ impl<T: InterpolationFloat> StableReleaseValidator<T> {
         let mut price = 100.0; // Starting price
         for i in 0..n_trading_days {
             // Add some missing data (weekends, holidays)
-            if i % 7 != 5 && i % 7 != 6 && fastrand::f64() > 0.05 {
+            if i % 7 != 5 && i % 7 != 6 && scirs2_core::random::random::<f64>() > 0.05 {
                 timestamps.push(i as f64);
 
                 // Random walk with drift
-                let daily_return = 0.0005 + 0.02 * (fastrand::f64() - 0.5);
+                let daily_return = 0.0005 + 0.02 * (scirs2_core::random::random::<f64>() - 0.5);
                 price *= 1.0 + daily_return;
                 prices.push(price);
             }
@@ -1567,8 +1567,8 @@ impl<T: InterpolationFloat> StableReleaseValidator<T> {
         let lon_max = -122.0;
 
         for i in 0..n_points {
-            let lat = lat_min + fastrand::f64() * (lat_max - lat_min);
-            let lon = lon_min + fastrand::f64() * (lon_max - lon_min);
+            let lat = lat_min + scirs2_core::random::random::<f64>() * (lat_max - lat_min);
+            let lon = lon_min + scirs2_core::random::random::<f64>() * (lon_max - lon_min);
 
             coordinates[[i, 0]] = T::from_f64(lat).unwrap();
             coordinates[[i, 1]] = T::from_f64(lon).unwrap();
@@ -2369,7 +2369,7 @@ impl<T: InterpolationFloat> StableReleaseValidator<T> {
         let mut data = Array2::zeros((size, dim));
         for i in 0..size {
             for j in 0..dim {
-                data[[i, j]] = T::from_f64(fastrand::f64()).unwrap() * T::from_f64(10.0).unwrap();
+                data[[i, j]] = T::from_f64(scirs2_core::random::random::<f64>()).unwrap() * T::from_f64(10.0).unwrap();
             }
         }
         Ok(data)
@@ -2387,7 +2387,7 @@ impl<T: InterpolationFloat> StableReleaseValidator<T> {
         let mut data = Array2::zeros((size, dim));
         for i in 0..size {
             for j in 0..dim {
-                data[[i, j]] = T::from_f64(fastrand::f64()).unwrap() * T::from_f64(9.0).unwrap()
+                data[[i, j]] = T::from_f64(scirs2_core::random::random::<f64>()).unwrap() * T::from_f64(9.0).unwrap()
                     + T::from_f64(0.5).unwrap();
             }
         }

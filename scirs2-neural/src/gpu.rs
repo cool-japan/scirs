@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
+
 /// GPU device information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceInfo {
@@ -31,6 +32,7 @@ pub struct DeviceInfo {
     /// Whether device is available
     pub is_available: bool,
 }
+
 /// GPU memory statistics
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MemoryStats {
@@ -44,7 +46,10 @@ pub struct MemoryStats {
     pub inactive: u64,
     /// Cached memory in bytes
     pub cached: u64,
+}
+
 /// Mixed precision configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MixedPrecisionConfig {
     /// Whether mixed precision is enabled
     pub enabled: bool,
@@ -58,6 +63,8 @@ pub struct MixedPrecisionConfig {
     pub max_loss_scale: f32,
     /// Scale factor for adjustments
     pub scale_factor: f32,
+}
+
 impl Default for MixedPrecisionConfig {
     fn default() -> Self {
         Self {
@@ -80,6 +87,8 @@ pub struct GpuContext {
     mixed_precision: MixedPrecisionConfig,
     #[allow(dead_code)]
     stream_pool: Arc<Mutex<Vec<u32>>>, // Stream IDs
+}
+
 impl GpuContext {
     /// Create new GPU context with device discovery
     pub fn new() -> Result<Self> {
@@ -87,9 +96,11 @@ impl GpuContext {
         let device_count = devices.len() as u32;
         if device_count == 0 {
             return Err(Error::ComputationError("No GPU devices found".to_string()));
+        }
         let mut memory_stats = HashMap::new();
         for device in &devices {
             memory_stats.insert(device.id, MemoryStats::default());
+        }
         Ok(Self {
             devices,
             current_device: 0,
@@ -97,69 +108,72 @@ impl GpuContext {
             mixed_precision: MixedPrecisionConfig::default(),
             stream_pool: Arc::new(Mutex::new(Vec::new())),
         })
-    /// Discover available GPU devices (simulated for now)
+    }
+
+    /// Discover available GPU devices.
+    ///
+    /// This module does not link a GPU runtime (CUDA/ROCm/Metal/etc.), so it
+    /// performs no fabricated discovery and honestly reports that no GPU is
+    /// available. Returning an empty list makes [`GpuContext::new`] fail with a
+    /// clear "No GPU devices found" error instead of handing back a device with
+    /// invented specifications (e.g. a fake compute capability). Real GPU
+    /// acceleration in this crate is provided through `scirs2_core::gpu`.
     fn discover_devices() -> Result<Vec<DeviceInfo>> {
-        // Simulate GPU device discovery
-        // In a real CUDA implementation, this would query actual devices
-        let mut devices = Vec::new();
-        // Simulate finding devices
-        for i in 0..Self::get_device_count() {
-            devices.push(DeviceInfo {
-                id: i,
-                name: format!("GPU Device {}", i),
-                memory_total: 8 * 1024 * 1024 * 1024, // 8GB
-                memory_free: 7 * 1024 * 1024 * 1024,  // 7GB free
-                compute_capability: (7, 5),           // Simulated compute capability
-                multiprocessor_count: 68,
-                warp_size: 32,
-                is_available: true,
-            });
-        Ok(devices)
-    /// Get number of available GPU devices (simulated)
-    fn get_device_count() -> u32 {
-        // Return 1 for simulation, would query actual CUDA device count
-        1
+        Ok(Vec::new())
+    }
+
     /// Set current active device
-    pub fn set_device(&mut self, deviceid: u32) -> Result<()> {
+    pub fn set_device(&mut self, device_id: u32) -> Result<()> {
         if device_id >= self.devices.len() as u32 {
             return Err(Error::InvalidArgument(format!(
                 "Device ID {} not found. Available devices: 0-{}",
                 device_id,
-                self.devices.len() - 1
+                self.devices.len().saturating_sub(1)
             )));
+        }
         self.current_device = device_id;
         Ok(())
+    }
+
     /// Get current device information
     pub fn current_device_info(&self) -> &DeviceInfo {
         &self.devices[self.current_device as usize]
+    }
+
     /// Get all device information
     pub fn all_devices(&self) -> &[DeviceInfo] {
         &self.devices
+    }
+
     /// Enable mixed precision training
     pub fn enable_mixed_precision(&mut self, config: MixedPrecisionConfig) {
         self.mixed_precision = config;
+    }
+
     /// Get memory statistics for a device
-    pub fn memory_stats(&self, deviceid: u32) -> Result<MemoryStats> {
+    pub fn memory_stats(&self, device_id: u32) -> Result<MemoryStats> {
         let stats = self.memory_stats.read().expect("Operation failed");
         stats
             .get(&device_id)
             .cloned()
             .ok_or_else(|| Error::InvalidArgument(format!("Device {} not found", device_id)))
-    /// Allocate GPU memory (simulated)
-    pub fn allocate_memory(&self, size: u64, deviceid: u32) -> Result<GpuMemoryHandle> {
-                "Invalid device ID: {}",
-                device_id
-        // Update memory statistics
-        {
-            let mut stats = self.memory_stats.write().expect("Operation failed");
-            if let Some(device_stats) = stats.get_mut(&device_id) {
-                device_stats.allocated += size;
-                device_stats.active += size;
-            }
-        Ok(GpuMemoryHandle {
-            ptr: size as *mut u8, // Simulated pointer
-            size,
-            device_id,
+    }
+
+    /// Allocate device memory.
+    ///
+    /// No GPU runtime is linked, so there is no real device memory to allocate.
+    /// Rather than fabricate a pointer (`size as *mut u8` — an integer cast to a
+    /// pointer, which is undefined behaviour to dereference as a device buffer),
+    /// this honestly fails. Real device buffers are provided by
+    /// `scirs2_core::gpu`.
+    pub fn allocate_memory(&self, _size: u64, _device_id: u32) -> Result<GpuMemoryHandle> {
+        Err(Error::DeviceError(
+            "GPU memory allocation is unavailable: no GPU runtime is linked. \
+             Use scirs2_core::gpu for real device buffers."
+                .to_string(),
+        ))
+    }
+
     /// Free GPU memory
     pub fn free_memory(&self, handle: &GpuMemoryHandle) -> Result<()> {
         let mut stats = self.memory_stats.write().expect("Operation failed");
@@ -173,40 +187,61 @@ impl GpuContext {
 
 /// GPU memory handle
 pub struct GpuMemoryHandle {
+    #[allow(dead_code)]
     ptr: *mut u8,
     size: u64,
     device_id: u32,
+}
+
 unsafe impl Send for GpuMemoryHandle {}
 unsafe impl Sync for GpuMemoryHandle {}
+
 /// CUDA safe wrapper for tensor operations
 pub struct CudaTensor<T> {
+    #[allow(dead_code)]
     data: GpuMemoryHandle,
     shape: Vec<usize>,
-    strides: Vec<usize>, _phantom: std::marker::PhantomData<T>,
+    #[allow(dead_code)]
+    strides: Vec<usize>,
+    device_id: u32,
+    _phantom: std::marker::PhantomData<T>,
+}
+
 impl<T> CudaTensor<T>
 where
     T: Copy + Default + Send + Sync,
 {
     /// Create new CUDA tensor
-    pub fn new(shape: Vec<usize>, deviceid: u32, context: &GpuContext) -> Result<Self> {
+    pub fn new(shape: Vec<usize>, device_id: u32, context: &GpuContext) -> Result<Self> {
         let size = shape.iter().product::<usize>() * std::mem::size_of::<T>();
         let data = context.allocate_memory(size as u64, device_id)?;
         let mut strides = vec![1; shape.len()];
         for i in (0..shape.len().saturating_sub(1)).rev() {
             strides[i] = strides[i + 1] * shape[i + 1];
+        }
+        Ok(Self {
             data,
             shape,
-            strides_phantom: std::marker::PhantomData,
+            strides,
+            device_id,
+            _phantom: std::marker::PhantomData,
+        })
+    }
+
     /// Get tensor shape
     pub fn shape(&self) -> &[usize] {
         &self.shape
+    }
+
     /// Get device ID
     pub fn device_id(&self) -> u32 {
         self.device_id
+    }
+
     /// Copy tensor to different device
-    pub fn to_device(&self, targetdevice: u32, context: &GpuContext) -> Result<Self> {
+    pub fn to_device(&self, target_device: u32, context: &GpuContext) -> Result<Self> {
         let new_tensor = Self::new(self.shape.clone(), target_device, context)?;
-        // In real implementation, would perform _device-to-_device copy
+        // In a real implementation, this would perform a device-to-device copy.
         Ok(new_tensor)
     }
 }
@@ -214,8 +249,11 @@ where
 /// Multi-GPU training coordinator
 pub struct MultiGpuTrainer {
     contexts: Vec<Arc<GpuContext>>,
+    #[allow(dead_code)]
     communication_backend: String,
     reduction_strategy: ReductionStrategy,
+}
+
 /// Gradient reduction strategy for multi-GPU training
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ReductionStrategy {
@@ -225,20 +263,29 @@ pub enum ReductionStrategy {
     ParameterServer,
     /// Hierarchical reduction algorithm
     Hierarchical,
+}
+
 impl MultiGpuTrainer {
     /// Create new multi-GPU trainer
-    pub fn new(_deviceids: Vec<u32>) -> Result<Self> {
+    pub fn new(device_ids: Vec<u32>) -> Result<Self> {
         let mut contexts = Vec::new();
-        for &device_id in &_device_ids {
+        for &device_id in &device_ids {
             let mut context = GpuContext::new()?;
             context.set_device(device_id)?;
             contexts.push(Arc::new(context));
+        }
+        Ok(Self {
             contexts,
             communication_backend: "NCCL".to_string(),
             reduction_strategy: ReductionStrategy::AllReduce,
+        })
+    }
+
     /// Set reduction strategy
     pub fn set_reduction_strategy(&mut self, strategy: ReductionStrategy) {
         self.reduction_strategy = strategy;
+    }
+
     /// Perform all-reduce operation across GPUs
     pub fn all_reduce<T>(&self, tensors: &mut [CudaTensor<T>]) -> Result<()>
     where
@@ -254,6 +301,7 @@ impl MultiGpuTrainer {
             return Err(Error::InvalidArgument(
                 "Number of tensors must match number of devices".to_string(),
             ));
+        }
         match self.reduction_strategy {
             ReductionStrategy::AllReduce => self.all_reduce_impl(tensors),
             ReductionStrategy::ParameterServer => self.parameter_server_reduce(tensors),
@@ -261,24 +309,24 @@ impl MultiGpuTrainer {
         }
     }
 
-    fn all_reduce_impl<T>(selftensors: &mut [CudaTensor<T>]) -> Result<()>
+    fn all_reduce_impl<T>(&self, _tensors: &mut [CudaTensor<T>]) -> Result<()>
     where
         T: Copy + Default + Send + Sync,
     {
-        // Simulate all-reduce operation
-        // In real implementation, would use NCCL or similar
-        thread::sleep(Duration::from_millis(1)); // Simulate communication latency
+        // All-reduce communication is performed by the linked GPU runtime
+        // (e.g. NCCL). Without a runtime, simulate the latency only.
+        thread::sleep(Duration::from_millis(1));
         Ok(())
     }
 
-    fn parameter_server_reduce<T>(selftensors: &mut [CudaTensor<T>]) -> Result<()> {
-        // Simulate parameter server reduction
+    fn parameter_server_reduce<T>(&self, _tensors: &mut [CudaTensor<T>]) -> Result<()> {
+        // Parameter server reduction latency placeholder.
         thread::sleep(Duration::from_millis(2));
         Ok(())
     }
 
-    fn hierarchical_reduce<T>(selftensors: &mut [CudaTensor<T>]) -> Result<()> {
-        // Simulate hierarchical reduction
+    fn hierarchical_reduce<T>(&self, _tensors: &mut [CudaTensor<T>]) -> Result<()> {
+        // Hierarchical reduction latency placeholder.
         thread::sleep(Duration::from_millis(1));
         Ok(())
     }
@@ -306,38 +354,66 @@ pub struct NeuralOps {
     backend_type: String,
     /// Mixed precision enabled
     mixed_precision: bool,
+}
+
 impl NeuralOps {
     /// Create new neural operations context with CPU backend
+    pub fn new() -> Result<Self> {
+        Ok(Self {
             gpu_context: None,
             backend_type: "CPU".to_string(),
             mixed_precision: false,
+        })
+    }
+
     /// Create with GPU backend
     pub fn with_gpu() -> Result<Self> {
         let gpu_context = GpuContext::new().ok();
         let backend_type = if gpu_context.is_some() { "GPU" } else { "CPU" };
+        Ok(Self {
             gpu_context: gpu_context.map(Arc::new),
             backend_type: backend_type.to_string(),
+            mixed_precision: false,
+        })
+    }
+
     /// Create with specified backend preference
     pub fn with_backend(backend: &str) -> Result<Self> {
         match backend.to_uppercase().as_str() {
             "GPU" | "CUDA" => Self::with_gpu(),
-            "CPU" => Self::new(, _ => {
-                println!("Unknown _backend '{}', falling back to CPU", backend);
+            "CPU" => Self::new(),
+            _ => {
+                println!("Unknown backend '{}', falling back to CPU", backend);
                 Self::new()
+            }
+        }
+    }
+
+    /// Enable mixed precision training
     pub fn enable_mixed_precision(&mut self, config: MixedPrecisionConfig) -> Result<()> {
         if self.gpu_context.is_none() {
             return Err(Error::ComputationError(
                 "Mixed precision requires GPU backend".to_string(),
-        if let Some(ref gpu_context) = self.gpu_context {
-            // In a real implementation, we'd need mutable access to the context
-            // For now, we'll store the mixed precision flag locally
+            ));
+        }
+        if self.gpu_context.is_some() {
+            // A real implementation would need mutable access to the context;
+            // for now, store the mixed precision flag locally.
             self.mixed_precision = config.enabled;
+        }
+        Ok(())
+    }
+
     /// Check if GPU is available
     pub fn is_gpu_available(&self) -> bool {
         self.gpu_context.is_some()
+    }
+
     /// Get GPU context (if available)
     pub fn gpu_context(&self) -> Option<&Arc<GpuContext>> {
         self.gpu_context.as_ref()
+    }
+
     /// Optimized matrix multiplication
     pub fn matrix_multiply(&self, a: &Array2<f32>, b: &Array2<f32>) -> Result<Array2<f32>> {
         let (m, k) = a.dim();
@@ -346,8 +422,12 @@ impl NeuralOps {
             return Err(Error::DimensionMismatch(format!(
                 "Matrix dimensions don't match for multiplication: {}x{} * {}x{}",
                 m, k, k2, n
+            )));
+        }
         // Use ndarray's optimized BLAS implementation
         Ok(a.dot(b))
+    }
+
     /// Batch matrix multiplication for neural network layers
     pub fn batch_matrix_multiply(&self, a: &ArrayD<f32>, b: &ArrayD<f32>) -> Result<ArrayD<f32>> {
         let ashape = a.shape();
@@ -355,13 +435,17 @@ impl NeuralOps {
         if ashape.len() != 3 || bshape.len() != 3 {
             return Err(Error::DimensionMismatch(
                 "Batch matrix multiply requires 3D arrays (batch, rows, cols)".to_string(),
+            ));
+        }
         let batch_size = ashape[0];
         let m = ashape[1];
-        let _k = ashape[2];
         let n = bshape[2];
         if ashape[0] != bshape[0] || ashape[2] != bshape[1] {
+            return Err(Error::DimensionMismatch(format!(
                 "Batch matrix dimensions don't match: {:?} * {:?}",
                 ashape, bshape
+            )));
+        }
         let mut result = Array::zeros((batch_size, m, n));
         // Process each batch
         for i in 0..batch_size {
@@ -373,11 +457,18 @@ impl NeuralOps {
                 .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|e| Error::ComputationError(format!("Failed to convert to 2D: {}", e)))?;
             let b_2d = b_slice
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|e| Error::ComputationError(format!("Failed to convert to 2D: {}", e)))?;
             result_slice.assign(&a_2d.dot(&b_2d));
+        }
         Ok(result.into_dyn())
+    }
+
     /// ReLU activation function
     pub fn relu_forward(&self, input: &ArrayD<f32>) -> Result<ArrayD<f32>> {
         Ok(input.mapv(|x| x.max(0.0)))
+    }
+
     /// ReLU derivative for backpropagation
     pub fn relu_backward(
         &self,
@@ -385,35 +476,61 @@ impl NeuralOps {
         grad_output: &ArrayD<f32>,
     ) -> Result<ArrayD<f32>> {
         if input.shape() != grad_output.shape() {
+            return Err(Error::DimensionMismatch(
                 "Input and gradient shapes must match for ReLU backward".to_string(),
+            ));
+        }
         Ok(scirs2_core::ndarray::Zip::from(input)
             .and(grad_output)
             .map_collect(|&x, &grad| if x > 0.0 { grad } else { 0.0 }))
+    }
+
     /// Sigmoid activation function
     pub fn sigmoid_forward(&self, input: &ArrayD<f32>) -> Result<ArrayD<f32>> {
         Ok(input.mapv(|x| 1.0 / (1.0 + (-x).exp())))
+    }
+
     /// Sigmoid derivative
     pub fn sigmoid_backward(
+        &self,
         output: &ArrayD<f32>,
+        grad_output: &ArrayD<f32>,
+    ) -> Result<ArrayD<f32>> {
         if output.shape() != grad_output.shape() {
+            return Err(Error::DimensionMismatch(
                 "Output and gradient shapes must match for sigmoid backward".to_string(),
+            ));
+        }
         Ok(scirs2_core::ndarray::Zip::from(output)
+            .and(grad_output)
             .map_collect(|&sigmoid_out, &grad| grad * sigmoid_out * (1.0 - sigmoid_out)))
+    }
+
     /// Batch normalization forward pass
+    #[allow(clippy::too_many_arguments)]
     pub fn batch_normalize(
+        &self,
+        input: &ArrayD<f32>,
         mean: &Array1<f32>,
         var: &Array1<f32>,
         gamma: &Array1<f32>,
         beta: &Array1<f32>,
         epsilon: f32,
+    ) -> Result<ArrayD<f32>> {
         let inputshape = input.shape();
         let channels = mean.len();
         // Check that all parameter arrays have the same length
         if var.len() != channels || gamma.len() != channels || beta.len() != channels {
+            return Err(Error::DimensionMismatch(
                 "All batch norm parameters must have the same length".to_string(),
+            ));
+        }
         // Assume channel-last format (NHWC) - last dimension is channels
         if inputshape[inputshape.len() - 1] != channels {
+            return Err(Error::DimensionMismatch(
                 "Channel dimension mismatch in batch normalization".to_string(),
+            ));
+        }
         let mut normalized = input.clone();
         // Apply normalization per channel
         for c in 0..channels {
@@ -426,13 +543,19 @@ impl NeuralOps {
             let mut channel_slice = normalized.slice_mut(s![.., c]);
             channel_slice
                 .mapv_inplace(|x| (x - channel_mean) / std_dev * channel_gamma + channel_beta);
+        }
         Ok(normalized)
+    }
+
     /// Softmax activation function
     pub fn softmax_forward(&self, input: &ArrayD<f32>) -> Result<ArrayD<f32>> {
+        let inputshape = input.shape();
         if inputshape.len() < 2 {
+            return Err(Error::DimensionMismatch(
                 "Softmax requires at least 2D input (batch_size, features)".to_string(),
+            ));
+        }
         let mut output = input.clone();
-        let _last_axis = inputshape.len() - 1;
         // Apply softmax along the last axis (features)
         for mut row in output.axis_iter_mut(scirs2_core::ndarray::Axis(0)) {
             // Find max for numerical stability
@@ -442,34 +565,44 @@ impl NeuralOps {
             // Compute sum and normalize
             let sum: f32 = row.sum();
             row.mapv_inplace(|x| x / sum);
+        }
         Ok(output)
+    }
+
     /// Convolution forward pass (simplified 2D implementation)
     pub fn conv2d_forward(
+        &self,
+        input: &ArrayD<f32>,
         kernel: &ArrayD<f32>,
         stride: (usize, usize),
         padding: (usize, usize),
+    ) -> Result<ArrayD<f32>> {
+        let inputshape = input.shape();
         let kernelshape = kernel.shape();
         // Check input format: (batch, channels, height, width)
         if inputshape.len() != 4 || kernelshape.len() != 4 {
+            return Err(Error::DimensionMismatch(
                 "Conv2D requires 4D input and kernel (batch, channels, height, width)".to_string(),
-        let (batch_size, in_channels, in_height, in_width) = (
-            inputshape[0],
-            inputshape[1],
-            inputshape[2],
-            inputshape[3],
-        );
+            ));
+        }
+        let (batch_size, in_channels, in_height, in_width) =
+            (inputshape[0], inputshape[1], inputshape[2], inputshape[3]);
         let (out_channels, kernel_in_channels, kernel_height, kernel_width) = (
             kernelshape[0],
             kernelshape[1],
             kernelshape[2],
             kernelshape[3],
+        );
         if in_channels != kernel_in_channels {
+            return Err(Error::DimensionMismatch(
                 "Input and kernel channel dimensions must match".to_string(),
+            ));
+        }
         // Calculate output dimensions
         let out_height = (in_height + 2 * padding.0 - kernel_height) / stride.0 + 1;
         let out_width = (in_width + 2 * padding.1 - kernel_width) / stride.1 + 1;
         let mut output = Array::zeros((batch_size, out_channels, out_height, out_width));
-        // Simplified convolution (for demonstration - real implementation would be optimized)
+        // Direct convolution (correctness-focused; real backend would use im2col/cuDNN)
         for b in 0..batch_size {
             for out_c in 0..out_channels {
                 for out_h in 0..out_height {
@@ -499,54 +632,118 @@ impl NeuralOps {
                         output[[b, out_c, out_h, out_w]] = sum;
                     }
                 }
+            }
+        }
         Ok(output.into_dyn())
-    /// Optimized GPU matrix multiplication
+    }
+
+    /// GPU matrix multiplication entry point.
+    ///
+    /// Requires a linked GPU runtime; without one this validates shapes and then
+    /// fails honestly rather than fabricating a result.
     pub fn gpu_matrix_multiply<T>(
+        &self,
         a: &CudaTensor<T>,
         b: &CudaTensor<T>,
     ) -> Result<CudaTensor<T>>
+    where
         T: Copy + Default + Send + Sync + std::ops::Add<Output = T> + std::ops::Mul<Output = T>,
-                "GPU context not available".to_string(),
+    {
+        let context = self
+            .gpu_context
+            .as_ref()
+            .ok_or_else(|| Error::ComputationError("GPU context not available".to_string()))?;
+        let ashape = a.shape();
+        let bshape = b.shape();
         // Validate dimensions for matrix multiplication
         if ashape.len() != 2 || bshape.len() != 2 {
+            return Err(Error::DimensionMismatch(
                 "Matrix multiplication requires 2D tensors".to_string(),
+            ));
+        }
         if ashape[1] != bshape[0] {
+            return Err(Error::DimensionMismatch(format!(
                 "Matrix dimensions incompatible: {}x{} * {}x{}",
                 ashape[0], ashape[1], bshape[0], bshape[1]
+            )));
+        }
         let resultshape = vec![ashape[0], bshape[1]];
-        let result = CudaTensor::new(
-            resultshape,
-            a.device_id(),
-            self.gpu_context.as_ref().expect("Operation failed"),
-        )?;
-        // In real implementation, would launch CUDA kernels
-        thread::sleep(Duration::from_micros(100)); // Simulate GPU computation
+        let result = CudaTensor::new(resultshape, a.device_id(), context)?;
+        // A real implementation would launch CUDA kernels here.
+        thread::sleep(Duration::from_micros(100));
         Ok(result)
+    }
+
     /// GPU-accelerated ReLU activation
-    pub fn gpu_relu<T>(&self, input: &CudaTensor<T>) -> Result<CudaTensor<T>>, T: Copy + Default + Send + Sync + PartialOrd + From<f32>,
-            input.shape().to_vec(),
-            input.device_id(),
+    pub fn gpu_relu<T>(&self, input: &CudaTensor<T>) -> Result<CudaTensor<T>>
+    where
+        T: Copy + Default + Send + Sync + PartialOrd + From<f32>,
+    {
+        let context = self
+            .gpu_context
+            .as_ref()
+            .ok_or_else(|| Error::ComputationError("GPU context not available".to_string()))?;
+        let result = CudaTensor::new(input.shape().to_vec(), input.device_id(), context)?;
         // Simulate GPU kernel launch
         thread::sleep(Duration::from_micros(10));
+        Ok(result)
+    }
+
     /// GPU-accelerated softmax
     pub fn gpu_softmax<T>(&self, input: &CudaTensor<T>) -> Result<CudaTensor<T>>
+    where
+        T: Copy + Default + Send + Sync,
+    {
+        let context = self
+            .gpu_context
+            .as_ref()
+            .ok_or_else(|| Error::ComputationError("GPU context not available".to_string()))?;
+        let result = CudaTensor::new(input.shape().to_vec(), input.device_id(), context)?;
         // Simulate GPU softmax kernel
         thread::sleep(Duration::from_micros(50));
+        Ok(result)
+    }
+
     /// GPU-accelerated convolution
     pub fn gpu_conv2d<T>(
+        &self,
         input: &CudaTensor<T>,
         kernel: &CudaTensor<T>,
+        stride: (usize, usize),
+        padding: (usize, usize),
+    ) -> Result<CudaTensor<T>>
+    where
+        T: Copy + Default + Send + Sync,
+    {
+        let context = self
+            .gpu_context
+            .as_ref()
+            .ok_or_else(|| Error::ComputationError("GPU context not available".to_string()))?;
+        let inputshape = input.shape();
+        let kernelshape = kernel.shape();
+        if inputshape.len() != 4 || kernelshape.len() != 4 {
+            return Err(Error::DimensionMismatch(
                 "Conv2D requires 4D tensors (N, C, H, W)".to_string(),
+            ));
+        }
         let out_height = (inputshape[2] + 2 * padding.0 - kernelshape[2]) / stride.0 + 1;
         let out_width = (inputshape[3] + 2 * padding.1 - kernelshape[3]) / stride.1 + 1;
         let outputshape = vec![inputshape[0], kernelshape[0], out_height, out_width];
-            outputshape,
+        let result = CudaTensor::new(outputshape, input.device_id(), context)?;
         // Simulate GPU convolution kernel (would use cuDNN in real implementation)
+        thread::sleep(Duration::from_micros(100));
+        Ok(result)
+    }
+
     /// Synchronize GPU operations
     pub fn synchronize(&self) -> Result<()> {
         if self.gpu_context.is_some() {
             // Simulate GPU synchronization
             thread::sleep(Duration::from_micros(1));
+        }
+        Ok(())
+    }
+
     /// Get backend information
     pub fn backend_info(&self) -> String {
         let precision = if self.mixed_precision {
@@ -558,6 +755,8 @@ impl NeuralOps {
             "Neural operations running on: {}{}",
             self.backend_type, precision
         )
+    }
+
     /// Get detailed GPU information
     pub fn gpu_info(&self) -> Result<String> {
         if let Some(ref gpu_context) = self.gpu_context {
@@ -583,19 +782,25 @@ impl Default for NeuralOps {
         Self::new().expect("Failed to create default NeuralOps")
     }
 }
+
 /// Helper function to create neural operations with automatic backend detection
 #[allow(dead_code)]
 pub fn create_neural_ops() -> Result<NeuralOps> {
-    // For now, always use CPU. Future versions will detect GPU availability
+    // For now, always use CPU. Future versions will detect GPU availability.
     NeuralOps::new()
+}
+
 /// Helper function to create neural operations with preferred backend
 #[allow(dead_code)]
 pub fn create_neural_ops_with_backend(backend: &str) -> Result<NeuralOps> {
-    NeuralOps::with_backend(_backend)
+    NeuralOps::with_backend(backend)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
+
     #[test]
     fn test_matrix_multiply() {
         let ops = create_neural_ops().expect("Operation failed");
@@ -627,6 +832,7 @@ mod tests {
         // Check that sigmoid(0) ≈ 0.5
         assert!((result[[0, 0]] - 0.5).abs() < 1e-6);
     }
+
     #[test]
     fn test_batch_normalize() {
         let ops = create_neural_ops().expect("Operation failed");
@@ -660,14 +866,14 @@ mod tests {
 
     #[test]
     fn test_gpu_context_creation() {
-        // Test both success and failure cases
+        // No GPU runtime is linked, so context creation must fail honestly.
         match GpuContext::new() {
             Ok(context) => {
                 assert!(!context.all_devices().is_empty());
                 assert!(context.current_device_info().is_available);
             }
             Err(_) => {
-                // GPU not available, which is expected in CI environments
+                // Expected: no GPU runtime available.
                 println!("GPU not available, skipping GPU context test");
             }
         }
@@ -727,6 +933,7 @@ mod tests {
         let stats = MemoryStats {
             allocated: 1024,
             active: 512,
+            ..Default::default()
         };
         assert_eq!(stats.allocated, 1024);
         assert_eq!(stats.active, 512);
@@ -771,7 +978,8 @@ mod tests {
         ];
         for strategy in &strategies {
             let serialized = serde_json::to_string(strategy).expect("Operation failed");
-            let _deserialized: ReductionStrategy = serde_json::from_str(&serialized).expect("Operation failed");
+            let _deserialized: ReductionStrategy =
+                serde_json::from_str(&serialized).expect("Operation failed");
         }
     }
 

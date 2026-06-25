@@ -1,7 +1,7 @@
 # scirs2-stability-tests
 
 [![Alpha](https://img.shields.io/badge/status-alpha-orange)]()
-[![Version](https://img.shields.io/badge/version-0.5.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)]()
 
 **API stability tests, compile-fail tests, and ML property-based validation for the SciRS2 scientific computing library.**

@@ -20,7 +20,7 @@
 //!
 //! ```no_run
 //! use std::path::Path;
-//! use crate::bench_regression::{BenchmarkSnapshot, compare_snapshots, format_diff_report};
+//! use cargo_scirs2_policy::bench_regression::{BenchmarkSnapshot, compare_snapshots, format_diff_report};
 //!
 //! let baseline = BenchmarkSnapshot::load(Path::new("baseline.json")).unwrap();
 //! let current = BenchmarkSnapshot::from_criterion_dir(Path::new("target/criterion")).unwrap();

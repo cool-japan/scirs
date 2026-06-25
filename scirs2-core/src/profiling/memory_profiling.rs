@@ -181,7 +181,7 @@ fn read_os_memory_info() -> CoreResult<OsMemoryInfo> {
         page_size as usize
     };
 
-    let parts: Vec<&str> = statm.trim().split_whitespace().collect();
+    let parts: Vec<&str> = statm.split_whitespace().collect();
     if parts.len() < 2 {
         return Err(crate::CoreError::ConfigError(
             crate::error::ErrorContext::new("Invalid /proc/self/statm format".to_string()),

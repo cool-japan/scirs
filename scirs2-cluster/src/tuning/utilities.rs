@@ -10,6 +10,40 @@ use crate::error::Result;
 
 use super::config::*;
 
+/// Summed squared Euclidean distance from `candidate` to every other member of
+/// `population`, taken over the deduplicated union of their parameter keys
+/// (missing keys treated as `0.0`).
+///
+/// This is a value-dependent *diversity* surrogate used by the evolutionary
+/// candidate generators for tournament selection: at generation time the true
+/// fitness (clustering quality) of a parameter set is not yet known, so selection
+/// favors candidates that are farthest from the current population, biasing search
+/// toward under-explored regions. A larger return value means a more novel candidate.
+pub fn population_diversity_score(
+    candidate: &HashMap<String, f64>,
+    population: &[HashMap<String, f64>],
+) -> f64 {
+    let mut total = 0.0;
+    for other in population {
+        if std::ptr::eq(candidate, other) {
+            continue;
+        }
+        let mut dist_sq = 0.0;
+        let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for key in candidate.keys().chain(other.keys()) {
+            if !seen.insert(key.as_str()) {
+                continue;
+            }
+            let a = candidate.get(key).copied().unwrap_or(0.0);
+            let b = other.get(key).copied().unwrap_or(0.0);
+            let diff = a - b;
+            dist_sq += diff * diff;
+        }
+        total += dist_sq;
+    }
+    total
+}
+
 /// Calculate standard deviation of a vector of scores
 pub fn calculate_std_dev(scores: &[f64]) -> f64 {
     if scores.len() <= 1 {

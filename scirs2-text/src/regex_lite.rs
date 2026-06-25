@@ -31,7 +31,8 @@
 //! let m = re.find("price: 99 dollars").unwrap();
 //! assert_eq!(m.as_str(), "99");
 //!
-//! let all: Vec<_> = re.find_all("1 and 22 and 333").iter().map(|m| m.as_str()).collect();
+//! let matches = re.find_all("1 and 22 and 333");
+//! let all: Vec<_> = matches.iter().map(|m| m.as_str()).collect();
 //! assert_eq!(all, vec!["1", "22", "333"]);
 //! ```
 

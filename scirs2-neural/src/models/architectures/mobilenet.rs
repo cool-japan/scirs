@@ -597,14 +597,12 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> Layer<F>
         // Projection phase
         x = self.project_conv.forward(&x)?;
         x = self.project_bn.forward(&x)?;
-        // Skip connection (residual)
-        if self.has_skip_connection {
-            // Add skip connection
-            let mut result = input.clone();
-            for i in 0..result.len() {
-                result[i] += x[i];
-            }
-            x = result;
+        // Skip connection (residual). The inverted-residual skip is only valid
+        // when the projected output keeps the input's shape (same channels and
+        // spatial dimensions); add element-wise via ndarray broadcasting rather
+        // than flat scalar indexing (which is invalid for IxDyn arrays).
+        if self.has_skip_connection && x.shape() == input.shape() {
+            x = input + &x;
         }
         Ok(x)
     }
@@ -791,25 +789,17 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> MobileNet<F> {
                 }
             }
         }
-        // Get the output channels of the last block
-        let last_channels = if config.version == MobileNetVersion::V1 {
-            // For MobileNetV1, the last block is a depthwise separable conv
-            let scaled = (config
-                .blocks
-                .last()
-                .expect("Operation failed")
-                .output_channels as f64
-                * width_multiplier)
-                .round();
-            scaled as usize
-        } else {
-            // For MobileNetV2/V3, we use 1280 as the number of output channels
-            // except for MobileNetV2 which uses 1001 for compatibility with original paper
-            match config.version {
-                MobileNetVersion::V2 => 1001,
-                _ => 1280,
-            }
-        };
+        // The number of features feeding the classifier is the output-channel
+        // count of the final block, scaled by the width multiplier (matching how
+        // each block's channels are scaled in `InvertedResidualBlock::new`).
+        let last_block_channels = config
+            .blocks
+            .last()
+            .ok_or_else(|| {
+                NeuralError::InvalidArchitecture("MobileNet: blocks must be non-empty".to_string())
+            })?
+            .output_channels;
+        let last_channels = (last_block_channels as f64 * width_multiplier).round() as usize;
         // Classifier
         let classifier = Dense::new(last_channels, num_classes, None, &mut rng)?;
         // Dropout

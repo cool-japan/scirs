@@ -72,11 +72,14 @@ impl GpuInfo {
         ))
     }
 
-    /// Detect CUDA-capable GPU
+    /// Detect CUDA-capable GPU.
+    ///
+    /// Dedicated CUDA runtime probing (cudarc / the CUDA driver API) is not
+    /// wired into this resource module. It returns an honest "not implemented"
+    /// error so detection falls through to the platform-specific paths below
+    /// (e.g. Linux sysfs) rather than reporting a fabricated GPU.
     #[cfg(feature = "gpu")]
     fn detect_cuda() -> CoreResult<Self> {
-        // In a real implementation, this would use CUDA runtime API
-        // For now, return a placeholder
         Err(CoreError::ComputationError(
             crate::error::ErrorContext::new("CUDA detection not implemented"),
         ))

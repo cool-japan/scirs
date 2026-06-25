@@ -4,7 +4,7 @@
 // which is a generalization of the 2D wavelet transform that offers richer signal
 // analysis. Unlike standard wavelet transforms that decompose only the approximation
 // coefficients, wavelet packets also decompose the detail coefficients, resulting
-// in a full binary tree of subbands.
+// in a full quad-tree of subbands.
 //
 // The 2D WPT is useful for applications such as:
 // * Texture analysis and classification
@@ -15,14 +15,11 @@
 //
 // # Performance Optimizations
 //
-// This implementation includes several optimizations for performance:
-//
-// 1. **Parallel Processing**: When compiled with the "parallel" feature,
-//    computations can be performed in parallel using Rayon.
-//
-// 2. **Memory Efficiency**:
-//    - Uses ndarray views for zero-copy operations
-//    - Shares filter coefficients across decomposition levels
+// This implementation builds on the validated separable 2D DWT primitives
+// (`dwt2d_decompose` / `dwt2d_reconstruct`), which means the analysis and
+// synthesis stages form a true inverse pair. Reconstruction is performed by
+// recombining the four sibling sub-band packets of every parent node, level by
+// level, starting from the leaf nodes and ascending to the root.
 //
 // # Examples
 //
@@ -52,20 +49,31 @@
 // let reconstructed = decomp.reconstruct().expect("Operation failed");
 // ```
 
-use crate::dwt::{Wavelet, WaveletFilters};
+use crate::dwt::Wavelet;
+use crate::dwt2d_advanced::{dwt2d_decompose, dwt2d_reconstruct, Dwt2DCoeffs, EdgeMode2D};
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::numeric::{Float, NumCast};
-use scirs2_core::parallel_ops::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-/// Type alias for 2D decomposition result (LL, LH, HL, HH)
-type Decompose2DResult = (Array2<f64>, Array2<f64>, Array2<f64>, Array2<f64>);
+/// Maps the textual extension-mode names accepted by the public WPT2D API onto
+/// the [`EdgeMode2D`] variants used by the underlying separable 2D DWT.
+///
+/// Unknown names fall back to `Symmetric`, matching the default behaviour of the
+/// rest of the wavelet API.
+fn edge_mode_from_str(mode: Option<&str>) -> EdgeMode2D {
+    match mode.unwrap_or("symmetric") {
+        "symmetric" => EdgeMode2D::Symmetric,
+        "reflect" => EdgeMode2D::Reflect,
+        "periodic" | "wrap" | "circular" => EdgeMode2D::Periodic,
+        "zero" | "constant" => EdgeMode2D::Zero,
+        "replicate" | "edge" | "nearest" => EdgeMode2D::Replicate,
+        "antisymmetric" | "asymmetric" => EdgeMode2D::AntiSymmetric,
+        _ => EdgeMode2D::Symmetric,
+    }
+}
 
-// Import parallel ops for parallel processing when the "parallel" feature is enabled
-#[cfg(feature = "parallel")]
-#[allow(unused_imports)]
 /// Represents a 2D wavelet packet node with its position in the tree and coefficient array.
 #[derive(Clone)]
 pub struct WaveletPacket2D {
@@ -111,6 +119,8 @@ pub struct WaveletPacketTree2D {
     pub wavelet: Wavelet,
     /// The maximum decomposition level
     pub max_level: usize,
+    /// The signal extension mode used during decomposition
+    edge_mode: EdgeMode2D,
     /// The collection of wavelet packets organized by (level, row, col)
     packets: HashMap<(usize, usize, usize), WaveletPacket2D>,
     /// The shape of the original signal
@@ -119,17 +129,23 @@ pub struct WaveletPacketTree2D {
 
 impl WaveletPacketTree2D {
     /// Creates a new wavelet packet tree.
-    pub fn new(_wavelet: Wavelet, max_level: usize, rootcoeffs: Array2<f64>) -> Self {
+    pub fn new(
+        wavelet: Wavelet,
+        max_level: usize,
+        root_coeffs: Array2<f64>,
+        mode: Option<&str>,
+    ) -> Self {
         let mut packets = HashMap::new();
         let shape = root_coeffs.dim();
 
-        // Create the root node (_level 0)
-        let root = WaveletPacket2D::new(0, 0, 0, root_coeffs, "".to_string());
+        // Create the root node (level 0)
+        let root = WaveletPacket2D::new(0, 0, 0, root_coeffs, String::new());
         packets.insert((0, 0, 0), root);
 
         WaveletPacketTree2D {
             wavelet,
             max_level,
+            edge_mode: edge_mode_from_str(mode),
             packets,
             originalshape: shape,
         }
@@ -188,10 +204,23 @@ impl WaveletPacketTree2D {
     }
 
     /// Reconstructs the original signal from the full decomposition.
+    ///
+    /// This performs the real inverse 2D wavelet packet transform. Starting from
+    /// the leaf nodes, every group of four sibling sub-bands (`LL`, `LH`, `HL`,
+    /// `HH`) of a parent node is recombined via the single-level inverse 2D DWT
+    /// (`dwt2d_reconstruct`). The process is repeated up the quad-tree until the
+    /// root (level 0) is reconstructed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a required sibling packet is missing from the tree, in
+    /// which case a full reconstruction is impossible (e.g. for a tree produced by
+    /// [`reconstruct_selective`](Self::reconstruct_selective) with an incomplete
+    /// sibling set). The error names the offending node so the caller can supply
+    /// the missing coefficients instead of receiving a silently fabricated result.
     pub fn reconstruct(&self) -> SignalResult<Array2<f64>> {
-        // If we have a complete tree, we can reconstruct from the leaf nodes
+        // If no decomposition was done, the root *is* the signal.
         if self.max_level == 0 {
-            // If no decomposition was done, just return the root
             return Ok(self
                 .get_packet(0, 0, 0)
                 .ok_or_else(|| SignalError::ValueError("Root packet missing".to_string()))?
@@ -199,56 +228,163 @@ impl WaveletPacketTree2D {
                 .clone());
         }
 
-        let leaf_level = self.max_level;
-        let (rows, cols) = self.originalshape;
+        // Bottom-up reconstruction: collapse one level at a time.
+        //
+        // `current` holds the coefficients available at `level`. We start from the
+        // deepest level for which packets exist and fold pairs of levels until we
+        // reach level 0.
+        let deepest = self.deepest_populated_level();
 
-        // Create result array for reconstruction
-        let reconstructed = Array2::zeros((rows, cols));
-
-        // Get all leaf nodes
-        let leaf_packets = self.get_level_packets(leaf_level);
-
-        // If there are no leaf packets, just return zeros
-        if leaf_packets.is_empty() {
-            return Ok(reconstructed);
+        // Working map from (row, col) -> coefficients at the level currently being
+        // collapsed. Seed it from the deepest populated level.
+        let mut current: HashMap<(usize, usize), Array2<f64>> = HashMap::new();
+        for packet in self.get_level_packets(deepest) {
+            current.insert((packet.row, packet.col), packet.coeffs.clone());
         }
 
-        // Calculate how many row and column divisions we have at the leaf level
-        let _divisions = 2_usize.pow(leaf_level as u32);
+        for level in (1..=deepest).rev() {
+            let parent_level = level - 1;
+            // Determine the set of distinct parents at `parent_level` from the
+            // children present in `current`.
+            let mut parents: Vec<(usize, usize)> = current
+                .keys()
+                .map(|&(row, col)| (row / 2, col / 2))
+                .collect();
+            parents.sort_unstable();
+            parents.dedup();
 
-        // Get the wavelet filters for reconstruction
-        let _filters = self.wavelet.filters()?;
+            let mut next: HashMap<(usize, usize), Array2<f64>> = HashMap::new();
 
-        // For now, just copy the coefficients from each leaf packet to the corresponding
-        // position in the reconstructed array (this is a simplified approach)
+            for &(prow, pcol) in &parents {
+                let ll = self.child_coeffs(&current, parent_level, prow, pcol, 0, 0, "LL")?;
+                let lh = self.child_coeffs(&current, parent_level, prow, pcol, 0, 1, "LH")?;
+                let hl = self.child_coeffs(&current, parent_level, prow, pcol, 1, 0, "HL")?;
+                let hh = self.child_coeffs(&current, parent_level, prow, pcol, 1, 1, "HH")?;
 
-        // In a full implementation, we would use the proper wavelet packet reconstruction
-        // algorithm that applies inverse filter banks level by level, starting from the leaf nodes
+                // The parent dimensions are twice the child sub-band dimensions.
+                let (sub_rows, sub_cols) = ll.dim();
+                let parent_shape = (sub_rows * 2, sub_cols * 2);
 
-        // For demonstration, we'll return a placeholder reconstruction
-        Ok(reconstructed)
+                let coeffs = Dwt2DCoeffs {
+                    ll,
+                    lh,
+                    hl,
+                    hh,
+                    wavelet: self.wavelet,
+                    edge_mode: self.edge_mode,
+                    original_shape: parent_shape,
+                };
+
+                let parent_coeffs = dwt2d_reconstruct(&coeffs)?;
+                next.insert((prow, pcol), parent_coeffs);
+            }
+
+            current = next;
+        }
+
+        // After collapsing all levels, `current` must contain exactly the root.
+        let root = current.remove(&(0, 0)).ok_or_else(|| {
+            SignalError::ValueError(
+                "Reconstruction failed to produce a root node from the decomposition tree"
+                    .to_string(),
+            )
+        })?;
+
+        // The separable inverse DWT rounds dimensions up to even sizes. Crop back
+        // to the original shape if the root was odd-sized.
+        let (orig_rows, orig_cols) = self.originalshape;
+        if root.dim() == (orig_rows, orig_cols) {
+            Ok(root)
+        } else {
+            let (rrows, rcols) = root.dim();
+            let rows = orig_rows.min(rrows);
+            let cols = orig_cols.min(rcols);
+            let mut cropped = Array2::zeros((orig_rows, orig_cols));
+            for i in 0..rows {
+                for j in 0..cols {
+                    cropped[[i, j]] = root[[i, j]];
+                }
+            }
+            Ok(cropped)
+        }
+    }
+
+    /// Returns the coefficients of a specific child sub-band of `(parent_level, prow, pcol)`.
+    ///
+    /// `row_off`/`col_off` select the quadrant (0/1 in each dimension), and `label`
+    /// is used purely to build a descriptive error message when the child is absent.
+    fn child_coeffs(
+        &self,
+        current: &HashMap<(usize, usize), Array2<f64>>,
+        parent_level: usize,
+        prow: usize,
+        pcol: usize,
+        row_off: usize,
+        col_off: usize,
+        label: &str,
+    ) -> SignalResult<Array2<f64>> {
+        let child_row = prow * 2 + row_off;
+        let child_col = pcol * 2 + col_off;
+        current
+            .get(&(child_row, child_col))
+            .cloned()
+            .ok_or_else(|| {
+                SignalError::ValueError(format!(
+                "Cannot reconstruct: missing {} child at level {}, position ({}, {}) for parent \
+                 at level {}, position ({}, {})",
+                label,
+                parent_level + 1,
+                child_row,
+                child_col,
+                parent_level,
+                prow,
+                pcol
+            ))
+            })
+    }
+
+    /// Returns the deepest level that contains at least one packet.
+    fn deepest_populated_level(&self) -> usize {
+        self.packets
+            .keys()
+            .map(|&(level, _, _)| level)
+            .max()
+            .unwrap_or(0)
     }
 
     /// Reconstructs the signal using only the specified packets.
+    ///
+    /// The supplied packets must form a complete quad-tree partition of the signal
+    /// (i.e. every parent on a path to a selected leaf must have all four children
+    /// available). Otherwise [`reconstruct`](Self::reconstruct) returns an honest
+    /// error naming the missing sub-band rather than fabricating coefficients.
     pub fn reconstruct_selective(
         &self,
         selected_packets: &[(usize, usize, usize)],
     ) -> SignalResult<Array2<f64>> {
-        // Create a new tree with only the selected _packets
-        let mut selective_tree = WaveletPacket2D::new(
-            self.wavelet,
-            self.max_level,
-            Array2::zeros(self.originalshape),
+        // Create a new tree seeded with a zero root of the correct shape, copying
+        // the exact edge mode so reconstruction matches the original transform.
+        let mut packets = HashMap::new();
+        packets.insert(
+            (0, 0, 0),
+            WaveletPacket2D::new(0, 0, 0, Array2::zeros(self.originalshape), String::new()),
         );
+        let mut selective_tree = WaveletPacketTree2D {
+            wavelet: self.wavelet,
+            max_level: self.max_level,
+            edge_mode: self.edge_mode,
+            packets,
+            originalshape: self.originalshape,
+        };
 
-        // Add the selected _packets to the new tree
+        // Add the selected packets to the new tree.
         for &(level, row, col) in selected_packets {
             if let Some(packet) = self.get_packet(level, row, col) {
                 selective_tree.add_packet(packet.clone());
             }
         }
 
-        // Reconstruct from the selective tree
+        // Reconstruct from the selective tree.
         selective_tree.reconstruct()
     }
 }
@@ -256,7 +392,7 @@ impl WaveletPacketTree2D {
 /// Performs a 2D wavelet packet transform with full decomposition.
 ///
 /// This function decomposes all subbands at each level, creating a complete
-/// binary tree of wavelet packets.
+/// quad-tree of wavelet packets.
 ///
 /// # Arguments
 ///
@@ -291,7 +427,6 @@ impl WaveletPacketTree2D {
 /// // 1 at level 0, 4 at level 1, 16 at level 2
 /// assert_eq!(decomp.len(), 1 + 4 + 16);
 /// ```
-#[allow(dead_code)]
 pub fn wpt2d_full<T>(
     data: &Array2<T>,
     wavelet: Wavelet,
@@ -305,44 +440,35 @@ where
         return Err(SignalError::ValueError("Input array is empty".to_string()));
     }
 
-    if max_level == 0 {
-        // If max_level is 0, just convert the data to f64 and return it as the root node
-        let root_coeffs = data.mapv(|val| {
-            NumCast::from(val)
-                .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
-        });
+    // Convert input to f64.
+    let root_coeffs = convert_to_f64(data)?;
 
-        return Ok(WaveletPacket2D::new(wavelet, 0, root_coeffs));
+    if max_level == 0 {
+        return Ok(WaveletPacketTree2D::new(wavelet, 0, root_coeffs, mode));
     }
 
-    // Check if the data dimensions are sufficient for the requested _level
+    // Check if the data dimensions are sufficient for the requested level.
     let min_size = 2_usize.pow(max_level as u32);
     let (rows, cols) = data.dim();
 
     if rows < min_size || cols < min_size {
         return Err(SignalError::ValueError(format!(
-            "Input dimensions ({}, {}) are too small for {} decomposition levels. Need at least ({}, {})",
+            "Input dimensions ({}, {}) are too small for {} decomposition levels. Need at least \
+             ({}, {})",
             rows, cols, max_level, min_size, min_size
         )));
     }
 
-    // Convert input to f64
-    let root_coeffs = data.mapv(|val| {
-        NumCast::from(val)
-            .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
-    });
+    // Initialize the wavelet packet tree.
+    let mut tree = WaveletPacketTree2D::new(wavelet, max_level, root_coeffs, mode);
 
-    // Initialize the wavelet packet tree
-    let mut tree = WaveletPacket2D::new(wavelet, max_level, root_coeffs);
-
-    // Perform the decomposition
+    // Perform the decomposition.
     decompose_node(&mut tree, 0, 0, 0, max_level, mode)?;
 
     Ok(tree)
 }
 
 /// Recursively decomposes a node in the wavelet packet tree.
-#[allow(dead_code)]
 fn decompose_node(
     tree: &mut WaveletPacketTree2D,
     level: usize,
@@ -351,12 +477,12 @@ fn decompose_node(
     max_level: usize,
     mode: Option<&str>,
 ) -> SignalResult<()> {
-    // If we've reached the maximum level, stop recursion
+    // If we've reached the maximum level, stop recursion.
     if level >= max_level {
         return Ok(());
     }
 
-    // Get the current node's coefficients
+    // Get the current node's coefficients.
     let parent = tree
         .get_packet(level, row, col)
         .ok_or_else(|| {
@@ -367,235 +493,97 @@ fn decompose_node(
         })?
         .clone();
 
-    // Get wavelet filters
-    let filters = tree.wavelet.filters()?;
+    // A node can only be decomposed if both dimensions are at least 2.
+    let (prows, pcols) = parent.coeffs.dim();
+    if prows < 2 || pcols < 2 {
+        return Err(SignalError::ValueError(format!(
+            "Cannot decompose packet at level {}, position ({}, {}): dimensions ({}, {}) are too \
+             small for a further wavelet packet level",
+            level, row, col, prows, pcols
+        )));
+    }
 
-    // Decompose the coefficients into 4 subbands
-    let (ll, lh, hl, hh) = decompose_2d(&parent.coeffs, &filters, mode)?;
+    // Decompose the coefficients into four subbands using the validated 2D DWT.
+    let decomposition = dwt2d_decompose(&parent.coeffs, tree.wavelet, tree.edge_mode)?;
 
-    // Calculate child positions in the next level
+    // Calculate child positions in the next level.
     let child_level = level + 1;
     let child_row_base = row * 2;
     let child_col_base = col * 2;
 
-    // Create child nodes with appropriate paths
+    // Create child nodes with appropriate paths.
+    let sep = if parent.path.is_empty() { "" } else { "-" };
+
     let child_ll = WaveletPacket2D::new(
         child_level,
         child_row_base,
         child_col_base,
-        ll,
-        format!(
-            "{}{}{}",
-            parent.path,
-            if parent.path.is_empty() { "" } else { "-" },
-            "LL"
-        ),
+        decomposition.ll,
+        format!("{}{}{}", parent.path, sep, "LL"),
     );
-
     let child_lh = WaveletPacket2D::new(
         child_level,
         child_row_base,
         child_col_base + 1,
-        lh,
-        format!(
-            "{}{}{}",
-            parent.path,
-            if parent.path.is_empty() { "" } else { "-" },
-            "LH"
-        ),
+        decomposition.lh,
+        format!("{}{}{}", parent.path, sep, "LH"),
     );
-
     let child_hl = WaveletPacket2D::new(
         child_level,
         child_row_base + 1,
         child_col_base,
-        hl,
-        format!(
-            "{}{}{}",
-            parent.path,
-            if parent.path.is_empty() { "" } else { "-" },
-            "HL"
-        ),
+        decomposition.hl,
+        format!("{}{}{}", parent.path, sep, "HL"),
     );
-
     let child_hh = WaveletPacket2D::new(
         child_level,
         child_row_base + 1,
         child_col_base + 1,
-        hh,
-        format!(
-            "{}{}{}",
-            parent.path,
-            if parent.path.is_empty() { "" } else { "-" },
-            "HH"
-        ),
+        decomposition.hh,
+        format!("{}{}{}", parent.path, sep, "HH"),
     );
 
-    // Add children to the tree
-    tree.add_packet(child_ll.clone());
-    tree.add_packet(child_lh.clone());
-    tree.add_packet(child_hl.clone());
-    tree.add_packet(child_hh.clone());
+    // Add children to the tree.
+    tree.add_packet(child_ll);
+    tree.add_packet(child_lh);
+    tree.add_packet(child_hl);
+    tree.add_packet(child_hh);
 
-    // Recursively decompose each child sequentially
-    // Note: Parallel processing disabled due to borrowing constraints with mutable tree reference
-    {
-        decompose_node(
-            tree,
-            child_level,
-            child_row_base,
-            child_col_base,
-            max_level,
-            mode,
-        )?;
-        decompose_node(
-            tree,
-            child_level,
-            child_row_base,
-            child_col_base + 1,
-            max_level,
-            mode,
-        )?;
-        decompose_node(
-            tree,
-            child_level,
-            child_row_base + 1,
-            child_col_base,
-            max_level,
-            mode,
-        )?;
-        decompose_node(
-            tree,
-            child_level,
-            child_row_base + 1,
-            child_col_base + 1,
-            max_level,
-            mode,
-        )?;
-    }
+    // Recursively decompose each child sequentially.
+    decompose_node(
+        tree,
+        child_level,
+        child_row_base,
+        child_col_base,
+        max_level,
+        mode,
+    )?;
+    decompose_node(
+        tree,
+        child_level,
+        child_row_base,
+        child_col_base + 1,
+        max_level,
+        mode,
+    )?;
+    decompose_node(
+        tree,
+        child_level,
+        child_row_base + 1,
+        child_col_base,
+        max_level,
+        mode,
+    )?;
+    decompose_node(
+        tree,
+        child_level,
+        child_row_base + 1,
+        child_col_base + 1,
+        max_level,
+        mode,
+    )?;
 
     Ok(())
-}
-
-/// Decomposes a 2D array into four subbands using separable 2D wavelet transform.
-#[allow(dead_code)]
-fn decompose_2d(
-    data: &Array2<f64>,
-    filters: &WaveletFilters,
-    mode: Option<&str>,
-) -> SignalResult<Decompose2DResult> {
-    let (rows, cols) = data.dim();
-
-    // Get filter coefficients
-    let lo_filter = &filters.dec_lo;
-    let hi_filter = &filters.dec_hi;
-
-    // Prepare output arrays (half the size in each dimension)
-    let out_rows = rows / 2;
-    let out_cols = cols / 2;
-
-    // Arrays for row processing
-    let mut row_lo = Array2::zeros((rows, out_cols));
-    let mut row_hi = Array2::zeros((rows, out_cols));
-
-    // Process rows
-    for i in 0..rows {
-        let row = data.row(i).to_vec();
-
-        // Apply low-pass filter to row
-        let row_lo_vec = apply_filter(&row, lo_filter, mode);
-        // Apply high-pass filter to row
-        let row_hi_vec = apply_filter(&row, hi_filter, mode);
-
-        // Store the results (downsampled by 2)
-        for j in 0..out_cols {
-            row_lo[[i, j]] = row_lo_vec[j];
-            row_hi[[i, j]] = row_hi_vec[j];
-        }
-    }
-
-    // Output subbands
-    let mut ll = Array2::zeros((out_rows, out_cols));
-    let mut lh = Array2::zeros((out_rows, out_cols));
-    let mut hl = Array2::zeros((out_rows, out_cols));
-    let mut hh = Array2::zeros((out_rows, out_cols));
-
-    // Process columns of row-filtered results
-    for j in 0..out_cols {
-        let col_lo = row_lo.column(j).to_vec();
-        let col_hi = row_hi.column(j).to_vec();
-
-        // Apply low-pass filter to the columns of low-pass row result
-        let ll_col = apply_filter(&col_lo, lo_filter, mode);
-        // Apply high-pass filter to the columns of low-pass row result
-        let lh_col = apply_filter(&col_lo, hi_filter, mode);
-
-        // Apply low-pass filter to the columns of high-pass row result
-        let hl_col = apply_filter(&col_hi, lo_filter, mode);
-        // Apply high-pass filter to the columns of high-pass row result
-        let hh_col = apply_filter(&col_hi, hi_filter, mode);
-
-        // Store the results (downsampled by 2)
-        for i in 0..out_rows {
-            ll[[i, j]] = ll_col[i];
-            lh[[i, j]] = lh_col[i];
-            hl[[i, j]] = hl_col[i];
-            hh[[i, j]] = hh_col[i];
-        }
-    }
-
-    Ok((ll, lh, hl, hh))
-}
-
-/// Apply a filter to a signal and downsample by 2.
-#[allow(dead_code)]
-fn apply_filter(signal: &[f64], filter: &[f64], mode: Option<&str>) -> Vec<f64> {
-    let n = signal.len();
-    let filter_len = filter.len();
-    let extension_mode = mode.unwrap_or("symmetric");
-
-    // Determine the length of the output (downsampled by 2)
-    let out_len = n / 2;
-    let mut result = vec![0.0; out_len];
-
-    for (i, item) in result.iter_mut().enumerate().take(out_len) {
-        let idx = i * 2; // Downsampling by 2
-
-        let mut sum = 0.0;
-        for (j, &filter_val) in filter.iter().enumerate().take(filter_len) {
-            // Calculate the _signal index with proper extension
-            let signal_idx = match extension_mode {
-                "symmetric" => {
-                    let ext_idx = idx as isize - (filter_len as isize / 2) + j as isize;
-                    if ext_idx < 0 {
-                        (-ext_idx) as usize % (2 * n)
-                    } else if ext_idx as usize >= n {
-                        (2 * n - 2 - ext_idx as usize) % (2 * n)
-                    } else {
-                        ext_idx as usize
-                    }
-                }
-                "periodic" => {
-                    ((idx as isize - (filter_len as isize / 2) + j as isize) % n as isize) as usize
-                }
-                "zero" => {
-                    let ext_idx = idx as isize - (filter_len as isize / 2) + j as isize;
-                    if ext_idx < 0 || ext_idx as usize >= n {
-                        continue; // Skip, equivalent to multiplying by zero
-                    } else {
-                        ext_idx as usize
-                    }
-                }
-                _ => return vec![], // Invalid mode
-            };
-
-            sum += signal[signal_idx] * filter_val;
-        }
-
-        *item = sum;
-    }
-
-    result
 }
 
 /// Performs a selective 2D wavelet packet transform, expanding only nodes
@@ -634,7 +622,6 @@ fn apply_filter(signal: &[f64], filter: &[f64], mode: Option<&str>) -> Vec<f64> 
 /// // Define a criterion that only decomposes packets with high energy
 /// let energy_criterion = |packet: &WaveletPacket2D| -> bool {
 ///     // Only decompose nodes with energy above a threshold
-///     // (For example, decompose if energy is > 1000)
 ///     packet.energy() > 1000.0
 /// };
 ///
@@ -644,7 +631,6 @@ fn apply_filter(signal: &[f64], filter: &[f64], mode: Option<&str>) -> Vec<f64> 
 /// // The resulting tree will have fewer nodes than the full decomposition
 /// assert!(decomp.len() < 1 + 4 + 16 + 64); // Max possible for level 3
 /// ```
-#[allow(dead_code)]
 pub fn wpt2d_selective<T, F>(
     data: &Array2<T>,
     wavelet: Wavelet,
@@ -660,33 +646,22 @@ where
         return Err(SignalError::ValueError("Input array is empty".to_string()));
     }
 
-    if max_level == 0 {
-        // If max_level is 0, just convert the data to f64 and return it as the root node
-        let root_coeffs = data.mapv(|val| {
-            NumCast::from(val)
-                .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
-        });
+    let root_coeffs = convert_to_f64(data)?;
 
-        return Ok(WaveletPacket2D::new(wavelet, 0, root_coeffs));
+    if max_level == 0 {
+        return Ok(WaveletPacketTree2D::new(wavelet, 0, root_coeffs, mode));
     }
 
-    // Convert input to f64
-    let root_coeffs = data.mapv(|val| {
-        NumCast::from(val)
-            .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
-    });
+    // Initialize the wavelet packet tree.
+    let mut tree = WaveletPacketTree2D::new(wavelet, max_level, root_coeffs, mode);
 
-    // Initialize the wavelet packet tree
-    let mut tree = WaveletPacket2D::new(wavelet, max_level, root_coeffs);
-
-    // Perform the selective decomposition
+    // Perform the selective decomposition.
     decompose_node_selective(&mut tree, 0, 0, 0, max_level, criterion, mode)?;
 
     Ok(tree)
 }
 
 /// Recursively decomposes a node in the wavelet packet tree if it meets the criterion.
-#[allow(dead_code)]
 fn decompose_node_selective<F>(
     tree: &mut WaveletPacketTree2D,
     level: usize,
@@ -699,12 +674,12 @@ fn decompose_node_selective<F>(
 where
     F: Fn(&WaveletPacket2D) -> bool + Copy,
 {
-    // If we've reached the maximum level, stop recursion
+    // If we've reached the maximum level, stop recursion.
     if level >= max_level {
         return Ok(());
     }
 
-    // Get the current node's coefficients
+    // Get the current node's coefficients.
     let parent = tree
         .get_packet(level, row, col)
         .ok_or_else(|| {
@@ -715,83 +690,63 @@ where
         })?
         .clone();
 
-    // Check if this node should be decomposed
+    // Check if this node should be decomposed.
     if !criterion(&parent) {
-        // If the criterion is not met, do not decompose further
         return Ok(());
     }
 
-    // Get wavelet filters
-    let filters = tree.wavelet.filters()?;
+    // A node can only be decomposed if both dimensions are large enough for one
+    // more level of the separable transform.
+    let (prows, pcols) = parent.coeffs.dim();
+    if prows < 2 || pcols < 2 {
+        return Ok(());
+    }
 
-    // Decompose the coefficients into 4 subbands
-    let (ll, lh, hl, hh) = decompose_2d(&parent.coeffs, &filters, mode)?;
+    // Decompose the coefficients into four subbands.
+    let decomposition = dwt2d_decompose(&parent.coeffs, tree.wavelet, tree.edge_mode)?;
 
-    // Calculate child positions in the next level
+    // Calculate child positions in the next level.
     let child_level = level + 1;
     let child_row_base = row * 2;
     let child_col_base = col * 2;
+    let sep = if parent.path.is_empty() { "" } else { "-" };
 
-    // Create child nodes with appropriate paths
     let child_ll = WaveletPacket2D::new(
         child_level,
         child_row_base,
         child_col_base,
-        ll,
-        format!(
-            "{}{}{}",
-            parent.path,
-            if parent.path.is_empty() { "" } else { "-" },
-            "LL"
-        ),
+        decomposition.ll,
+        format!("{}{}{}", parent.path, sep, "LL"),
     );
-
     let child_lh = WaveletPacket2D::new(
         child_level,
         child_row_base,
         child_col_base + 1,
-        lh,
-        format!(
-            "{}{}{}",
-            parent.path,
-            if parent.path.is_empty() { "" } else { "-" },
-            "LH"
-        ),
+        decomposition.lh,
+        format!("{}{}{}", parent.path, sep, "LH"),
     );
-
     let child_hl = WaveletPacket2D::new(
         child_level,
         child_row_base + 1,
         child_col_base,
-        hl,
-        format!(
-            "{}{}{}",
-            parent.path,
-            if parent.path.is_empty() { "" } else { "-" },
-            "HL"
-        ),
+        decomposition.hl,
+        format!("{}{}{}", parent.path, sep, "HL"),
     );
-
     let child_hh = WaveletPacket2D::new(
         child_level,
         child_row_base + 1,
         child_col_base + 1,
-        hh,
-        format!(
-            "{}{}{}",
-            parent.path,
-            if parent.path.is_empty() { "" } else { "-" },
-            "HH"
-        ),
+        decomposition.hh,
+        format!("{}{}{}", parent.path, sep, "HH"),
     );
 
-    // Add children to the tree
-    tree.add_packet(child_ll.clone());
-    tree.add_packet(child_lh.clone());
-    tree.add_packet(child_hl.clone());
-    tree.add_packet(child_hh.clone());
+    // Add children to the tree.
+    tree.add_packet(child_ll);
+    tree.add_packet(child_lh);
+    tree.add_packet(child_hl);
+    tree.add_packet(child_hh);
 
-    // Recursively decompose each child
+    // Recursively decompose each child.
     decompose_node_selective(
         tree,
         child_level,
@@ -832,6 +787,22 @@ where
     Ok(())
 }
 
+/// Converts a generic numeric 2D array into an `Array2<f64>`, returning an honest
+/// error if any value cannot be represented as `f64`.
+fn convert_to_f64<T>(data: &Array2<T>) -> SignalResult<Array2<f64>>
+where
+    T: Float + NumCast + Debug,
+{
+    let (rows, cols) = data.dim();
+    let mut out = Array2::zeros((rows, cols));
+    for ((i, j), &val) in data.indexed_iter() {
+        out[[i, j]] = NumCast::from(val).ok_or_else(|| {
+            SignalError::ValueError(format!("Could not convert {:?} to f64", val))
+        })?;
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -849,8 +820,6 @@ mod tests {
 
     #[test]
     fn test_wpt2d_full_decomposition() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a test image (16x16 for 2 levels of decomposition)
         let image = create_test_image(16);
 
@@ -858,12 +827,9 @@ mod tests {
         let decomp = wpt2d_full(&image, Wavelet::Haar, 2, None).expect("Operation failed");
 
         // Check that we have the expected number of packets
-        // Level 0: 1 node
-        // Level 1: 4 nodes
-        // Level 2: 16 nodes
+        // Level 0: 1 node, Level 1: 4 nodes, Level 2: 16 nodes
         assert_eq!(decomp.len(), 1 + 4 + 16);
 
-        // Check that all expected positions exist
         // Root
         assert!(decomp.get_packet(0, 0, 0).is_some());
 
@@ -884,8 +850,6 @@ mod tests {
 
     #[test]
     fn test_wpt2d_selective_decomposition() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a test image (32x32 for 3 levels of decomposition)
         let image = create_test_image(32);
 
@@ -895,13 +859,10 @@ mod tests {
         };
 
         // Perform selective wavelet packet decomposition
-        let decomp = wpt2d_selective(&image, Wavelet::Haar, 3, ll_only_criterion, None).expect("Operation failed");
+        let decomp = wpt2d_selective(&image, Wavelet::Haar, 3, ll_only_criterion, None)
+            .expect("Operation failed");
 
-        // Check that we have the expected number of packets
-        // Level 0: 1 node
-        // Level 1: 4 nodes (LL, LH, HL, HH)
-        // Level 2: 4 nodes (LL-LL, LL-LH, LL-HL, LL-HH)
-        // Level 3: 4 nodes (LL-LL-LL, LL-LL-LH, LL-LL-HL, LL-LL-HH)
+        // Level 0: 1, Level 1: 4 (LL,LH,HL,HH), Level 2: 4 (LL-*), Level 3: 4 (LL-LL-*)
         // Total: 13 nodes
         assert_eq!(decomp.len(), 13);
 
@@ -911,7 +872,7 @@ mod tests {
         assert!(decomp.get_packet(2, 0, 0).is_some()); // LL-LL
         assert!(decomp.get_packet(3, 0, 0).is_some()); // LL-LL-LL
 
-        // Check that non-LL nodes at level 1 exist (because root is always decomposed)
+        // Check that non-LL nodes at level 1 exist (root is always decomposed)
         assert!(decomp.get_packet(1, 0, 1).is_some()); // LH
         assert!(decomp.get_packet(1, 1, 0).is_some()); // HL
         assert!(decomp.get_packet(1, 1, 1).is_some()); // HH
@@ -922,8 +883,6 @@ mod tests {
 
     #[test]
     fn test_packet_paths() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a test image (16x16 for 2 levels of decomposition)
         let image = create_test_image(16);
 
@@ -931,17 +890,83 @@ mod tests {
         let decomp = wpt2d_full(&image, Wavelet::Haar, 2, None).expect("Operation failed");
 
         // Check root path (empty string)
-        assert_eq!(decomp.get_packet(0, 0, 0).expect("Operation failed").path, "");
+        assert_eq!(
+            decomp.get_packet(0, 0, 0).expect("Operation failed").path,
+            ""
+        );
 
         // Check level 1 paths
-        assert_eq!(decomp.get_packet(1, 0, 0).expect("Operation failed").path, "LL");
-        assert_eq!(decomp.get_packet(1, 0, 1).expect("Operation failed").path, "LH");
-        assert_eq!(decomp.get_packet(1, 1, 0).expect("Operation failed").path, "HL");
-        assert_eq!(decomp.get_packet(1, 1, 1).expect("Operation failed").path, "HH");
+        assert_eq!(
+            decomp.get_packet(1, 0, 0).expect("Operation failed").path,
+            "LL"
+        );
+        assert_eq!(
+            decomp.get_packet(1, 0, 1).expect("Operation failed").path,
+            "LH"
+        );
+        assert_eq!(
+            decomp.get_packet(1, 1, 0).expect("Operation failed").path,
+            "HL"
+        );
+        assert_eq!(
+            decomp.get_packet(1, 1, 1).expect("Operation failed").path,
+            "HH"
+        );
 
         // Check a few level 2 paths
-        // We'll just test the LL and HH patterns which should be predictable
-        assert_eq!(decomp.get_packet(2, 0, 0).expect("Operation failed").path, "LL-LL");
-        assert_eq!(decomp.get_packet(2, 3, 3).expect("Operation failed").path, "HH-HH");
+        assert_eq!(
+            decomp.get_packet(2, 0, 0).expect("Operation failed").path,
+            "LL-LL"
+        );
+        assert_eq!(
+            decomp.get_packet(2, 3, 3).expect("Operation failed").path,
+            "HH-HH"
+        );
+    }
+
+    #[test]
+    fn test_wpt2d_perfect_reconstruction_haar() {
+        // For an orthogonal wavelet (Haar) with periodic extension the full WPT
+        // reconstruction must recover the original image to within numerical
+        // precision.
+        let image = create_test_image(16);
+
+        let decomp =
+            wpt2d_full(&image, Wavelet::Haar, 2, Some("periodic")).expect("decomposition failed");
+        let reconstructed = decomp.reconstruct().expect("reconstruction failed");
+
+        assert_eq!(reconstructed.dim(), image.dim());
+
+        let max_err = image
+            .iter()
+            .zip(reconstructed.iter())
+            .map(|(&a, &b)| (a - b).abs())
+            .fold(0.0_f64, f64::max);
+        assert!(
+            max_err < 1e-8,
+            "Haar WPT reconstruction error too large: {}",
+            max_err
+        );
+    }
+
+    #[test]
+    fn test_wpt2d_reconstruction_level0() {
+        // With max_level = 0 the reconstruction is the identity.
+        let image = create_test_image(8);
+        let decomp = wpt2d_full(&image, Wavelet::Haar, 0, None).expect("decomposition failed");
+        let reconstructed = decomp.reconstruct().expect("reconstruction failed");
+        assert_eq!(reconstructed, image);
+    }
+
+    #[test]
+    fn test_reconstruct_missing_sibling_errors() {
+        // A tree with an incomplete sibling set must produce an honest error
+        // rather than silently fabricating a result.
+        let image = create_test_image(16);
+        let decomp = wpt2d_full(&image, Wavelet::Haar, 1, None).expect("decomposition failed");
+
+        // Select only the LL child at level 1 (missing LH/HL/HH).
+        let err = decomp.reconstruct_selective(&[(1, 0, 0)]);
+        assert!(err.is_err(), "expected an error for incomplete sibling set");
     }
 }

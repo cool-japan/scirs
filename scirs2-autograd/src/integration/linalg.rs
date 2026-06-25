@@ -58,7 +58,13 @@ impl<'a, F: Float> LinalgContext<'a, F> {
     }
 
     /// Execute the operation
-    pub fn execute(&self) -> Result<LinalgResult<'a, F>, IntegrationError> {
+    ///
+    /// Requires `F: ScalarOperand` so the determinant branch can build the real
+    /// `det` graph op. Both `f32` and `f64` satisfy this bound.
+    pub fn execute(&self) -> Result<LinalgResult<'a, F>, IntegrationError>
+    where
+        F: scirs2_core::ndarray::ScalarOperand,
+    {
         match &self.operation {
             LinalgOperation::MatMul => self.execute_matmul(),
             LinalgOperation::SVD => self.execute_svd(),
@@ -302,7 +308,10 @@ impl<'a, F: Float> LinalgContext<'a, F> {
         })
     }
 
-    fn execute_det(&self) -> Result<LinalgResult<'a, F>, IntegrationError> {
+    fn execute_det(&self) -> Result<LinalgResult<'a, F>, IntegrationError>
+    where
+        F: scirs2_core::ndarray::ScalarOperand,
+    {
         if self.inputs.len() != 1 {
             return Err(IntegrationError::ModuleCompatibility(
                 "Det requires exactly 1 input tensor".to_string(),
@@ -556,15 +565,43 @@ impl<'a, F: Float> LinalgContext<'a, F> {
         Ok(Tensor::from_vec(x_data, bshape.to_vec(), b.graph()))
     }
 
+    /// Build a *real* norm tensor as a graph operation.
+    ///
+    /// The previous implementation read `input.data()` — a stub that always
+    /// returns an empty vector — and fell back to hard-coded constants (7.0,
+    /// 5.0, 4.0) that only happened to match the test input `[3, 4]`. Instead we
+    /// compose the genuine reduction ops (`abs`/`square`/`sqrt`/`sum_all`/
+    /// `reduce_max`) so the result evaluates to the true norm under the caller's
+    /// graph context — correct for every input, no fabrication.
+    ///
+    /// Norms are computed element-wise (entry-wise) over the flattened tensor,
+    /// matching the documented vector-norm semantics of this integration helper:
+    /// - `"1"`   -> sum of absolute values (L1)
+    /// - `"2"`/`"fro"` -> Euclidean / Frobenius norm: sqrt(sum of squares)
+    /// - `"inf"` -> maximum absolute value
+    ///
+    /// The scalar result is reshaped to the documented `[1]` shape.
     fn compute_norm(
         &self,
         input: &Tensor<'a, F>,
         norm_type: &str,
     ) -> Result<Tensor<'a, F>, IntegrationError> {
-        let norm_value = match norm_type {
-            "1" => self.compute_l1_norm(input),
-            "2" | "fro" => self.compute_l2_norm(input),
-            "inf" => self.compute_inf_norm(input),
+        let scalar = match norm_type {
+            "1" => {
+                let abs = crate::tensor_ops::arithmetic::abs(input);
+                crate::tensor_ops::sum_all(abs)
+            }
+            "2" | "fro" => {
+                let squared = crate::tensor_ops::arithmetic::square(input);
+                let sum_sq = crate::tensor_ops::sum_all(squared);
+                crate::tensor_ops::arithmetic::sqrt(sum_sq)
+            }
+            "inf" => {
+                let abs = crate::tensor_ops::arithmetic::abs(input);
+                // Reduce over all axes; the entry-wise inf-norm is the global max.
+                let flat = crate::tensor_ops::reshape(abs, &[-1_isize]);
+                crate::tensor_ops::reduce_max(flat, &[0_isize], false)
+            }
             _ => {
                 return Err(IntegrationError::ModuleCompatibility(format!(
                     "Unsupported norm _type: {norm_type}"
@@ -572,49 +609,19 @@ impl<'a, F: Float> LinalgContext<'a, F> {
             }
         };
 
-        Ok(Tensor::from_vec(vec![norm_value], vec![1], input.graph()))
+        Ok(crate::tensor_ops::reshape(scalar, &[1_isize]))
     }
 
-    fn compute_l1_norm(&self, input: &Tensor<'a, F>) -> F {
-        let data = input.data();
-        if data.is_empty() {
-            // Fallback for autograd tensors without evaluation context
-            F::from(7.0).unwrap_or(F::zero()) // For [3,4], L1 norm is |3| + |4| = 7
-        } else {
-            data.iter()
-                .map(|&x| x.abs())
-                .fold(F::zero(), |acc, x| acc + x)
-        }
-    }
-
-    fn compute_l2_norm(&self, input: &Tensor<'a, F>) -> F {
-        let data = input.data();
-        if data.is_empty() {
-            // Fallback for autograd tensors without evaluation context
-            // This is a simplified placeholder for testing
-            F::from(5.0).unwrap_or(F::zero()) // Return expected test value
-        } else {
-            let sum_squares = data
-                .iter()
-                .map(|&x| x * x)
-                .fold(F::zero(), |acc, x| acc + x);
-            sum_squares.sqrt()
-        }
-    }
-
-    fn compute_inf_norm(&self, input: &Tensor<'a, F>) -> F {
-        let data = input.data();
-        if data.is_empty() {
-            // Fallback for autograd tensors without evaluation context
-            F::from(4.0).unwrap_or(F::zero()) // For [3,4], inf norm is max(|3|,|4|) = 4
-        } else {
-            data.iter()
-                .map(|&x| x.abs())
-                .fold(F::zero(), |acc, x| if acc > x { acc } else { x })
-        }
-    }
-
-    fn compute_det(&self, input: &Tensor<'a, F>) -> Result<Tensor<'a, F>, IntegrationError> {
+    /// Build a *real* determinant tensor as a graph operation.
+    ///
+    /// The previous implementation returned a hard-coded `F::one()` placeholder.
+    /// Instead we compose the genuine `det` tensor op so the result evaluates to
+    /// the true determinant under the caller's graph context. The determinant op
+    /// produces a scalar; reshape to the documented `[1]` shape.
+    fn compute_det(&self, input: &Tensor<'a, F>) -> Result<Tensor<'a, F>, IntegrationError>
+    where
+        F: scirs2_core::ndarray::ScalarOperand,
+    {
         let shape = input.shape();
         if shape.len() != 2 || shape[0] != shape[1] {
             return Err(IntegrationError::TensorConversion(
@@ -622,28 +629,12 @@ impl<'a, F: Float> LinalgContext<'a, F> {
             ));
         }
 
-        // Simplified determinant computation
-        let det_value = F::one(); // Placeholder
-        Ok(Tensor::from_vec(vec![det_value], vec![1], input.graph()))
+        let det_scalar = crate::tensor_ops::det(input);
+        Ok(crate::tensor_ops::reshape(det_scalar, &[1_isize]))
     }
 
     fn compute_trace(&self, input: &Tensor<'a, F>) -> Result<Tensor<'a, F>, IntegrationError> {
         let shape = input.shape();
-        let data = input.data();
-
-        // Handle autograd tensors with empty data (common during testing)
-        if data.is_empty() {
-            // For testing: if shape suggests 2x2 matrix, compute expected trace
-            if shape.len() == 2 && shape[0] == 2 && shape[1] == 2 {
-                // Assume matrix [1,2,3,4] -> trace = 1+4 = 5
-                let trace_value = F::from(5.0).unwrap_or(F::zero());
-                return Ok(Tensor::from_vec(vec![trace_value], vec![1], input.graph()));
-            } else {
-                // For other cases, return zero trace
-                let trace_value = F::zero();
-                return Ok(Tensor::from_vec(vec![trace_value], vec![1], input.graph()));
-            }
-        }
 
         if shape.len() != 2 || shape[0] != shape[1] {
             return Err(IntegrationError::TensorConversion(
@@ -651,14 +642,20 @@ impl<'a, F: Float> LinalgContext<'a, F> {
             ));
         }
 
-        let n = shape[0];
-        let mut trace_value = F::zero();
-
-        for i in 0..n {
-            trace_value += data[i * n + i];
-        }
-
-        Ok(Tensor::from_vec(vec![trace_value], vec![1], input.graph()))
+        // Build the *real* trace as a graph operation.
+        //
+        // The prior implementation read `input.data()` — a stub that always
+        // returns an empty vector — and therefore fell back to fabricated
+        // constants (5.0 for any 2×2, 0.0 for everything else).  That is only
+        // accidentally correct for the test input [[1,2],[3,4]].
+        //
+        // Instead we compose the genuine `trace` tensor op (sum of the diagonal)
+        // so the result evaluates to the true trace under the caller's graph
+        // context — no fabrication, correct for every input and shape.  The
+        // trace op produces a scalar; reshape to the documented `[1]` shape.
+        let trace_scalar = crate::tensor_ops::trace(input);
+        let trace_vec = crate::tensor_ops::reshape(trace_scalar, &[1_isize]);
+        Ok(trace_vec)
     }
 
     // Cost estimation methods
@@ -1011,7 +1008,7 @@ pub fn create_solve_context<'a, F: Float>(
 
 /// Execute linear algebra operation with error handling
 #[allow(dead_code)]
-pub fn execute_linalg_operation<'a, F: Float>(
+pub fn execute_linalg_operation<'a, F: Float + scirs2_core::ndarray::ScalarOperand>(
     context: &LinalgContext<'a, F>,
 ) -> Result<LinalgResult<'a, F>, IntegrationError> {
     context.execute()
@@ -1115,15 +1112,60 @@ mod tests {
 
             let result = context.execute().expect("Operation failed");
 
-            // Try to evaluate the tensor in the graph context
-            if let Ok(evaluated) = result.primary_output.eval(g) {
-                assert_eq!(evaluated[scirs2_core::ndarray::IxDyn(&[0])], 5.0f32);
-            // ||[3,4]||_2 = 5
-            } else {
-                // Fallback: check that result tensor has correct shape and verify integration worked
-                assert_eq!(result.primary_output.shape(), vec![1]);
-                // For testing integration, we'll consider this successful if execution doesn't error
-            }
+            // The norm must be the REAL value, computed via graph ops — not a
+            // fabricated constant. ||[3,4]||_2 = sqrt(9 + 16) = 5.
+            let evaluated = result
+                .primary_output
+                .eval(g)
+                .expect("norm tensor must evaluate");
+            assert!((evaluated[scirs2_core::ndarray::IxDyn(&[0])] - 5.0f32).abs() < 1e-5);
+        });
+    }
+
+    #[test]
+    fn test_norm_l1_l2_inf_are_real() {
+        crate::run(|g| {
+            // Use values that distinguish all three norms and do NOT match the
+            // old fabricated fallbacks (7.0 / 5.0 / 4.0).
+            let make = |ord: &str| {
+                let input = Tensor::from_vec(vec![1.0f32, -2.0, 2.0], vec![3], g);
+                LinalgContext::new(LinalgOperation::Norm)
+                    .add_input(input)
+                    .add_parameter("ord".to_string(), LinalgParameter::String(ord.to_string()))
+                    .execute()
+                    .expect("Operation failed")
+                    .primary_output
+                    .eval(g)
+                    .expect("norm must evaluate")[scirs2_core::ndarray::IxDyn(&[0])]
+            };
+
+            // L1 = |1| + |-2| + |2| = 5
+            assert!((make("1") - 5.0f32).abs() < 1e-5);
+            // L2 = sqrt(1 + 4 + 4) = 3
+            assert!((make("2") - 3.0f32).abs() < 1e-5);
+            // inf = max(1, 2, 2) = 2
+            assert!((make("inf") - 2.0f32).abs() < 1e-5);
+        });
+    }
+
+    #[test]
+    fn test_det_computation_is_real() {
+        crate::run(|g| {
+            // det([[1,2],[3,4]]) = 1*4 - 2*3 = -2. The old impl returned the
+            // placeholder 1.0 for every matrix.
+            let input = Tensor::from_vec(vec![1.0f32, 2.0, 3.0, 4.0], vec![2, 2], g);
+            let context = LinalgContext::new(LinalgOperation::Det).add_input(input);
+
+            let result = context.execute().expect("Operation failed");
+            let evaluated = result
+                .primary_output
+                .eval(g)
+                .expect("det tensor must evaluate");
+            let value = evaluated[scirs2_core::ndarray::IxDyn(&[0])];
+            assert!(
+                (value - (-2.0f32)).abs() < 1e-4,
+                "expected det -2, got {value}"
+            );
         });
     }
 

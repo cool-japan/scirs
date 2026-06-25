@@ -3,7 +3,7 @@
 ## Quick Start
 
 ```bash
-cd /Users/kitasan/work/scirs
+cd <path-to-scirs-repo>
 
 # Run all v0.3.0 benchmarks
 ./benches/v030_run_all_benchmarks.sh
@@ -120,7 +120,7 @@ JSON results are saved to `/tmp/`:
 - `/tmp/scirs2_v030_series_results.json`
 
 HTML reports are in:
-- `/Users/kitasan/work/scirs/target/criterion/`
+- `<repo-root>/target/criterion/`
 - Open `target/criterion/report/index.html` in a browser
 
 Aggregated reports in `/tmp/scirs2_v030_reports/`:

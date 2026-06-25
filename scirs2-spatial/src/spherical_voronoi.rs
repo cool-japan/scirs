@@ -10,7 +10,7 @@
 
 use crate::delaunay::Delaunay;
 use crate::error::{SpatialError, SpatialResult};
-use num::traits::Float;
+use num_traits::Float;
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Dim};
 use std::f64::consts::PI;
 use std::fmt;

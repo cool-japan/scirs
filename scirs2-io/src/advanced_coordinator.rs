@@ -1331,40 +1331,98 @@ pub struct AdvancedStatistics {
     pub overall_system_efficiency: f32,
 }
 
-// Supporting system components (simplified implementations)
+// Supporting system components
 
+/// Meta-learning system that tracks adaptations across processing contexts.
+///
+/// All reported metrics are derived from the actual learned state recorded
+/// during processing, not from fabricated constants.
 struct MetaLearningSystem {
-    // Meta-learning implementation would go here
+    /// Context insights accumulated during adaptation, keyed by insight name.
+    context_insights: HashMap<String, f32>,
+    /// Domain-specific patterns that have been extracted from observed data.
+    learned_patterns: Vec<DomainPattern>,
+    /// Transferable optimizations derived from the learned patterns.
+    transferable_optimizations: Vec<TransferableOptimization>,
+    /// Number of distinct contexts the system has adapted to.
+    adaptation_count: usize,
 }
 
 impl MetaLearningSystem {
     fn new() -> Self {
-        Self {}
+        Self {
+            context_insights: HashMap::new(),
+            learned_patterns: Vec::new(),
+            transferable_optimizations: Vec::new(),
+            adaptation_count: 0,
+        }
     }
 
     fn adapt_to_context(&mut self, intelligence: &ComprehensiveIntelligence) -> Result<()> {
+        // Record concrete, measured signals from the gathered intelligence so
+        // that the reported insights reflect real observations.
+        self.context_insights
+            .insert("data_entropy".to_string(), intelligence.data_entropy);
+        self.context_insights.insert(
+            "compression_potential".to_string(),
+            intelligence.compression_potential,
+        );
+        self.context_insights.insert(
+            "parallelization_potential".to_string(),
+            intelligence.parallelization_potential,
+        );
+        self.adaptation_count += 1;
         Ok(())
     }
 
     fn get_current_insights(&self) -> HashMap<String, f32> {
-        HashMap::new()
+        self.context_insights.clone()
     }
 
-    /// Extract domain-specific patterns from data
-    fn extract_domain_patterns(
-        &mut self,
-        data: &[u8],
-        _domain: &str,
-    ) -> Result<Vec<DomainPattern>> {
-        // Extract patterns specific to the given _domain
-        Ok(vec![DomainPattern {
-            pattern_type: "domain_specific".to_string(),
-            confidence: 0.8,
-            transferability: 0.7,
-        }])
+    /// Extract domain-specific patterns from data.
+    ///
+    /// Patterns are derived from measured statistical characteristics of the
+    /// input (entropy and byte-distribution skew) rather than fixed values, and
+    /// the extracted patterns are retained as part of the learned state.
+    fn extract_domain_patterns(&mut self, data: &[u8], domain: &str) -> Result<Vec<DomainPattern>> {
+        if data.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Shannon entropy over the byte distribution (bits per byte, 0..=8).
+        let mut counts = [0usize; 256];
+        for &byte in data {
+            counts[byte as usize] += 1;
+        }
+        let len = data.len() as f32;
+        let entropy_bits: f32 = counts
+            .iter()
+            .filter(|&&c| c > 0)
+            .map(|&c| {
+                let p = c as f32 / len;
+                -p * p.log2()
+            })
+            .sum();
+        // Normalize to 0..=1; lower-entropy data is more compressible and so its
+        // patterns are more confidently recognizable and transferable.
+        let normalized_entropy = (entropy_bits / 8.0).clamp(0.0, 1.0);
+        let confidence = (1.0 - normalized_entropy).clamp(0.05, 0.99);
+        let transferability = confidence * 0.9;
+
+        let pattern = DomainPattern {
+            pattern_type: format!("{domain}_distribution"),
+            confidence,
+            transferability,
+        };
+        self.learned_patterns.push(pattern.clone());
+        Ok(vec![pattern])
     }
 
-    /// Learn transferable optimizations from patterns
+    /// Learn transferable optimizations from patterns.
+    ///
+    /// Only patterns whose measured transferability exceeds the threshold yield
+    /// optimizations; the results are retained so downstream queries reflect the
+    /// real accumulated knowledge.
     fn learn_transferable_optimizations(
         &mut self,
         patterns: &[DomainPattern],
@@ -1382,76 +1440,186 @@ impl MetaLearningSystem {
             }
         }
 
+        self.transferable_optimizations
+            .extend(optimizations.iter().cloned());
         Ok(optimizations)
     }
 
-    /// Apply transferred knowledge to new data
+    /// Apply transferred knowledge to new data and return the expected
+    /// improvement percentage.
+    ///
+    /// The estimate is the mean effectiveness of the optimizations whose source
+    /// domains plausibly apply to this input, scaled to a percentage. With no
+    /// learned optimizations there is nothing to transfer, so the improvement is
+    /// zero rather than a fabricated figure.
     fn apply_transferred_knowledge(&self, data: &[u8]) -> Result<f64> {
-        // Apply learned knowledge and return improvement percentage
-        Ok(15.0) // 15% improvement
+        if self.transferable_optimizations.is_empty() || data.is_empty() {
+            return Ok(0.0);
+        }
+
+        let mean_effectiveness: f32 = self
+            .transferable_optimizations
+            .iter()
+            .map(|o| o.effectiveness)
+            .sum::<f32>()
+            / self.transferable_optimizations.len() as f32;
+
+        // Effectiveness in 0..=1 maps to an improvement percentage in 0..=100.
+        Ok((mean_effectiveness * 100.0) as f64)
     }
 
-    /// Get confidence in knowledge transfer
+    /// Get confidence in knowledge transfer for the given data.
+    ///
+    /// Confidence is the mean confidence of the learned patterns, attenuated
+    /// when little has been learned. Without any learned patterns there is no
+    /// basis for confidence, so this returns zero.
     fn get_transfer_confidence(&self, data: &[u8]) -> Result<f32> {
-        Ok(0.85) // 85% confidence
+        if self.learned_patterns.is_empty() || data.is_empty() {
+            return Ok(0.0);
+        }
+
+        let mean_confidence: f32 = self
+            .learned_patterns
+            .iter()
+            .map(|p| p.confidence)
+            .sum::<f32>()
+            / self.learned_patterns.len() as f32;
+
+        // A small sample of learned patterns should not yield high confidence;
+        // saturate toward the mean as more patterns accumulate.
+        let sample_factor = (self.learned_patterns.len() as f32 / 8.0).min(1.0);
+        Ok((mean_confidence * sample_factor).clamp(0.0, 1.0))
     }
 
-    /// Get total number of adaptations learned
+    /// Get total number of adaptations learned (count of adapted contexts).
     fn get_total_adaptations(&self) -> usize {
-        42 // Placeholder value
+        self.adaptation_count
     }
 
-    /// Get autonomous capabilities count
+    /// Get autonomous capabilities count.
+    ///
+    /// This reports the number of distinct transferable optimization types the
+    /// system has autonomously derived, which is a true measure of acquired
+    /// capability.
     fn get_autonomous_capabilities(&self) -> usize {
-        8 // Placeholder value
+        let mut distinct: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for opt in &self.transferable_optimizations {
+            distinct.insert(opt.optimization_type.as_str());
+        }
+        distinct.len()
     }
 }
 
+/// Performance intelligence analyzer.
+///
+/// Accumulates measured outcomes from each processed result and reports
+/// statistics computed from those samples. Before any data has been recorded
+/// the analyzer reports neutral zero values rather than fabricated figures.
 struct PerformanceIntelligence {
-    // Performance analysis implementation would go here
+    /// Number of processing results analyzed.
+    total_analyses: usize,
+    /// Most recent efficiency score recorded (0.0 to 1.0).
+    last_efficiency: f32,
+    /// Running sum of recorded efficiency scores, for averaging.
+    efficiency_sum: f64,
+    /// Running sum of recorded efficiency gains (improvement ratios).
+    efficiency_gain_sum: f64,
+    /// Running sum of recorded overall-quality scores.
+    quality_sum: f64,
+    /// Number of results whose efficiency met the success threshold.
+    successful_optimizations: usize,
 }
 
 impl PerformanceIntelligence {
+    /// Efficiency at or above this level is counted as a successful optimization.
+    const SUCCESS_THRESHOLD: f32 = 0.8;
+
     fn new() -> Self {
-        Self {}
+        Self {
+            total_analyses: 0,
+            last_efficiency: 0.0,
+            efficiency_sum: 0.0,
+            efficiency_gain_sum: 0.0,
+            quality_sum: 0.0,
+            successful_optimizations: 0,
+        }
+    }
+
+    fn ingest(&mut self, result: &ProcessingResult) {
+        self.total_analyses += 1;
+        self.last_efficiency = result.efficiency_score;
+        self.efficiency_sum += result.efficiency_score as f64;
+        self.efficiency_gain_sum += result.adaptive_improvements.efficiency_gain as f64;
+        self.quality_sum += result.quality_metrics.overall_quality as f64;
+        if result.efficiency_score >= Self::SUCCESS_THRESHOLD {
+            self.successful_optimizations += 1;
+        }
     }
 
     fn record_performance_data(
         &mut self,
         _intelligence: &ComprehensiveIntelligence,
-        _result: &ProcessingResult,
+        result: &ProcessingResult,
         _total_time: Duration,
     ) -> Result<()> {
+        self.ingest(result);
         Ok(())
     }
 
     fn get_statistics(&self) -> PerformanceIntelligenceStats {
+        // Prediction accuracy is approximated by the mean overall quality of the
+        // processed results; success rate is the fraction of results that met the
+        // efficiency threshold. Both are zero until samples exist.
+        let (prediction_accuracy, optimization_success_rate) = if self.total_analyses == 0 {
+            (0.0, 0.0)
+        } else {
+            (
+                (self.quality_sum / self.total_analyses as f64) as f32,
+                self.successful_optimizations as f32 / self.total_analyses as f32,
+            )
+        };
+
         PerformanceIntelligenceStats {
-            total_analyses: 0,
-            prediction_accuracy: 0.85,
-            optimization_success_rate: 0.92,
+            total_analyses: self.total_analyses,
+            prediction_accuracy,
+            optimization_success_rate,
         }
     }
 
-    /// Update efficiency metrics based on processing results
+    /// Update efficiency metrics based on processing results.
     fn update_efficiency_metrics(&mut self, result: &ProcessingResult) -> Result<()> {
-        // Update internal efficiency tracking based on processing results
+        self.ingest(result);
         Ok(())
     }
 
-    /// Get current system efficiency
+    /// Get current system efficiency (the most recently recorded score).
+    ///
+    /// Returns zero before any result has been recorded.
     fn get_current_efficiency(&self) -> f32 {
-        0.92 // 92% efficiency
+        self.last_efficiency
     }
 
-    /// Get overall improvement percentage
+    /// Get overall improvement percentage.
+    ///
+    /// Computed as the mean recorded efficiency gain expressed as a percentage.
+    /// An efficiency gain of `1.0` (i.e. no change) maps to `0%` improvement.
+    /// Returns zero before any result has been recorded.
     fn get_overall_improvement(&self) -> f64 {
-        25.5 // 25.5% overall improvement
+        if self.total_analyses == 0 {
+            return 0.0;
+        }
+        let mean_gain = self.efficiency_gain_sum / self.total_analyses as f64;
+        ((mean_gain - 1.0) * 100.0).max(0.0)
     }
 
-    /// Get current intelligence level
+    /// Get current intelligence level (the mean efficiency over all samples).
+    ///
+    /// Returns zero before any result has been recorded.
     fn get_intelligence_level(&self) -> f32 {
-        0.88 // 88% intelligence level
+        if self.total_analyses == 0 {
+            return 0.0;
+        }
+        (self.efficiency_sum / self.total_analyses as f64) as f32
     }
 }
 
@@ -1929,5 +2097,84 @@ mod tests {
         assert!(
             intelligence.compression_potential >= 0.0 && intelligence.compression_potential <= 1.0
         );
+    }
+
+    #[test]
+    fn test_meta_learning_reports_real_state() {
+        let mut meta = MetaLearningSystem::new();
+        // Fresh system has learned nothing: every metric must be zero, not a
+        // fabricated constant.
+        assert_eq!(meta.get_total_adaptations(), 0);
+        assert_eq!(meta.get_autonomous_capabilities(), 0);
+        assert_eq!(meta.apply_transferred_knowledge(b"abc").expect("ok"), 0.0);
+        assert_eq!(meta.get_transfer_confidence(b"abc").expect("ok"), 0.0);
+
+        // Learning from highly-structured (low-entropy) data should produce a
+        // confident, transferable pattern and at least one optimization.
+        let structured = vec![0u8; 256];
+        let patterns = meta
+            .extract_domain_patterns(&structured, "test")
+            .expect("patterns");
+        assert_eq!(patterns.len(), 1);
+        assert!(patterns[0].confidence > 0.5);
+        let opts = meta
+            .learn_transferable_optimizations(&patterns)
+            .expect("opts");
+        assert!(!opts.is_empty());
+
+        // Now the reported capability count and transfer estimates reflect the
+        // real accumulated state.
+        assert!(meta.get_autonomous_capabilities() >= 1);
+        assert!(meta.apply_transferred_knowledge(&structured).expect("ok") > 0.0);
+        assert!(meta.get_transfer_confidence(&structured).expect("ok") > 0.0);
+
+        // Empty data has no extractable patterns.
+        assert!(meta
+            .extract_domain_patterns(&[], "test")
+            .expect("ok")
+            .is_empty());
+    }
+
+    #[test]
+    fn test_performance_intelligence_reports_real_state() {
+        let mut perf = PerformanceIntelligence::new();
+        // Before any sample, all derived metrics are zero rather than fabricated.
+        assert_eq!(perf.get_current_efficiency(), 0.0);
+        assert_eq!(perf.get_overall_improvement(), 0.0);
+        assert_eq!(perf.get_intelligence_level(), 0.0);
+        let stats = perf.get_statistics();
+        assert_eq!(stats.total_analyses, 0);
+        assert_eq!(stats.prediction_accuracy, 0.0);
+
+        let result = ProcessingResult {
+            data: vec![1, 2, 3],
+            strategy_used: StrategyType::Advanced,
+            processing_time: Duration::from_millis(1),
+            efficiency_score: 0.9,
+            quality_metrics: QualityMetrics {
+                data_integrity: 1.0,
+                compression_efficiency: 0.9,
+                processing_accuracy: 0.95,
+                memory_efficiency: 0.9,
+                overall_quality: 0.92,
+            },
+            intelligence_level: IntelligenceLevel::Advanced,
+            adaptive_improvements: AdaptiveImprovements {
+                efficiency_gain: 1.2,
+                strategy_optimization: 0.9,
+                resource_utilization: 0.85,
+                learning_acceleration: 1.5,
+            },
+        };
+        perf.update_efficiency_metrics(&result).expect("ok");
+
+        // Metrics now reflect the recorded sample.
+        assert_eq!(perf.get_current_efficiency(), 0.9);
+        assert_eq!(perf.get_statistics().total_analyses, 1);
+        // efficiency_gain 1.2 -> 20% improvement (tolerance covers the f32->f64
+        // widening of the 1.2 gain value).
+        assert!((perf.get_overall_improvement() - 20.0).abs() < 1e-3);
+        // 0.9 >= success threshold, so success rate is 1.0.
+        assert_eq!(perf.get_statistics().optimization_success_rate, 1.0);
     }
 }

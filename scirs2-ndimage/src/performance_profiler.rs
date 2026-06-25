@@ -770,13 +770,39 @@ impl PerformanceReport {
 
 // Helper functions
 
+/// Query the current resident set size (physical memory) of this process, in bytes.
+///
+/// On Linux this parses the `VmRSS` entry of `/proc/self/status` (reported in
+/// kibibytes). On platforms where this information cannot be obtained, it
+/// returns `0` (memory tracking unavailable) rather than a fabricated value,
+/// so callers can detect that no real measurement exists.
 #[allow(dead_code)]
 fn get_current_memory_usage() -> usize {
-    // In a real implementation, this would use platform-specific APIs
-    // to get actual memory usage (e.g., /proc/self/status on Linux,
-    // GetProcessMemoryInfo on Windows, etc.)
-    // For now, return a placeholder value
-    1024 * 1024 * 100 // 100MB placeholder
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+            for line in status.lines() {
+                if let Some(rest) = line.strip_prefix("VmRSS:") {
+                    // Format: "VmRSS:\t   12345 kB"
+                    if let Some(kib) = rest
+                        .split_whitespace()
+                        .next()
+                        .and_then(|field| field.parse::<usize>().ok())
+                    {
+                        return kib.saturating_mul(1024);
+                    }
+                }
+            }
+        }
+        0
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        // No portable cross-platform RSS query is wired up yet; report 0 to
+        // signal that the measurement is unavailable instead of fabricating one.
+        0
+    }
 }
 
 #[allow(dead_code)]

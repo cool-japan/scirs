@@ -975,8 +975,3 @@ mod tests {
         assert!(result.nit > 0);
     }
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
-}

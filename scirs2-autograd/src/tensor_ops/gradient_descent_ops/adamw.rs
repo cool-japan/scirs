@@ -15,15 +15,6 @@ impl<F: Float> crate::op::Op<F> for AdamWOp<F> {
         // AdamW requires the same 5 inputs as Adam
         // param, grad, m, v, t
 
-        // Debug info
-        eprintln!(
-            "AdamWOp::compute - Number of inputs: {}",
-            ctx.inputs().len()
-        );
-        for (i, input) in ctx.inputs().iter().enumerate() {
-            eprintln!("Input {}: shape {:?}", i, input.shape());
-        }
-
         // Check if we have all the inputs we need
         if ctx.inputs().len() < 5 {
             return Err(OpError::IncompatibleShape(format!(

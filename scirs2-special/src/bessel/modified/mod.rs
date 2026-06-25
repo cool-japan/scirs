@@ -541,9 +541,9 @@ fn k_asymptotic(x: f64, mu: f64) -> f64 {
 /// ```
 /// use scirs2_special::bessel::modified::k1;
 ///
-/// // K₁(1) - test that it returns a reasonable value
+/// // K₁(1) ≈ 0.6019072301972346 (scipy verified)
 /// let k1_1 = k1(1.0f64);
-/// assert!(k1_1 > 0.5 && k1_1 < 0.6);
+/// assert!((k1_1 - 0.6019072301972346).abs() < 1e-8);
 /// ```
 #[allow(dead_code)]
 pub fn k1<F: Float + FromPrimitive + Debug>(x: F) -> F {

@@ -75,7 +75,7 @@
 #![cfg(feature = "smt")]
 
 use crate::eml::op::LoweredOp;
-use hashbrown::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 /// Identifies which transcendental function was applied to produce an
 /// Ackermann reduction constant.

@@ -34,7 +34,7 @@
 //! assert!(!upload.upload_id().is_empty());
 //!
 //! let status = upload.upload_chunk(0, b"hello ").expect("chunk");
-//! assert!(matches!(status, UploadStatus::Incomplete { bytes_received: 6 }));
+//! assert!(matches!(status, UploadStatus::Complete { total_bytes: 6 }));
 //!
 //! let total = upload.finalize().expect("finalize");
 //! assert_eq!(total, 6);

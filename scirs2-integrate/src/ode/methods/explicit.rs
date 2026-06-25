@@ -245,7 +245,7 @@ where
 /// # Example
 ///
 /// ```rust
-/// use scirs2_integrate::ode::methods::explicit::ssprk3_step;
+/// use scirs2_integrate::ode::methods::ssprk3_step;
 /// use scirs2_core::ndarray::Array1;
 ///
 /// // Scalar ODE: du/dt = -u  (exponential decay)
@@ -296,14 +296,14 @@ where
 /// # Example
 ///
 /// ```rust
-/// use scirs2_integrate::ode::methods::explicit::ssprk4_step;
+/// use scirs2_integrate::ode::methods::ssprk4_step;
 /// use scirs2_core::ndarray::Array1;
 ///
 /// // Scalar ODE: du/dt = -u  (exponential decay)
 /// let state = Array1::from_vec(vec![1.0_f64]);
 /// let rhs = |u: &Array1<f64>, _t: f64| -u.clone();
 /// let next = ssprk4_step(&state, 0.0, 0.1, &rhs);
-/// // next ≈ e^{-0.1} ≈ 0.9048
+/// // 4th-order accurate: next ≈ e^{-0.1} ≈ 0.9048
 /// assert!((next[0] - (-0.1_f64).exp()).abs() < 1e-5);
 /// ```
 pub fn ssprk4_step<S, F>(state: &S, t: f64, dt: f64, rhs: &F) -> S
@@ -311,40 +311,40 @@ where
     S: Clone + std::ops::Add<Output = S> + std::ops::Mul<f64, Output = S>,
     F: Fn(&S, f64) -> S,
 {
-    // Spiteri-Ruuth SSP(5,4) Butcher coefficients.
+    // Spiteri-Ruuth (2002) optimal SSP(5,4) coefficients.
     // Abscissae (Runge-Kutta c-values):
-    //   c₁ = 0.391752226571890
-    //   c₂ = 0.586079152584480
-    //   c₃ = 0.474542363121968
-    //   c₄ = 0.935010630967653
-    const C1: f64 = 0.391_752_226_571_89;
-    const C2: f64 = 0.586_079_152_584_48;
-    const C3: f64 = 0.474_542_363_121_968;
+    const C1: f64 = 0.391_752_226_571_890;
+    const C2: f64 = 0.586_079_689_311_540;
+    const C3: f64 = 0.474_542_363_121_400;
     const C4: f64 = 0.935_010_630_967_653;
 
-    // Stage 1: u¹ = uⁿ + c₁·dt · L(uⁿ, t)
+    // Stage 1
     let l0 = rhs(state, t);
-    let u1 = state.clone() + l0 * (C1 * dt);
+    let u1 = state.clone() + l0 * (0.391_752_226_571_890 * dt);
 
-    // Stage 2: u² = 0.444370493651235·uⁿ + 0.555629506348765·(u¹ + c₁·dt · L(u¹, t + c₁·dt))
+    // Stage 2
     let l1 = rhs(&u1, t + C1 * dt);
     let u2 = state.clone() * 0.444_370_493_651_235
-        + (u1.clone() + l1 * (C1 * dt)) * 0.555_629_506_348_765;
+        + u1 * 0.555_629_506_348_765
+        + l1 * (0.368_410_593_050_371 * dt);
 
-    // Stage 3: u³ = 0.620101851488403·uⁿ + 0.379898148511597·(u² + 0.251891774271694·dt · L(u², t + c₂·dt))
+    // Stage 3
     let l2 = rhs(&u2, t + C2 * dt);
     let u3 = state.clone() * 0.620_101_851_488_403
-        + (u2 + l2 * (0.251_891_774_271_694 * dt)) * 0.379_898_148_511_597;
+        + u2.clone() * 0.379_898_148_511_597
+        + l2 * (0.251_891_774_271_694 * dt);
 
-    // Stage 4: u⁴ = 0.178079954393132·uⁿ + 0.821920045606868·(u³ + 0.544974750228521·dt · L(u³, t + c₃·dt))
+    // Stage 4 (reuses L(u3) computed below)
     let l3 = rhs(&u3, t + C3 * dt);
     let u4 = state.clone() * 0.178_079_954_393_132
-        + (u3 + l3 * (0.544_974_750_228_521 * dt)) * 0.821_920_045_606_868;
+        + u3.clone() * 0.821_920_045_606_868
+        + l3.clone() * (0.544_974_750_228_521 * dt);
 
-    // Stage 5 (final): uⁿ⁺¹ = 0.517231671970585·uⁿ + 0.096059710526147·u¹
-    //                         + 0.386708617503268·(u⁴ + 0.226007483236906·dt · L(u⁴, t + c₄·dt))
+    // Final combination
     let l4 = rhs(&u4, t + C4 * dt);
-    state.clone() * 0.517_231_671_970_585
-        + u1 * 0.096_059_710_526_147
-        + (u4 + l4 * (0.226_007_483_236_906 * dt)) * 0.386_708_617_503_268
+    u2 * 0.517_231_671_970_585
+        + u3 * 0.096_059_710_526_147
+        + l3 * (0.063_692_468_666_290 * dt)
+        + u4 * 0.386_708_617_503_269
+        + l4 * (0.226_007_483_236_906 * dt)
 }

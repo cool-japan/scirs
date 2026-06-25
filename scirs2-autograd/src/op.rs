@@ -52,13 +52,8 @@ use std::marker::PhantomData;
 
 pub use crate::error::OpError;
 use crate::ndarray_ext::{NdArrayView, NdArrayViewMut};
-use crate::smallvec::SmallVec as RawSmallVec;
 use crate::tensor::Tensor;
 use crate::{Float, NdArray};
-
-pub(crate) const DEFAULT_NUM_EDGES: usize = 2;
-
-pub(crate) type SmallVec<T> = RawSmallVec<[T; DEFAULT_NUM_EDGES]>;
 
 /// Trait for tensor operations. `Tensor` structs wrap this.
 pub trait Op<F: Float> {

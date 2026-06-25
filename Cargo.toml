@@ -42,6 +42,7 @@ members = [
     "scirs2-validation", # Shared statistical validation framework
     "scirs2-symbolic",   # Symbolic math: expression trees, differentiation, simplification
     "scirs2-symbolic-macros",  # Proc-macro DSL for scirs2-symbolic pattern matching rules
+    "scirs2-stability-tests",  # Compile-fail tests for public API stability
 ]
 resolver = "2"
 
@@ -72,7 +73,7 @@ android_min_api = 21
 supported_architectures = ["aarch64", "armv7"]
 
 [workspace.package]
-version = "0.5.0"  # scirs2 0.5.0
+version = "0.5.1"  # scirs2 0.5.1
 edition = "2021"
 authors = ["COOLJAPAN OU (Team KitaSan)"]
 description = "A Rust port of SciPy with AI/ML extensions - Scientific Computing and AI Library"
@@ -104,10 +105,7 @@ windows-sys = { version = "0.61", default-features = false }  # Windows system A
 # Random number generation
 rand = "0.10.1"
 rand_distr = "0.6.0"
-rand_core = "0.10.1"
-rand_pcg = "0.10.2"
 rand_chacha = "0.10.0"
-fastrand = "2.4.1"
 
 # Development and testing
 thiserror = "2.0.18"
@@ -123,7 +121,7 @@ cc = "1.2.61"  # Build-time C/C++/Objective-C compiler (used only when mpsgraph 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # OxiCode - Modern successor to bin-code with SIMD optimization
-oxicode = { version = "0.2.3", features = ["serde", "simd"] }
+oxicode = { version = "0.2.4", features = ["serde", "simd"] }
 chrono = "0.4.44"
 
 # Python bindings (optional)
@@ -132,27 +130,25 @@ chrono = "0.4.44"
 pyo3 = { version = "0.28.3", default-features = false, features = ["macros"] }
 pyo3-build-config = { version = "0.28", features = ["resolve-config"] }
 numpy = { version = "0.28.0" }  # Keep for non-SciRS2 compatibility
-scirs2-numpy = { version = "0.5.0", path = "./scirs2-numpy" }  # SciRS2 fork with ndarray 0.17
+scirs2-numpy = { version = "0.5.1", path = "./scirs2-numpy" }  # SciRS2 fork with ndarray 0.17
 
 # Linear algebra and math (heavy dependencies - minimize features)
 nalgebra = { version = "0.34.2", default-features = false }
-argmin = { version = "0.11.0", default-features = false }
-sprs = { version = "0.11.4", default-features = false }
 
 # OxiFFT - Pure Rust high-performance FFT (FFTW-compatible algorithms)
 oxifft = { version = "0.3.2" }
 
 # OxiBLAS - Pure Rust BLAS/LAPACK implementation (replaces OpenBLAS)
 # Using crates.io 0.2 series for stable releases
-oxiblas = { version = "0.2.1", features = ["parallel"] }
 oxiblas-ndarray = { version = "0.2.1" }
 oxiblas-blas = { version = "0.2.1" }
 oxiblas-lapack = { version = "0.2.1" }
-oxiblas-core = { version = "0.2.1" }
-oxiblas-matrix = { version = "0.2.1" }
 
 # OxiZ - Pure Rust SMT solver (powers scirs2-symbolic SMT-pruned regression in v0.4.5+)
-oxiz = { version = "0.2.2" }
+oxiz = { version = "0.2.3" }
+
+# OxiEML - Pure Rust EML expression/machine-learning library (used by scirs2-symbolic dev)
+oxieml = { version = "0.1.3" }
 
 # Cranelift JIT (powers scirs2-symbolic compile::to_jit; gated behind crate-local `jit` feature)
 cranelift-codegen = { version = "0.131" }
@@ -168,13 +164,11 @@ cranelift-module = { version = "0.131" }
 # NOTE: All OpenBLAS/system BLAS dependencies removed - using pure Rust OxiBLAS
 
 # Serialization and data handling
-either = "1.15.0"
 csv = "1.4.0"
 image = "0.25.10"
-image-025 = { package = "image", version = "0.25.10", features = ["jpeg", "png", "gif"] }
 
 # IO and file handling
-blake3 = "1.8.5"
+blake3 = { version = "1.8.5", features = ["pure"] }  # pure: no C/ASM kernels (COOLJAPAN Pure Rust Policy)
 regex = "1.12.3"
 libc = "0.2.186"
 cached = "0.59.0"
@@ -182,30 +176,19 @@ byteorder = "1.5"
 rmp-serde = "1.3"
 sha2 = "0.11"
 crc32fast = "1.5"
-hex = "0.4"
-digest = "0.11"
-data-encoding = "2.11"
-glob = "0.3"
-oxiarc-archive = "0.3.1"  # Pure Rust archive support (COOLJAPAN Policy)
-oxiarc-lz4 = "0.3.1"  # Pure Rust LZ4 compression (COOLJAPAN Policy)
-oxiarc-bzip2 = "0.3.1"  # Pure Rust BZIP2 compression (COOLJAPAN Policy)
-oxiarc-zstd = "0.3.1"  # Pure Rust Zstandard compression (COOLJAPAN Policy)
-oxiarc-core = "0.3.1"  # Pure Rust compression core (COOLJAPAN Policy)
-oxiarc-deflate = "0.3.1"  # Pure Rust DEFLATE/GZIP compression (COOLJAPAN Policy)
-urlencoding = "2.1"
+oxiarc-archive = "0.3.3"  # Pure Rust archive support (COOLJAPAN Policy)
+oxiarc-lz4 = "0.3.3"  # Pure Rust LZ4 compression (COOLJAPAN Policy)
+oxiarc-bzip2 = "0.3.3"  # Pure Rust BZIP2 compression (COOLJAPAN Policy)
+oxiarc-zstd = "0.3.3"  # Pure Rust Zstandard compression (COOLJAPAN Policy)
+oxiarc-deflate = "0.3.3"  # Pure Rust DEFLATE/GZIP compression (COOLJAPAN Policy)
 url = "2.5.8"
 cron = "0.16"
 
 # ML specific
-tokenizers = "0.23.1"
-autograd = "1.1.1"
-smallvec = "1.15.1"
 uuid = { version = "1.23.1", features = ["v4"] }
 rustc-hash = "2.1.2"
 matrixmultiply = "0.3.10"
-num = "0.4.3"
 special = "0.13.1"
-special-11 = { package = "special", version = "0.13.1" }
 unicode-normalization = "0.1"
 unicode-segmentation = "1.13"
 lazy_static = "1.5"
@@ -220,8 +203,8 @@ crossbeam-deque = { version = "0.8.6" }
 crossbeam-channel = { version = "0.5.15" }
 memmap2 = { version = "0.9.10" }
 bytemuck = { version = "1.25", features = ["derive"] }
-oxiarc-snappy = "0.3.1"  # Pure Rust Snappy compression (COOLJAPAN Policy)
-oxiarc-brotli = "0.3.1"  # Pure Rust Brotli compression (COOLJAPAN Policy)
+oxiarc-snappy = "0.3.3"  # Pure Rust Snappy compression (COOLJAPAN Policy)
+oxiarc-brotli = "0.3.3"  # Pure Rust Brotli compression (COOLJAPAN Policy)
 plotly = { version = "0.14.1" }
 plotters = { version = "0.3.7", default-features = false, features = ["bitmap_backend", "bitmap_encoder", "svg_backend", "all_series", "all_elements", "full_palette", "colormaps", "ab_glyph"] }
 printpdf = { version = "0.9.1", default-features = false }
@@ -229,19 +212,16 @@ reqwest = { version = "0.13", features = ["blocking", "json"] }
 
 # Math libraries
 libm = "0.2"
-array-init = "2.1.0"
 
 # Fixed-point arithmetic for no_std environments
 fixed = { version = "1.31.0", default-features = false }
 netcdf3 = "0.6.0"
-sobol = "1.0.2"
-halton = "0.2.1"
 ordered-float = "5.3.0"
 kamadak-exif = "0.6"
 hdf5 = "0.8.1"
 # Pure-Rust HDF5 reader (replaces hdf5 C-linked crate; read-only at M1)
-oxih5-core = "0.1"
-oxih5-format = "0.1"
+oxih5-core = "0.1.3"
+oxih5-format = "0.1.3"
 ureq = { version = "3.3", default-features = false, features = ["rustls-no-provider", "gzip"] }
 # PURE RUST BLOCKER (ureq): ureq's default "rustls" feature activates "_ring" (= rustls/ring, C/ASM crypto).
 # Changed to "rustls-no-provider" + "gzip" to remove ring from the default closure.
@@ -255,13 +235,12 @@ ciborium = "0.2.2"
 # Arbitrary precision libraries
 num-bigint = "0.4.6"
 num-rational = "0.4.2"
-rug = { version = "1.30.0", features = ["integer", "float", "rational", "complex"], default-features = false }
-# oxinum-* Pure Rust arbitrary precision (GMP/MPFR-free); replaces rug for Int/Float/Rational.
-# Complex support pending upstream oxinum-complex crate.
-oxinum-core     = "0.1"
-oxinum-int      = "0.1"
-oxinum-float    = "0.1"
-oxinum-rational = "0.1"
+# oxinum-* Pure Rust arbitrary precision (GMP/MPFR-free); replaces rug entirely.
+oxinum-core     = "0.1.2"
+oxinum-int      = "0.1.2"
+oxinum-float    = "0.1.2"
+oxinum-rational = "0.1.2"
+oxinum-complex  = "0.1.2"
 
 # There were compatibility issues with chrono
 arrow = "58.1.0"
@@ -305,7 +284,6 @@ quote = { version = "1" }
 syn = { version = "2", features = ["full"] }
 
 # Development and testing additions
-ctor = { version = "0.12" }
 quickcheck = { version = "1.1" }
 quickcheck_macros = { version = "1.2" }
 proptest = { version = "1.11.0" }
@@ -313,13 +291,11 @@ proptest = { version = "1.11.0" }
 # Data structures
 indexmap = { version = "2.14" }
 ahash = { version = "0.8" }
-hashbrown = "0.17"
 
 # Database drivers
-rusqlite = { version = "0.37" }
 # Pure-Rust SQLite-compatible backend (Limbo engine, alpha; ROLLBACK/savepoints incomplete)
-oxisql-core = "0.1"
-oxisql-sqlite-compat = "0.1"
+oxisql-core = "0.3.1"
+oxisql-sqlite-compat = "0.3.1"
 # sqlx removed - not used (postgres/mysql implementations are stubs)
 # mongodb removed - stub only, not actually used
 # redis removed - stub only, not actually used
@@ -333,9 +309,7 @@ tonic = { version = "0.14" }
 
 # CLI and utilities
 clap = { version = "4.6" }
-
-# Cryptography
-rsa = { version = "0.9" }
+walkdir = "2"
 
 # WASM support
 wasm-bindgen = { version = "0.2" }
@@ -347,6 +321,7 @@ serde-wasm-bindgen = { version = "0.6" }
 console_error_panic_hook = { version = "0.1.7" }  # Optional marking should be in individual crate Cargo.toml
 getrandom = { version = "0.4", features = ["wasm_js"] }  # WASM-compatible RNG (v0.4 uses wasm_js feature)
 getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }  # WASM-compatible RNG for transitive deps using getrandom 0.3
+getrandom_v2 = { package = "getrandom", version = "0.2", default-features = false }  # WASM-compatible RNG for transitive deps using getrandom 0.2
 
 # Monitoring and Observability
 prometheus = { version = "0.14" }
@@ -355,9 +330,6 @@ prometheus = { version = "0.14" }
 tracing = { version = "0.1.44" }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json", "registry", "std"] }
 tracing-appender = { version = "0.2" }
-tracing-flame = { version = "0.2" }
-tracing-chrome = { version = "0.7.2" }
-tracing-opentelemetry = { version = "0.32" }
 
 # OpenTelemetry
 opentelemetry = { version = "0.31.0" }
@@ -386,39 +358,39 @@ pyo3-async-runtimes = { version = "0.28.0", default-features = false, features =
 # Python integration (optional)
 
 # Base scirs2 crates
-scirs2-core = { version = "0.5.0", path = "./scirs2-core", default-features = false }
-scirs2 = { version = "0.5.0", path = "./scirs2", default-features = false }
-scirs2-linalg = { version = "0.5.0", path = "./scirs2-linalg", default-features = false }
-scirs2-integrate = { version = "0.5.0", path = "./scirs2-integrate", default-features = false }
-scirs2-interpolate = { version = "0.5.0", path = "./scirs2-interpolate", default-features = false }
-scirs2-optimize = { version = "0.5.0", path = "./scirs2-optimize", default-features = false }
-scirs2-fft = { version = "0.5.0", path = "./scirs2-fft", default-features = false }
-scirs2-stats = { version = "0.5.0", path = "./scirs2-stats", default-features = false }
-scirs2-special = { version = "0.5.0", path = "./scirs2-special", default-features = false }
-scirs2-signal = { version = "0.5.0", path = "./scirs2-signal", default-features = false }
-scirs2-sparse = { version = "0.5.0", path = "./scirs2-sparse" }
-scirs2-spatial = { version = "0.5.0", path = "./scirs2-spatial" }
+scirs2-core = { version = "0.5.1", path = "./scirs2-core", default-features = false }
+scirs2 = { version = "0.5.1", path = "./scirs2", default-features = false }
+scirs2-linalg = { version = "0.5.1", path = "./scirs2-linalg", default-features = false }
+scirs2-integrate = { version = "0.5.1", path = "./scirs2-integrate", default-features = false }
+scirs2-interpolate = { version = "0.5.1", path = "./scirs2-interpolate", default-features = false }
+scirs2-optimize = { version = "0.5.1", path = "./scirs2-optimize", default-features = false }
+scirs2-fft = { version = "0.5.1", path = "./scirs2-fft", default-features = false }
+scirs2-stats = { version = "0.5.1", path = "./scirs2-stats", default-features = false }
+scirs2-special = { version = "0.5.1", path = "./scirs2-special", default-features = false }
+scirs2-signal = { version = "0.5.1", path = "./scirs2-signal", default-features = false }
+scirs2-sparse = { version = "0.5.1", path = "./scirs2-sparse" }
+scirs2-spatial = { version = "0.5.1", path = "./scirs2-spatial" }
 
 # Advanced modules
-scirs2-cluster = { version = "0.5.0", path = "./scirs2-cluster" }
-scirs2-ndimage = { version = "0.5.0", path = "./scirs2-ndimage" }
-scirs2-io = { version = "0.5.0", path = "./scirs2-io" }
-scirs2-datasets = { version = "0.5.0", path = "./scirs2-datasets", default-features = false }
+scirs2-cluster = { version = "0.5.1", path = "./scirs2-cluster" }
+scirs2-ndimage = { version = "0.5.1", path = "./scirs2-ndimage" }
+scirs2-io = { version = "0.5.1", path = "./scirs2-io" }
+scirs2-datasets = { version = "0.5.1", path = "./scirs2-datasets", default-features = false }
 
 # AI/ML modules
-scirs2-neural = { version = "0.5.0", path = "./scirs2-neural" }
+scirs2-neural = { version = "0.5.1", path = "./scirs2-neural" }
 # scirs2-optim moved to independent OptiRS project
-scirs2-graph = { version = "0.5.0", path = "./scirs2-graph" }
-scirs2-transform = { version = "0.5.0", path = "./scirs2-transform" }
-scirs2-metrics = { version = "0.5.0", path = "./scirs2-metrics", default-features = false }
-scirs2-text = { version = "0.5.0", path = "./scirs2-text" }
-scirs2-vision = { version = "0.5.0", path = "./scirs2-vision" }
-scirs2-series = { version = "0.5.0", path = "./scirs2-series" }
-scirs2-autograd = { version = "0.5.0", path = "./scirs2-autograd" }
-scirs2-wasm = { version = "0.5.0", path = "./scirs2-wasm" }  # WebAssembly bindings
-scirs2-python = { version = "0.5.0", path = "./scirs2-python" }  # Python bindings
-scirs2-symbolic = { version = "0.5.0", path = "./scirs2-symbolic" }  # Symbolic math
-scirs2-symbolic-macros = { version = "0.5.0", path = "./scirs2-symbolic-macros" }  # Proc-macro DSL
+scirs2-graph = { version = "0.5.1", path = "./scirs2-graph" }
+scirs2-transform = { version = "0.5.1", path = "./scirs2-transform" }
+scirs2-metrics = { version = "0.5.1", path = "./scirs2-metrics", default-features = false }
+scirs2-text = { version = "0.5.1", path = "./scirs2-text" }
+scirs2-vision = { version = "0.5.1", path = "./scirs2-vision" }
+scirs2-series = { version = "0.5.1", path = "./scirs2-series" }
+scirs2-autograd = { version = "0.5.1", path = "./scirs2-autograd" }
+scirs2-wasm = { version = "0.5.1", path = "./scirs2-wasm" }  # WebAssembly bindings
+scirs2-python = { version = "0.5.1", path = "./scirs2-python" }  # Python bindings
+scirs2-symbolic = { version = "0.5.1", path = "./scirs2-symbolic" }  # Symbolic math
+scirs2-symbolic-macros = { version = "0.5.1", path = "./scirs2-symbolic-macros" }  # Proc-macro DSL
 
 
 [profile.release]

@@ -5,7 +5,7 @@
 //!
 //! # Problem Statement
 //!
-//! The PyO3 `numpy` crate (v0.27) expects types from `ndarray` v0.16. When scirs2-core
+//! The PyO3 `numpy` crate (v0.28.3) delegates NumPy bindings to `scirs2-numpy` v0.5.0. When scirs2-core
 //! uses `ndarray` v0.17 by default, there's a type incompatibility. Python integration
 //! modules must explicitly use `ndarray16` types to ensure compatibility with numpy.
 //!
@@ -83,7 +83,9 @@ where
     let array_ref = readonly.as_array();
 
     // Always create owned array for safety
-    // TODO: Investigate true zero-copy with lifetimes
+    // Zero-copy path: use `numpy_readonly_to_scirs_view` for a lifetime-bounded
+    // `ArrayViewD<'a, T>` that avoids the allocation here. This owned-copy path
+    // exists for callers that need owned data or mutable access.
     Ok(array_ref.to_owned())
 }
 

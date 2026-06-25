@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-neural = "0.5.0"
+//! scirs2-neural = "0.5.1"
 //! ```
 //!
 //! ### Building a Simple Neural Network
@@ -261,7 +261,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.5.0**
+//! Current version: **0.5.1**
 
 pub mod activations;
 pub mod activations_minimal;
@@ -270,12 +270,13 @@ pub mod callbacks;
 pub mod data;
 pub mod distillation;
 pub mod error;
-pub mod ops;
-// pub mod gpu; // Disabled in minimal version - has syntax errors
+pub mod gpu; // GPU acceleration (honest device detection; real GPU via scirs2_core::gpu)
 pub mod layers;
 pub mod linalg; // Re-enabled - fixing errors
 pub mod losses;
+pub mod model_evaluation;
 pub mod models;
+pub mod ops;
 pub mod optimizers;
 pub mod quantization;
 pub mod serialization;
@@ -330,10 +331,18 @@ pub mod wasm; // WASM bindings (fixed)
 pub use activations::SymbolicActivation;
 pub use activations_minimal::{Activation, ReLU, Sigmoid, Softmax, Tanh, GELU};
 pub use error::{Error, NeuralError, Result};
+// Enhanced model evaluation tools (classification/regression metrics, CV, bootstrap CIs).
+// `CrossValidationStrategy` is intentionally not re-exported here to avoid a name
+// clash with `evaluation::CrossValidationStrategy`; use the full path
+// `model_evaluation::CrossValidationStrategy` when needed.
 #[cfg(feature = "symbolic")]
 pub use losses::SymbolicLoss;
 #[cfg(feature = "symbolic")]
 pub use losses::SymbolicPriorLoss;
+pub use model_evaluation::{
+    AveragingMethod, ClassificationMetric, EvaluationBuilder, EvaluationMetric, EvaluationResults,
+    MetricScore, ModelEvaluator, RegressionMetric,
+};
 #[cfg(feature = "symbolic")]
 pub mod symbolic;
 pub use layers::{

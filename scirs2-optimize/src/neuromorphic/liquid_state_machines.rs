@@ -115,7 +115,30 @@ impl LiquidStateMachine {
     }
 }
 
-/// LSM-based optimization
+/// Finite-difference gradient of `objective` at `params`.
+fn lsm_finite_difference_gradient<F>(objective: &F, params: &Array1<f64>) -> Array1<f64>
+where
+    F: Fn(&ArrayView1<f64>) -> f64,
+{
+    let n = params.len();
+    let mut gradient = Array1::zeros(n);
+    let h = 1e-6;
+    let f0 = objective(&params.view());
+    for i in 0..n {
+        let mut params_plus = params.clone();
+        params_plus[i] += h;
+        gradient[i] = (objective(&params_plus.view()) - f0) / h;
+    }
+    gradient
+}
+
+/// LSM-based optimization.
+///
+/// Liquid-state-machine-modulated gradient descent: the reservoir encodes the
+/// parameter trajectory into a high-dimensional nonlinear state whose activity
+/// adapts the per-step learning rate, while the descent direction is the true
+/// objective gradient. The optimization is therefore genuinely driven by the
+/// objective, and the best solution encountered is returned.
 #[allow(dead_code)]
 pub fn lsm_optimize<F>(
     objective: F,
@@ -132,28 +155,33 @@ where
     let mut lsm = LiquidStateMachine::new(input_size, reservoir_size, output_size);
     let mut params = initial_params.to_owned();
 
+    let base_lr = 0.05;
+    let mut best_params = params.clone();
+    let mut best_value = objective(&params.view());
+
     for _iter in 0..num_nit {
-        // Use current parameters as input
+        // The reservoir encodes the current parameters into its nonlinear state.
         lsm.update_reservoir(&params.view());
 
-        // Get output (parameter updates)
-        let updates = lsm.compute_output();
+        // True objective gradient provides the descent direction.
+        let gradient = lsm_finite_difference_gradient(&objective, &params);
 
-        // Apply updates
+        // Reservoir activity modulates the learning rate: a more active state
+        // (a more turbulent trajectory) yields smaller, more cautious steps.
+        let activity =
+            lsm.reservoir_state.iter().map(|&s| s.abs()).sum::<f64>() / reservoir_size as f64;
+        let learning_rate = base_lr / (1.0 + activity);
+
         for i in 0..params.len() {
-            if i < updates.len() {
-                params[i] += 0.01 * updates[i];
-            }
+            params[i] -= learning_rate * gradient[i];
         }
 
-        // Evaluate objective for potential training signal
-        let _obj_val = objective(&params.view());
+        let value = objective(&params.view());
+        if value < best_value {
+            best_value = value;
+            best_params = params.clone();
+        }
     }
 
-    Ok(params)
-}
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
+    Ok(best_params)
 }

@@ -228,38 +228,45 @@ impl DistributedFFT {
         Ok(())
     }
 
-    /// Exchange _data between nodes to complete the distributed computation
+    /// Exchange local results between nodes to complete the distributed computation.
+    ///
+    /// The exchanged data is obtained from the [`Communicator`]; this function no
+    /// longer discards the communicator's output and substitutes the local slab.
+    /// With a single node the local result already is the complete result. With
+    /// multiple nodes the real exchanged buffer is returned, so a communicator
+    /// without a real transport surfaces an honest error rather than a silently
+    /// fabricated "exchange".
     fn exchange_data(&self, localresult: &ArrayD<Complex64>) -> FFTResult<ArrayD<Complex64>> {
-        // Simplified implementation
-        // In a real implementation, this would use the communicator to exchange _data
-        // based on the communication pattern
-
-        // For testing purposes, we'll just return the local _result
-        if self.config.node_count == 1 || self.config.rank == 0 {
+        // Single node: this rank holds the entire result already.
+        if self.config.node_count == 1 {
             return Ok(localresult.clone());
         }
 
-        // When multiple nodes are involved, we'd use the communicator
-        // This is a placeholder that would be replaced with actual communication code
+        // Flatten this node's contribution for communication.
+        let flattened: Vec<Complex64> = localresult.iter().copied().collect();
+
         match self.config.communication {
             CommunicationPattern::AllToAll => {
-                // Flatten the _data for communication
-                let flattened: Vec<Complex64> = localresult.iter().copied().collect();
-
-                // In a real implementation, this would do an all-to-all exchange
-                let _result = self.communicator.all_to_all(&flattened)?;
-
-                // For testing, just return the local _result
-                Ok(localresult.clone())
+                // Use the data the communicator actually exchanged. For the honest
+                // BasicCommunicator this returns the local data when size == 1 and
+                // errors for genuine multi-process runs (no transport); a real MPI
+                // communicator returns the gathered buffer.
+                let exchanged = self.communicator.all_to_all(&flattened)?;
+                Ok(ArrayD::from_shape_vec(IxDyn(&[exchanged.len()]), exchanged)
+                    .map_err(|e| FFTError::DimensionError(e.to_string()))?)
             }
-            CommunicationPattern::PointToPoint => {
-                // For point-to-point, we'd do a series of sends and receives
-                // This is a placeholder
-                Ok(localresult.clone())
-            }
-            _ => {
-                // Other patterns would have specific implementations
-                Ok(localresult.clone())
+            CommunicationPattern::PointToPoint
+            | CommunicationPattern::Neighbor
+            | CommunicationPattern::Hybrid => {
+                // These patterns require a concrete inter-process transport that is
+                // not implemented in this build. Returning the local slab here
+                // would fabricate a distributed result, so we report honestly.
+                Err(FFTError::NotImplementedError(format!(
+                    "Communication pattern {:?} is not implemented for multi-node \
+                     ({} nodes) distributed FFT; only single-node and AllToAll \
+                     (via the active communicator) are supported.",
+                    self.config.communication, self.config.node_count
+                )))
             }
         }
     }
@@ -787,25 +794,35 @@ impl BasicCommunicator {
 
 impl Communicator for BasicCommunicator {
     fn send(&self, data: &[Complex64], dest: usize, tag: usize) -> FFTResult<()> {
-        let _ = tag; // Unused in this simplified implementation
+        let _ = tag;
         if dest >= self.size {
             return Err(FFTError::ValueError(format!(
                 "Invalid destination rank: {} (size: {})",
                 dest, self.size
             )));
         }
-
-        // In a real implementation, this would send data to another process
-        // For demonstration, we'll just validate the input
         if data.is_empty() {
             return Err(FFTError::ValueError("Cannot send empty data".to_string()));
+        }
+
+        // This communicator has no real inter-process transport wired up. Sending
+        // to a peer other than ourselves cannot succeed, so we report that
+        // honestly instead of silently pretending the message was delivered. A
+        // self-send (dest == rank) is a no-op and is allowed.
+        if dest != self.rank {
+            return Err(FFTError::NotImplementedError(format!(
+                "BasicCommunicator has no inter-process transport: cannot send from \
+                 rank {} to rank {}. Use a real MPI-backed communicator for \
+                 multi-process runs.",
+                self.rank, dest
+            )));
         }
 
         Ok(())
     }
 
     fn recv(&self, src: usize, tag: usize, size: usize) -> FFTResult<Vec<Complex64>> {
-        let _ = tag; // Unused in this simplified implementation
+        let _ = (tag, size);
         if src >= self.size {
             return Err(FFTError::ValueError(format!(
                 "Invalid source rank: {} (size: {})",
@@ -813,21 +830,46 @@ impl Communicator for BasicCommunicator {
             )));
         }
 
-        // In a real implementation, this would receive data from another process
-        // For demonstration, we'll just return zeros
-        Ok(vec![Complex64::new(0.0, 0.0); size])
+        // No real transport exists, so we cannot receive genuine data from a peer.
+        // Returning fabricated zeros here would silently corrupt a distributed
+        // computation, so we return an explicit error instead.
+        Err(FFTError::NotImplementedError(format!(
+            "BasicCommunicator has no inter-process transport: cannot receive on \
+             rank {} from rank {}. Use a real MPI-backed communicator for \
+             multi-process runs.",
+            self.rank, src
+        )))
     }
 
     fn all_to_all(&self, senddata: &[Complex64]) -> FFTResult<Vec<Complex64>> {
-        // In a real implementation, this would perform an all-to-all communication
-        // For demonstration, we'll just return the same _data
-        Ok(senddata.to_vec())
+        // With a single process, an all-to-all exchange is the identity: the only
+        // participant both sends and receives its own data. This is a correct
+        // result, not a placeholder.
+        if self.size <= 1 {
+            return Ok(senddata.to_vec());
+        }
+
+        // For more than one process there is no real transport to gather peer
+        // contributions, so we must not fabricate a result.
+        Err(FFTError::NotImplementedError(format!(
+            "BasicCommunicator has no inter-process transport: all-to-all across \
+             {} processes is unavailable. Use a real MPI-backed communicator.",
+            self.size
+        )))
     }
 
     fn barrier(&self) -> FFTResult<()> {
-        // In a real implementation, this would synchronize all processes
-        // For demonstration, it's a no-op
-        Ok(())
+        // A barrier over a single process is trivially satisfied. With multiple
+        // processes there is nothing to synchronize against, so report honestly.
+        if self.size <= 1 {
+            Ok(())
+        } else {
+            Err(FFTError::NotImplementedError(format!(
+                "BasicCommunicator has no inter-process transport: barrier across \
+                 {} processes is unavailable. Use a real MPI-backed communicator.",
+                self.size
+            )))
+        }
     }
 
     fn size(&self) -> usize {

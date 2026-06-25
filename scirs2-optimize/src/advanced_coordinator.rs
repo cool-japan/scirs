@@ -1062,8 +1062,3 @@ mod tests {
         assert!(fused[1] < 3.0); // Closer to first solution
     }
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
-}

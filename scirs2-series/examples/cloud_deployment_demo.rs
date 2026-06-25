@@ -2,13 +2,14 @@
 //!
 //! This example demonstrates how to deploy and manage time series analysis
 //! workloads across major cloud platforms with automatic scaling and monitoring.
+//!
+//! Run with: `cargo run --example cloud_deployment_demo --features wasm`
 
-// TODO: Implement cloud_deployment module
-// #[cfg(feature = "wasm")]
-// use scirs2_series::cloud_deployment::{
-//     CloudDeploymentOrchestrator, CloudPlatform, CloudResourceConfig, CloudTimeSeriesJob,
-//     DeploymentConfig, JobPriority, ResourceRequirements, TimeSeriesJobType,
-// };
+#[cfg(feature = "wasm")]
+use scirs2_series::cloud_deployment::{
+    CloudDeploymentOrchestrator, CloudPlatform, CloudTimeSeriesJob, DeploymentConfig, JobPriority,
+    ResourceRequirements, TimeSeriesJobType,
+};
 
 #[cfg(feature = "wasm")]
 use std::collections::HashMap;
@@ -26,30 +27,25 @@ fn main() {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🚀 SciRS2 Cloud Deployment Demo");
     println!("================================");
-    println!("TODO: Cloud deployment module not yet implemented");
 
-    // TODO: Re-enable when cloud_deployment module is implemented
     // Demo 1: Development Environment
-    // demo_development_deployment()?;
+    demo_development_deployment()?;
 
     // Demo 2: Production Environment
-    // demo_production_deployment()?;
+    demo_production_deployment()?;
 
     // Demo 3: Multi-Cloud Deployment
-    // demo_multi_cloud_deployment()?;
+    demo_multi_cloud_deployment()?;
 
     // Demo 4: Auto-Scaling Demo
-    // demo_auto_scaling()?;
+    demo_auto_scaling()?;
 
-    println!("\n✅ Cloud deployment demo placeholder completed!");
+    println!("\n✅ Cloud deployment demo completed!");
     Ok(())
 }
 
-// TODO: Re-enable when cloud_deployment module is implemented
-/*
 /// Demonstrate development environment deployment
 #[cfg(feature = "wasm")]
-#[allow(dead_code)]
 fn demo_development_deployment() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🧪 Demo 1: Development Environment Deployment");
     println!("{}", "=".repeat(50));
@@ -82,7 +78,7 @@ fn demo_development_deployment() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Demonstrate production environment deployment
-#[allow(dead_code)]
+#[cfg(feature = "wasm")]
 fn demo_production_deployment() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n🏭 Demo 2: Production Environment Deployment");
     println!("{}", "=".repeat(50));
@@ -129,7 +125,7 @@ fn demo_production_deployment() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Demonstrate multi-cloud deployment
-#[allow(dead_code)]
+#[cfg(feature = "wasm")]
 fn demo_multi_cloud_deployment() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n☁️ Demo 3: Multi-Cloud Deployment");
     println!("{}", "=".repeat(50));
@@ -141,7 +137,7 @@ fn demo_multi_cloud_deployment() -> Result<(), Box<dyn std::error::Error>> {
     ];
 
     for (platform, region, instance_type) in platforms {
-        println!("\n🌐 Deploying on {:?} in region {}", platform, region);
+        println!("\n🌐 Deploying on {platform:?} in region {region}");
 
         // Create platform-specific configuration
         let mut config = DeploymentConfig::development();
@@ -165,7 +161,7 @@ fn demo_multi_cloud_deployment() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Demonstrate auto-scaling behavior
-#[allow(dead_code)]
+#[cfg(feature = "wasm")]
 fn demo_auto_scaling() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n📊 Demo 4: Auto-Scaling Demonstration");
     println!("{}", "=".repeat(50));
@@ -188,7 +184,7 @@ fn demo_auto_scaling() -> Result<(), Box<dyn std::error::Error>> {
 
     // Trigger auto-scaling multiple times
     for i in 1..=5 {
-        println!("\n📊 Auto-scaling check #{}", i);
+        println!("\n📊 Auto-scaling check #{i}");
         orchestrator.auto_scale()?;
         print_deployment_metrics(&orchestrator);
 
@@ -201,14 +197,14 @@ fn demo_auto_scaling() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Submit sample time series analysis jobs
-#[allow(dead_code)]
+#[cfg(feature = "wasm")]
 fn submit_sample_jobs(
     orchestrator: &mut CloudDeploymentOrchestrator,
     count: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n📤 Submitting {} sample jobs...", count);
+    println!("\n📤 Submitting {count} sample jobs...");
 
-    let job_types = vec![
+    let job_types = [
         TimeSeriesJobType::Forecasting,
         TimeSeriesJobType::AnomalyDetection,
         TimeSeriesJobType::Decomposition,
@@ -222,7 +218,7 @@ fn submit_sample_jobs(
         // Generate sample time series data
         let data: Vec<f64> = (0..100)
             .map(|x| {
-                let t = x as f64 * 0.1;
+                let t = f64::from(x) * 0.1;
                 2.0 * (2.0 * std::f64::consts::PI * t).sin()
                     + 0.5 * (10.0 * std::f64::consts::PI * t).sin()
                     + 0.1 * scirs2_core::random::random::<f64>()
@@ -245,7 +241,9 @@ fn submit_sample_jobs(
         );
         parameters.insert(
             "threshold".to_string(),
-            serde_json::Value::Number(serde_json::Number::from_f64(2.5).expect("Operation failed")),
+            serde_json::Value::Number(
+                serde_json::Number::from_f64(2.5).expect("2.5 is a valid f64 for JSON number"),
+            ),
         );
 
         let job = CloudTimeSeriesJob {
@@ -268,7 +266,7 @@ fn submit_sample_jobs(
         let job_id = orchestrator.submit_job(job)?;
 
         if i < 5 || i % 5 == 0 {
-            println!("  ✅ Submitted job: {}", job_id);
+            println!("  ✅ Submitted job: {job_id}");
         }
     }
 
@@ -280,7 +278,7 @@ fn submit_sample_jobs(
 }
 
 /// Print deployment metrics and status
-#[allow(dead_code)]
+#[cfg(feature = "wasm")]
 fn print_deployment_metrics(orchestrator: &CloudDeploymentOrchestrator) {
     println!("\n📊 Deployment Metrics:");
     println!("   Status: {:?}", orchestrator.get_status());
@@ -304,7 +302,8 @@ fn print_deployment_metrics(orchestrator: &CloudDeploymentOrchestrator) {
     }
 }
 
-/// Create custom deployment configuration
+/// Create a custom deployment configuration showcasing advanced options
+#[cfg(feature = "wasm")]
 #[allow(dead_code)]
 fn create_custom_config() -> DeploymentConfig {
     let mut config = DeploymentConfig::development();
@@ -331,7 +330,7 @@ fn create_custom_config() -> DeploymentConfig {
     config
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "wasm"))]
 mod tests {
     use super::*;
 
@@ -350,4 +349,3 @@ mod tests {
         assert!(config.security_config.encryption_at_rest);
     }
 }
-*/

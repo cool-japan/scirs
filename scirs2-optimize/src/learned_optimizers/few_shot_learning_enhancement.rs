@@ -1275,6 +1275,7 @@ impl LearnedOptimizer for FewShotLearningOptimizer {
         // Apply strategy to optimize
         let mut current_params = initial_params.to_owned();
         let mut best_value = objective(initial_params);
+        let mut best_params = current_params.clone();
         let mut iterations = 0;
 
         for iter in 0..strategy.convergence_criteria.max_nit {
@@ -1313,6 +1314,7 @@ impl LearnedOptimizer for FewShotLearningOptimizer {
 
             if current_value < best_value {
                 best_value = current_value;
+                best_params = current_params.clone();
             }
 
             // Check convergence
@@ -1322,7 +1324,7 @@ impl LearnedOptimizer for FewShotLearningOptimizer {
         }
 
         Ok(OptimizeResults::<f64> {
-            x: current_params,
+            x: best_params,
             fun: best_value,
             success: true,
             nit: iterations,
@@ -1547,9 +1549,4 @@ mod tests {
             AdaptationStrategy::Hybrid { .. } => {}
         }
     }
-}
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
 }

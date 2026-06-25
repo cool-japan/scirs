@@ -2,6 +2,7 @@
 
 use super::basic::{make_blobs, make_classification, make_regression};
 use super::config::GpuConfig;
+use super::gpu_dispatch;
 use crate::error::{DatasetsError, Result};
 use crate::gpu::{GpuContext, GpuDeviceInfo};
 use crate::utils::Dataset;
@@ -252,15 +253,16 @@ fn generate_classification_gpu_optimized(
     n_informative: usize,
     rng: &mut StdRng,
 ) -> Result<(Vec<f64>, Vec<f64>)> {
-    // For now, use CPU-based implementation since core GPU _features are not available
-    // TODO: Implement proper GPU acceleration when core GPU _features are stabilized
-
-    // CPU fallback implementation since GPU _features are not available
     use scirs2_core::random::Distribution;
     let normal = scirs2_core::random::Normal::new(0.0, 1.0).expect("Operation failed");
 
     let mut data = vec![0.0; n_samples * n_features];
     let mut targets = vec![0.0; n_samples];
+
+    // Per-sample broadcast centroid coordinates for the informative columns,
+    // laid out contiguously as [n_samples, n_informative]. Built alongside the
+    // raw noise so the GPU can compute `informative = centroids + 0.3 * noise`.
+    let mut centroid_broadcast = vec![0.0; n_samples * n_informative];
 
     // Samples per _class
     let samples_per_class = n_samples / n_classes;
@@ -289,13 +291,15 @@ fn generate_classification_gpu_optimized(
             let centroid_idx = _class * n_clusters_per_class + cluster;
 
             for _ in 0..n_samples_cluster {
-                // Generate _informative _features around cluster centroid
+                // Draw raw informative noise into `data` (RNG order preserved) and
+                // record the matching centroid coordinate for the GPU offset step.
                 for j in 0..n_informative {
-                    let centroid_val = centroids[centroid_idx * n_informative + j];
-                    data[sample_idx * n_features + j] = centroid_val + 0.3 * normal.sample(rng);
+                    data[sample_idx * n_features + j] = normal.sample(rng);
+                    centroid_broadcast[sample_idx * n_informative + j] =
+                        centroids[centroid_idx * n_informative + j];
                 }
 
-                // Generate noise _features
+                // Generate noise _features (no GPU benefit; raw draws are final).
                 for j in n_informative..n_features {
                     data[sample_idx * n_features + j] = normal.sample(rng);
                 }
@@ -306,7 +310,34 @@ fn generate_classification_gpu_optimized(
         }
     }
 
-    // TODO: Future GPU implementation placeholder - currently using CPU fallback
+    // Heavy step: informative_features = centroid_broadcast + 0.3 * noise.
+    // Dispatch the large elementwise transform to the GPU (threshold-gated,
+    // f32), falling back to a CPU pass on any GPU error or below the threshold.
+    let informative_flat: Vec<f64> = (0..n_samples)
+        .flat_map(|i| (0..n_informative).map(move |j| (i, j)))
+        .map(|(i, j)| data[i * n_features + j])
+        .collect();
+
+    let transformed = match gpu_dispatch::try_classification_informative_gpu(
+        &centroid_broadcast,
+        &informative_flat,
+        n_samples,
+        n_informative,
+    ) {
+        gpu_dispatch::GpuDispatch::Done(gpu_informative) => gpu_informative,
+        gpu_dispatch::GpuDispatch::FallbackToCpu => centroid_broadcast
+            .iter()
+            .zip(informative_flat.iter())
+            .map(|(&c, &noise)| c + 0.3 * noise)
+            .collect(),
+    };
+
+    // Scatter the informative results back into the strided data layout.
+    for i in 0..n_samples {
+        for j in 0..n_informative {
+            data[i * n_features + j] = transformed[i * n_informative + j];
+        }
+    }
 
     Ok((data, targets))
 }
@@ -502,25 +533,38 @@ fn generate_regression_gpu_optimized(
     noise: f64,
     rng: &mut StdRng,
 ) -> Result<(Vec<f64>, Vec<f64>)> {
-    // For now, use CPU-based implementation since core GPU _features are not available
-    // TODO: Implement proper GPU acceleration when core GPU _features are stabilized
-
-    // CPU fallback implementation since GPU _features are not available
     use scirs2_core::random::Distribution;
-    let normal = scirs2_core::random::Normal::new(0.0, noise).expect("Operation failed");
 
-    let mut targets = vec![0.0; n_samples];
-
-    // Matrix multiplication for regression targets
-    for i in 0..n_samples {
-        let mut target = 0.0;
-        for j in 0..n_informative {
-            target += data[i * n_features + j] * coefficients[j];
+    // Heavy step: y_noise_free = X[:, :n_informative] · coefficients.
+    // Dispatch the matmul to the GPU (threshold-gated, f32), falling back to the
+    // CPU nested-loop reduction on any GPU error or below the threshold.
+    let mut targets = match gpu_dispatch::try_regression_targets_gpu(
+        data,
+        coefficients,
+        n_samples,
+        n_features,
+        n_informative,
+    ) {
+        gpu_dispatch::GpuDispatch::Done(gpu_targets) => gpu_targets,
+        gpu_dispatch::GpuDispatch::FallbackToCpu => {
+            // CPU fallback: nested-loop matrix multiplication.
+            let mut t = vec![0.0; n_samples];
+            for (i, slot) in t.iter_mut().enumerate() {
+                let mut acc = 0.0;
+                for j in 0..n_informative {
+                    acc += data[i * n_features + j] * coefficients[j];
+                }
+                *slot = acc;
+            }
+            t
         }
+    };
 
-        // Add noise
-        target += normal.sample(rng);
-        targets[i] = target;
+    // Add per-sample Gaussian noise on the CPU so the RNG sequence is identical
+    // regardless of whether the matmul ran on GPU or CPU.
+    let normal = scirs2_core::random::Normal::new(0.0, noise).expect("Operation failed");
+    for target in targets.iter_mut() {
+        *target += normal.sample(rng);
     }
 
     Ok((data.to_vec(), targets))
@@ -679,26 +723,43 @@ fn generate_blobs_center_gpu(
     cluster_std: f64,
     rng: &mut StdRng,
 ) -> Result<Vec<Vec<f64>>> {
-    // For now, use CPU-based implementation since core GPU _features are not available
-    // TODO: Implement proper GPU acceleration when core GPU _features are stabilized
-
-    // Extract _center coordinates for this specific _center
-    let _center_coords: Vec<f64> = (0..n_features).map(|j| centers[[center_idx, j]]).collect();
-
-    // CPU fallback implementation since GPU _features are not available
     use scirs2_core::random::Distribution;
     let normal = scirs2_core::random::Normal::new(0.0, cluster_std).expect("Operation failed");
 
-    let mut result = Vec::with_capacity(n_samples_center);
-
-    for _ in 0..n_samples_center {
-        let mut sample = Vec::with_capacity(n_features);
+    // Draw all noise in canonical (sample, feature) order into a flat buffer and
+    // build the matching broadcast of the center coordinates. The GPU then
+    // computes `sample = center_broadcast + noise` elementwise.
+    let total = n_samples_center * n_features;
+    let mut noise_flat = vec![0.0; total];
+    let mut center_broadcast = vec![0.0; total];
+    for s in 0..n_samples_center {
         for j in 0..n_features {
-            let center_val = centers[[center_idx, j]];
-            let noise = normal.sample(rng);
-            sample.push(center_val + noise);
+            noise_flat[s * n_features + j] = normal.sample(rng);
+            center_broadcast[s * n_features + j] = centers[[center_idx, j]];
         }
-        result.push(sample);
+    }
+
+    // Heavy step: dispatch the broadcast-add to the GPU (threshold-gated, f32),
+    // falling back to a CPU pass on any GPU error or below the threshold.
+    let combined = match gpu_dispatch::try_blobs_center_gpu(
+        &center_broadcast,
+        &noise_flat,
+        n_samples_center,
+        n_features,
+    ) {
+        gpu_dispatch::GpuDispatch::Done(gpu_samples) => gpu_samples,
+        gpu_dispatch::GpuDispatch::FallbackToCpu => center_broadcast
+            .iter()
+            .zip(noise_flat.iter())
+            .map(|(&c, &noise)| c + noise)
+            .collect(),
+    };
+
+    // Reshape the flat [n_samples_center, n_features] result into rows.
+    let mut result = Vec::with_capacity(n_samples_center);
+    for s in 0..n_samples_center {
+        let start = s * n_features;
+        result.push(combined[start..start + n_features].to_vec());
     }
 
     Ok(result)
@@ -751,4 +812,155 @@ pub fn benchmark_gpu_vs_cpu(
     let gpu_time = gpu_start.elapsed().as_secs_f64() / iterations as f64;
 
     Ok((cpu_time, gpu_time))
+}
+
+/// Smoke tests for the real `GpuNdarray` dispatch paths.
+///
+/// Each test forces a problem above [`gpu_dispatch::GPU_DATASET_THRESHOLD`] and
+/// then either:
+/// - confirms the GPU result agrees with the CPU reference within `f32`
+///   tolerance (when a wgpu adapter is present), or
+/// - skips gracefully when the dispatch falls back to CPU (no adapter).
+///
+/// They only run with the `gpu_wgpu` feature enabled so the default build is
+/// unaffected.
+#[cfg(all(test, feature = "gpu_wgpu"))]
+mod gpu_smoke_tests {
+    use super::gpu_dispatch::{
+        try_blobs_center_gpu, try_classification_informative_gpu, try_regression_targets_gpu,
+        GpuDispatch, GPU_DATASET_THRESHOLD,
+    };
+
+    const TOL: f64 = 1e-3;
+
+    fn max_abs_diff(a: &[f64], b: &[f64]) -> f64 {
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| (x - y).abs())
+            .fold(0.0f64, f64::max)
+    }
+
+    #[test]
+    fn regression_targets_gpu_matches_cpu_or_skips() {
+        let n_samples = 512usize;
+        let n_features = 16usize;
+        let n_informative = 8usize;
+        assert!(n_samples * n_informative >= GPU_DATASET_THRESHOLD);
+
+        // Deterministic design matrix and coefficients (no RNG needed).
+        let data: Vec<f64> = (0..n_samples * n_features)
+            .map(|k| ((k % 7) as f64) * 0.1 - 0.3)
+            .collect();
+        let coef: Vec<f64> = (0..n_informative).map(|j| 0.5 + 0.25 * j as f64).collect();
+
+        // CPU reference: y = X[:, :k] · coef.
+        let cpu: Vec<f64> = (0..n_samples)
+            .map(|i| {
+                (0..n_informative)
+                    .map(|j| data[i * n_features + j] * coef[j])
+                    .sum()
+            })
+            .collect();
+
+        match try_regression_targets_gpu(&data, &coef, n_samples, n_features, n_informative) {
+            GpuDispatch::Done(gpu) => {
+                assert_eq!(gpu.len(), cpu.len());
+                let diff = max_abs_diff(&gpu, &cpu);
+                assert!(
+                    diff < TOL,
+                    "GPU regression matmul diverged from CPU by {diff:.2e} (> {TOL:.0e})"
+                );
+                println!("regression GPU matmul matched CPU (max diff {diff:.2e})");
+            }
+            GpuDispatch::FallbackToCpu => {
+                println!("no wgpu adapter — regression GPU test skipped (fell back to CPU)");
+            }
+        }
+    }
+
+    #[test]
+    fn classification_informative_gpu_matches_cpu_or_skips() {
+        let n_samples = 1024usize;
+        let n_informative = 8usize;
+        assert!(n_samples * n_informative >= GPU_DATASET_THRESHOLD);
+
+        let centroids: Vec<f64> = (0..n_samples * n_informative)
+            .map(|k| ((k % 5) as f64) - 2.0)
+            .collect();
+        let noise: Vec<f64> = (0..n_samples * n_informative)
+            .map(|k| 0.01 * ((k % 11) as f64) - 0.05)
+            .collect();
+
+        // CPU reference: informative = centroids + 0.3 * noise.
+        let cpu: Vec<f64> = centroids
+            .iter()
+            .zip(noise.iter())
+            .map(|(&c, &n)| c + 0.3 * n)
+            .collect();
+
+        match try_classification_informative_gpu(&centroids, &noise, n_samples, n_informative) {
+            GpuDispatch::Done(gpu) => {
+                assert_eq!(gpu.len(), cpu.len());
+                let diff = max_abs_diff(&gpu, &cpu);
+                assert!(
+                    diff < TOL,
+                    "GPU classification offset diverged from CPU by {diff:.2e} (> {TOL:.0e})"
+                );
+                println!("classification GPU offset matched CPU (max diff {diff:.2e})");
+            }
+            GpuDispatch::FallbackToCpu => {
+                println!("no wgpu adapter — classification GPU test skipped (fell back to CPU)");
+            }
+        }
+    }
+
+    #[test]
+    fn blobs_center_gpu_matches_cpu_or_skips() {
+        let n_samples_center = 1024usize;
+        let n_features = 8usize;
+        assert!(n_samples_center * n_features >= GPU_DATASET_THRESHOLD);
+
+        let center_broadcast: Vec<f64> = (0..n_samples_center * n_features)
+            .map(|k| ((k % n_features) as f64) * 1.5 - 3.0)
+            .collect();
+        let noise: Vec<f64> = (0..n_samples_center * n_features)
+            .map(|k| 0.02 * ((k % 13) as f64) - 0.1)
+            .collect();
+
+        // CPU reference: sample = center + noise.
+        let cpu: Vec<f64> = center_broadcast
+            .iter()
+            .zip(noise.iter())
+            .map(|(&c, &n)| c + n)
+            .collect();
+
+        match try_blobs_center_gpu(&center_broadcast, &noise, n_samples_center, n_features) {
+            GpuDispatch::Done(gpu) => {
+                assert_eq!(gpu.len(), cpu.len());
+                let diff = max_abs_diff(&gpu, &cpu);
+                assert!(
+                    diff < TOL,
+                    "GPU blobs broadcast-add diverged from CPU by {diff:.2e} (> {TOL:.0e})"
+                );
+                println!("blobs GPU broadcast-add matched CPU (max diff {diff:.2e})");
+            }
+            GpuDispatch::FallbackToCpu => {
+                println!("no wgpu adapter — blobs GPU test skipped (fell back to CPU)");
+            }
+        }
+    }
+
+    #[test]
+    fn below_threshold_falls_back_to_cpu() {
+        // A tiny problem must never dispatch to the GPU.
+        let n_samples = 4usize;
+        let n_features = 4usize;
+        let n_informative = 2usize;
+        let data = vec![1.0f64; n_samples * n_features];
+        let coef = vec![1.0f64; n_informative];
+        assert!(matches!(
+            try_regression_targets_gpu(&data, &coef, n_samples, n_features, n_informative),
+            GpuDispatch::FallbackToCpu
+        ));
+    }
 }

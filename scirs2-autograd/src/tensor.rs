@@ -4,7 +4,7 @@ use crate::{NdArray, NdArrayView};
 
 use crate::error::OpError;
 use crate::graph::{AsGraph, Graph, TensorID};
-use crate::op::{GradientContext, SmallVec};
+use crate::op::GradientContext;
 use crate::variable::VariableID;
 use std::cell::Ref;
 use std::fmt;
@@ -75,7 +75,7 @@ impl<F: Float> PartialEq for Tensor<'_, F> {
 impl<'graph, F: Float> Tensor<'graph, F> {
     #[inline]
     #[allow(dead_code)]
-    pub(crate) fn get_incoming_tensors(&self) -> Ref<SmallVec<IncomingTensor>> {
+    pub(crate) fn get_incoming_tensors(&self) -> Ref<Vec<IncomingTensor>> {
         Ref::map(self.inner(), |x| &x.incoming_nodes)
     }
 
@@ -164,7 +164,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
         TensorBuilder {
             graph: graph.as_graph(),
             shape: None,
-            in_nodes: SmallVec::new(),
+            in_nodes: Vec::new(),
             differentiable: true,
             placeholder_name: None,
             backprop_inputs: None,
@@ -430,12 +430,38 @@ impl<'graph, F: Float> Tensor<'graph, F> {
         }
     }
 
-    /// Returns access to the underlying data by evaluating this tensor.
-    /// Note: This creates a temporary context for evaluation.
+    /// Returns the tensor's underlying data as a flat vector.
+    ///
+    /// A [`Tensor`] is *lazy*: it is only a handle into a [`Graph`] and stores
+    /// no values of its own. Producing real data therefore requires an
+    /// evaluation [`Context`]. When this tensor's graph is reachable as a
+    /// `Context` (see [`AsGraph::context_ref`]) the tensor is evaluated and its
+    /// genuine, flattened contents are returned.
+    ///
+    /// If no evaluation context is reachable this method returns an **empty**
+    /// vector. It never fabricates values. For a reliable result, prefer
+    /// [`Self::data_with_context`], which always evaluates under the supplied
+    /// `Context`.
     pub fn data(&self) -> Vec<F> {
-        // Since we can't create a Context directly, return empty for now
-        // In practice, this would require evaluation within a run() context
-        vec![]
+        match self.graph.context_ref() {
+            Some(ctx) => self
+                .eval(ctx)
+                .map(|arr| arr.into_iter().collect())
+                .unwrap_or_default(),
+            // No context reachable from a bare graph handle: cannot evaluate a
+            // lazy tensor. Return empty rather than fabricating data.
+            None => vec![],
+        }
+    }
+
+    /// Returns the tensor's real data as a flat vector by evaluating it under
+    /// the supplied [`Context`].
+    ///
+    /// This is the reliable companion to [`Self::data`]: it always has an
+    /// evaluation context and so always returns the tensor's genuine contents
+    /// (or an [`EvalError`](crate::EvalError) if evaluation fails).
+    pub fn data_with_context(&self, ctx: &Context<F>) -> Result<Vec<F>, crate::EvalError> {
+        self.eval(ctx).map(|arr| arr.into_iter().collect())
     }
 
     /// Creates a tensor from a vector of data and shape.
@@ -530,7 +556,7 @@ pub(crate) struct TensorInternal<F: Float> {
     pub(crate) op: Option<Box<dyn op::Op<F>>>,
 
     /// References to immediate predecessors.
-    pub(crate) incoming_nodes: SmallVec<IncomingTensor>,
+    pub(crate) incoming_nodes: Vec<IncomingTensor>,
 
     /// The rank number for topological ordering in a graph.
     pub(crate) topo_rank: usize,
@@ -547,7 +573,7 @@ pub(crate) struct TensorInternal<F: Float> {
     /// Input nodes used when backprop.
     ///
     /// This is same as `inputs` in most cases.
-    pub(crate) backprop_inputs: Option<SmallVec<IncomingTensor>>,
+    pub(crate) backprop_inputs: Option<Vec<IncomingTensor>>,
 
     /// Static shape of this tensor.
     /// Each dim size is *signed* for placeholders.
@@ -564,7 +590,7 @@ impl<F: Float> TensorInternal<F> {
         TensorInternal {
             id: 0,
             op: Some(Box::new(Dummy)),
-            incoming_nodes: SmallVec::new(),
+            incoming_nodes: Vec::new(),
             topo_rank: 0,
             shape: None,
             placeholder_name: None,
@@ -749,16 +775,15 @@ impl<'graph> IncomingTensor {
 pub struct TensorBuilder<'g, F: Float> {
     graph: &'g Graph<F>,
     shape: Option<usize>, // usize is tensor id
-    in_nodes: SmallVec<IncomingTensor>,
+    in_nodes: Vec<IncomingTensor>,
     differentiable: bool,
-    backprop_inputs: Option<SmallVec<IncomingTensor>>,
+    backprop_inputs: Option<Vec<IncomingTensor>>,
     knownshape: Option<KnownShape>,
     variable_id: Option<VariableID>,
     placeholder_name: Option<&'static str>,
 }
 
-const NUM_MAX_KNOWN_SHAPE_SIZE: usize = 4;
-type ShapeVec = smallvec::SmallVec<[isize; NUM_MAX_KNOWN_SHAPE_SIZE]>;
+type ShapeVec = Vec<isize>;
 
 pub(crate) struct KnownShape {
     shape: ShapeVec,
@@ -903,9 +928,7 @@ impl<'graph, F: Float> TensorBuilder<'graph, F> {
         if let Some(ref mut inputs) = self.backprop_inputs {
             inputs.push(IncomingTensor::new(a.as_ref(), 0));
         } else {
-            let mut inputs = SmallVec::new();
-            inputs.push(IncomingTensor::new(a.as_ref(), 0));
-            self.backprop_inputs = Some(inputs);
+            self.backprop_inputs = Some(vec![IncomingTensor::new(a.as_ref(), 0)]);
         }
         self
     }

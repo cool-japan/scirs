@@ -21,7 +21,7 @@
 //!
 //! // Create a lazy transform chain
 //! let transform = LazyTransform::new()
-//!     .map(|x| x * 2.0)
+//!     .map(|x: f64| x * 2.0)
 //!     .map(|x| x.max(0.0).min(255.0));
 //!
 //! // Process in chunks without loading entire image

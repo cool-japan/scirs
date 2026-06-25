@@ -115,8 +115,8 @@ impl<
                 MetricType::AUC => Box::new(AUCMetric::new()),
                 MetricType::Custom(name) => {
                     return Err(Error::NotImplementedError(format!(
-                        "Custom metric '{}' is not yet supported",
-                        name
+                        "Custom metric '{}' cannot be specified by name at construction time; use `add_metric(\"{}\", Box::new(your_impl))` after construction",
+                        name, name
                     )));
                 }
             };

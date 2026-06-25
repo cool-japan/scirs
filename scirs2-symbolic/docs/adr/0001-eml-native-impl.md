@@ -86,8 +86,8 @@ Examples of items that should be CLEAN-ROOM (no port):
 
 - Odrzywolek, A. (2026). EML Construction. arXiv:[2603.21852](https://arxiv.org/abs/2603.21852), v2 published 2026-04-04.
 - `oxieml` v0.1 source: https://github.com/cool-japan/oxieml
-- `scirs2-symbolic` TODO.md: `/Users/kitasan/work/scirs/scirs2-symbolic/TODO.md` (619 lines, 84 items, Phases 0-4)
-- v0.4.4 implementation plan: `/Users/kitasan/.claude/plans/indexed-plotting-lampson.md`
+- `scirs2-symbolic` TODO.md: `scirs2-symbolic/TODO.md` (619 lines, 84 items, Phases 0-4)
+- v0.4.4 implementation plan: `$HOME/.claude/plans/indexed-plotting-lampson.md`
 
 ---
 *ADR authored 2026-05-03 by Claude (Opus 4.7) under direction of COOLJAPAN OU (Team KitaSan).*

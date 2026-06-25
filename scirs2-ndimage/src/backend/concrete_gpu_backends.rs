@@ -51,18 +51,19 @@ pub struct CudaContext {
 
 #[cfg(feature = "cuda")]
 impl CudaContext {
-    pub fn new(device_id: Option<usize>) -> crate::error::NdimageResult<Self> {
+    pub fn new(_device_id: Option<usize>) -> crate::error::NdimageResult<Self> {
         use crate::error::NdimageError;
 
-        let device_id = device_id.unwrap_or(0) as i32;
-
-        // This is a simplified implementation
-        // In a real implementation, you would initialize CUDA context properly
-        Ok(Self {
-            context: 0, // Placeholder
-            device_id,
-            stream: 0, // Placeholder
-        })
+        // A real implementation would initialize a CUDA context (cuCtxCreate)
+        // bound to the requested device. The CUDA runtime is not linked into
+        // this build, so we return an honest error rather than handing back a
+        // context with null handles that would silently no-op.
+        Err(NdimageError::GpuNotAvailable(
+            "CUDA backend is not linked into this build: cannot create a CUDA \
+             context. Build with a CUDA toolkit and FFI bindings to enable GPU \
+             dispatch."
+                .to_string(),
+        ))
     }
 }
 
@@ -111,19 +112,19 @@ pub struct OpenCLContext {
 
 #[cfg(feature = "opencl")]
 impl OpenCLContext {
-    pub fn new(device_id: Option<usize>) -> crate::error::NdimageResult<Self> {
+    pub fn new(_device_id: Option<usize>) -> crate::error::NdimageResult<Self> {
         use crate::error::NdimageError;
 
-        let device_id = device_id.unwrap_or(0);
-
-        // This is a simplified implementation
-        // In a real implementation, you would initialize OpenCL context properly
-        Ok(Self {
-            context: 0, // Placeholder
-            device: device_id,
-            queue: 0,    // Placeholder
-            platform: 0, // Placeholder
-        })
+        // A real implementation would initialize an OpenCL platform, device,
+        // context, and command queue. No OpenCL ICD is linked into this build,
+        // so we return an honest error rather than handing back null handles
+        // that would silently no-op.
+        Err(NdimageError::GpuNotAvailable(
+            "OpenCL backend is not linked into this build: cannot create an \
+             OpenCL context. Build with an OpenCL ICD loader and FFI bindings to \
+             enable GPU dispatch."
+                .to_string(),
+        ))
     }
 }
 
@@ -361,91 +362,87 @@ impl CudaBackend {
         )
     }
 
-    // Low-level CUDA API wrappers (these would call actual CUDA runtime/driver API)
+    // Low-level CUDA API wrappers.
+    //
+    // These are the FFI seams that must bind to the real CUDA runtime/driver
+    // API (cudaGetDeviceCount, cudaMalloc, cudaLaunchKernel, ...). This build
+    // does NOT link the CUDA runtime, so every seam returns an honest error
+    // instead of fabricating success (a no-op `Ok(())`, a dummy device pointer,
+    // or invented device specifications such as a "GeForce RTX 4090"). Returning
+    // an error from `get_device_count` makes `CudaBackend::new` fail cleanly so
+    // that no kernel is ever reported as having run.
+
+    fn cuda_not_linked(op: &str) -> NdimageError {
+        NdimageError::GpuNotAvailable(format!(
+            "CUDA backend is not linked into this build: cannot perform '{op}'. \
+             Build with a CUDA toolkit and the appropriate FFI bindings to enable \
+             GPU dispatch. Refusing to fabricate a successful GPU operation.",
+        ))
+    }
 
     fn get_device_count() -> NdimageResult<i32> {
-        // Placeholder: would call cudaGetDeviceCount
-        Ok(1) // Assume 1 device for testing
+        // Would call cudaGetDeviceCount; the runtime is not linked.
+        Err(Self::cuda_not_linked("cudaGetDeviceCount"))
     }
 
     fn createcontext(_deviceid: i32) -> NdimageResult<CudaContext> {
-        // Placeholder: would initialize CUDA context and stream
-        Ok(CudaContext {
-            context: 0x1000, // Dummy context handle
-            device_id: _deviceid,
-            stream: 0x2000, // Dummy stream handle
-        })
+        // Would initialize a CUDA context and stream; the runtime is not linked.
+        Err(Self::cuda_not_linked("cuCtxCreate"))
     }
 
     fn get_device_properties(_deviceid: i32) -> NdimageResult<CudaDeviceProperties> {
-        // Placeholder: would query actual device properties
-        Ok(CudaDeviceProperties {
-            name: "GeForce RTX 4090".to_string(),
-            total_memory: 24 * 1024 * 1024 * 1024, // 24GB
-            multiprocessor_count: 128,
-            max_threads_per_block: 1024,
-            compute_capability_major: 8,
-            compute_capability_minor: 9,
-        })
+        // Would query real device properties; the runtime is not linked.
+        Err(Self::cuda_not_linked("cudaGetDeviceProperties"))
     }
 
-    fn cuda_malloc(&self, size: usize) -> NdimageResult<usize> {
-        // Placeholder: would call cudaMalloc
-        // For testing, return a dummy pointer
-        Ok(0x10000000 + size) // Dummy device pointer
+    fn cuda_malloc(&self, _size: usize) -> NdimageResult<usize> {
+        Err(Self::cuda_not_linked("cudaMalloc"))
     }
 
-    fn cuda_free(&self, deviceptr: usize) -> NdimageResult<()> {
-        // Placeholder: would call cudaFree
-        Ok(())
+    fn cuda_free(&self, _deviceptr: usize) -> NdimageResult<()> {
+        Err(Self::cuda_not_linked("cudaFree"))
     }
 
     fn cuda_memcpy_htod(
         &self,
-        device_ptr: usize,
-        host_ptr: *const u8,
-        size: usize,
+        _device_ptr: usize,
+        _host_ptr: *const u8,
+        _size: usize,
     ) -> NdimageResult<()> {
-        // Placeholder: would call cudaMemcpy with cudaMemcpyHostToDevice
-        Ok(())
+        Err(Self::cuda_not_linked("cudaMemcpy (host to device)"))
     }
 
     fn cuda_memcpy_dtoh(
         &self,
-        host_ptr: *mut u8,
-        device_ptr: usize,
-        size: usize,
+        _host_ptr: *mut u8,
+        _device_ptr: usize,
+        _size: usize,
     ) -> NdimageResult<()> {
-        // Placeholder: would call cudaMemcpy with cudaMemcpyDeviceToHost
-        Ok(())
+        Err(Self::cuda_not_linked("cudaMemcpy (device to host)"))
     }
 
-    fn compile_ptx_from_source(&self, source: &str) -> NdimageResult<usize> {
-        // Placeholder: would compile CUDA source to PTX and load module
-        Ok(0x3000) // Dummy module handle
+    fn compile_ptx_from_source(&self, _source: &str) -> NdimageResult<usize> {
+        Err(Self::cuda_not_linked("nvrtc/cuModuleLoadData"))
     }
 
-    fn get_function(&self, module: usize, name: &str) -> NdimageResult<usize> {
-        // Placeholder: would get function from module
-        Ok(0x4000) // Dummy function handle
+    fn get_function(&self, _module: usize, _name: &str) -> NdimageResult<usize> {
+        Err(Self::cuda_not_linked("cuModuleGetFunction"))
     }
 
     fn cuda_launch_kernel(
         &self,
-        function: usize,
-        grid_dim: (u32, u32, u32),
-        block_dim: (u32, u32, u32),
-        args: *const *mut std::ffi::c_void,
-        shared_memory: usize,
-        stream: usize,
+        _function: usize,
+        _grid_dim: (u32, u32, u32),
+        _block_dim: (u32, u32, u32),
+        _args: *const *mut std::ffi::c_void,
+        _shared_memory: usize,
+        _stream: usize,
     ) -> NdimageResult<()> {
-        // Placeholder: would call cudaLaunchKernel
-        Ok(())
+        Err(Self::cuda_not_linked("cudaLaunchKernel"))
     }
 
-    fn cuda_stream_synchronize(&self, stream: usize) -> NdimageResult<()> {
-        // Placeholder: would call cudaStreamSynchronize
-        Ok(())
+    fn cuda_stream_synchronize(&self, _stream: usize) -> NdimageResult<()> {
+        Err(Self::cuda_not_linked("cudaStreamSynchronize"))
     }
 
     fn get_convolution_kernel_source(&self) -> String {
@@ -666,98 +663,92 @@ impl OpenCLBackend {
         )
     }
 
-    // Low-level OpenCL API wrappers (these would call actual OpenCL API)
+    // Low-level OpenCL API wrappers.
+    //
+    // These are the FFI seams that must bind to the real OpenCL API
+    // (clGetPlatformIDs, clCreateBuffer, clEnqueueNDRangeKernel, ...). This
+    // build does NOT link an OpenCL ICD, so every seam returns an honest error
+    // instead of fabricating success (a no-op `Ok(())`, a dummy buffer handle,
+    // or invented device specifications such as an "AMD Radeon RX 7900 XTX").
+    // Returning an error from `create_openclcontext` makes `OpenCLBackend::new`
+    // fail cleanly so that no kernel is ever reported as having run.
+
+    fn opencl_not_linked(op: &str) -> NdimageError {
+        NdimageError::GpuNotAvailable(format!(
+            "OpenCL backend is not linked into this build: cannot perform '{op}'. \
+             Build with an OpenCL ICD loader and the appropriate FFI bindings to \
+             enable GPU dispatch. Refusing to fabricate a successful GPU operation.",
+        ))
+    }
 
     fn create_openclcontext() -> NdimageResult<OpenCLContext> {
-        // Placeholder: would initialize OpenCL context, device, and queue
-        Ok(OpenCLContext {
-            context: 0x1000,
-            device: 0x2000,
-            queue: 0x3000,
-            platform: 0x4000,
-        })
+        // Would initialize an OpenCL platform/device/context/queue.
+        Err(Self::opencl_not_linked("clCreateContext"))
     }
 
-    fn get_device_properties(context: &OpenCLContext) -> NdimageResult<OpenCLDeviceProperties> {
-        // Placeholder: would query actual OpenCL device properties
-        Ok(OpenCLDeviceProperties {
-            name: "AMD Radeon RX 7900 XTX".to_string(),
-            global_memory_size: 24 * 1024 * 1024 * 1024, // 24GB
-            local_memory_size: 64 * 1024,                // 64KB
-            max_compute_units: 96,
-            max_work_group_size: 1024,
-            device_type: "GPU".to_string(),
-        })
+    fn get_device_properties(_context: &OpenCLContext) -> NdimageResult<OpenCLDeviceProperties> {
+        // Would query real OpenCL device properties.
+        Err(Self::opencl_not_linked("clGetDeviceInfo"))
     }
 
-    fn cl_create_buffer(&self, size: usize) -> NdimageResult<usize> {
-        // Placeholder: would call clCreateBuffer
-        Ok(0x10000000 + size) // Dummy buffer handle
+    fn cl_create_buffer(&self, _size: usize) -> NdimageResult<usize> {
+        Err(Self::opencl_not_linked("clCreateBuffer"))
     }
 
-    fn cl_release_buffer(&self, buffer: usize) -> NdimageResult<()> {
-        // Placeholder: would call clReleaseMemObject
-        Ok(())
+    fn cl_release_buffer(&self, _buffer: usize) -> NdimageResult<()> {
+        Err(Self::opencl_not_linked("clReleaseMemObject"))
     }
 
     fn cl_enqueue_write_buffer(
         &self,
-        buffer: usize,
-        data: *const u8,
-        size: usize,
+        _buffer: usize,
+        _data: *const u8,
+        _size: usize,
     ) -> NdimageResult<()> {
-        // Placeholder: would call clEnqueueWriteBuffer
-        Ok(())
+        Err(Self::opencl_not_linked("clEnqueueWriteBuffer"))
     }
 
     fn cl_enqueue_read_buffer(
         &self,
-        buffer: usize,
-        data: *mut u8,
-        size: usize,
+        _buffer: usize,
+        _data: *mut u8,
+        _size: usize,
     ) -> NdimageResult<()> {
-        // Placeholder: would call clEnqueueReadBuffer
-        Ok(())
+        Err(Self::opencl_not_linked("clEnqueueReadBuffer"))
     }
 
-    fn cl_create_program_with_source(&self, source: &str) -> NdimageResult<usize> {
-        // Placeholder: would call clCreateProgramWithSource
-        Ok(0x5000) // Dummy program handle
+    fn cl_create_program_with_source(&self, _source: &str) -> NdimageResult<usize> {
+        Err(Self::opencl_not_linked("clCreateProgramWithSource"))
     }
 
-    fn cl_build_program(&self, program: usize) -> NdimageResult<()> {
-        // Placeholder: would call clBuildProgram
-        Ok(())
+    fn cl_build_program(&self, _program: usize) -> NdimageResult<()> {
+        Err(Self::opencl_not_linked("clBuildProgram"))
     }
 
-    fn cl_create_kernel(&self, program: usize, name: &str) -> NdimageResult<usize> {
-        // Placeholder: would call clCreateKernel
-        Ok(0x6000) // Dummy kernel handle
+    fn cl_create_kernel(&self, _program: usize, _name: &str) -> NdimageResult<usize> {
+        Err(Self::opencl_not_linked("clCreateKernel"))
     }
 
     fn cl_set_kernel_arg(
         &self,
-        kernel: usize,
-        arg_index: usize,
-        buffer: &usize,
+        _kernel: usize,
+        _arg_index: usize,
+        _buffer: &usize,
     ) -> NdimageResult<()> {
-        // Placeholder: would call clSetKernelArg
-        Ok(())
+        Err(Self::opencl_not_linked("clSetKernelArg"))
     }
 
     fn cl_enqueue_nd_range_kernel(
         &self,
-        kernel: usize,
-        global_work_size: &[usize],
-        local_work_size: Option<&[usize]>,
+        _kernel: usize,
+        _global_work_size: &[usize],
+        _local_work_size: Option<&[usize]>,
     ) -> NdimageResult<()> {
-        // Placeholder: would call clEnqueueNDRangeKernel
-        Ok(())
+        Err(Self::opencl_not_linked("clEnqueueNDRangeKernel"))
     }
 
     fn cl_finish(&self) -> NdimageResult<()> {
-        // Placeholder: would call clFinish
-        Ok(())
+        Err(Self::opencl_not_linked("clFinish"))
     }
 
     fn get_convolution_kernel_source(&self) -> String {
@@ -854,12 +845,17 @@ impl GpuBackend for CudaBackend {
     }
 
     fn is_available(&self) -> bool {
-        true // If we got here, CUDA is available
+        // A `CudaBackend` cannot currently be constructed (`CudaBackend::new`
+        // returns an error because the CUDA runtime is not linked), so this is
+        // unreachable in practice; it would only be reachable once real FFI
+        // bindings exist, at which point reaching here means CUDA is available.
+        true
     }
 
     fn get_memory_info(&self) -> (usize, usize) {
-        // Would query actual CUDA memory info
-        (16 * 1024 * 1024 * 1024, 24 * 1024 * 1024 * 1024) // 16GB free, 24GB total
+        // Would query actual CUDA memory info (cudaMemGetInfo). The runtime is
+        // not linked, so report zero rather than fabricating device capacity.
+        (0, 0) // (free, total)
     }
 
     fn execute_convolution_2d_f32(
@@ -886,12 +882,17 @@ impl GpuBackend for OpenCLBackend {
     }
 
     fn is_available(&self) -> bool {
-        true // If we got here, OpenCL is available
+        // An `OpenCLBackend` cannot currently be constructed
+        // (`OpenCLBackend::new` returns an error because no OpenCL ICD is
+        // linked), so this is unreachable in practice; it would only be
+        // reachable once real FFI bindings exist.
+        true
     }
 
     fn get_memory_info(&self) -> (usize, usize) {
-        // Would query actual OpenCL memory info
-        (16 * 1024 * 1024 * 1024, 24 * 1024 * 1024 * 1024) // 16GB free, 24GB total
+        // Would query actual OpenCL memory info (clGetDeviceInfo). No ICD is
+        // linked, so report zero rather than fabricating device capacity.
+        (0, 0) // (free, total)
     }
 
     fn execute_convolution_2d_f32(
@@ -918,8 +919,9 @@ impl crate::backend::GpuContext for CudaContext {
     }
 
     fn device_count(&self) -> usize {
-        // Placeholder implementation
-        1
+        // A `CudaContext` cannot be constructed without a linked CUDA runtime,
+        // so there are genuinely no devices to report here.
+        0
     }
 
     fn current_device(&self) -> usize {
@@ -927,8 +929,8 @@ impl crate::backend::GpuContext for CudaContext {
     }
 
     fn memory_info(&self) -> (usize, usize) {
-        // Placeholder implementation
-        (0, 1024 * 1024 * 1024) // 1GB total, 0 used
+        // No CUDA runtime linked: report zero rather than a fabricated capacity.
+        (0, 0) // (free, total)
     }
 }
 
@@ -939,8 +941,9 @@ impl crate::backend::GpuContext for OpenCLContext {
     }
 
     fn device_count(&self) -> usize {
-        // Placeholder implementation
-        1
+        // An `OpenCLContext` cannot be constructed without a linked OpenCL ICD,
+        // so there are genuinely no devices to report here.
+        0
     }
 
     fn current_device(&self) -> usize {
@@ -948,8 +951,8 @@ impl crate::backend::GpuContext for OpenCLContext {
     }
 
     fn memory_info(&self) -> (usize, usize) {
-        // Placeholder implementation
-        (0, 1024 * 1024 * 1024) // 1GB total, 0 used
+        // No OpenCL ICD linked: report zero rather than a fabricated capacity.
+        (0, 0) // (free, total)
     }
 }
 

@@ -141,15 +141,22 @@ fn test_compute_r_squared() {
 fn test_linear_scaling() {
     let orig = vec![1.0, 2.0, 3.0];
     let scaled = vec![2.0, 4.0, 6.0];
-    assert!(regression::validate_linear_scaling(&orig, &scaled, 2.0, 1e-12));
-    assert!(!regression::validate_linear_scaling(&orig, &scaled, 3.0, 1e-2));
+    assert!(regression::validate_linear_scaling(
+        &orig, &scaled, 2.0, 1e-12
+    ));
+    assert!(!regression::validate_linear_scaling(
+        &orig, &scaled, 3.0, 1e-2
+    ));
 }
 
 // ───────────────────── Classification Properties ─────────────────────
 
 #[test]
 fn test_label_set_valid() {
-    assert!(classification::validate_label_set(&[0, 1, 2], &[0, 1, 2, 3]));
+    assert!(classification::validate_label_set(
+        &[0, 1, 2],
+        &[0, 1, 2, 3]
+    ));
 }
 
 #[test]
@@ -248,7 +255,8 @@ fn test_orthogonal_components_identity() {
         vec![0.0, 0.0, 1.0],
     ];
     assert!(dim_reduction::validate_orthogonal_components(
-        &components, 1e-12
+        &components,
+        1e-12
     ));
 
     // Non-orthogonal
@@ -258,10 +266,7 @@ fn test_orthogonal_components_identity() {
 
 #[test]
 fn test_unit_components() {
-    let components = vec![
-        vec![1.0, 0.0],
-        vec![0.0, 1.0],
-    ];
+    let components = vec![vec![1.0, 0.0], vec![0.0, 1.0]];
     assert!(dim_reduction::validate_unit_components(&components, 1e-12));
 
     let bad = vec![vec![2.0, 0.0]];
@@ -328,10 +333,7 @@ fn test_feature_importance_sum() {
         &[0.4, 0.3, 0.2, 0.1],
         1e-10
     ));
-    assert!(!trees::validate_feature_importance_sum(
-        &[0.5, 0.6],
-        1e-2
-    ));
+    assert!(!trees::validate_feature_importance_sum(&[0.5, 0.6], 1e-2));
 }
 
 #[test]
@@ -515,8 +517,8 @@ fn test_structured_correlation() {
     assert!(matrix.iter().all(|row| row.len() == 5));
 
     // Diagonal should be 1
-    for i in 0..5 {
-        assert!((matrix[i][i] - 1.0).abs() < 1e-12);
+    for (i, row) in matrix.iter().enumerate() {
+        assert!((row[i] - 1.0).abs() < 1e-12);
     }
 
     // Within block 0 (indices 0,1)

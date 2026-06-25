@@ -258,6 +258,3 @@ impl RLOptimizer for QLearningOptimizer {
         self.best_params.fill(0.0);
     }
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {}

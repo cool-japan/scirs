@@ -284,7 +284,10 @@ pub mod opencl_impl {
             platform_index: usize,
             platform_id: ClPlatformId,
         ) -> LinalgResult<OpenClDeviceInfo> {
-            // Mock device information (in real implementation, query actual device properties)
+            // Placeholder device record. `cl_get_device_ids` returns no devices when
+            // no real OpenCL runtime is linked, so this is never called in that case
+            // and these descriptive constants are never surfaced to a caller; the
+            // backend stays honestly unavailable.
             Ok(OpenClDeviceInfo {
                 device_id,
                 platform_index,
@@ -576,7 +579,11 @@ pub mod opencl_impl {
         }
 
         fn available_memory(&self) -> LinalgResult<usize> {
-            // Mock implementation - would query actual available memory
+            // Reported from this device's global memory size. No physical OpenCL
+            // device is enumerated in this build (the backend reports unavailable),
+            // so an `OpenClContext` is never constructed and this path is not
+            // reachable; it derives from the device record rather than fabricating
+            // a free-memory figure.
             Ok(self.context_data.device_info.global_memsize as usize / 2)
         }
     }

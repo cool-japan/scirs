@@ -78,10 +78,7 @@ pub mod clustering {
     /// Validate that within-cluster distances are smaller than between-cluster
     /// distances on average. Returns the ratio (within / between); values < 1
     /// indicate well-separated clusters.
-    pub fn compute_cluster_separation_ratio(
-        points: &[[f64; 2]],
-        labels: &[usize],
-    ) -> Option<f64> {
+    pub fn compute_cluster_separation_ratio(points: &[[f64; 2]], labels: &[usize]) -> Option<f64> {
         if points.len() != labels.len() || points.is_empty() {
             return None;
         }
@@ -134,7 +131,7 @@ pub mod regression {
     /// Verify that R^2 is in `[0, 1]` for in-sample predictions.
     /// (Out-of-sample R^2 can be negative, so this checks in-sample only.)
     pub fn validate_r_squared_range(r2: f64) -> bool {
-        r2 >= -f64::EPSILON && r2 <= 1.0 + f64::EPSILON
+        (-f64::EPSILON..=1.0 + f64::EPSILON).contains(&r2)
     }
 
     /// Verify that the model perfectly interpolates the training data
@@ -210,7 +207,7 @@ pub mod classification {
 
     /// Verify that accuracy is in `[0, 1]`.
     pub fn validate_accuracy_range(accuracy: f64) -> bool {
-        accuracy >= -f64::EPSILON && accuracy <= 1.0 + f64::EPSILON
+        (-f64::EPSILON..=1.0 + f64::EPSILON).contains(&accuracy)
     }
 
     /// Compute accuracy from true and predicted labels.
@@ -466,7 +463,7 @@ pub mod trees {
 pub mod metrics {
     /// Verify that a metric value is in `[0, 1]`.
     pub fn validate_metric_range(value: f64) -> bool {
-        value >= -f64::EPSILON && value <= 1.0 + f64::EPSILON
+        (-f64::EPSILON..=1.0 + f64::EPSILON).contains(&value)
     }
 
     /// Verify the F1 formula: `F1 = 2*P*R / (P+R)` when `P+R > 0`.
@@ -480,17 +477,17 @@ pub mod metrics {
 
     /// Verify that AUC-ROC is in `[0, 1]`.
     pub fn validate_auc_range(auc: f64) -> bool {
-        auc >= -f64::EPSILON && auc <= 1.0 + f64::EPSILON
+        (-f64::EPSILON..=1.0 + f64::EPSILON).contains(&auc)
     }
 
     /// Verify that the silhouette score is in `[-1, 1]`.
     pub fn validate_silhouette_range(score: f64) -> bool {
-        score >= -1.0 - f64::EPSILON && score <= 1.0 + f64::EPSILON
+        (-1.0 - f64::EPSILON..=1.0 + f64::EPSILON).contains(&score)
     }
 
     /// Verify that the Matthews Correlation Coefficient is in `[-1, 1]`.
     pub fn validate_mcc_range(mcc: f64) -> bool {
-        mcc >= -1.0 - f64::EPSILON && mcc <= 1.0 + f64::EPSILON
+        (-1.0 - f64::EPSILON..=1.0 + f64::EPSILON).contains(&mcc)
     }
 
     /// Verify that log loss is non-negative.
@@ -525,11 +522,7 @@ pub mod metrics {
     }
 
     /// Verify metric symmetry: `metric(a, b) == metric(b, a)` within tolerance.
-    pub fn validate_metric_symmetry(
-        metric_ab: f64,
-        metric_ba: f64,
-        tol: f64,
-    ) -> bool {
+    pub fn validate_metric_symmetry(metric_ab: f64, metric_ba: f64, tol: f64) -> bool {
         (metric_ab - metric_ba).abs() <= tol
     }
 }

@@ -10,7 +10,7 @@
 #![cfg(feature = "jit")]
 
 use crate::compile::jit::JitFunction;
-use hashbrown::HashMap;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 /// Default capacity used by [`JitCache::default`].

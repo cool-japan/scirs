@@ -160,8 +160,10 @@ pub fn self_organizing_neural_processing(
 /// Implements Kohonen SOM-inspired reorganization: for each node, finds the best-matching unit
 /// (BMU) in the feature space and updates neighbors toward the input using a Gaussian
 /// neighborhood function with decaying radius. New nodes are created when needed.
-#[allow(dead_code)]
-fn reorganize_network_structure(
+///
+/// This is the single source of truth for network-topology reorganization and is shared
+/// across the advanced fusion modules (e.g. quantum consciousness) via `pub(crate)`.
+pub(crate) fn reorganize_network_structure(
     topology: &mut NetworkTopology,
     features: &Array5<f64>,
     config: &AdvancedConfig,

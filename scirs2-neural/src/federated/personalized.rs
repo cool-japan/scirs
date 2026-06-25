@@ -5,7 +5,10 @@
 
 use crate::error::{NeuralError, Result};
 use crate::federated::{AggregationStrategy, ClientUpdate};
+use crate::losses::CrossEntropyLoss;
 use crate::models::sequential::Sequential;
+use crate::models::Model;
+use crate::optimizers::SGD;
 use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 
@@ -165,6 +168,51 @@ impl PersonalizedFL {
         }
     }
 
+    /// Real local fine-tuning shared by the personalization strategies.
+    ///
+    /// Performs full-batch softmax cross-entropy SGD for `epochs` iterations,
+    /// updating `model` in place. One-hot targets are sized from the model's own
+    /// output width (discovered via a forward pass).
+    fn fine_tune(
+        model: &mut Sequential<f32>,
+        data: &ArrayView2<f32>,
+        labels: &ArrayView1<usize>,
+        epochs: usize,
+        learning_rate: f32,
+    ) -> Result<()> {
+        if data.nrows() == 0 || epochs == 0 {
+            return Ok(());
+        }
+        let input = data.to_owned().into_dyn();
+        let logits = model.forward(&input)?;
+        let num_classes = *logits.shape().last().ok_or_else(|| {
+            NeuralError::InvalidArchitecture("model produced empty output".to_string())
+        })?;
+        if num_classes == 0 {
+            return Err(NeuralError::InvalidArchitecture(
+                "model output has zero classes".to_string(),
+            ));
+        }
+        let n = labels.len();
+        let mut targets = Array2::<f32>::zeros((n, num_classes));
+        for (i, &label) in labels.iter().enumerate() {
+            if label >= num_classes {
+                return Err(NeuralError::InvalidArgument(format!(
+                    "label {label} exceeds model output width {num_classes}"
+                )));
+            }
+            targets[[i, label]] = 1.0;
+        }
+        let targets = targets.into_dyn();
+
+        let loss_fn = CrossEntropyLoss::default();
+        let mut optimizer = SGD::new(learning_rate);
+        for _ in 0..epochs {
+            model.train_batch(&input, &targets, &loss_fn, &mut optimizer)?;
+        }
+        Ok(())
+    }
+
     /// Fine-tuning based personalization
     fn fine_tune_for_client(
         &mut self,
@@ -172,7 +220,7 @@ impl PersonalizedFL {
         client_data: &ArrayView2<f32>,
         client_labels: &ArrayView1<usize>,
         epochs: usize,
-        _learning_rate: f32,
+        learning_rate: f32,
     ) -> Result<Sequential<f32>> {
         let mut personalized_model = if let Some(existing) = self.client_models.get(&client_id) {
             existing.clone()
@@ -184,18 +232,14 @@ impl PersonalizedFL {
             ));
         };
 
-        // Fine-tune on client data (simplified simulation)
-        for _epoch in 0..epochs {
-            let batch_size = 32.min(client_data.nrows());
-            let num_batches = client_data.nrows().div_ceil(batch_size);
-            for batch_idx in 0..num_batches {
-                let start = batch_idx * batch_size;
-                let end = ((batch_idx + 1) * batch_size).min(client_data.nrows());
-                let _batch_data = client_data.slice(s![start..end, ..]);
-                let _batch_labels = client_labels.slice(s![start..end]);
-                // Simulated training step
-            }
-        }
+        // Real fine-tuning: local SGD on the client's data.
+        Self::fine_tune(
+            &mut personalized_model,
+            client_data,
+            client_labels,
+            epochs,
+            learning_rate,
+        )?;
 
         self.client_models
             .insert(client_id, personalized_model.clone());
@@ -209,9 +253,9 @@ impl PersonalizedFL {
         client_data: &ArrayView2<f32>,
         client_labels: &ArrayView1<usize>,
         inner_steps: usize,
-        _inner_lr: f32,
+        inner_lr: f32,
     ) -> Result<Sequential<f32>> {
-        let adapted_model = if let Some(ref global) = self.global_model {
+        let mut adapted_model = if let Some(ref global) = self.global_model {
             global.clone()
         } else {
             return Err(NeuralError::InvalidArgument(
@@ -219,14 +263,19 @@ impl PersonalizedFL {
             ));
         };
 
-        let split_point = client_data.nrows() / 2;
-        let _support_data = client_data.slice(s![..split_point, ..]);
-        let _support_labels = client_labels.slice(s![..split_point]);
-
-        // Inner loop simulation
-        for _ in 0..inner_steps {
-            // Simulated gradient update
-        }
+        // First-order adaptation: a real SGD inner loop on the support split (the
+        // inner loop of MAML / Reptile). Second-order meta-gradients are not
+        // computed here; this performs the per-client adaptation step.
+        let split_point = (client_data.nrows() / 2).max(1);
+        let support_data = client_data.slice(s![..split_point, ..]);
+        let support_labels = client_labels.slice(s![..split_point]);
+        Self::fine_tune(
+            &mut adapted_model,
+            &support_data,
+            &support_labels,
+            inner_steps,
+            inner_lr,
+        )?;
 
         self.client_models.insert(client_id, adapted_model.clone());
         Ok(adapted_model)
@@ -240,16 +289,22 @@ impl PersonalizedFL {
         client_labels: &ArrayView1<usize>,
         _task_head_sizes: &[usize],
     ) -> Result<Sequential<f32>> {
-        let personalized_model = if let Some(ref global) = self.global_model {
+        let mut personalized_model = if let Some(ref global) = self.global_model {
             global.clone()
         } else {
             Sequential::new()
         };
 
-        // Simulate multi-task training
-        for _epoch in 0..10 {
-            let _loss = self.compute_loss(&personalized_model, client_data, client_labels)?;
-        }
+        // Without dedicated task heads in the eager `Sequential` representation,
+        // multi-task personalization reduces to real joint fine-tuning of the
+        // shared model on the client's data.
+        Self::fine_tune(
+            &mut personalized_model,
+            client_data,
+            client_labels,
+            10,
+            0.01,
+        )?;
 
         self.client_models
             .insert(client_id, personalized_model.clone());
@@ -420,13 +475,37 @@ impl PersonalizedFL {
     }
 
     /// Compute loss for a model on given data (simplified)
-    fn compute_loss(
+    /// Mean softmax cross-entropy loss of `model` on the given data.
+    pub fn compute_loss(
         &self,
-        _model: &Sequential<f32>,
-        _data: &ArrayView2<f32>,
-        _labels: &ArrayView1<usize>,
+        model: &Sequential<f32>,
+        data: &ArrayView2<f32>,
+        labels: &ArrayView1<usize>,
     ) -> Result<f32> {
-        Ok(0.5)
+        if data.nrows() == 0 {
+            return Ok(0.0);
+        }
+        let input = data.to_owned().into_dyn();
+        let logits = model.forward(&input)?;
+        let logits = logits
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|e| NeuralError::ComputationError(format!("{e}")))?;
+        let (n, num_classes) = (logits.nrows(), logits.ncols());
+        let mut loss = 0.0f32;
+        for i in 0..n {
+            let row = logits.row(i);
+            let max = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+            let sum: f32 = row.iter().map(|&v| (v - max).exp()).sum();
+            let label = labels[i];
+            if label >= num_classes {
+                return Err(NeuralError::InvalidArgument(format!(
+                    "label {label} out of range for {num_classes} classes"
+                )));
+            }
+            let log_prob = (row[label] - max) - sum.ln();
+            loss -= log_prob;
+        }
+        Ok(loss / n as f32)
     }
 
     /// Evaluate personalization performance

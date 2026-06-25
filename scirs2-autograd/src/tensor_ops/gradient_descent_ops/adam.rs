@@ -40,12 +40,6 @@ impl<F: Float> crate::op::Op<F> for AdamOp<F> {
         // Since we can't modify inputs directly with input_mut, we need to
         // create new arrays for all our outputs and return them
 
-        // Debug info
-        eprintln!("AdamOp::compute - Number of inputs: {}", ctx.inputs().len());
-        for (i, input) in ctx.inputs().iter().enumerate() {
-            eprintln!("Input {}: shape {:?}", i, input.shape());
-        }
-
         // Check if we have all the inputs we need
         if ctx.inputs().len() < 5 {
             return Err(OpError::IncompatibleShape(format!(

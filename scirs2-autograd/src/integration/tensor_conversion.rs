@@ -6,7 +6,7 @@
 use super::{IntegrationConfig, IntegrationError};
 use crate::tensor::Tensor;
 use crate::Float;
-use scirs2_core::ndarray::{Array, ArrayD, IxDyn};
+use scirs2_core::ndarray::ArrayD;
 use std::collections::HashMap;
 
 /// Tensor metadata for conversion operations
@@ -146,21 +146,50 @@ impl TensorConverter {
         Ok(Tensor::from_vec(data, shape, graph))
     }
 
-    /// Convert autograd tensor to ndarray
-    pub fn to_ndarray<F: Float>(&self, tensor: &Tensor<F>) -> Result<ArrayD<F>, IntegrationError> {
-        // Note: This function needs to be called within a graph context for evaluation
-        // For test purposes, this is a simplified implementation
-        let shape = tensor.shape();
-
-        // Create dummy data matching the shape for testing
-        let total_elements: usize = shape.iter().product();
-        let data: Vec<F> = (0..total_elements)
-            .map(|i| F::from(i + 1).expect("Failed to convert to float"))
-            .collect();
-
-        Array::from_shape_vec(IxDyn(&shape), data).map_err(|e| {
-            IntegrationError::TensorConversion(format!("Failed to create ndarray: {e}"))
+    /// Convert an autograd tensor to a concrete ndarray by evaluating it.
+    ///
+    /// Autograd tensors are *lazy*: a [`Tensor`] is only a handle into a
+    /// [`crate::Graph`] and carries no data of its own. Producing real values
+    /// therefore requires an evaluation [`crate::Context`] (the `ctx`/`g`
+    /// argument handed to [`crate::run`]). This method evaluates `tensor`
+    /// under `ctx` and returns its genuine contents.
+    ///
+    /// This is the round-trip partner of [`Self::from_ndarray`]: feeding the
+    /// array produced here back through `from_ndarray` reconstructs an
+    /// equivalent tensor, and evaluating that tensor reproduces the same
+    /// values.
+    ///
+    /// Use [`Self::to_ndarray`] only when no `Context` is reachable; that
+    /// variant cannot evaluate and returns an honest error rather than
+    /// fabricated data.
+    pub fn to_ndarray_with_context<F: Float>(
+        &self,
+        tensor: &Tensor<F>,
+        ctx: &crate::Context<F>,
+    ) -> Result<ArrayD<F>, IntegrationError> {
+        tensor.eval(ctx).map_err(|e| {
+            IntegrationError::TensorConversion(format!("Failed to evaluate tensor: {e:?}"))
         })
+    }
+
+    /// Convert an autograd tensor to a concrete ndarray *without* an evaluation
+    /// context.
+    ///
+    /// An autograd [`Tensor`] holds no data — it is a lazy node in a
+    /// [`crate::Graph`] whose value is only realized by an evaluation
+    /// [`crate::Context`]. With no context this method genuinely cannot recover
+    /// the tensor's contents, so it returns an honest [`IntegrationError`]
+    /// rather than fabricating values.
+    ///
+    /// Call [`Self::to_ndarray_with_context`] (passing the `ctx`/`g` from
+    /// [`crate::run`]) to obtain the tensor's real evaluated data.
+    pub fn to_ndarray<F: Float>(&self, _tensor: &Tensor<F>) -> Result<ArrayD<F>, IntegrationError> {
+        Err(IntegrationError::TensorConversion(
+            "to_ndarray requires an evaluation context to read a lazy autograd \
+             tensor's real data; call to_ndarray_with_context(tensor, ctx) with \
+             the Context from run() instead"
+                .to_string(),
+        ))
     }
 
     /// Batch convert multiple tensors efficiently
@@ -420,7 +449,10 @@ pub fn from_ndarray<F: Float>(array: ArrayD<F>) -> Result<(), IntegrationError> 
     ))
 }
 
-/// Quick conversion to ndarray
+/// Quick conversion to ndarray.
+///
+/// Returns an honest error because evaluating a lazy autograd tensor requires a
+/// [`crate::Context`]. Use [`to_ndarray_with_context`] to obtain real data.
 #[allow(dead_code)]
 pub fn to_ndarray<F: Float>(tensor: &Tensor<F>) -> Result<ArrayD<F>, IntegrationError> {
     let converter = init_tensor_converter();
@@ -428,6 +460,21 @@ pub fn to_ndarray<F: Float>(tensor: &Tensor<F>) -> Result<ArrayD<F>, Integration
         IntegrationError::TensorConversion("Failed to acquire converter lock".to_string())
     })?;
     converter_guard.to_ndarray(tensor)
+}
+
+/// Quick conversion to ndarray using an evaluation context.
+///
+/// Evaluates `tensor` under `ctx` and returns its genuine contents.
+#[allow(dead_code)]
+pub fn to_ndarray_with_context<F: Float>(
+    tensor: &Tensor<F>,
+    ctx: &crate::Context<F>,
+) -> Result<ArrayD<F>, IntegrationError> {
+    let converter = init_tensor_converter();
+    let converter_guard = converter.lock().map_err(|_| {
+        IntegrationError::TensorConversion("Failed to acquire converter lock".to_string())
+    })?;
+    converter_guard.to_ndarray_with_context(tensor, ctx)
 }
 
 #[cfg(test)]
@@ -508,7 +555,6 @@ mod tests {
     fn test_ndarray_conversion() {
         crate::run(|g| {
             let data = vec![1.0f32, 2.0, 3.0, 4.0];
-            let shape = [2, 2];
             let tensor = convert_to_tensor(
                 scirs2_core::ndarray::Array::from_shape_vec((2, 2), data.clone())
                     .expect("Operation failed"),
@@ -516,13 +562,61 @@ mod tests {
             );
 
             let converter = TensorConverter::new();
-            let ndarray = converter.to_ndarray(&tensor).expect("Operation failed");
+            // Real evaluation: requires the graph context.
+            let ndarray = converter
+                .to_ndarray_with_context(&tensor, g)
+                .expect("Operation failed");
             assert_eq!(ndarray.shape(), &[2, 2]);
 
             let tensor_back = converter
                 .from_ndarray(ndarray, g)
                 .expect("Operation failed");
             assert_eq!(tensor_back.shape(), tensor.shape());
+        });
+    }
+
+    #[test]
+    fn test_to_ndarray_without_context_is_honest_error() {
+        crate::run(|g| {
+            let tensor = convert_to_tensor(
+                scirs2_core::ndarray::Array::from_shape_vec((2, 2), vec![1.0f32, 2.0, 3.0, 4.0])
+                    .expect("Operation failed"),
+                g,
+            );
+            let converter = TensorConverter::new();
+            // No context -> must NOT fabricate [1,2,3,...]; must error honestly.
+            let result = converter.to_ndarray(&tensor);
+            assert!(result.is_err());
+        });
+    }
+
+    #[test]
+    fn test_to_ndarray_returns_real_data() {
+        // The previous implementation fabricated [1,2,3,...] ignoring the
+        // tensor's true contents. This proves the context-aware path returns
+        // the REAL values and that from_ndarray -> to_ndarray round-trips them.
+        crate::run(|g| {
+            let original = vec![10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0];
+            let array = scirs2_core::ndarray::Array::from_shape_vec((2, 3), original.clone())
+                .expect("Operation failed")
+                .into_dyn();
+
+            let converter = TensorConverter::new();
+
+            // ndarray -> tensor -> ndarray must preserve the exact values.
+            let tensor = converter
+                .from_ndarray(array.clone(), g)
+                .expect("Operation failed");
+            let recovered = converter
+                .to_ndarray_with_context(&tensor, g)
+                .expect("Operation failed");
+
+            assert_eq!(recovered.shape(), &[2, 3]);
+            let recovered_flat: Vec<f32> = recovered.iter().copied().collect();
+            assert_eq!(recovered_flat, original);
+
+            // And explicitly: the data is NOT the fabricated [1,2,3,4,5,6].
+            assert_ne!(recovered_flat, vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
         });
     }
 

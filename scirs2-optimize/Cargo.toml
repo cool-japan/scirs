@@ -25,14 +25,12 @@ scirs2-stats = { workspace = true }
 thiserror = { workspace = true }
 
 # Optimization specific dependencies
-argmin = { workspace = true, default-features = false }
 scirs2-sparse = { workspace = true }
 statrs = { workspace = true }
 serde = { workspace = true }
 
 # Async dependencies (optional)
 tokio = { workspace = true, optional = true }
-futures = { workspace = true, optional = true }
 
 # Symbolic-gradient dependencies (optional)
 scirs2-symbolic = { workspace = true, optional = true }
@@ -40,7 +38,7 @@ scirs2-symbolic = { workspace = true, optional = true }
 [features]
 default = ["parallel"]
 parallel = ["scirs2-core/parallel"]
-async = ["tokio", "futures"]
+async = ["tokio"]
 python = ["scirs2-core/python"] # Python bindings support
 symbolic = ["dep:scirs2-symbolic"] # Symbolic-gradient Newton solver
 gpu = ["scirs2-core/array_protocol_wgpu"] # GPU-accelerated L-BFGS 2-loop recursion via wgpu

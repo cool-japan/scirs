@@ -18,14 +18,16 @@
 //! use std::path::Path;
 //!
 //! let config = PipelineConfig::default();
-//! let pipeline = ImagePipeline::new(config);
-//!
-//! // Process a large image file
-//! let result = pipeline
-//!     .input(Path::new("large_image.raw"), (10000, 10000))
+//! let pipeline = ImagePipeline::<f64>::new(config)
 //!     .gaussian_filter(2.0)
-//!     .threshold(0.5)
-//!     .save(Path::new("output.raw"));
+//!     .threshold(0.5);
+//!
+//! // Process a large image file in chunks (writes output to disk)
+//! let _result = pipeline.process_file(
+//!     Path::new("large_image.raw"),
+//!     Path::new("output.raw"),
+//!     (10000, 10000),
+//! );
 //! ```
 
 use std::collections::HashMap;

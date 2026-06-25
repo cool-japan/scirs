@@ -94,9 +94,6 @@ sha2 = { workspace = true, optional = true }  # Cryptographic hash functions
 tracing = { workspace = true, optional = true }  # Structured logging and tracing
 tracing-subscriber = { workspace = true, optional = true }  # Tracing subscriber implementation
 tracing-appender = { workspace = true, optional = true }  # File appender for tracing
-tracing-flame = { workspace = true, optional = true }  # Flame graph generation from tracing
-tracing-chrome = { workspace = true, optional = true }  # Chrome DevTools trace format
-tracing-opentelemetry = { workspace = true, optional = true }  # OpenTelemetry integration
 
 # OpenTelemetry dependencies
 opentelemetry = { workspace = true, optional = true }  # OpenTelemetry API
@@ -117,13 +114,12 @@ quickcheck = { workspace = true, optional = true }  # Property-based testing
 
 # Arbitrary precision dependencies
 num-bigint = { workspace = true, optional = true }  # Arbitrary precision integers
-rug = { workspace = true, optional = true }  # Arbitrary precision complex (rug::Complex; pending oxinum-complex)
-# oxinum-* Pure Rust arbitrary precision: Int/Float/Rational (GMP/MPFR-free).
-# ArbitraryComplex still uses rug until oxinum ships oxinum-complex.
+# oxinum-* Pure Rust arbitrary precision (GMP/MPFR-free); replaces rug entirely.
 oxinum-core     = { workspace = true, optional = true }
 oxinum-int      = { workspace = true, optional = true }
 oxinum-float    = { workspace = true, optional = true }
 oxinum-rational = { workspace = true, optional = true }
+oxinum-complex  = { workspace = true, optional = true }
 
 # Python integration dependencies (PyO3)
 pyo3 = { workspace = true, optional = true }  # Python bindings
@@ -131,13 +127,6 @@ scirs2-numpy = { workspace = true, optional = true }  # NumPy integration for Py
 
 # Arrow interoperability (v0.3.0) - zero-copy Arrow format support
 arrow = { workspace = true, optional = true }  # Apache Arrow columnar format
-arrow-array = { workspace = true, optional = true }  # Arrow array types
-arrow-buffer = { workspace = true, optional = true }  # Arrow memory buffers
-arrow-cast = { workspace = true, optional = true }  # Arrow type casting
-arrow-data = { workspace = true, optional = true }  # Arrow data structures
-arrow-schema = { workspace = true, optional = true }  # Arrow schema types
-arrow-select = { workspace = true, optional = true }  # Arrow selection operations
-arrow-arith = { workspace = true, optional = true }  # Arrow arithmetic operations
 
 # Embedded systems support (v0.2.0) - no_std compatibility
 libm = { workspace = true, optional = true }  # Math functions for no_std
@@ -233,9 +222,9 @@ memory_visualization = ["memory_metrics"]  # Memory usage visualization
 memory_call_stack = ["memory_metrics"]  # Capture call stacks for memory events
 profiling = ["std", "num_cpus", "serialization"]  # Performance profiling tools (basic, includes serialization for JSON export) (requires std)
 profiling_advanced = ["std", "profiling", "tracing", "tracing-subscriber", "tracing-appender"]  # Advanced profiling with structured logging (requires std)
-profiling_flame = ["std", "profiling_advanced", "tracing-flame"]  # Flame graph generation (requires std)
-profiling_chrome = ["std", "profiling_advanced", "tracing-chrome"]  # Chrome DevTools profiling (requires std)
-profiling_opentelemetry = ["std", "profiling_advanced", "tracing-opentelemetry", "opentelemetry", "opentelemetry_sdk"]  # OpenTelemetry integration (requires std)
+profiling_flame = ["std", "profiling_advanced"]  # Flame graph generation (requires std)
+profiling_chrome = ["std", "profiling_advanced"]  # Chrome DevTools profiling (requires std)
+profiling_opentelemetry = ["std", "profiling_advanced", "opentelemetry", "opentelemetry_sdk"]  # OpenTelemetry integration (requires std)
 profiling_prometheus = ["std", "profiling", "prometheus"]  # Prometheus metrics export (requires std)
 profiling_otlp = ["std", "profiling_opentelemetry", "opentelemetry-otlp"]  # OTLP exporter for distributed tracing (requires std)
 profiling_memory = ["std", "profiling", "libc"]  # Memory profiling with Pure Rust OS APIs (requires std)
@@ -272,11 +261,11 @@ crypto = []  # Cryptographic features (placeholder) (may work in no_std)
 compression = ["std", "dep:oxiarc-deflate"]  # Compression support (requires std)
 database = ["std"]  # Database integration features (requires std)
 cloud = ["std"]  # Cloud storage integration (S3, GCS, Azure) (requires std)
-arrow = ["std", "dep:arrow", "dep:arrow-array", "dep:arrow-buffer", "dep:arrow-cast", "dep:arrow-data", "dep:arrow-schema", "dep:arrow-select", "dep:arrow-arith", "memmap2"]  # Arrow columnar format interoperability for zero-copy data exchange (requires std)
+arrow = ["std", "dep:arrow", "memmap2"]  # Arrow columnar format interoperability for zero-copy data exchange (requires std)
 jit = ["std"]  # Just-in-time compilation (requires std)
 ml_pipeline = ["std"]  # ML pipeline integration and real-time processing (requires std)
 production = ["std", "observability", "versioning", "leak_detection", "data_validation"]  # All production features (requires std)
-arbitrary-precision = ["std", "num-bigint", "rug", "oxinum-core", "oxinum-int", "oxinum-float", "oxinum-rational"]  # Arbitrary precision arithmetic (rug retained for Complex only; Int/Float/Rational use Pure Rust oxinum-*)
+arbitrary-precision = ["std", "num-bigint", "oxinum-core", "oxinum-int", "oxinum-float", "oxinum-rational", "oxinum-complex"]  # Arbitrary precision arithmetic (Pure Rust oxinum-* for Int/Float/Rational/Complex; rug fully removed)
 python = ["std", "dep:pyo3", "dep:scirs2-numpy", "serialization"]  # Python bindings with NumPy integration (uses scirs2-numpy with ndarray 0.17) (requires std)
 all = [
     "simd", "parallel", "cache", "validation", "logging",

@@ -279,16 +279,17 @@ impl CudaContext {
             any(target_os = "linux", target_os = "windows")
         )))]
         {
-            // Fallback implementation
-            let device = Self::initialize_cuda()?;
-            let context = Self::create_cuda_context(device)?;
-
-            Ok(Self {
-                device,
-                context,
-                compiled_kernels: Arc::new(Mutex::new(HashMap::new())),
-                memory_pool: Arc::new(Mutex::new(CudaMemoryPool::new(1024 * 1024 * 1024))), // 1GB pool
-            })
+            // No real CUDA toolkit/driver bindings are available in this build
+            // (the `cuda` feature is disabled, or the target is not a supported
+            // x86_64 Linux/Windows platform). Previously this returned a context
+            // backed by a host-side *simulation* that fabricated GPU results.
+            // That is dishonest: callers would believe CUDA succeeded when no GPU
+            // work happened. Report unavailability instead.
+            Err(GpuError::BackendNotAvailable(
+                "CUDA backend is unavailable: build with the `cuda` feature on a supported \
+                 x86_64 Linux/Windows target to enable real CUDA execution"
+                    .to_string(),
+            ))
         }
     }
 
@@ -319,13 +320,21 @@ impl CudaContext {
         Ok(1)
     }
 
-    /// Create CUDA context for the device
+    /// Create a CUDA context for the device.
+    ///
+    /// With the `cuda` feature enabled, real context management is handled by
+    /// `cudarc` inside [`CudaContext::new`] (which holds an `Arc<CudaContext>`),
+    /// so this low-level helper is unused. It deliberately returns an honest
+    /// error instead of a null "dummy" context: a null context would silently
+    /// pretend a CUDA context was created when none exists, which is exactly the
+    /// kind of fabricated success this crate must avoid.
     #[allow(dead_code)]
     #[cfg(feature = "cuda")]
-    fn create_cuda_context(device: CUdevice) -> Result<CUcontext, GpuError> {
-        // In real implementation: cuCtxCreate_v2(&mut context, 0, device)
-        // For now, return a dummy context (actual implementation would need proper CUDA API calls)
-        Ok(std::ptr::null_mut())
+    fn create_cuda_context(_device: CUdevice) -> Result<CUcontext, GpuError> {
+        Err(GpuError::Other(
+            "create_cuda_context is unused under the `cuda` feature; context creation is handled by cudarc in CudaContext::new"
+                .to_string(),
+        ))
     }
 
     /// Create CUDA context for the device (fallback)

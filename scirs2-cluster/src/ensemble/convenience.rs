@@ -252,24 +252,66 @@ fn adapt_ensemble_composition<F>(
 where
     F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
 {
-    match config.strategy {
+    apply_adaptation_strategy(&mut ensemble, &config.strategy, results, config);
+    Ok(ensemble)
+}
+
+/// Apply a single adaptation strategy in place, mutating the ensemble's
+/// configuration based on the observed performance history.
+///
+/// The base clusterers are regenerated on every `fit`, so the ensemble's
+/// composition is governed by `n_estimators`. We therefore realize:
+/// * `RemoveWorst` -> shrink `n_estimators` (drop the least useful members),
+/// * `AddDiverse`  -> grow `n_estimators` toward `max_clusterers`,
+/// * `Replace`     -> reshuffle by re-seeding so a fresh, equally-sized set of
+///   base learners is drawn on the next fit,
+/// * `Hybrid`      -> apply the contained strategies in order.
+fn apply_adaptation_strategy<F>(
+    ensemble: &mut EnsembleClusterer<F>,
+    strategy: &AdaptationStrategy,
+    results: &[EnsembleResult],
+    config: &AdaptationConfig,
+) where
+    F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
+{
+    match strategy {
         AdaptationStrategy::RemoveWorst => {
-            // Remove worst performing clusterers
+            // Identify how many members are underperforming relative to the mean
+            // quality and shrink the ensemble by that count (keeping at least one).
             if results.len() > 1 {
-                // Implementation would identify and remove worst performers
-                // For now, return the ensemble unchanged
+                let mean_quality = evaluate_ensemble_performance(results);
+                let n_below = results
+                    .iter()
+                    .filter(|r| r.ensemble_quality < mean_quality)
+                    .count();
+                // Remove at most ~25% of the ensemble per adaptation step.
+                let cfg = ensemble.config_mut();
+                let max_remove = (cfg.n_estimators / 4).max(1);
+                let remove = n_below.clamp(1, max_remove);
+                cfg.n_estimators = cfg.n_estimators.saturating_sub(remove).max(1);
             }
         }
         AdaptationStrategy::AddDiverse => {
-            // Add new diverse clusterers
-            // Implementation would add new diverse algorithms/parameters
+            // Grow the ensemble (more diverse base learners) up to the configured cap.
+            let cfg = ensemble.config_mut();
+            if cfg.n_estimators < config.max_clusterers {
+                let grow =
+                    ((cfg.n_estimators / 4).max(1)).min(config.max_clusterers - cfg.n_estimators);
+                cfg.n_estimators += grow;
+            }
         }
-        _ => {
-            // Other strategies
+        AdaptationStrategy::Replace => {
+            // Keep the size but draw a different set of base learners next fit by
+            // advancing the random seed (or seeding one if none was set).
+            let cfg = ensemble.config_mut();
+            cfg.random_seed = Some(cfg.random_seed.map(|s| s.wrapping_add(1)).unwrap_or(1));
+        }
+        AdaptationStrategy::Hybrid(strategies) => {
+            for sub in strategies {
+                apply_adaptation_strategy(ensemble, sub, results, config);
+            }
         }
     }
-
-    Ok(ensemble)
 }
 
 fn combine_chunkresults(chunkresults: Vec<EnsembleResult>) -> Result<EnsembleResult> {

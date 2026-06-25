@@ -250,6 +250,10 @@ pub fn simulate_quantum_consciousness(
     // Apply consciousness-level global coherence
     apply_global_consciousness_coherence(&mut consciousness_output, advancedstate, config)?;
 
+    // Propagate temporal-causal influence across the consciousness field using the
+    // accumulated causal graph and temporal memory (Granger-style causal weighting).
+    apply_temporal_causal_inference(&mut consciousness_output, advancedstate, config)?;
+
     Ok(consciousness_output)
 }
 
@@ -778,41 +782,159 @@ fn update_consciousness_evolutionhistory(
     Ok(())
 }
 
-// TODO: The following functions are placeholders for neural processing dependencies
-// These will be implemented in other modules (neural_processing.rs, etc.)
-
-/// Placeholder for reorganize_network_structure function
-/// TODO: Implement in neural_processing module
-#[allow(dead_code)]
-fn reorganize_network_structure(
-    _topology: &mut NetworkTopology,
-    _features: &Array5<f64>,
-    _config: &AdvancedConfig,
+/// Apply temporal-causal inference to the consciousness output field.
+///
+/// # Model
+///
+/// This implements a deterministic, Granger-style temporal-causal propagation over the
+/// consciousness field `C(y, x)`. Each pixel is treated as an event whose flattened index is
+/// `id = y * width + x`. The accumulated causal graph
+/// `causal_graph: BTreeMap<id, Vec<CausalRelation>>` maps every *source* event to its outgoing
+/// causal relations, each carrying a `strength`, a `confidence`, and a temporal `delay`.
+///
+/// For a given target pixel `t`, the causal influence is the temporally-lagged, causally-weighted
+/// sum of the activity of all its source pixels:
+///
+/// ```text
+/// influence(t) = Σ_{ (s → t) ∈ graph }  strength · confidence · decay(delay) · C_lag(s, delay)
+/// ```
+///
+/// where:
+/// * `decay(delay) = exp(-delay / τ)` with `τ = max(temporal_window, 1)` is a temporal decay that
+///   discounts long-lag causation (lagged states matter less the further back they are);
+/// * `C_lag(s, delay)` is the value of source pixel `s` taken from `temporal_memory` at the given
+///   lag (the `delay`-th most recent frame). When the temporal memory is shallower than the
+///   requested lag, the *current* output `C(s)` is used as the best available estimate.
+///
+/// The influence is then normalised by the total incoming causal weight so the result stays a
+/// bounded weighted average of the source activities, and the output is updated as
+///
+/// ```text
+/// C'(t) = (1 - α_eff) · C(t) + α_eff · influence_norm(t)
+/// ```
+///
+/// with an effective causal coupling `α_eff = α · mean_decay(t)`, where the base coupling
+/// `α = clamp(causal_depth / (causal_depth + temporal_window), 0, 1)` is derived from the
+/// configuration and `mean_decay(t) ∈ (0, 1]` is the weight-averaged temporal discount of the
+/// relations incoming to `t`. Because the weighted average alone is invariant to a common scaling
+/// of the weights, folding `mean_decay` into the coupling is what makes long-lag causation move
+/// the present value *less* than recent causation — even when a pixel has a single cause.
+/// Pixels with no incoming causal relations are left unchanged. The whole operation is
+/// deterministic and order-independent (a snapshot of the input field is used for every read),
+/// and every output value remains finite and non-negative whenever the input is.
+pub(crate) fn apply_temporal_causal_inference(
+    consciousness_output: &mut Array2<f64>,
+    state: &AdvancedState,
+    config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // TODO: This function will be implemented in the neural processing module
-    Ok(())
-}
+    let (height, width) = consciousness_output.dim();
+    if height == 0 || width == 0 || state.causal_graph.is_empty() {
+        return Ok(());
+    }
 
-/// Placeholder for apply_temporal_causal_inference function
-#[allow(dead_code)]
-fn apply_temporal_causal_inference(
-    _consciousness_output: &mut Array2<f64>,
-    _state: &AdvancedState,
-    _config: &AdvancedConfig,
-) -> NdimageResult<()> {
+    // Temporal decay constant: τ controls how strongly long-lag causation is discounted.
+    let tau = config.temporal_window.max(1) as f64;
+
+    // Causal coupling factor α ∈ [0, 1] derived from the configured causal/temporal depths.
+    let causal_depth = config.causal_depth as f64;
+    let alpha = (causal_depth / (causal_depth + tau)).clamp(0.0, 1.0);
+
+    // Snapshot the current field so all causal reads use the same (pre-update) state,
+    // making the propagation deterministic and independent of traversal order.
+    let snapshot = consciousness_output.clone();
+
+    // Helper: fetch the value of a source event at a given temporal lag.
+    // Lag 0 (or insufficient memory) falls back to the current snapshot value.
+    let lagged_value = |source_id: usize, delay: usize| -> f64 {
+        let sy = source_id / width;
+        let sx = source_id % width;
+        if sy >= height || sx >= width {
+            return 0.0;
+        }
+        if delay == 0 || state.temporal_memory.is_empty() {
+            return snapshot[(sy, sx)];
+        }
+        // temporal_memory is ordered oldest -> newest; the `delay`-th most recent frame.
+        let len = state.temporal_memory.len();
+        let lag = delay.min(len);
+        let idx = len - lag;
+        let frame = &state.temporal_memory[idx];
+        let (fh, fw, _fd) = frame.dim();
+        if sy < fh && sx < fw {
+            frame[(sy, sx, 0)]
+        } else {
+            snapshot[(sy, sx)]
+        }
+    };
+
+    // Accumulate incoming causal influence per target pixel.
+    // Per target we track:
+    //   acc          = Σ (decayed_weight · source_activity)   -> for the weighted-average influence
+    //   total_w      = Σ  decayed_weight                      -> normaliser for that average
+    //   total_raw    = Σ (strength · confidence)              -> un-decayed coupling mass
+    // The ratio mean_decay = total_w / total_raw ∈ (0, 1] is the weight-averaged temporal
+    // discount; it scales how strongly the (time-lagged) causal channel overrides the present
+    // value, so a target whose only cause is far in the past is moved less than one with a
+    // recent cause.
+    let mut influence = vec![(0.0_f64, 0.0_f64, 0.0_f64); height * width];
+
+    for relations in state.causal_graph.values() {
+        for relation in relations {
+            if relation.target >= influence.len() {
+                continue;
+            }
+            let raw = relation.strength.abs() * relation.confidence.clamp(0.0, 1.0);
+            if raw <= 0.0 {
+                continue;
+            }
+            // Temporal decay discounts long-lag causation.
+            let decay = (-(relation.delay as f64) / tau).exp();
+            let weight = raw * decay;
+            let source_activity = lagged_value(relation.source, relation.delay);
+            let (ref mut acc, ref mut total_w, ref mut total_raw) = influence[relation.target];
+            *acc += weight * source_activity;
+            *total_w += weight;
+            *total_raw += raw;
+        }
+    }
+
+    // Blend the causal influence into the consciousness field where causation is present.
+    for y in 0..height {
+        for x in 0..width {
+            let id = y * width + x;
+            let (acc, total_w, total_raw) = influence[id];
+            if total_w > 1e-12 && total_raw > 1e-12 {
+                // Weighted average of (lagged) source activities.
+                let influence_norm = acc / total_w;
+                // Temporal discount on the coupling strength (recent causes pull harder).
+                let mean_decay = (total_w / total_raw).clamp(0.0, 1.0);
+                let effective_alpha = (alpha * mean_decay).clamp(0.0, 1.0);
+
+                let current = snapshot[(y, x)];
+                let updated = (1.0 - effective_alpha) * current + effective_alpha * influence_norm;
+                // Keep values finite; preserve non-negativity of the probability-like field.
+                consciousness_output[(y, x)] = if updated.is_finite() {
+                    updated.max(0.0)
+                } else {
+                    current
+                };
+            }
+        }
+    }
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::{Array1, Array4};
+    use scirs2_core::ndarray::{Array1, Array2, Array3, Array4};
     use scirs2_core::numeric::Complex;
     use std::collections::{BTreeMap, VecDeque};
     use std::sync::{Arc, RwLock};
 
     fn make_test_state(amplitudes: Array4<Complex<f64>>) -> AdvancedState {
-        use scirs2_core::ndarray::{Array2, Array5};
+        use scirs2_core::ndarray::Array5;
 
         AdvancedState {
             consciousness_amplitudes: amplitudes,
@@ -908,5 +1030,152 @@ mod tests {
                 v
             );
         }
+    }
+
+    /// Build a `CausalRelation` with the given parameters.
+    fn make_relation(
+        source: usize,
+        target: usize,
+        strength: f64,
+        delay: usize,
+        confidence: f64,
+    ) -> CausalRelation {
+        CausalRelation {
+            source,
+            target,
+            strength,
+            delay,
+            confidence,
+        }
+    }
+
+    #[test]
+    fn test_temporal_causal_inference_empty_graph_is_noop() {
+        // With no causal relations the field must be returned unchanged.
+        let amps = Array4::from_elem((2, 2, 1, 2), Complex::new(0.5, 0.0));
+        let state = make_test_state(amps); // causal_graph is empty
+        let config = AdvancedConfig::default();
+
+        let mut output = Array2::from_shape_fn((4, 4), |(y, x)| 0.1 * (y + x) as f64);
+        let before = output.clone();
+
+        apply_temporal_causal_inference(&mut output, &state, &config)
+            .expect("temporal causal inference should not fail");
+
+        assert_eq!(
+            before, output,
+            "empty causal graph must leave field unchanged"
+        );
+    }
+
+    #[test]
+    fn test_temporal_causal_inference_blends_toward_source() {
+        // A single zero-delay causal relation source -> target should pull the target's
+        // value toward the source's value (deterministic convex blend), staying bounded.
+        let amps = Array4::from_elem((2, 2, 1, 2), Complex::new(0.5, 0.0));
+        let mut state = make_test_state(amps);
+        let config = AdvancedConfig::default();
+
+        let width = 4usize;
+        // source pixel (0,0) -> id 0 ; target pixel (0,1) -> id 1
+        let source_id = 0usize;
+        let target_id = 1usize;
+        state.causal_graph.insert(
+            source_id,
+            vec![make_relation(source_id, target_id, 1.0, 0, 1.0)],
+        );
+
+        // Source has high activity, target has low activity.
+        let mut output = Array2::<f64>::zeros((1, width));
+        output[(0, 0)] = 1.0; // source
+        output[(0, 1)] = 0.0; // target
+        let source_val = output[(0, 0)];
+        let target_before = output[(0, 1)];
+
+        apply_temporal_causal_inference(&mut output, &state, &config)
+            .expect("temporal causal inference should not fail");
+
+        let target_after = output[(0, 1)];
+
+        // Source value unchanged (no incoming causation).
+        assert!(
+            (output[(0, 0)] - source_val).abs() < 1e-12,
+            "source pixel must be unaffected"
+        );
+        // Target moved strictly toward the (higher) source value.
+        assert!(
+            target_after > target_before,
+            "target should increase toward source, before={} after={}",
+            target_before,
+            target_after
+        );
+        assert!(
+            target_after <= source_val + 1e-12,
+            "blended value must not exceed source value, got {}",
+            target_after
+        );
+        // Bounded and finite.
+        assert!(
+            target_after.is_finite() && target_after >= 0.0,
+            "output must be finite and non-negative, got {}",
+            target_after
+        );
+
+        // Verify the exact convex-blend value: alpha = causal_depth/(causal_depth+tau).
+        let tau = config.temporal_window.max(1) as f64;
+        let causal_depth = config.causal_depth as f64;
+        let alpha = causal_depth / (causal_depth + tau);
+        let expected = (1.0 - alpha) * target_before + alpha * source_val;
+        assert!(
+            (target_after - expected).abs() < 1e-10,
+            "blend mismatch: expected {} got {}",
+            expected,
+            target_after
+        );
+    }
+
+    #[test]
+    fn test_temporal_causal_inference_delay_monotonic_decay() {
+        // Larger causal delay => stronger temporal decay => weaker influence =>
+        // target stays closer to its original value. We compare delay=1 vs delay=8.
+        let config = AdvancedConfig::default();
+        let width = 4usize;
+        let source_id = 0usize;
+        let target_id = 1usize;
+
+        // Helper that runs inference for a given delay and returns the resulting target value.
+        let run_for_delay = |delay: usize| -> f64 {
+            let amps = Array4::from_elem((2, 2, 1, 2), Complex::new(0.5, 0.0));
+            let mut state = make_test_state(amps);
+            state.causal_graph.insert(
+                source_id,
+                vec![make_relation(source_id, target_id, 1.0, delay, 1.0)],
+            );
+            // Provide enough temporal memory so the lag can be honoured.
+            for _ in 0..16 {
+                let mut frame = Array3::<f64>::zeros((1, width, 1));
+                frame[(0, 0, 0)] = 1.0; // source activity in history
+                state.temporal_memory.push_back(frame);
+            }
+
+            let mut output = Array2::<f64>::zeros((1, width));
+            output[(0, 0)] = 1.0;
+            output[(0, 1)] = 0.0;
+            apply_temporal_causal_inference(&mut output, &state, &config)
+                .expect("temporal causal inference should not fail");
+            output[(0, 1)]
+        };
+
+        let near = run_for_delay(1);
+        let far = run_for_delay(8);
+
+        // Both pull the target up from 0, but the longer delay pulls less.
+        assert!(near > 0.0 && far > 0.0, "both should increase the target");
+        assert!(
+            near > far,
+            "shorter delay should yield stronger influence: near(delay=1)={} far(delay=8)={}",
+            near,
+            far
+        );
     }
 }

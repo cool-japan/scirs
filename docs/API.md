@@ -1845,8 +1845,8 @@ if stats.fragmentation_ratio > 0.3 {
 
 - **API Reference**: `cargo doc --open`
 - **Python Docs**: `python -c "import scirs2; help(scirs2)"`
-- **Examples**: `/Users/kitasan/work/scirs/*/examples/`
-- **Benchmarks**: `/Users/kitasan/work/scirs/benches/`
+- **Examples**: `<repo-root>/*/examples/`
+- **Benchmarks**: `<repo-root>/benches/`
 
 ### Community
 

@@ -11,6 +11,7 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{ClusteringError, Result};
+use crate::hierarchy::{fcluster, ClusterCriterion};
 
 /// Dynamic Time Warping (DTW) distance between two time series
 ///
@@ -369,10 +370,13 @@ where
         }
     }
 
-    // Initialize clusters (each point is its own cluster initially)
+    // Initialize clusters (each point is its own cluster initially). `active_ids`
+    // tracks the SciPy-convention cluster ID for each active cluster: original
+    // observations are 0..n_series and each merge mints a new ID n_series + step.
     let mut clusters: Vec<Vec<usize>> = (0..n_series).map(|i| vec![i]).collect();
+    let mut active_ids: Vec<usize> = (0..n_series).collect();
     let mut linkage = Vec::new();
-    let mut cluster_id = n_series;
+    let mut next_cluster_id = n_series;
 
     while clusters.len() > 1 {
         // Find closest pair of clusters
@@ -398,32 +402,30 @@ where
             }
         }
 
-        // Record the merge
+        // Record the merge using the real SciPy cluster IDs of the two clusters.
         let cluster_i_size = clusters[merge_i].len();
         let cluster_j_size = clusters[merge_j].len();
+        let id_i = active_ids[merge_i];
+        let id_j = active_ids[merge_j];
+        // SciPy emits the lower ID first; this keeps the matrix canonical.
+        let (lo, hi) = if id_i <= id_j {
+            (id_i, id_j)
+        } else {
+            (id_j, id_i)
+        };
 
         linkage.push([
-            F::from(if merge_i < n_series {
-                merge_i
-            } else {
-                n_series + merge_i
-            })
-            .expect("Operation failed"),
-            F::from(if merge_j < n_series {
-                merge_j
-            } else {
-                n_series + merge_j
-            })
-            .expect("Operation failed"),
+            F::from(lo).expect("Failed to convert cluster id to float"),
+            F::from(hi).expect("Failed to convert cluster id to float"),
             min_distance,
-            F::from(cluster_i_size + cluster_j_size).expect("Failed to convert to float"),
+            F::from(cluster_i_size + cluster_j_size).expect("Failed to convert size to float"),
         ]);
 
         // Merge clusters
         let mut new_cluster = clusters[merge_i].clone();
         new_cluster.extend(&clusters[merge_j]);
 
-        // Remove old clusters (remove higher index first)
+        // Remove old clusters (remove higher index first) and their IDs.
         let (first, second) = if merge_i > merge_j {
             (merge_i, merge_j)
         } else {
@@ -432,12 +434,12 @@ where
 
         clusters.remove(first);
         clusters.remove(second);
-        clusters.push(new_cluster);
+        active_ids.remove(first);
+        active_ids.remove(second);
 
-        #[allow(unused_assignments)]
-        {
-            cluster_id += 1;
-        }
+        clusters.push(new_cluster);
+        active_ids.push(next_cluster_id);
+        next_cluster_id += 1;
     }
 
     // Convert to ndarray
@@ -763,22 +765,21 @@ where
             Ok(assignments)
         }
         TimeSeriesAlgorithm::DTWHierarchical => {
-            // For hierarchical clustering, we need to cut the dendrogram
-            // This is a simplified version that returns the first n_clusters
-            let _linkage = dtw_hierarchical_clustering(time_series, config.dtw_window)?;
+            // Build the DTW complete-linkage dendrogram, then cut it into exactly
+            // `n_clusters` flat clusters via the real `fcluster`/`cut_tree` routine
+            // (MaxClust criterion). This replaces the previous `i % n_clusters`
+            // placeholder with a genuine dendrogram cut driven by the merge tree.
+            let linkage = dtw_hierarchical_clustering(time_series, config.dtw_window)?;
 
-            // Simple flat clustering: assign based on first few merges
-            // In practice, you'd want to implement proper dendrogram cutting
             let n_series = time_series.nrows();
-            let mut assignments = Array1::from_iter(0..n_series);
+            let n_clusters = config.n_clusters.clamp(1, n_series.max(1));
 
-            // This is a simplified assignment - a proper implementation would
-            // cut the dendrogram at the appropriate level
-            for i in 0..n_series {
-                assignments[i] = i % config.n_clusters;
+            // A single series (no merges => empty linkage) is trivially one cluster.
+            if linkage.nrows() == 0 {
+                return Ok(Array1::zeros(n_series));
             }
 
-            Ok(assignments)
+            fcluster(&linkage, n_clusters, Some(ClusterCriterion::MaxClust))
         }
     }
 }
@@ -803,6 +804,43 @@ mod tests {
         let series = Array1::from_vec(vec![1.0, 2.0, 3.0, 2.0, 1.0]);
         let distance = dtw_distance(series.view(), series.view(), None).expect("Operation failed");
         assert_eq!(distance, 0.0);
+    }
+
+    #[test]
+    fn test_dtw_hierarchical_real_dendrogram_cut() {
+        // Two clearly separated groups of two near-identical series each. A real
+        // dendrogram cut at k=2 must recover exactly that grouping; the old
+        // `i % n_clusters` placeholder could not.
+        let time_series = Array2::from_shape_vec(
+            (4, 5),
+            vec![
+                1.0, 2.0, 3.0, 2.0, 1.0, // group A
+                1.1, 2.1, 3.1, 2.1, 1.1, // group A
+                8.0, 9.0, 10.0, 9.0, 8.0, // group B
+                8.1, 9.1, 10.1, 9.1, 8.1, // group B
+            ],
+        )
+        .expect("Operation failed");
+
+        let config = TimeSeriesClusteringConfig {
+            algorithm: TimeSeriesAlgorithm::DTWHierarchical,
+            n_clusters: 2,
+            ..TimeSeriesClusteringConfig::default()
+        };
+
+        let assignments =
+            time_series_clustering(time_series.view(), &config).expect("Operation failed");
+
+        assert_eq!(assignments.len(), 4);
+        // The two members of each group share a label; groups differ.
+        assert_eq!(assignments[0], assignments[1]);
+        assert_eq!(assignments[2], assignments[3]);
+        assert_ne!(assignments[0], assignments[2]);
+        // Exactly two distinct clusters.
+        let mut distinct: Vec<usize> = assignments.to_vec();
+        distinct.sort_unstable();
+        distinct.dedup();
+        assert_eq!(distinct.len(), 2);
     }
 
     #[test]

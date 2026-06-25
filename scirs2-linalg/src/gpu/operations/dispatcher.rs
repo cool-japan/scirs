@@ -99,8 +99,8 @@ where
         a_buffer.copy_from_host(&a_flat)?;
         x_buffer.copy_from_host(&x_flat)?;
 
-        // Execute GPU kernel (this would call the actual OpenCL/CUDA kernel)
-        // For now, we simulate the GPU computation
+        // Run the kernel. No physical GPU runtime is linked, so this executes the
+        // real computation on the CPU using the host-backed buffers (no fabrication).
         self.execute_matvec_kernel(
             ctx,
             a_buffer.as_ref(),
@@ -242,43 +242,32 @@ impl<T> GpuOperationDispatcher<T>
 where
     T: Float + NumAssign + Zero + Send + Sync + Debug + 'static,
 {
-    /// Execute GPU matrix-vector multiplication kernel
+    /// Execute a matrix-vector multiplication on behalf of `gpu_matvec`.
+    ///
+    /// scirs2-linalg does not link a physical GPU runtime, so there is no real
+    /// device kernel to launch. Rather than fabricate a successful kernel launch,
+    /// we run the mathematically-equivalent computation on the CPU using the
+    /// host-backed buffers. The result is therefore always real.
     fn execute_matvec_kernel(
         &self,
-        ctx: &dyn GpuContext,
+        _ctx: &dyn GpuContext,
         a_buffer: &dyn GpuBuffer<T>,
         x_buffer: &dyn GpuBuffer<T>,
         y_buffer: &mut dyn GpuBuffer<T>,
         m: usize,
         n: usize,
     ) -> LinalgResult<()> {
-        // This is where we would dispatch to the appropriate GPU kernel
-        // based on the device type (OpenCL, CUDA, etc.)
-
-        match ctx.device_info().device_type {
-            crate::gpu::GpuDeviceType::Cuda => {
-                self.execute_cuda_matvec_kernel(ctx, a_buffer, x_buffer, y_buffer, m, n)
-            }
-            crate::gpu::GpuDeviceType::OpenCl => {
-                self.execute_opencl_matvec_kernel(ctx, a_buffer, x_buffer, y_buffer, m, n)
-            }
-            crate::gpu::GpuDeviceType::Rocm => {
-                self.execute_rocm_matvec_kernel(ctx, a_buffer, x_buffer, y_buffer, m, n)
-            }
-            crate::gpu::GpuDeviceType::Metal => {
-                self.execute_metal_matvec_kernel(ctx, a_buffer, x_buffer, y_buffer, m, n)
-            }
-            _ => {
-                // Fallback to CPU for unsupported device types
-                self.simulate_gpu_matvec(a_buffer, x_buffer, y_buffer, m, n)
-            }
-        }
+        self.cpu_fallback_matvec(a_buffer, x_buffer, y_buffer, m, n)
     }
 
-    /// Execute GPU matrix-matrix multiplication kernel
+    /// Execute a matrix-matrix multiplication on behalf of `gpu_matmul`.
+    ///
+    /// See [`Self::execute_matvec_kernel`] for the rationale: no physical GPU
+    /// runtime is linked, so the real result is computed on the host instead of
+    /// pretending a device kernel ran.
     fn execute_matmul_kernel(
         &self,
-        ctx: &dyn GpuContext,
+        _ctx: &dyn GpuContext,
         a_buffer: &dyn GpuBuffer<T>,
         b_buffer: &dyn GpuBuffer<T>,
         c_buffer: &mut dyn GpuBuffer<T>,
@@ -286,28 +275,15 @@ where
         n: usize,
         k: usize,
     ) -> LinalgResult<()> {
-        match ctx.device_info().device_type {
-            crate::gpu::GpuDeviceType::Cuda => {
-                self.execute_cuda_matmul_kernel(ctx, a_buffer, b_buffer, c_buffer, m, n, k)
-            }
-            crate::gpu::GpuDeviceType::OpenCl => {
-                self.execute_opencl_matmul_kernel(ctx, a_buffer, b_buffer, c_buffer, m, n, k)
-            }
-            crate::gpu::GpuDeviceType::Rocm => {
-                self.execute_rocm_matmul_kernel(ctx, a_buffer, b_buffer, c_buffer, m, n, k)
-            }
-            crate::gpu::GpuDeviceType::Metal => {
-                self.execute_metal_matmul_kernel(ctx, a_buffer, b_buffer, c_buffer, m, n, k)
-            }
-            _ => {
-                // Fallback to CPU simulation for unsupported device types
-                self.simulate_gpu_matmul(a_buffer, b_buffer, c_buffer, m, n, k)
-            }
-        }
+        self.cpu_fallback_matmul(a_buffer, b_buffer, c_buffer, m, n, k)
     }
 
-    /// Simulate GPU computation (placeholder for actual kernel execution)
-    fn simulate_gpu_matvec(
+    /// CPU fallback matrix-vector multiply operating on host-backed buffers.
+    ///
+    /// Reads the operands back from the buffers, performs the multiply on the
+    /// CPU, and writes the result into `y_buffer`. Used by the GPU dispatch path
+    /// because no physical device kernel is linked into the crate.
+    fn cpu_fallback_matvec(
         &self,
         a_buffer: &dyn GpuBuffer<T>,
         x_buffer: &dyn GpuBuffer<T>,
@@ -315,13 +291,7 @@ where
         m: usize,
         n: usize,
     ) -> LinalgResult<()> {
-        // In a real implementation, this would:
-        // 1. Set up kernel parameters
-        // 2. Launch the appropriate GPU kernel
-        // 3. Wait for completion
-        // 4. Handle any errors
-
-        // For now, we simulate by copying data back and doing CPU computation
+        // Copy the operands back from the (host-backed) buffers and compute on CPU.
         let mut a_data = vec![T::zero(); m * n];
         let mut x_data = vec![T::zero(); n];
         let mut y_data = vec![T::zero(); m];
@@ -342,8 +312,8 @@ where
         Ok(())
     }
 
-    /// Simulate GPU matrix multiplication
-    fn simulate_gpu_matmul(
+    /// CPU fallback matrix-matrix multiply operating on host-backed buffers.
+    fn cpu_fallback_matmul(
         &self,
         a_buffer: &dyn GpuBuffer<T>,
         b_buffer: &dyn GpuBuffer<T>,
@@ -352,7 +322,7 @@ where
         n: usize,
         k: usize,
     ) -> LinalgResult<()> {
-        // Similar simulation for matrix multiplication
+        // Copy the operands back from the (host-backed) buffers and compute on CPU.
         let mut a_data = vec![T::zero(); m * k];
         let mut b_data = vec![T::zero(); k * n];
         let mut c_data = vec![T::zero(); m * n];
@@ -373,318 +343,6 @@ where
 
         c_buffer.copy_from_host(&c_data)?;
         Ok(())
-    }
-
-    /// Execute CUDA matrix-vector multiplication kernel
-    fn execute_cuda_matvec_kernel(
-        &self,
-        ctx: &dyn GpuContext,
-        a_buffer: &dyn GpuBuffer<T>,
-        x_buffer: &dyn GpuBuffer<T>,
-        y_buffer: &mut dyn GpuBuffer<T>,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // CUDA kernel execution implementation - would use real CUDA runtime in production
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            self.launch_cuda_matvec_f32(
-                a_buffer.device_ptr() as *const f32,
-                x_buffer.device_ptr() as *const f32,
-                y_buffer.device_ptr() as *mut f32,
-                m,
-                n,
-            )
-        } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f64>() {
-            self.launch_cuda_matvec_f64(
-                a_buffer.device_ptr() as *const f64,
-                x_buffer.device_ptr() as *const f64,
-                y_buffer.device_ptr() as *mut f64,
-                m,
-                n,
-            )
-        } else {
-            return Err(LinalgError::ComputationError(
-                "Unsupported data type for CUDA kernel".to_string(),
-            ));
-        }
-    }
-
-    /// Execute OpenCL matrix-vector multiplication kernel
-    fn execute_opencl_matvec_kernel(
-        &self,
-        ctx: &dyn GpuContext,
-        a_buffer: &dyn GpuBuffer<T>,
-        x_buffer: &dyn GpuBuffer<T>,
-        y_buffer: &mut dyn GpuBuffer<T>,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // OpenCL kernel execution implementation - would use real OpenCL API in production
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            self.launch_opencl_matvec_f32(
-                ctx,
-                a_buffer.device_ptr(),
-                x_buffer.device_ptr(),
-                y_buffer.device_ptr(),
-                m,
-                n,
-            )
-        } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f64>() {
-            self.launch_opencl_matvec_f64(
-                ctx,
-                a_buffer.device_ptr(),
-                x_buffer.device_ptr(),
-                y_buffer.device_ptr(),
-                m,
-                n,
-            )
-        } else {
-            return Err(LinalgError::ComputationError(
-                "Unsupported data type for OpenCL kernel".to_string(),
-            ));
-        }
-    }
-
-    /// Execute ROCm matrix-vector multiplication kernel
-    fn execute_rocm_matvec_kernel(
-        &self,
-        ctx: &dyn GpuContext,
-        a_buffer: &dyn GpuBuffer<T>,
-        x_buffer: &dyn GpuBuffer<T>,
-        y_buffer: &mut dyn GpuBuffer<T>,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // ROCm/HIP kernel execution - fallback to simulation for now
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            self.launch_rocm_matvec_f32(
-                ctx,
-                a_buffer.device_ptr(),
-                x_buffer.device_ptr(),
-                y_buffer.device_ptr(),
-                m,
-                n,
-            )
-        } else {
-            self.simulate_gpu_matvec(a_buffer, x_buffer, y_buffer, m, n)
-        }
-    }
-
-    /// Execute Metal matrix-vector multiplication kernel
-    fn execute_metal_matvec_kernel(
-        &self,
-        ctx: &dyn GpuContext,
-        a_buffer: &dyn GpuBuffer<T>,
-        x_buffer: &dyn GpuBuffer<T>,
-        y_buffer: &mut dyn GpuBuffer<T>,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // Metal kernel execution for macOS - fallback to simulation for now
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            self.launch_metal_matvec_f32(
-                ctx,
-                a_buffer.device_ptr(),
-                x_buffer.device_ptr(),
-                y_buffer.device_ptr(),
-                m,
-                n,
-            )
-        } else {
-            self.simulate_gpu_matvec(a_buffer, x_buffer, y_buffer, m, n)
-        }
-    }
-
-    /// Execute CUDA matrix-matrix multiplication kernel
-    fn execute_cuda_matmul_kernel(
-        &self,
-        ctx: &dyn GpuContext,
-        a_buffer: &dyn GpuBuffer<T>,
-        b_buffer: &dyn GpuBuffer<T>,
-        c_buffer: &mut dyn GpuBuffer<T>,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        let device_info = ctx.device_info();
-
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            let kernel_variant = self.select_cuda_matmul_variant(m, n, k, device_info);
-
-            match kernel_variant {
-                CudaKernelVariant::Basic => self.launch_cuda_matmul_f32_basic(
-                    a_buffer.device_ptr() as *const f32,
-                    b_buffer.device_ptr() as *const f32,
-                    c_buffer.device_ptr() as *mut f32,
-                    m,
-                    n,
-                    k,
-                ),
-                CudaKernelVariant::Tiled => self.launch_cuda_matmul_f32_tiled(
-                    a_buffer.device_ptr() as *const f32,
-                    b_buffer.device_ptr() as *const f32,
-                    c_buffer.device_ptr() as *mut f32,
-                    m,
-                    n,
-                    k,
-                ),
-                CudaKernelVariant::TensorCore => {
-                    if device_info.supports_tensor_cores {
-                        self.launch_cuda_matmul_f32_tensor_core(
-                            a_buffer.device_ptr() as *const f32,
-                            b_buffer.device_ptr() as *const f32,
-                            c_buffer.device_ptr() as *mut f32,
-                            m,
-                            n,
-                            k,
-                        )
-                    } else {
-                        self.launch_cuda_matmul_f32_tiled(
-                            a_buffer.device_ptr() as *const f32,
-                            b_buffer.device_ptr() as *const f32,
-                            c_buffer.device_ptr() as *mut f32,
-                            m,
-                            n,
-                            k,
-                        )
-                    }
-                }
-                CudaKernelVariant::WarpShuffle => self.launch_cuda_matmul_f32_warp_shuffle(
-                    a_buffer.device_ptr() as *const f32,
-                    b_buffer.device_ptr() as *const f32,
-                    c_buffer.device_ptr() as *mut f32,
-                    m,
-                    n,
-                    k,
-                ),
-            }
-        } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f64>() {
-            self.launch_cuda_matmul_f64(
-                a_buffer.device_ptr() as *const f64,
-                b_buffer.device_ptr() as *const f64,
-                c_buffer.device_ptr() as *mut f64,
-                m,
-                n,
-                k,
-            )
-        } else {
-            return Err(LinalgError::ComputationError(
-                "Unsupported data type for CUDA kernel".to_string(),
-            ));
-        }
-    }
-
-    /// Execute OpenCL matrix-matrix multiplication kernel
-    fn execute_opencl_matmul_kernel(
-        &self,
-        ctx: &dyn GpuContext,
-        a_buffer: &dyn GpuBuffer<T>,
-        b_buffer: &dyn GpuBuffer<T>,
-        c_buffer: &mut dyn GpuBuffer<T>,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        let device_info = ctx.device_info();
-        let kernel_variant = self.select_opencl_matmul_variant(m, n, k, device_info);
-
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            match kernel_variant {
-                OpenClKernelVariant::Basic => self.launch_opencl_matmul_f32_basic(
-                    ctx,
-                    a_buffer.device_ptr(),
-                    b_buffer.device_ptr(),
-                    c_buffer.device_ptr(),
-                    m,
-                    n,
-                    k,
-                ),
-                OpenClKernelVariant::Optimized => self.launch_opencl_matmul_f32_optimized(
-                    ctx,
-                    a_buffer.device_ptr(),
-                    b_buffer.device_ptr(),
-                    c_buffer.device_ptr(),
-                    m,
-                    n,
-                    k,
-                ),
-                OpenClKernelVariant::Vectorized => self.launch_opencl_matmul_f32_vectorized(
-                    ctx,
-                    a_buffer.device_ptr(),
-                    b_buffer.device_ptr(),
-                    c_buffer.device_ptr(),
-                    m,
-                    n,
-                    k,
-                ),
-            }
-        } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f64>() {
-            self.launch_opencl_matmul_f64(
-                ctx,
-                a_buffer.device_ptr(),
-                b_buffer.device_ptr(),
-                c_buffer.device_ptr(),
-                m,
-                n,
-                k,
-            )
-        } else {
-            return Err(LinalgError::ComputationError(
-                "Unsupported data type for OpenCL kernel".to_string(),
-            ));
-        }
-    }
-
-    /// Execute ROCm matrix-matrix multiplication kernel
-    fn execute_rocm_matmul_kernel(
-        &self,
-        ctx: &dyn GpuContext,
-        a_buffer: &dyn GpuBuffer<T>,
-        b_buffer: &dyn GpuBuffer<T>,
-        c_buffer: &mut dyn GpuBuffer<T>,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            self.launch_rocm_matmul_f32(
-                ctx,
-                a_buffer.device_ptr(),
-                b_buffer.device_ptr(),
-                c_buffer.device_ptr(),
-                m,
-                n,
-                k,
-            )
-        } else {
-            self.simulate_gpu_matmul(a_buffer, b_buffer, c_buffer, m, n, k)
-        }
-    }
-
-    /// Execute Metal matrix-matrix multiplication kernel
-    fn execute_metal_matmul_kernel(
-        &self,
-        ctx: &dyn GpuContext,
-        a_buffer: &dyn GpuBuffer<T>,
-        b_buffer: &dyn GpuBuffer<T>,
-        c_buffer: &mut dyn GpuBuffer<T>,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
-            self.launch_metal_matmul_f32(
-                ctx,
-                a_buffer.device_ptr(),
-                b_buffer.device_ptr(),
-                c_buffer.device_ptr(),
-                m,
-                n,
-                k,
-            )
-        } else {
-            self.simulate_gpu_matmul(a_buffer, b_buffer, c_buffer, m, n, k)
-        }
     }
 
     /// CPU fallback for matrix-vector multiplication
@@ -800,11 +458,13 @@ where
         ctx: &dyn GpuContext,
         size: usize,
     ) -> LinalgResult<Box<dyn GpuBuffer<U>>> {
-        // Since we can't directly cast to GpuContextAlloc, we'll use a fallback approach
-        // In a real implementation, this would dispatch based on the context type
-        // For now, we'll return a mock buffer to satisfy the compiler
-        use crate::gpu::acceleration::MockGpuBuffer;
-        Ok(Box::new(MockGpuBuffer::new(size)))
+        // A `&dyn GpuContext` does not expose `GpuContextAlloc`, so we cannot ask
+        // the context for a device-native allocation here. Rather than fabricate an
+        // opaque buffer, hand out a real CPU-backed buffer that actually stores the
+        // data; the kernel-execution path below runs the equivalent computation on
+        // the host so results are always real.
+        use crate::gpu::acceleration::CpuFallbackBuffer;
+        Ok(Box::new(CpuFallbackBuffer::new(size)))
     }
 }
 
@@ -848,330 +508,5 @@ where
 
         // Use CPU implementation
         self.cpu_matmul(a, b)
-    }
-}
-
-/// CUDA kernel variant selection
-#[derive(Debug, Clone, Copy)]
-enum CudaKernelVariant {
-    Basic,
-    Tiled,
-    TensorCore,
-    WarpShuffle,
-}
-
-/// OpenCL kernel variant selection
-#[derive(Debug, Clone, Copy)]
-enum OpenClKernelVariant {
-    Basic,
-    Optimized,
-    Vectorized,
-}
-
-impl<T> GpuOperationDispatcher<T>
-where
-    T: Float + NumAssign + Zero + Send + Sync + Debug + 'static,
-{
-    /// Select optimal CUDA kernel variant based on problem size and device capabilities
-    fn select_cuda_matmul_variant(
-        &self,
-        m: usize,
-        n: usize,
-        k: usize,
-        device_info: &crate::gpu::GpuDeviceInfo,
-    ) -> CudaKernelVariant {
-        let total_elements = m * n * k;
-
-        // Use tensor cores for large problems on compatible devices
-        if device_info.supports_tensor_cores && total_elements > 1_000_000 {
-            CudaKernelVariant::TensorCore
-        }
-        // Use tiled version for medium to large problems
-        else if total_elements > 100_000 {
-            CudaKernelVariant::Tiled
-        }
-        // Use warp shuffle for specific matrix shapes
-        else if m <= 32 || n <= 32 {
-            CudaKernelVariant::WarpShuffle
-        }
-        // Default to basic for small problems
-        else {
-            CudaKernelVariant::Basic
-        }
-    }
-
-    /// Select optimal OpenCL kernel variant
-    fn select_opencl_matmul_variant(
-        &self,
-        m: usize,
-        n: usize,
-        k: usize,
-        device_info: &crate::gpu::GpuDeviceInfo,
-    ) -> OpenClKernelVariant {
-        let total_elements = m * n * k;
-
-        // Use vectorized version for large problems with good SIMD support
-        if total_elements > 500_000 && device_info.compute_units > 16 {
-            OpenClKernelVariant::Vectorized
-        }
-        // Use optimized version for medium problems
-        else if total_elements > 50_000 {
-            OpenClKernelVariant::Optimized
-        }
-        // Default to basic
-        else {
-            OpenClKernelVariant::Basic
-        }
-    }
-
-    /// Launch CUDA matrix-vector multiplication kernel (f32)
-    fn launch_cuda_matvec_f32(
-        &self,
-        _a_ptr: *const f32,
-        _x_ptr: *const f32,
-        _y_ptr: *mut f32,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // In production, this would use CUDA runtime calls:
-        // cuLaunchKernel with optimized grid/block dimensions
-        // For now, simulate successful execution
-
-        // Would compile and launch our matvec_f32.cu kernel
-        println!("CUDA f32 matvec kernel: {}x{} matrix", m, n);
-        Ok(())
-    }
-
-    /// Launch CUDA matrix-vector multiplication kernel (f64)
-    fn launch_cuda_matvec_f64(
-        &self,
-        _a_ptr: *const f64,
-        _x_ptr: *const f64,
-        _y_ptr: *mut f64,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // CUDA f64 kernel execution
-        println!("CUDA f64 matvec kernel: {}x{} matrix", m, n);
-        Ok(())
-    }
-
-    /// Launch CUDA matrix multiplication kernel (f32, basic)
-    fn launch_cuda_matmul_f32_basic(
-        &self,
-        _a_ptr: *const f32,
-        _b_ptr: *const f32,
-        _c_ptr: *mut f32,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("CUDA f32 basic matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch CUDA matrix multiplication kernel (f32, tiled)
-    fn launch_cuda_matmul_f32_tiled(
-        &self,
-        _a_ptr: *const f32,
-        _b_ptr: *const f32,
-        _c_ptr: *mut f32,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("CUDA f32 tiled matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch CUDA matrix multiplication kernel (f32, tensor core)
-    fn launch_cuda_matmul_f32_tensor_core(
-        &self,
-        _a_ptr: *const f32,
-        _b_ptr: *const f32,
-        _c_ptr: *mut f32,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("CUDA f32 tensor core matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch CUDA matrix multiplication kernel (f32, warp shuffle)
-    fn launch_cuda_matmul_f32_warp_shuffle(
-        &self,
-        _a_ptr: *const f32,
-        _b_ptr: *const f32,
-        _c_ptr: *mut f32,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("CUDA f32 warp shuffle matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch CUDA matrix multiplication kernel (f64)
-    fn launch_cuda_matmul_f64(
-        &self,
-        _a_ptr: *const f64,
-        _b_ptr: *const f64,
-        _c_ptr: *mut f64,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("CUDA f64 matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch OpenCL matrix-vector multiplication kernel (f32)
-    fn launch_opencl_matvec_f32(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _x_ptr: *mut std::ffi::c_void,
-        _y_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // OpenCL kernel execution - would use clEnqueueNDRangeKernel
-        println!("OpenCL f32 matvec kernel: {}x{} matrix", m, n);
-        Ok(())
-    }
-
-    /// Launch OpenCL matrix-vector multiplication kernel (f64)
-    fn launch_opencl_matvec_f64(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _x_ptr: *mut std::ffi::c_void,
-        _y_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        println!("OpenCL f64 matvec kernel: {}x{} matrix", m, n);
-        Ok(())
-    }
-
-    /// Launch OpenCL matrix multiplication kernel (f32, basic)
-    fn launch_opencl_matmul_f32_basic(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _b_ptr: *mut std::ffi::c_void,
-        _c_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("OpenCL f32 basic matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch OpenCL matrix multiplication kernel (f32, optimized)
-    fn launch_opencl_matmul_f32_optimized(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _b_ptr: *mut std::ffi::c_void,
-        _c_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("OpenCL f32 optimized matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch OpenCL matrix multiplication kernel (f32, vectorized)
-    fn launch_opencl_matmul_f32_vectorized(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _b_ptr: *mut std::ffi::c_void,
-        _c_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("OpenCL f32 vectorized matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch OpenCL matrix multiplication kernel (f64)
-    fn launch_opencl_matmul_f64(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _b_ptr: *mut std::ffi::c_void,
-        _c_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("OpenCL f64 matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch ROCm matrix-vector multiplication kernel (f32)
-    fn launch_rocm_matvec_f32(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _x_ptr: *mut std::ffi::c_void,
-        _y_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // ROCm/HIP kernel execution
-        println!("ROCm f32 matvec kernel: {}x{} matrix", m, n);
-        Ok(())
-    }
-
-    /// Launch ROCm matrix multiplication kernel (f32)
-    fn launch_rocm_matmul_f32(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _b_ptr: *mut std::ffi::c_void,
-        _c_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("ROCm f32 matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
-    }
-
-    /// Launch Metal matrix-vector multiplication kernel (f32)
-    fn launch_metal_matvec_f32(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _x_ptr: *mut std::ffi::c_void,
-        _y_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-    ) -> LinalgResult<()> {
-        // Metal kernel execution for macOS - would use Metal Performance Shaders
-        println!("Metal f32 matvec kernel: {}x{} matrix", m, n);
-        Ok(())
-    }
-
-    /// Launch Metal matrix multiplication kernel (f32)
-    fn launch_metal_matmul_f32(
-        &self,
-        ctx: &dyn GpuContext,
-        _a_ptr: *mut std::ffi::c_void,
-        _b_ptr: *mut std::ffi::c_void,
-        _c_ptr: *mut std::ffi::c_void,
-        m: usize,
-        n: usize,
-        k: usize,
-    ) -> LinalgResult<()> {
-        println!("Metal f32 matmul kernel: {}x{}x{}", m, n, k);
-        Ok(())
     }
 }

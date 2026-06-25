@@ -31,11 +31,7 @@ scirs2-core = { workspace = true, features = ["array", "random", "gpu"] }
 thiserror = { workspace = true }
 
 # Sparse matrix specific dependencies
-sprs = { workspace = true, default-features = false }
 num_cpus = { workspace = true }
-
-# For IO operations
-byteorder = { workspace = true }
 
 # For logging
 log = { workspace = true }

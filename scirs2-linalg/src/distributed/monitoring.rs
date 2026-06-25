@@ -438,10 +438,16 @@ impl MetricsCollector {
     }
 
     fn collect_metric(&self, node_id: usize, metric_name: &str) -> Result<f64, String> {
-        // Simplified metric collection - would use actual system metrics in practice
-        if let Some(_agent) = self.collection_agents.get(&node_id) {
-            // Return a dummy value for now
-            Ok(0.5)
+        // Real metric collection requires a live collection agent that samples the
+        // node's system counters (CPU, memory, network, ...). No such telemetry
+        // source is wired up in this build, so we report an honest error instead of
+        // fabricating a plausible-looking value.
+        if self.collection_agents.contains_key(&node_id) {
+            Err(format!(
+                "Cannot collect metric '{}' for node {}: live system-metric telemetry \
+                 is not available in this build",
+                metric_name, node_id
+            ))
         } else {
             Err(format!("No collection agent found for node {}", node_id))
         }

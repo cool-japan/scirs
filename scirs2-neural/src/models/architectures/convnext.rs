@@ -476,6 +476,61 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
     }
 }
 
+/// Flattens the trailing spatial dimensions of a 4D tensor.
+///
+/// `GlobalAvgPool2D` emits `[batch, channels, 1, 1]`, but the classification
+/// `Dense` head operates on 2D `[batch, features]` tensors. This layer reshapes
+/// `[batch, channels, height, width]` into `[batch, channels * height * width]`
+/// so the two can be chained inside a [`Sequential`].
+#[derive(Debug, Clone, Default)]
+struct FlattenSpatial;
+
+impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer<F>
+    for FlattenSpatial
+{
+    fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        let shape = input.shape();
+        if shape.is_empty() {
+            return Err(NeuralError::InferenceError(
+                "FlattenSpatial received an empty tensor".to_string(),
+            ));
+        }
+        let batch = shape[0];
+        let features: usize = shape[1..].iter().product();
+        input
+            .clone()
+            .into_shape_with_order(IxDyn(&[batch, features]))
+            .map_err(|e| NeuralError::InferenceError(format!("Failed to flatten tensor: {e}")))
+    }
+
+    fn backward(
+        &self,
+        input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
+    ) -> Result<Array<F, IxDyn>> {
+        grad_output
+            .clone()
+            .into_shape_with_order(IxDyn(input.shape()))
+            .map_err(|e| NeuralError::InferenceError(format!("Failed to unflatten gradient: {e}")))
+    }
+
+    fn update(&mut self, _learning_rate: F) -> Result<()> {
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn layer_type(&self) -> &str {
+        "FlattenSpatial"
+    }
+}
+
 /// Full ConvNeXt model: stem → stages → optional classification head.
 #[derive(Debug)]
 pub struct ConvNeXt<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> {
@@ -550,6 +605,9 @@ impl<
             )?);
             // GlobalAvgPool2D::new returns Self (not Result), so no `?`
             head_seq.add(GlobalAvgPool2D::<F>::new(Some("head_pool")));
+            // Flatten `[batch, channels, 1, 1]` to `[batch, channels]` so the
+            // classification Dense layer receives a 2D tensor.
+            head_seq.add(FlattenSpatial);
             if let Some(dropout_rate) = config.dropout_rate {
                 if dropout_rate > 0.0 {
                     head_seq.add(Dropout::<F>::new(dropout_rate, &mut rng)?);

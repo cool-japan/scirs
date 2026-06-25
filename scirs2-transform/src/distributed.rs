@@ -1,7 +1,14 @@
-//! Distributed processing for multi-node transformation pipelines
+//! Distributed processing scaffolding for transformation pipelines
 //!
-//! This module provides distributed computing capabilities for transformations
-//! across multiple nodes using async Rust and message passing.
+//! This module provides the data structures, task model, and async control flow
+//! for distributing transformation work across worker nodes.
+//!
+//! **Current execution model:** no HTTP/RPC transport is bundled, so dispatched
+//! tasks are executed *in-process* on the caller (the per-task computation is
+//! real and correct). The node/transport plumbing is present so a concrete
+//! network backend can be wired in later; until then this behaves as a faithful
+//! single-process executor and does not claim or simulate true multi-node
+//! distribution.
 
 #[cfg(feature = "distributed")]
 use serde::{Deserialize, Serialize};
@@ -305,20 +312,20 @@ impl DistributedCoordinator {
             )));
         }
 
-        // Serialize task for transmission with compression
+        // Serialize the task. This exercises the exact wire encoding a real
+        // remote transport would send, and surfaces serialization errors here
+        // rather than at send time.
         let cfg = oxicode::config::standard();
-        let task_data = oxicode::serde::encode_to_vec(task, cfg).map_err(|e| {
+        let _task_data = oxicode::serde::encode_to_vec(task, cfg).map_err(|e| {
             TransformError::DistributedError(format!("Failed to serialize task (oxicode): {}", e))
         })?;
 
-        // Compress task data for network efficiency
-        let _compressed_data = Self::compress_data(&task_data)?;
-
-        // Construct endpoint URL with validation
-        let _url = format!("http://{}:{}/api/execute", node.address, node.port);
-
-        // For now, execute locally with simulated network delay
-        // In a real implementation, this would use an HTTP client like reqwest
+        // NOTE: This crate does not currently bundle an HTTP/RPC client, so tasks
+        // are executed in-process on the caller rather than dispatched to a remote
+        // worker. The work below is therefore performed locally and the result is
+        // genuine; we do NOT add an artificial network delay to pretend otherwise.
+        // The `node` argument is still validated above so that callers wiring up a
+        // real transport get consistent error behaviour.
         let start_time = std::time::Instant::now();
 
         let result = match task {
@@ -359,11 +366,7 @@ impl DistributedCoordinator {
             } => Self::execute_aggregate_task(partial_results).await?,
         };
 
-        // Simulate realistic network latency based on data size
-        let network_delay = Self::calculate_network_delay(&task_data, node);
-        tokio::time::sleep(std::time::Duration::from_millis(network_delay)).await;
-
-        // Validate execution time doesn't exceed timeout
+        // Guard against pathologically long local execution.
         let elapsed = start_time.elapsed();
         if elapsed.as_secs() > 300 {
             // 5 minute timeout
@@ -373,45 +376,6 @@ impl DistributedCoordinator {
         }
 
         Ok(result)
-    }
-
-    /// Compress data for network transmission
-    fn compress_data(data: &[u8]) -> Result<Vec<u8>> {
-        // Simple compression simulation - in real implementation use zlib/gzip
-        if data.len() > 1024 {
-            // Simulate 50% compression ratio for large _data
-            Ok(data[..data.len() / 2].to_vec())
-        } else {
-            Ok(data.to_vec())
-        }
-    }
-
-    /// Calculate realistic network delay based on data size and node location
-    fn calculate_network_delay(data: &[u8], node: &NodeInfo) -> u64 {
-        let data_size_mb = data.len() as f64 / (1024.0 * 1024.0);
-
-        // Base latency depending on network location
-        let base_latency_ms = if node.address.starts_with("192.168")
-            || node.address.starts_with("10.")
-            || node.address == "localhost"
-        {
-            5 // Local network - 5ms base latency
-        } else {
-            50 // Internet - 50ms base latency
-        };
-
-        // Transfer time based on assumed bandwidth
-        let bandwidth_mbps = if node.address == "localhost" {
-            1000.0 // 1 Gbps for localhost
-        } else if node.address.starts_with("192.168") || node.address.starts_with("10.") {
-            100.0 // 100 Mbps for LAN
-        } else {
-            10.0 // 10 Mbps for WAN
-        };
-
-        let transfer_time_ms = (data_size_mb / bandwidth_mbps * 1000.0) as u64;
-
-        base_latency_ms + transfer_time_ms
     }
 
     /// Execute fit task locally or remotely

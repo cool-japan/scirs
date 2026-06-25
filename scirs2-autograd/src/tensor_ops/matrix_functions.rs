@@ -246,6 +246,12 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
         "MatrixPow"
     }
 
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        // Required so gradient.rs can recover the exponent `p` for the backward
+        // op via `downcast_ref::<MatrixPowOp>()`.
+        Some(self)
+    }
+
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let input = ctx.input(0);
         let shape = input.shape();
@@ -268,22 +274,59 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Exact VJP of the symmetric matrix power via the spectral
+        // (Daleckii-Krein) divided-difference formula:
+        //   dA = V · (Φ ⊙ (Vᵀ·dB·V)) · Vᵀ,  Φ_{ij} = (λ_i^p − λ_j^p)/(λ_i − λ_j).
+        //
+        // NOTE: the live gradient path in gradient.rs uses MatrixPowBackwardOp
+        // (dispatched by the "MatrixPow" op name); this method is kept correct
+        // and consistent for any direct Op::grad invocation.
         let g = ctx.graph();
-        let input = ctx.input(0);
-        let shape = input.shape().to_vec();
+        let input = ctx.input(0); // A
+        let grad_output = ctx.output_grad(); // dB
 
-        // Gradient of matrix power: p * A^(p-1) for scalar gradient
-        // For matrix gradient it's more complex
-        // For now, we'll use a simplified approach with zeros
-        // to maintain the correct shape
-        if shape.len() == 2 {
-            let grad_zeros =
-                scirs2_core::ndarray::ArrayD::zeros(scirs2_core::ndarray::IxDyn(&shape));
-            let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_zeros, g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-        } else {
+        let input_arr = match input.eval(g) {
+            Ok(arr) => arr,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+        let grad_arr = match grad_output.eval(g) {
+            Ok(arr) => arr,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+
+        let a = match input_arr.view().into_dimensionality::<Ix2>() {
+            Ok(v) => v,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+        let db = match grad_arr.view().into_dimensionality::<Ix2>() {
+            Ok(v) => v,
+            Err(_) => {
+                ctx.append_input_grad(0, None);
+                return;
+            }
+        };
+
+        if !is_symmetric_matrix(&a) {
+            // Honest failure rather than a fabricated zero gradient.
             ctx.append_input_grad(0, None);
+            return;
         }
+
+        let a_f64 = to_f64_mat(&a);
+        let db_f64 = to_f64_mat(&db);
+        let da_f64 = powm_spectral_backward(&a_f64, &db_f64, self.power);
+        let da = from_f64_mat::<F>(&da_f64);
+        let grad_tensor = crate::tensor_ops::convert_to_tensor(da.into_dyn(), g);
+        ctx.append_input_grad(0, Some(grad_tensor));
     }
 }
 
@@ -617,6 +660,295 @@ fn transpose_f64(a: &Array2<f64>) -> Array2<f64> {
         }
     }
     t
+}
+
+/// Spectral (Daleckii-Krein) backward for `f(A) = A^p` on a **symmetric** input.
+///
+/// For `A = V Λ Vᵀ` the reverse-mode gradient with upstream cotangent `dB` is
+///
+///   `dA = V · (Φ ⊙ (Vᵀ · dB · V)) · Vᵀ`
+///
+/// where the Loewner (divided-difference) matrix is
+///
+///   `Φ_{ij} = (λ_i^p − λ_j^p) / (λ_i − λ_j)`,  with the L'Hôpital limit
+///   `Φ_{ii} = p · λ_i^{p−1}` when `λ_i ≈ λ_j`.
+///
+/// This is the exact VJP of the matrix power for symmetric matrices and
+/// reduces to `p·A^{p-1}` in the scalar / commuting-perturbation limit.
+fn powm_spectral_backward(a: &Array2<f64>, db: &Array2<f64>, power: f64) -> Array2<f64> {
+    let n = a.nrows();
+    let (eigenvalues, v) = jacobi_eigh(a);
+    let vt = transpose_f64(&v);
+
+    // Y = Vᵀ · dB · V
+    let vtdb = matmul_f64(&vt, db);
+    let y = matmul_f64(&vtdb, &v);
+
+    // Loewner matrix of the divided differences of λ ↦ λ^p.
+    let mut phi = Array2::<f64>::zeros((n, n));
+    let eps = 1e-12;
+    let pow_safe = |l: f64| -> f64 {
+        if l.abs() > 1e-300 {
+            l.powf(power)
+        } else if power > 0.0 {
+            0.0
+        } else {
+            // λ = 0 with non-positive power: undefined; clamp derivative to 0.
+            0.0
+        }
+    };
+    let dpow_safe = |l: f64| -> f64 {
+        // d/dλ λ^p = p λ^{p-1}
+        if l.abs() > 1e-300 {
+            power * l.powf(power - 1.0)
+        } else {
+            0.0
+        }
+    };
+    for i in 0..n {
+        for j in 0..n {
+            let li = eigenvalues[i];
+            let lj = eigenvalues[j];
+            let diff = li - lj;
+            if diff.abs() < eps * (li.abs() + lj.abs() + 1.0) {
+                phi[[i, j]] = dpow_safe(li);
+            } else {
+                phi[[i, j]] = (pow_safe(li) - pow_safe(lj)) / diff;
+            }
+        }
+    }
+
+    // Hadamard product then back-rotate: dA = V · (Φ ⊙ Y) · Vᵀ.
+    let mut y_phi = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            y_phi[[i, j]] = phi[[i, j]] * y[[i, j]];
+        }
+    }
+    let vy = matmul_f64(&v, &y_phi);
+    matmul_f64(&vy, &vt)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backward ops dispatched by gradient.rs::compute_grad_for_input.
+//
+// gradient.rs reaches these by op name ("MatrixSqrt" / "MatrixLog" / "MatrixPow").
+// Each takes (original_input_A, upstream_gradient) and recomputes the forward
+// internally so the exact VJP can be applied.  (The string-dispatch gradient
+// path in gradient.rs does NOT invoke `Op::grad`, so the real backward MUST be
+// delivered through these ops; otherwise the gradient would silently be zero.)
+//
+// These ops are bounded by `crate::Float` ONLY (not `FromPrimitive` /
+// `ScalarOperand`) because gradient.rs::compute_grad_for_input is generic over
+// `F: Float`.  All numerics run in f64 internally via NumCast (`to_f64` /
+// `num_cast_from_f64`), which `num_traits::Float` provides.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Convert an `F` view to an owned `f64` matrix (NumCast-based; `Float`-only).
+fn view_to_f64<F: Float>(m: &scirs2_core::ndarray::ArrayView2<F>) -> Array2<f64> {
+    let (r, c) = (m.nrows(), m.ncols());
+    let mut out = Array2::<f64>::zeros((r, c));
+    for i in 0..r {
+        for j in 0..c {
+            out[[i, j]] = m[[i, j]].to_f64().unwrap_or(0.0);
+        }
+    }
+    out
+}
+
+/// Convert an `f64` matrix back to `F` (NumCast-based; `Float`-only).
+fn f64_to_owned<F: Float>(m: &Array2<f64>) -> Array2<F> {
+    let (r, c) = (m.nrows(), m.ncols());
+    let mut out = Array2::<F>::zeros((r, c));
+    for i in 0..r {
+        for j in 0..c {
+            out[[i, j]] = F::from(m[[i, j]]).unwrap_or_else(F::zero);
+        }
+    }
+    out
+}
+
+/// Symmetry test on an `f64` matrix: `‖A − Aᵀ‖_F / ‖A‖_F < 1e-8`.
+fn is_symmetric_f64(a: &Array2<f64>) -> bool {
+    let n = a.nrows();
+    if n != a.ncols() {
+        return false;
+    }
+    let mut frob_sq = 0.0_f64;
+    let mut asym_sq = 0.0_f64;
+    for i in 0..n {
+        for j in 0..n {
+            frob_sq += a[[i, j]] * a[[i, j]];
+        }
+        for j in (i + 1)..n {
+            let d = a[[i, j]] - a[[j, i]];
+            asym_sq += d * d;
+        }
+    }
+    let frob = frob_sq.sqrt();
+    let asym = (2.0 * asym_sq).sqrt();
+    if frob > 1e-300 {
+        asym / frob < 1e-8
+    } else {
+        asym < 1e-8
+    }
+}
+
+/// `√A` for symmetric positive-definite `A` (f64), via Jacobi eigendecomposition.
+/// Returns an error if `A` is not symmetric or has a non-positive eigenvalue.
+fn sqrtm_spd_f64(a: &Array2<f64>) -> Result<Array2<f64>, OpError> {
+    if !is_symmetric_f64(a) {
+        return Err(OpError::Other(
+            "sqrtm backward: input matrix is not symmetric".into(),
+        ));
+    }
+    let n = a.nrows();
+    let (eigenvalues, v) = jacobi_eigh(a);
+    for &lambda in &eigenvalues {
+        if lambda <= 0.0 {
+            return Err(OpError::Other(format!(
+                "sqrtm backward: non-positive eigenvalue {lambda:.6e}; input must be SPD"
+            )));
+        }
+    }
+    // √A = V · diag(√λ) · Vᵀ.
+    let mut temp = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            temp[[i, j]] = v[[i, j]] * eigenvalues[j].sqrt();
+        }
+    }
+    Ok(matmul_f64(&temp, &transpose_f64(&v)))
+}
+
+/// Backward op for `sqrtm` (SPD).  Solves the Sylvester equation
+/// `S·X + X·S = dS` for `dA = X`, where `S = √A`.
+pub(crate) struct MatrixSqrtBackwardOp;
+
+impl<F: Float> Op<F> for MatrixSqrtBackwardOp {
+    fn name(&self) -> &'static str {
+        "MatrixSqrtBackward"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a_input = ctx.input(0);
+        let ds_input = ctx.input(1);
+
+        let a = a_input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("MatrixSqrtBackward: A must be 2D".into()))?;
+        let ds = ds_input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("MatrixSqrtBackward: dS must be 2D".into()))?;
+
+        let a_f64 = view_to_f64(&a);
+        let ds_f64 = view_to_f64(&ds);
+
+        // Recompute S = √A (SPD path), then solve S·X + X·S = dS.
+        let s_f64 = sqrtm_spd_f64(&a_f64)?;
+        let da_f64 = solve_sylvester_local(&s_f64, &s_f64, &ds_f64)?;
+        let da = f64_to_owned::<F>(&da_f64);
+        ctx.append_output(da.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Second-order gradient unsupported.
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+    }
+}
+
+/// Backward op for `logm` via the Daleckii-Krein spectral formula.
+pub(crate) struct MatrixLogBackwardOp;
+
+impl<F: Float> Op<F> for MatrixLogBackwardOp {
+    fn name(&self) -> &'static str {
+        "MatrixLogBackward"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a_input = ctx.input(0);
+        let db_input = ctx.input(1);
+
+        let a = a_input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("MatrixLogBackward: A must be 2D".into()))?;
+        let db = db_input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("MatrixLogBackward: dB must be 2D".into()))?;
+
+        let a_f64 = view_to_f64(&a);
+        let db_f64 = view_to_f64(&db);
+
+        if !is_symmetric_f64(&a_f64) {
+            return Err(OpError::Other(
+                "logm backward: spectral VJP requires a symmetric input; \
+                 non-symmetric matrix-log gradient is not implemented"
+                    .into(),
+            ));
+        }
+
+        let da_f64 = logm_daleckii_krein(&a_f64, &db_f64);
+        let da = f64_to_owned::<F>(&da_f64);
+        ctx.append_output(da.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+    }
+}
+
+/// Backward op for `powm` (symmetric input) via the spectral divided-difference.
+pub(crate) struct MatrixPowBackwardOp {
+    pub(crate) power: f64,
+}
+
+impl<F: Float> Op<F> for MatrixPowBackwardOp {
+    fn name(&self) -> &'static str {
+        "MatrixPowBackward"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a_input = ctx.input(0);
+        let db_input = ctx.input(1);
+
+        let a = a_input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("MatrixPowBackward: A must be 2D".into()))?;
+        let db = db_input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("MatrixPowBackward: dB must be 2D".into()))?;
+
+        let a_f64 = view_to_f64(&a);
+        let db_f64 = view_to_f64(&db);
+
+        if !is_symmetric_f64(&a_f64) {
+            return Err(OpError::Other(
+                "powm backward: spectral VJP requires a symmetric input; \
+                 non-symmetric matrix-power gradient is not implemented"
+                    .into(),
+            ));
+        }
+
+        let da_f64 = powm_spectral_backward(&a_f64, &db_f64, self.power);
+        let da = f64_to_owned::<F>(&da_f64);
+        ctx.append_output(da.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1098,3 +1430,143 @@ pub fn matrix_power<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPri
 pub use self::matrix_log as logm;
 pub use self::matrix_power as powm;
 pub use self::matrix_sqrt as sqrtm;
+
+#[cfg(test)]
+mod grad_tests {
+    //! End-to-end finite-difference gradient checks for the matrix functions.
+    //!
+    //! These verify the *live* gradient path (gradient.rs string dispatch →
+    //! MatrixSqrt/Log/Pow backward ops), guarding against the prior silent-zero
+    //! regression.
+    use crate::tensor_ops as T;
+    use scirs2_core::ndarray::{array, Array2};
+
+    /// A fixed 3×3 symmetric positive-definite matrix with distinct eigenvalues.
+    fn spd_3x3() -> Array2<f64> {
+        array![[4.0, 1.0, 0.5], [1.0, 3.0, 0.25], [0.5, 0.25, 2.0]]
+    }
+
+    /// Symmetric central finite difference of `f(A) = sum_all(op(A))`.
+    ///
+    /// The matrix functions here are defined on **symmetric** inputs, so a valid
+    /// directional derivative must keep `A` symmetric: off-diagonal entries are
+    /// perturbed in the symmetric pair `(i,j)` & `(j,i)` together.  The resulting
+    /// gradient is the symmetric gradient, which is what the spectral backward
+    /// (Daleckii-Krein / Sylvester) produces.
+    fn fd_loss<FwOp>(a: &Array2<f64>, forward: FwOp) -> Array2<f64>
+    where
+        FwOp: Fn(&Array2<f64>) -> f64,
+    {
+        let n = a.nrows();
+        assert_eq!(n, a.ncols());
+        let h = 1e-6_f64;
+        let mut grad = Array2::<f64>::zeros((n, n));
+        for i in 0..n {
+            for j in i..n {
+                let mut ap = a.clone();
+                let mut am = a.clone();
+                if i == j {
+                    ap[[i, i]] += h;
+                    am[[i, i]] -= h;
+                    grad[[i, i]] = (forward(&ap) - forward(&am)) / (2.0 * h);
+                } else {
+                    ap[[i, j]] += h;
+                    ap[[j, i]] += h;
+                    am[[i, j]] -= h;
+                    am[[j, i]] -= h;
+                    let d = (forward(&ap) - forward(&am)) / (2.0 * h);
+                    // Split across the symmetric pair (matches symmetric grad).
+                    grad[[i, j]] = 0.5 * d;
+                    grad[[j, i]] = 0.5 * d;
+                }
+            }
+        }
+        grad
+    }
+
+    /// Symmetrise a gradient matrix: `(G + Gᵀ)/2`.  The analytic backward may
+    /// return an unsymmetrised gradient; comparing the symmetric parts is the
+    /// meaningful check for functions restricted to symmetric inputs.
+    fn symmetrize(g: &Array2<f64>) -> Array2<f64> {
+        let n = g.nrows();
+        let mut out = Array2::<f64>::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                out[[i, j]] = 0.5 * (g[[i, j]] + g[[j, i]]);
+            }
+        }
+        out
+    }
+
+    /// Forward `sum_all(op(A))` evaluated in the autograd graph.
+    fn fwd_sum<BuildOp>(a: &Array2<f64>, build: BuildOp) -> f64
+    where
+        BuildOp: for<'g> Fn(&crate::tensor::Tensor<'g, f64>) -> crate::tensor::Tensor<'g, f64>,
+    {
+        crate::run(|g| {
+            let av = T::variable(a.clone(), g);
+            let y = build(&av);
+            let loss = T::sum_all(y);
+            loss.eval(g).expect("forward eval").iter().copied().sum()
+        })
+    }
+
+    /// Analytic gradient `d sum_all(op(A)) / dA` via the autograd graph.
+    fn analytic_grad<BuildOp>(a: &Array2<f64>, build: BuildOp) -> Array2<f64>
+    where
+        BuildOp: for<'g> Fn(&crate::tensor::Tensor<'g, f64>) -> crate::tensor::Tensor<'g, f64>,
+    {
+        crate::run(|g| {
+            let av = T::variable(a.clone(), g);
+            let y = build(&av);
+            let loss = T::sum_all(y);
+            let grads = T::grad(&[&loss], &[&av]);
+            let ga = grads[0].eval(g).expect("grad eval");
+            ga.into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .expect("grad 2D")
+                .to_owned()
+        })
+    }
+
+    fn max_abs_diff(a: &Array2<f64>, b: &Array2<f64>) -> f64 {
+        a.iter()
+            .zip(b.iter())
+            .fold(0.0_f64, |m, (x, y)| (x - y).abs().max(m))
+    }
+
+    #[test]
+    fn matrix_sqrt_gradient_matches_fd() {
+        let a = spd_3x3();
+        let analytic = symmetrize(&analytic_grad(&a, T::matrix_sqrt));
+        let numeric = fd_loss(&a, |ap| fwd_sum(ap, T::matrix_sqrt));
+        // Gradient must NOT be all-zero (the regression we are fixing).
+        let max_g = analytic.iter().fold(0.0_f64, |m, &x| x.abs().max(m));
+        assert!(max_g > 1e-6, "sqrt gradient is all-zero (regression!)");
+        let err = max_abs_diff(&analytic, &numeric);
+        assert!(err < 1e-4, "matrix_sqrt grad fd mismatch: err = {err}");
+    }
+
+    #[test]
+    fn matrix_log_gradient_matches_fd() {
+        let a = spd_3x3();
+        let analytic = symmetrize(&analytic_grad(&a, T::matrix_log));
+        let numeric = fd_loss(&a, |ap| fwd_sum(ap, T::matrix_log));
+        let max_g = analytic.iter().fold(0.0_f64, |m, &x| x.abs().max(m));
+        assert!(max_g > 1e-6, "log gradient is all-zero (regression!)");
+        let err = max_abs_diff(&analytic, &numeric);
+        assert!(err < 1e-4, "matrix_log grad fd mismatch: err = {err}");
+    }
+
+    #[test]
+    fn matrix_power_gradient_matches_fd() {
+        let a = spd_3x3();
+        // Use a fractional power so the spectral divided-difference path runs.
+        let p = 1.5_f64;
+        let analytic = symmetrize(&analytic_grad(&a, move |t| T::matrix_power(t, p)));
+        let numeric = fd_loss(&a, |ap| fwd_sum(ap, move |t| T::matrix_power(t, p)));
+        let max_g = analytic.iter().fold(0.0_f64, |m, &x| x.abs().max(m));
+        assert!(max_g > 1e-6, "pow gradient is all-zero (regression!)");
+        let err = max_abs_diff(&analytic, &numeric);
+        assert!(err < 1e-3, "matrix_power grad fd mismatch: err = {err}");
+    }
+}

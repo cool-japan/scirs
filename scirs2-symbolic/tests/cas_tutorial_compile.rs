@@ -195,7 +195,7 @@ fn section_03_canonicalization() {
     // Pattern matching: match sin(?0) against sin(x)
     let sin_x = sin_op(var(0));
     let pattern = Pattern::PatOp1(UnaryKind::Sin, Box::new(Pattern::PatVar(0)));
-    let mut bindings = hashbrown::HashMap::new();
+    let mut bindings = std::collections::HashMap::new();
     let matched = match_pattern(&pattern, &sin_x, &mut bindings);
     assert!(matched, "sin(x) should match sin(?0)");
     assert!(

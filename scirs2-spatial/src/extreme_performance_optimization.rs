@@ -32,7 +32,7 @@
 //! # Examples
 //!
 //! ```
-//! use scirs2_spatial::extreme_performance_optimization::{ExtremeOptimizer, AdvancedfastDistanceMatrix, SelfOptimizingAlgorithm};
+//! use scirs2_spatial::extreme_performance_optimization::{ExtremeOptimizer, AdvancedfastDistanceMatrix};
 //! use scirs2_core::ndarray::array;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,17 +51,15 @@
 //!
 //! // Performance can be 10-100x faster than conventional implementations
 //! println!("Extreme distance matrix: {:?}", distances);
-//!
-//! // Self-optimizing spatial algorithms
-//! let mut self_optimizer = SelfOptimizingAlgorithm::new("clustering")
-//!     .with_hardware_counter_feedback(true)
-//!     .with_runtime_code_generation(true)
-//!     .with_adaptive_memory_patterns(true);
-//!
-//! let optimized_clusters = self_optimizer.auto_optimize_and_execute(&points.view()).await?;
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! `SelfOptimizingAlgorithm` is an experimental research type gated behind the
+//! `experimental` cargo feature. Its `auto_optimize_and_execute` currently
+//! returns an honest `NotImplementedError` rather than fabricating clustering
+//! results or speedup metrics, so it is intentionally omitted from the runnable
+//! example above.
 
 use crate::error::{SpatialError, SpatialResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
@@ -280,6 +278,15 @@ pub struct VectorKernel {
 }
 
 /// Self-optimizing spatial algorithm
+///
+/// # Experimental
+///
+/// This type is gated behind the `experimental` cargo feature. Its
+/// hardware-counter-guided runtime code generation and adaptive memory
+/// optimization are research-stage and not yet implemented; calling
+/// [`SelfOptimizingAlgorithm::auto_optimize_and_execute`] returns an honest
+/// [`SpatialError::NotImplementedError`] instead of fabricating speedup metrics.
+#[cfg(feature = "experimental")]
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct SelfOptimizingAlgorithm {
@@ -738,34 +745,242 @@ impl HardwarePerformanceCounters {
 }
 
 impl NumaTopologyInfo {
-    /// Detect NUMA topology
+    /// Detect NUMA topology.
+    ///
+    /// On Linux the node count, per-node core counts and per-node memory are
+    /// read from `/sys/devices/system/node/`. Inter-node latencies and
+    /// per-node memory bandwidth are not reliably exposed by the kernel
+    /// (they require ACPI SLIT/HMAT parsing or a library such as hwloc), so
+    /// those two fields are filled with conservative, clearly-documented
+    /// estimates rather than fabricated measurements.
+    ///
+    /// When the topology cannot be read (non-Linux platforms or missing
+    /// `sysfs`), a single-node fallback derived from the available
+    /// parallelism is returned instead of an invented multi-node layout.
     pub fn detect() -> Self {
-        // Simulated NUMA detection - in real implementation would query system
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(info) = Self::detect_linux() {
+                return info;
+            }
+        }
+
+        Self::single_node_fallback()
+    }
+
+    /// Single-node fallback derived from available parallelism. This does not
+    /// fabricate a NUMA layout; it honestly reports one node spanning all
+    /// detected logical CPUs.
+    fn single_node_fallback() -> Self {
+        let logical_cpus = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
         Self {
-            num_nodes: 2,
-            memory_per_node: vec![64.0, 64.0], // 64GB per node
-            cores_per_node: vec![16, 16],      // 16 cores per node
-            inter_node_latencies: Array2::from_elem((2, 2), 100.0), // 100ns inter-node
-            bandwidth_per_node: vec![100.0, 100.0], // 100 GB/s per node
+            num_nodes: 1,
+            memory_per_node: vec![0.0], // unknown: not measured
+            cores_per_node: vec![logical_cpus],
+            inter_node_latencies: Array2::from_elem((1, 1), 0.0),
+            bandwidth_per_node: vec![0.0], // unknown: not measured
             thread_node_mapping: HashMap::new(),
         }
+    }
+
+    /// Read NUMA topology from Linux `sysfs`. Returns `None` if the relevant
+    /// files are not present.
+    #[cfg(target_os = "linux")]
+    fn detect_linux() -> Option<Self> {
+        let node_root = std::path::Path::new("/sys/devices/system/node");
+        let entries = std::fs::read_dir(node_root).ok()?;
+
+        // Collect node ids from directories named `node<N>`.
+        let mut node_ids: Vec<usize> = entries
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| {
+                let name = entry.file_name();
+                let name = name.to_str()?;
+                name.strip_prefix("node")
+                    .and_then(|suffix| suffix.parse::<usize>().ok())
+            })
+            .collect();
+        node_ids.sort_unstable();
+
+        if node_ids.is_empty() {
+            return None;
+        }
+
+        let num_nodes = node_ids.len();
+        let mut cores_per_node = Vec::with_capacity(num_nodes);
+        let mut memory_per_node = Vec::with_capacity(num_nodes);
+
+        for &node_id in &node_ids {
+            let cpulist_path = node_root.join(format!("node{node_id}/cpulist"));
+            let core_count = std::fs::read_to_string(&cpulist_path)
+                .ok()
+                .map(|list| Self::count_cpus_in_list(list.trim()))
+                .unwrap_or(0);
+            cores_per_node.push(core_count);
+
+            // `MemTotal:` in node meminfo is reported in kibibytes.
+            let meminfo_path = node_root.join(format!("node{node_id}/meminfo"));
+            let mem_gb = std::fs::read_to_string(&meminfo_path)
+                .ok()
+                .and_then(|content| {
+                    content.lines().find_map(|line| {
+                        if line.contains("MemTotal:") {
+                            line.split_whitespace()
+                                .rev()
+                                .nth(1)
+                                .and_then(|kib| kib.parse::<f64>().ok())
+                                .map(|kib| kib / (1024.0 * 1024.0))
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .unwrap_or(0.0);
+            memory_per_node.push(mem_gb);
+        }
+
+        // Inter-node latencies / bandwidth are not exposed via this interface;
+        // use conservative documented estimates (0 on the diagonal, a uniform
+        // remote estimate off-diagonal) so callers can still reason about
+        // locality without us inventing exact figures.
+        let mut inter_node_latencies = Array2::from_elem((num_nodes, num_nodes), 0.0);
+        for i in 0..num_nodes {
+            for j in 0..num_nodes {
+                if i != j {
+                    inter_node_latencies[[i, j]] = 100.0; // estimate (ns), not measured
+                }
+            }
+        }
+
+        Some(Self {
+            num_nodes,
+            memory_per_node,
+            cores_per_node,
+            inter_node_latencies,
+            bandwidth_per_node: vec![0.0; num_nodes], // unknown: not measured
+            thread_node_mapping: HashMap::new(),
+        })
+    }
+
+    /// Count the CPUs described by a Linux cpulist string such as
+    /// `"0-3,8,10-11"`.
+    #[cfg(target_os = "linux")]
+    fn count_cpus_in_list(list: &str) -> usize {
+        if list.is_empty() {
+            return 0;
+        }
+        let mut count = 0usize;
+        for part in list.split(',') {
+            if let Some((start, end)) = part.split_once('-') {
+                if let (Ok(start), Ok(end)) = (start.parse::<usize>(), end.parse::<usize>()) {
+                    if end >= start {
+                        count += end - start + 1;
+                    }
+                }
+            } else if part.parse::<usize>().is_ok() {
+                count += 1;
+            }
+        }
+        count
     }
 }
 
 impl CacheHierarchyInfo {
-    /// Detect cache hierarchy
+    /// Detect the CPU cache hierarchy.
+    ///
+    /// On Linux the cache sizes and line size are read from
+    /// `/sys/devices/system/cpu/cpu0/cache/index*/`. Access latencies (in
+    /// cycles) are not exposed by the kernel, so they are populated with
+    /// conservative, clearly-documented typical values rather than fabricated
+    /// per-machine measurements.
+    ///
+    /// If `sysfs` cannot be read the returned values fall back to the same
+    /// documented typical defaults.
     pub fn detect() -> Self {
-        // Simulated cache detection - in real implementation would query CPUID
-        Self {
+        // Latencies are not obtainable from sysfs; these are documented typical
+        // values for a modern x86-64 CPU and are *not* measured.
+        let mut info = Self {
             l1_size_kb: 32,
             l2_size_kb: 256,
-            l3_size_kb: 32768, // 32MB L3
+            l3_size_kb: 32768, // 32MB L3 (typical default; overwritten if detected)
             cache_line_size: 64,
-            l1_latency: 4,
-            l2_latency: 12,
-            l3_latency: 40,
-            memory_latency: 300,
+            l1_latency: 4,       // typical, not measured
+            l2_latency: 12,      // typical, not measured
+            l3_latency: 40,      // typical, not measured
+            memory_latency: 300, // typical, not measured
             prefetch_distance: 4,
+        };
+
+        #[cfg(target_os = "linux")]
+        info.populate_sizes_from_sysfs();
+
+        info
+    }
+
+    /// Overwrite the cache *sizes* and *line size* with values read from Linux
+    /// `sysfs`, leaving the latency estimates untouched. Missing entries are
+    /// left at their documented defaults.
+    #[cfg(target_os = "linux")]
+    fn populate_sizes_from_sysfs(&mut self) {
+        let cache_root = std::path::Path::new("/sys/devices/system/cpu/cpu0/cache");
+        let entries = match std::fs::read_dir(cache_root) {
+            Ok(entries) => entries,
+            Err(_) => return,
+        };
+
+        for entry in entries.filter_map(|entry| entry.ok()) {
+            let dir = entry.path();
+            let level = std::fs::read_to_string(dir.join("level"))
+                .ok()
+                .and_then(|s| s.trim().parse::<usize>().ok());
+            let cache_type = std::fs::read_to_string(dir.join("type"))
+                .ok()
+                .map(|s| s.trim().to_string());
+            let size_kb = std::fs::read_to_string(dir.join("size"))
+                .ok()
+                .and_then(|s| Self::parse_cache_size_kb(s.trim()));
+
+            if let Some(line_size) = std::fs::read_to_string(dir.join("coherency_line_size"))
+                .ok()
+                .and_then(|s| s.trim().parse::<usize>().ok())
+            {
+                if line_size > 0 {
+                    self.cache_line_size = line_size;
+                }
+            }
+
+            let (level, cache_type, size_kb) = match (level, cache_type, size_kb) {
+                (Some(level), Some(cache_type), Some(size_kb)) => (level, cache_type, size_kb),
+                _ => continue,
+            };
+
+            // Skip instruction-only caches when populating data-cache sizes;
+            // "Data" and "Unified" caches feed the data-access hierarchy.
+            match level {
+                1 => {
+                    if cache_type != "Instruction" {
+                        self.l1_size_kb = size_kb;
+                    }
+                }
+                2 => self.l2_size_kb = size_kb,
+                3 => self.l3_size_kb = size_kb,
+                _ => {}
+            }
+        }
+    }
+
+    /// Parse a Linux cache-size string such as `"32K"` or `"8192K"` into KiB.
+    #[cfg(target_os = "linux")]
+    fn parse_cache_size_kb(raw: &str) -> Option<usize> {
+        if let Some(value) = raw.strip_suffix('K') {
+            value.trim().parse::<usize>().ok()
+        } else if let Some(value) = raw.strip_suffix('M') {
+            value.trim().parse::<usize>().ok().map(|m| m * 1024)
+        } else {
+            // Bare byte count.
+            raw.parse::<usize>().ok().map(|bytes| bytes / 1024)
         }
     }
 }
@@ -1379,10 +1594,13 @@ impl AdvancedfastDistanceMatrix {
                 // Process cache-line-aligned blocks to optimize memory ordering
                 for i in row_block..row_end {
                     for j in col_block..col_end {
-                        // Memory fence operations simulated here
+                        // Issue real acquire/release fences around the access so
+                        // the surrounding lock-free operations observe a
+                        // consistent ordering. `black_box` prevents the access
+                        // from being optimized away.
                         std::sync::atomic::fence(Ordering::Acquire);
 
-                        std::hint::black_box(&matrix[[i, j]]); // Memory ordering with cache optimization
+                        std::hint::black_box(&matrix[[i, j]]);
 
                         std::sync::atomic::fence(Ordering::Release);
                     }
@@ -1394,6 +1612,7 @@ impl AdvancedfastDistanceMatrix {
     }
 }
 
+#[cfg(feature = "experimental")]
 impl SelfOptimizingAlgorithm {
     /// Create new self-optimizing algorithm
     pub fn new(_algorithmtype: &str) -> Self {
@@ -1434,161 +1653,36 @@ impl SelfOptimizingAlgorithm {
         self
     }
 
-    /// Auto-optimize and execute algorithm
+    /// Auto-optimize and execute the configured algorithm.
+    ///
+    /// # Status
+    ///
+    /// **Not implemented.** The runtime self-optimization pipeline (hardware
+    /// performance-counter feedback, just-in-time code generation, and adaptive
+    /// memory-pattern selection) is research-stage and has no working backend.
+    ///
+    /// Earlier revisions of this method returned a fixed `i % 2` two-cluster
+    /// labelling together with fabricated before/after performance metrics
+    /// (e.g. a hard-coded "10x speedup"). That fabricated success has been
+    /// removed: the method now returns an honest
+    /// [`SpatialError::NotImplementedError`]. Callers that need real clustering
+    /// should use the algorithms in the `cluster` family directly.
+    ///
+    /// The `data` argument is validated for shape so that the error message can
+    /// report the problem size, but no optimization or clustering is performed.
     pub async fn auto_optimize_and_execute(
         &mut self,
         data: &ArrayView2<'_, f64>,
     ) -> SpatialResult<Array1<usize>> {
-        let initial_metrics = self.measure_baseline_performance(data).await?;
-
-        // Apply optimizations based on hardware feedback
-        if self.hardware_feedback {
-            self.optimize_based_on_hardware_counters().await?;
-        }
-
-        // Generate optimized code at runtime
-        if self.runtime_codegen {
-            self.generate_optimized_code(data).await?;
-        }
-
-        // Adapt memory access patterns
-        if self.adaptive_memory {
-            self.optimize_memory_patterns(data).await?;
-        }
-
-        // Execute optimized algorithm
-        let result = self.execute_optimized_algorithm(data).await?;
-
-        // Measure final performance and update model
-        let final_metrics = self.measure_final_performance(data).await?;
-        self.update_performance_model(initial_metrics, final_metrics)
-            .await?;
-
-        Ok(result)
-    }
-
-    /// Measure baseline performance
-    async fn measure_baseline_performance(
-        &self,
-        data: &ArrayView2<'_, f64>,
-    ) -> SpatialResult<ExtremePerformanceMetrics> {
-        let start_time = Instant::now();
-
-        // Simulate baseline measurement
-        let _ = data;
-
-        let _elapsed = start_time.elapsed();
-        Ok(ExtremePerformanceMetrics {
-            ops_per_second: 1e6,
-            memory_bandwidth_utilization: 60.0,
-            cache_hit_ratio: 85.0,
-            branch_prediction_accuracy: 90.0,
-            simd_utilization: 25.0,
-            cpu_utilization: 70.0,
-            power_efficiency: 1e4,
-            thermal_efficiency: 1.5e4,
-            extreme_speedup: 1.0,
-        })
-    }
-
-    /// Optimize based on hardware counters
-    async fn optimize_based_on_hardware_counters(&mut self) -> SpatialResult<()> {
-        // Simulate hardware-guided optimization
-        self.optimization_history.push(OptimizationRecord {
-            timestamp: Instant::now(),
-            optimization: "hardware_counter_guided".to_string(),
-            performance_before: ExtremePerformanceMetrics {
-                ops_per_second: 1e6,
-                memory_bandwidth_utilization: 60.0,
-                cache_hit_ratio: 85.0,
-                branch_prediction_accuracy: 90.0,
-                simd_utilization: 25.0,
-                cpu_utilization: 70.0,
-                power_efficiency: 1e4,
-                thermal_efficiency: 1.5e4,
-                extreme_speedup: 1.0,
-            },
-            performance_after: ExtremePerformanceMetrics {
-                ops_per_second: 2e6,
-                memory_bandwidth_utilization: 80.0,
-                cache_hit_ratio: 95.0,
-                branch_prediction_accuracy: 98.0,
-                simd_utilization: 85.0,
-                cpu_utilization: 90.0,
-                power_efficiency: 2e4,
-                thermal_efficiency: 3e4,
-                extreme_speedup: 2.0,
-            },
-            success: true,
-        });
-
-        Ok(())
-    }
-
-    /// Generate optimized code
-    async fn generate_optimized_code(&mut self, data: &ArrayView2<'_, f64>) -> SpatialResult<()> {
-        let _ = data; // Placeholder
-        Ok(())
-    }
-
-    /// Optimize memory patterns
-    async fn optimize_memory_patterns(&mut self, data: &ArrayView2<'_, f64>) -> SpatialResult<()> {
-        let _ = data; // Placeholder
-        Ok(())
-    }
-
-    /// Execute optimized algorithm
-    async fn execute_optimized_algorithm(
-        &self,
-        data: &ArrayView2<'_, f64>,
-    ) -> SpatialResult<Array1<usize>> {
-        let (n_points, _) = data.dim();
-
-        // Simulate clustering with extreme optimizations
-        let mut assignments = Array1::zeros(n_points);
-        for i in 0..n_points {
-            assignments[i] = i % 2; // Simple 2-cluster assignment
-        }
-
-        Ok(assignments)
-    }
-
-    /// Measure final performance
-    async fn measure_final_performance(
-        &self,
-        data: &ArrayView2<'_, f64>,
-    ) -> SpatialResult<ExtremePerformanceMetrics> {
-        let _ = data;
-
-        Ok(ExtremePerformanceMetrics {
-            ops_per_second: 5e6, // 5x improvement
-            memory_bandwidth_utilization: 95.0,
-            cache_hit_ratio: 98.0,
-            branch_prediction_accuracy: 99.5,
-            simd_utilization: 95.0,
-            cpu_utilization: 98.0,
-            power_efficiency: 5e4,
-            thermal_efficiency: 7.5e4,
-            extreme_speedup: 10.0, // 10x total speedup
-        })
-    }
-
-    /// Update performance model
-    async fn update_performance_model(
-        &mut self,
-        before: ExtremePerformanceMetrics,
-        after: ExtremePerformanceMetrics,
-    ) -> SpatialResult<()> {
-        self.performance_model.accuracy = 0.95;
-        self.performance_model
-            .predictions
-            .push(PerformancePrediction {
-                metric: "speedup".to_string(),
-                value: after.extreme_speedup,
-                confidence: 0.9,
-            });
-
-        Ok(())
+        let (n_points, n_dims) = data.dim();
+        Err(SpatialError::NotImplementedError(format!(
+            "SelfOptimizingAlgorithm::auto_optimize_and_execute is an experimental \
+             research stub: runtime self-optimizing clustering (hardware-counter \
+             feedback={}, runtime code generation={}, adaptive memory={}) is not \
+             implemented. Refusing to fabricate clustering results or performance \
+             metrics for the {n_points}x{n_dims} input '{}'.",
+            self.hardware_feedback, self.runtime_codegen, self.adaptive_memory, self._algorithmtype,
+        )))
     }
 }
 
@@ -1676,18 +1770,33 @@ mod tests {
 
     #[test]
     fn test_numa_topology_detection() {
+        // Detection is now real (read from sysfs on Linux, single-node
+        // fallback elsewhere). Assert the structural invariants that must hold
+        // on any machine rather than hard-coding a particular topology.
         let topology = NumaTopologyInfo::detect();
-        assert_eq!(topology.num_nodes, 2);
-        assert_eq!(topology.memory_per_node.len(), 2);
-        assert_eq!(topology.cores_per_node.len(), 2);
+        assert!(topology.num_nodes >= 1);
+        assert_eq!(topology.memory_per_node.len(), topology.num_nodes);
+        assert_eq!(topology.cores_per_node.len(), topology.num_nodes);
+        assert_eq!(topology.bandwidth_per_node.len(), topology.num_nodes);
+        assert_eq!(
+            topology.inter_node_latencies.dim(),
+            (topology.num_nodes, topology.num_nodes)
+        );
     }
 
     #[test]
     fn test_cache_hierarchy_detection() {
+        // Cache sizes / line size are read from sysfs on Linux when available;
+        // latency fields are documented estimates. Validate plausibility
+        // instead of asserting a single machine's exact cache sizes.
         let cache = CacheHierarchyInfo::detect();
-        assert_eq!(cache.l1_size_kb, 32);
-        assert_eq!(cache.l2_size_kb, 256);
-        assert_eq!(cache.cache_line_size, 64);
+        assert!(cache.l1_size_kb > 0);
+        assert!(cache.l2_size_kb > 0);
+        assert!(cache.l3_size_kb > 0);
+        assert!(cache.cache_line_size > 0);
+        // A real cache line size is a small power of two (typically 32-128 B).
+        assert!(cache.cache_line_size.is_power_of_two());
+        assert!(cache.cache_line_size <= 256);
     }
 
     #[test]
@@ -1748,9 +1857,12 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "async")]
+    #[cfg(all(feature = "async", feature = "experimental"))]
     #[tokio::test]
-    async fn test_optimizing_algorithm() {
+    async fn test_optimizing_algorithm_returns_honest_error() {
+        // `SelfOptimizingAlgorithm` is an experimental research stub. Its
+        // `auto_optimize_and_execute` must NOT fabricate clustering results or
+        // performance metrics; it must surface an honest `NotImplementedError`.
         let mut algorithm = SelfOptimizingAlgorithm::new("clustering")
             .with_hardware_counter_feedback(true)
             .with_runtime_code_generation(true)
@@ -1759,13 +1871,11 @@ mod tests {
         let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 
         let result = algorithm.auto_optimize_and_execute(&points.view()).await;
-        assert!(result.is_ok());
-
-        let assignments = result.expect("Operation failed");
-        assert_eq!(assignments.len(), 4);
-
-        // Check that optimization history was recorded
-        assert!(!algorithm.optimization_history.is_empty());
+        assert!(
+            matches!(result, Err(SpatialError::NotImplementedError(_))),
+            "experimental self-optimizing algorithm must return an honest \
+             NotImplementedError, not fabricated success: {result:?}"
+        );
     }
 
     #[test]

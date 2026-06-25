@@ -235,25 +235,17 @@ where
         return Err(NotImplemented);
     }
 
-    // In a real implementation, this would use cuDNN for convolution.
-    // For now, we'll return a placeholder result.
-
     let inputshape = input.shape();
     if inputshape.len() != 2 {
         return Err(NotImplemented);
     }
 
-    // Calculate output dimensions (simplified)
-    let h_out = (inputshape[0] - kernel.shape()[0] + 2 * padding.0) / stride.0 + 1;
-    let w_out = (inputshape[1] - kernel.shape()[1] + 2 * padding.1) / stride.1 + 1;
-
-    // Create a placeholder result array
-    let result = Array::<f64>::zeros((h_out, w_out));
-
-    // Create a new GPU array with the result
-    let result_gpu = GPUNdarray::new(result, input.config().clone());
-
-    Ok(result_gpu)
+    // A real implementation would use cuDNN (or a CPU convolution fallback).
+    // Returning a zero-filled array of the right shape would be a fabricated
+    // result that silently produces wrong numbers, so report the operation as
+    // unimplemented instead.
+    let _ = (stride, padding);
+    Err(NotImplemented)
 }
 
 /// Implements SVD decomposition for CUDA-accelerated arrays.
@@ -270,20 +262,11 @@ where
         return Err(NotImplemented);
     }
 
-    // In a real implementation, this would use cuSOLVER for SVD.
-    // For now, we'll create placeholder arrays.
-
-    let (m, n) = (shape[0], shape[1]);
-    let u = Array::<f64>::eye(m);
-    let s = Array::<f64>::ones(m.min(n));
-    let vt = Array::<f64>::eye(n);
-
-    // Create new GPU arrays with the results
-    let u_gpu = GPUNdarray::new(u, a.config().clone());
-    let s_gpu = GPUNdarray::new(s, a.config().clone());
-    let vt_gpu = GPUNdarray::new(vt, a.config().clone());
-
-    Ok((u_gpu, s_gpu, vt_gpu))
+    // A real implementation would use cuSOLVER (or a CPU SVD fallback).
+    // Returning identity U/Vt and all-ones singular values would be a fabricated
+    // decomposition that does not reconstruct the input, so report the operation
+    // as unimplemented instead of inventing a result.
+    Err(NotImplemented)
 }
 
 /// Implements matrix inverse for CUDA-accelerated arrays.
@@ -300,14 +283,9 @@ where
         return Err(NotImplemented);
     }
 
-    // In a real implementation, this would use cuSOLVER for matrix inversion.
-    // For now, we'll create a placeholder identity matrix.
-
-    let n = shape[0];
-    let result = Array::<f64>::eye(n);
-
-    // Create a new GPU array with the result
-    let result_gpu = GPUNdarray::new(result, a.config().clone());
-
-    Ok(result_gpu)
+    // A real implementation would use cuSOLVER (or a CPU inversion fallback).
+    // Returning an identity matrix would be a fabricated inverse (it only equals
+    // the true inverse when the input is already the identity), so report the
+    // operation as unimplemented instead.
+    Err(NotImplemented)
 }

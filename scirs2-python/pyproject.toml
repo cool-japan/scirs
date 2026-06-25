@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "scirs2"
-version = "0.5.0"
+version = "0.5.1"
 description = "SciRS2: A comprehensive scientific computing library in Rust - Python bindings (SciPy alternative) with async support and pandas integration"
 readme = "README.md"
 requires-python = ">=3.8"

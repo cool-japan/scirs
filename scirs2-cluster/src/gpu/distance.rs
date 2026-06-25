@@ -67,7 +67,13 @@ pub struct GpuDistanceMatrix<F: Float> {
     memory_manager: GpuMemoryManager,
 }
 
-/// GPU array abstraction
+/// GPU array abstraction.
+///
+/// When a native device runtime is bound, `device_ptr` addresses real device
+/// memory. In CPU-fallback builds (the default), the array additionally retains
+/// the host-side buffer so that round-trips (`copy_from_host` / `copy_to_host`)
+/// preserve the real data instead of fabricating zeros. This keeps every
+/// downstream computation (tiled distance assembly, etc.) numerically correct.
 #[derive(Debug)]
 pub struct GpuArray<F: Float> {
     /// Device pointer
@@ -78,6 +84,8 @@ pub struct GpuArray<F: Float> {
     element_size: usize,
     /// Whether data is currently on device
     on_device: bool,
+    /// Host-resident copy of the data (authoritative in CPU-fallback builds)
+    host_data: Option<Array2<F>>,
     _phantom: std::marker::PhantomData<F>,
 }
 
@@ -351,31 +359,66 @@ impl<F: Float + FromPrimitive + Send + Sync> GpuDistanceMatrix<F> {
         Ok(result)
     }
 
-    /// Stub implementations for GPU computations
+    /// Compute the distance sub-matrix for a tile `[i_start, i_end) x [j_start, j_end)`.
+    ///
+    /// A native GPU backend would launch a tiled kernel here. Since this build ships
+    /// without a bound device runtime, we compute the tile on the CPU using the exact
+    /// same metric as [`Self::compute_single_distance`]. This returns real pairwise
+    /// distances for the requested block instead of a fabricated empty array, so the
+    /// assembled distance matrix is mathematically correct on every backend.
     fn compute_distance_tile(
         &self,
-        _i_start: usize,
-        _i_end: usize,
-        _j_start: usize,
-        _j_end: usize,
+        i_start: usize,
+        i_end: usize,
+        j_start: usize,
+        j_end: usize,
     ) -> Result<Array2<F>> {
-        // This would contain the actual GPU kernel launch
-        // For now, return empty array as stub
-        Ok(Array2::zeros((1, 1)))
+        let data = self.gpu_data.as_ref().ok_or_else(|| {
+            ClusteringError::ComputationError(
+                "Distance tile requested before data was loaded to the device".to_string(),
+            )
+        })?;
+        let host = data.copy_to_host()?;
+
+        let n_rows = i_end.saturating_sub(i_start);
+        let n_cols = j_end.saturating_sub(j_start);
+        let mut tile = Array2::zeros((n_rows, n_cols));
+
+        for (ti, i) in (i_start..i_end).enumerate() {
+            for (tj, j) in (j_start..j_end).enumerate() {
+                tile[[ti, tj]] = self.compute_single_distance(host.row(i), host.row(j))?;
+            }
+        }
+
+        Ok(tile)
     }
 
+    /// Compute the point-to-centroid distance sub-matrix for a tile.
+    ///
+    /// CPU computation of the real block of distances between samples
+    /// `[i_start, i_end)` and centroids `[j_start, j_end)`, using the configured
+    /// metric. Replaces the previous empty-array stub that silently zeroed the
+    /// centroid distance matrix.
     fn compute_centroid_distance_tile(
         &self,
-        _data: ArrayView2<F>,
-        _centroids: ArrayView2<F>,
-        _i_start: usize,
-        _i_end: usize,
-        _j_start: usize,
-        _j_end: usize,
+        data: ArrayView2<F>,
+        centroids: ArrayView2<F>,
+        i_start: usize,
+        i_end: usize,
+        j_start: usize,
+        j_end: usize,
     ) -> Result<Array2<F>> {
-        // This would contain the actual GPU kernel launch
-        // For now, return empty array as stub
-        Ok(Array2::zeros((1, 1)))
+        let n_rows = i_end.saturating_sub(i_start);
+        let n_cols = j_end.saturating_sub(j_start);
+        let mut tile = Array2::zeros((n_rows, n_cols));
+
+        for (ti, i) in (i_start..i_end).enumerate() {
+            for (tj, j) in (j_start..j_end).enumerate() {
+                tile[[ti, tj]] = self.compute_single_distance(data.row(i), centroids.row(j))?;
+            }
+        }
+
+        Ok(tile)
     }
 
     /// Detect available GPU device
@@ -411,31 +454,51 @@ impl<F: Float> GpuArray<F> {
     /// Allocate GPU array
     pub fn allocate(shape: [usize; 2]) -> Result<Self> {
         let element_size = std::mem::size_of::<F>();
-        let total_size = shape[0] * shape[1] * element_size;
+        let _total_size = shape[0] * shape[1] * element_size;
 
-        // Stub allocation - would allocate actual GPU memory
-        let device_ptr = 0x2000_0000; // Fake pointer
+        // In a native-device build this would request real device memory; in the
+        // CPU-fallback build the host buffer (populated by `copy_from_host`) is
+        // authoritative, so the pointer is only a placeholder handle.
+        let device_ptr = 0x2000_0000;
 
         Ok(Self {
             device_ptr,
             shape,
             element_size,
-            on_device: true,
+            on_device: false,
+            host_data: None,
             _phantom: std::marker::PhantomData,
         })
     }
 
-    /// Copy data from host to device
-    pub fn copy_from_host(&mut self, _data: ArrayView2<F>) -> Result<()> {
-        // Stub implementation - would perform actual memory transfer
+    /// Copy data from host to device.
+    ///
+    /// Retains a host-resident copy of the real data so it can be read back
+    /// faithfully on CPU-fallback backends. A native backend would additionally
+    /// issue the host-to-device transfer here.
+    pub fn copy_from_host(&mut self, data: ArrayView2<F>) -> Result<()> {
+        if data.nrows() != self.shape[0] || data.ncols() != self.shape[1] {
+            return Err(ClusteringError::InvalidInput(format!(
+                "Host data shape {:?} does not match allocated GPU array shape {:?}",
+                [data.nrows(), data.ncols()],
+                self.shape
+            )));
+        }
+        self.host_data = Some(data.to_owned());
         self.on_device = true;
         Ok(())
     }
 
-    /// Copy data from device to host
+    /// Copy data from device to host.
+    ///
+    /// Returns the real data previously uploaded with [`Self::copy_from_host`].
+    /// Errors honestly if nothing was uploaded rather than fabricating zeros.
     pub fn copy_to_host(&self) -> Result<Array2<F>> {
-        // Stub implementation - would perform actual memory transfer
-        Ok(Array2::zeros((self.shape[0], self.shape[1])))
+        self.host_data.clone().ok_or_else(|| {
+            ClusteringError::ComputationError(
+                "copy_to_host called before any data was uploaded to the GPU array".to_string(),
+            )
+        })
     }
 
     /// Get array shape
@@ -471,9 +534,17 @@ mod tests {
 
     #[test]
     fn test_gpu_array_allocation() {
-        let array = GpuArray::<f32>::allocate([100, 50]).expect("Operation failed");
+        let mut array = GpuArray::<f32>::allocate([100, 50]).expect("Operation failed");
         assert_eq!(array.shape(), [100, 50]);
+        // Freshly allocated array holds no data yet.
+        assert!(!array.is_on_device());
+
+        // After uploading, the array reports on-device and round-trips the real data.
+        let data = Array2::<f32>::from_elem((100, 50), 1.5);
+        array.copy_from_host(data.view()).expect("Operation failed");
         assert!(array.is_on_device());
+        let back = array.copy_to_host().expect("Operation failed");
+        assert_eq!(back, data);
     }
 
     #[test]
@@ -490,6 +561,51 @@ mod tests {
             .expect("Operation failed");
         assert_eq!(result.shape(), &[3, 3]);
         assert!((result[[0, 0]] - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_gpu_tile_path_matches_cpu() {
+        // Force the tiled "GPU" code path (preferred backend != CpuFallback makes the
+        // stub context report itself as accelerated) and verify the assembled matrix
+        // equals the direct CPU computation -- i.e. tiles carry real distances.
+        use super::super::core::GpuBackend;
+
+        let data = Array2::from_shape_vec(
+            (5, 3),
+            vec![
+                0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 1.0, 1.0, 1.0, 3.0, 0.0, 4.0,
+            ],
+        )
+        .expect("Operation failed");
+
+        let mut gpu_config = GpuConfig::new(GpuBackend::Cuda);
+        gpu_config.auto_fallback = true;
+        let mut gpu_matrix =
+            GpuDistanceMatrix::<f64>::new(gpu_config, DistanceMetric::Euclidean, Some(2))
+                .expect("Operation failed");
+        assert!(gpu_matrix.context.is_gpu_accelerated());
+        let gpu_result = gpu_matrix
+            .compute_distance_matrix(data.view())
+            .expect("Operation failed");
+
+        let cpu_matrix =
+            GpuDistanceMatrix::<f64>::new(GpuConfig::default(), DistanceMetric::Euclidean, None)
+                .expect("Operation failed");
+        let cpu_result = cpu_matrix
+            .compute_distance_matrix_cpu(data.view())
+            .expect("Operation failed");
+
+        assert_eq!(gpu_result.shape(), &[5, 5]);
+        for i in 0..5 {
+            for j in 0..5 {
+                assert!(
+                    (gpu_result[[i, j]] - cpu_result[[i, j]]).abs() < 1e-10,
+                    "tile mismatch at ({i},{j}): gpu={} cpu={}",
+                    gpu_result[[i, j]],
+                    cpu_result[[i, j]]
+                );
+            }
+        }
     }
 
     #[test]

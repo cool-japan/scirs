@@ -19,7 +19,7 @@ Use scirs2-graph when you need to:
 - Visualize graphs as SVG or DOT output
 - Detect graph isomorphism or subgraph patterns
 
-## Features (v0.5.0)
+## Features (v0.5.1)
 
 ### Core Graph Representations
 - Directed and undirected graphs with efficient adjacency storage
@@ -136,14 +136,14 @@ Use scirs2-graph when you need to:
 
 ```toml
 [dependencies]
-scirs2-graph = "0.5.0"
+scirs2-graph = "0.5.1"
 ```
 
 For parallel processing support:
 
 ```toml
 [dependencies]
-scirs2-graph = { version = "0.5.0", features = ["parallel"] }
+scirs2-graph = { version = "0.5.1", features = ["parallel"] }
 ```
 
 ## Quick Start

@@ -37,16 +37,14 @@ memmap2 = { workspace = true }
 chrono = { workspace = true }
 
 # Feature-gated dependencies
-tokenizers = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
-wide = { workspace = true, optional = true }
 
 [features]
 default = []
 serde-support = ["dep:serde", "dep:serde_json"]
-tokenization = ["dep:tokenizers"]
-simd = ["dep:wide", "scirs2-core/simd"]
+tokenization = []
+simd = ["scirs2-core/simd"]
 
 [dev-dependencies]
 criterion = { workspace = true }

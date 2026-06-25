@@ -837,8 +837,11 @@ impl AdaptiveOptimizer {
         // Check if SIMD instructions are available on this platform
         #[cfg(target_arch = "x86_64")]
         {
-            std::arch::is_x86_feature_detected!("avx2")
-                || std::arch::is_x86_feature_detected!("sse4.1")
+            // Bind each detection to a local first: clippy's `nonminimal_bool`
+            // mis-analyzes the `||` of two `is_x86_feature_detected!` expansions.
+            let has_avx2 = std::arch::is_x86_feature_detected!("avx2");
+            let has_sse41 = std::arch::is_x86_feature_detected!("sse4.1");
+            has_avx2 || has_sse41
         }
         #[cfg(target_arch = "aarch64")]
         {

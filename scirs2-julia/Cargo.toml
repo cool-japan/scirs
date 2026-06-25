@@ -20,13 +20,6 @@ crate-type = ["cdylib", "staticlib"]
 # Core SciRS2 with FFI, linalg, stats, fft, and optimize features enabled
 scirs2-core = { workspace = true, features = ["ffi", "linalg", "std", "array"] }
 
-# Numerical types (no_std compatible)
-num-traits = { workspace = true }
-num-complex = { workspace = true }
-
-# Error handling
-thiserror = { workspace = true }
-
 [features]
 default = ["linalg", "stats", "fft", "optimize"]
 

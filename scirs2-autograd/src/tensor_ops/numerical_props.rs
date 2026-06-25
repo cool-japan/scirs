@@ -315,31 +315,19 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for CondOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let _gy = ctx.output_grad();
-        let _x = ctx.input(0);
-        let _g = ctx.graph();
-
-        // Simplified gradient approximation for condition number
-        // The exact gradient requires SVD, so we use a finite difference approximation
-        let x = ctx.input(0);
-        let g = ctx.graph();
-
-        // For now, use a scaled identity matrix as a rough approximation
-        // This is not mathematically accurate but provides a reasonable gradient direction
-        let x_val = x.eval(g).expect("Operation failed");
-        let shape = x_val.shape();
-
-        if shape.len() == 2 && shape[0] == shape[1] {
-            // Square matrix - use scaled identity
-            let n = shape[0];
-            let eye = scirs2_core::ndarray::Array2::<F>::eye(n);
-            let scaled_eye = eye * F::from(0.01).expect("Failed to convert constant to float"); // Small scaling factor
-            let grad_tensor = crate::tensor_ops::convert_to_tensor(scaled_eye, g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-        } else {
-            // Non-square matrix - return zeros
-            ctx.append_input_grad(0, None);
-        }
+        // The condition number κ(A) is a smooth function of A away from
+        // degeneracies, but its exact reverse-mode gradient requires the full
+        // SVD plus the sensitivities of the extreme singular values
+        // (∂σ_max/∂A = u_max v_maxᵀ, ∂σ_min/∂A = u_min v_minᵀ, etc.), which is
+        // not implemented here.
+        //
+        // The previous implementation fabricated a gradient — a fixed
+        // `0.01 · I` for square inputs — that is mathematically unrelated to
+        // ∂κ/∂A and would silently corrupt any training that backpropagated
+        // through `cond`.  Per the no-fabrication policy we instead return
+        // `None` (honestly: non-differentiable through this op as implemented)
+        // for every shape, so callers get *no* gradient rather than a wrong one.
+        ctx.append_input_grad(0, None);
     }
 }
 

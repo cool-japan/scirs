@@ -327,20 +327,16 @@ impl InteractiveDashboard {
 
         #[cfg(not(feature = "dashboard_server"))]
         {
-            println!(
-                "Dashboard server feature not enabled. Starting mock server at http://{}",
-                self.config.address
-            );
-            println!("Dashboard title: {}", self.config.title);
-            println!("Refresh interval: {} seconds", self.config.refresh_interval);
-            println!("Float-time updates: {}", self.config.enable_realtime);
-            println!("To use the real HTTP server, enable the 'dashboard_server' feature");
-
-            // Return mock server when feature is not enabled
-            Ok(DashboardServer {
-                address: self.config.address,
-                is_running: true,
-            })
+            // The HTTP server lives behind the `dashboard_server` feature. With
+            // the feature disabled there is no server to start, so report that
+            // honestly instead of returning a handle that falsely claims to be
+            // running.
+            Err(MetricsError::InvalidOperation(format!(
+                "Dashboard HTTP server is unavailable: the 'dashboard_server' feature is not \
+                 enabled. Rebuild scirs2-metrics with `--features dashboard_server` to serve the \
+                 dashboard (title: '{}') at http://{}.",
+                self.config.title, self.config.address
+            )))
         }
     }
 

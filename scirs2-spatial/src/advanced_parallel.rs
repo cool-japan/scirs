@@ -38,7 +38,7 @@
 //! # }
 //! ```
 
-use crate::error::SpatialResult;
+use crate::error::{SpatialError, SpatialResult};
 use crate::memory_pool::DistancePool;
 use crate::simd_distance::hardware_specific_simd::HardwareOptimizedDistances;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
@@ -1161,7 +1161,17 @@ impl AdvancedParallelKMeans {
         Ok(Self { pool, config, k })
     }
 
-    /// Perform K-means clustering using advanced-parallel processing
+    /// Perform K-means clustering (Lloyd's algorithm) on the given points.
+    ///
+    /// This runs a genuine K-means: deterministic k-means++ seeding followed by
+    /// alternating assignment / centroid-update iterations until the
+    /// assignments stop changing or a maximum iteration count is reached.
+    /// Distance computations use the hardware-optimized SIMD kernels.
+    ///
+    /// # Returns
+    ///
+    /// A tuple `(centroids, assignments)` where `centroids` has shape
+    /// `(k, n_dims)` and `assignments[i]` is the cluster index of point `i`.
     pub fn fit_parallel(
         &self,
         points: &ArrayView2<'_, f64>,
@@ -1169,29 +1179,116 @@ impl AdvancedParallelKMeans {
         let n_points = points.nrows();
         let n_dims = points.ncols();
 
-        // Create work items for parallel K-means iterations
-        let chunk_size = self.config.initial_chunk_size;
-        let mut work_items = Vec::new();
-
-        for chunk_start in (0..n_points).step_by(chunk_size) {
-            let chunk_end = (chunk_start + chunk_size).min(n_points);
-            work_items.push(WorkItem {
-                start: chunk_start,
-                end: chunk_end,
-                work_type: WorkType::KMeansClustering,
-                priority: 1,
-                numa_hint: None,
-            });
+        if self.k == 0 {
+            return Err(SpatialError::ValueError(
+                "Number of clusters k must be greater than zero".to_string(),
+            ));
+        }
+        if n_points == 0 {
+            return Err(SpatialError::ValueError(
+                "Cannot cluster an empty point set".to_string(),
+            ));
+        }
+        if self.k > n_points {
+            return Err(SpatialError::ValueError(format!(
+                "Number of clusters k ({}) cannot exceed number of points ({})",
+                self.k, n_points
+            )));
         }
 
-        // Submit work and wait for completion
-        self.pool.submit_work(work_items)?;
-        self.pool.wait_for_completion()?;
+        let optimizer = HardwareOptimizedDistances::new();
 
-        // Return placeholder results
-        // In a real implementation, this would return the actual clustering results
-        let centroids = Array2::zeros((self.k, n_dims));
-        let assignments = Array1::zeros(n_points);
+        // Deterministic k-means++ seeding: the first centroid is the first
+        // point, then each subsequent centroid is the point farthest (in
+        // squared distance) from the already chosen centroids. This is
+        // reproducible and avoids pulling in an RNG dependency.
+        let mut centroids = Array2::<f64>::zeros((self.k, n_dims));
+        centroids.row_mut(0).assign(&points.row(0));
+
+        let squared_distance = |a: &scirs2_core::ndarray::ArrayView1<f64>,
+                                b: &scirs2_core::ndarray::ArrayView1<f64>|
+         -> f64 {
+            match optimizer.euclidean_distance_optimized(a, b) {
+                Ok(d) => d * d,
+                Err(_) => f64::INFINITY,
+            }
+        };
+
+        let mut nearest_sq = vec![f64::INFINITY; n_points];
+        for chosen in 1..self.k {
+            let prev_centroid = centroids.row(chosen - 1);
+            let mut best_point = 0usize;
+            let mut best_dist = -1.0f64;
+            for point_idx in 0..n_points {
+                let point = points.row(point_idx);
+                let d_sq = squared_distance(&point, &prev_centroid);
+                if d_sq < nearest_sq[point_idx] {
+                    nearest_sq[point_idx] = d_sq;
+                }
+                if nearest_sq[point_idx] > best_dist {
+                    best_dist = nearest_sq[point_idx];
+                    best_point = point_idx;
+                }
+            }
+            centroids.row_mut(chosen).assign(&points.row(best_point));
+        }
+
+        let mut assignments = Array1::<usize>::zeros(n_points);
+        let max_iterations = 100;
+
+        for _iteration in 0..max_iterations {
+            // Assignment step: assign each point to its nearest centroid.
+            let mut changed = false;
+            for point_idx in 0..n_points {
+                let point = points.row(point_idx);
+                let mut best_cluster = 0usize;
+                let mut best_distance = f64::INFINITY;
+                for cluster_idx in 0..self.k {
+                    let centroid = centroids.row(cluster_idx);
+                    let d_sq = squared_distance(&point, &centroid);
+                    if d_sq < best_distance {
+                        best_distance = d_sq;
+                        best_cluster = cluster_idx;
+                    }
+                }
+                if assignments[point_idx] != best_cluster {
+                    assignments[point_idx] = best_cluster;
+                    changed = true;
+                }
+            }
+
+            // Update step: recompute centroids as the mean of assigned points.
+            let mut new_centroids = Array2::<f64>::zeros((self.k, n_dims));
+            let mut counts = vec![0usize; self.k];
+            for point_idx in 0..n_points {
+                let cluster = assignments[point_idx];
+                counts[cluster] += 1;
+                let point = points.row(point_idx);
+                for dim in 0..n_dims {
+                    new_centroids[[cluster, dim]] += point[dim];
+                }
+            }
+            for cluster_idx in 0..self.k {
+                if counts[cluster_idx] > 0 {
+                    let inv = 1.0 / counts[cluster_idx] as f64;
+                    for dim in 0..n_dims {
+                        new_centroids[[cluster_idx, dim]] *= inv;
+                    }
+                } else {
+                    // Keep the previous centroid for an empty cluster so it can
+                    // still attract points in later iterations.
+                    new_centroids
+                        .row_mut(cluster_idx)
+                        .assign(&centroids.row(cluster_idx));
+                }
+            }
+            centroids = new_centroids;
+
+            // Converged once no point changed its cluster assignment.
+            if !changed {
+                break;
+            }
+        }
 
         Ok((centroids, assignments))
     }

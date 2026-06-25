@@ -28,8 +28,7 @@ fn tmp_file(data: &[u8]) -> tempfile::NamedTempFile {
 #[test]
 fn io_csv_stream_no_panic_on_empty_input() {
     let f = tmp_file(b"");
-    let result =
-        scirs2_io::streaming_csv::CsvStreamReader::new(f.path(), b',', true);
+    let result = scirs2_io::streaming_csv::CsvStreamReader::new(f.path(), b',', true);
     // Either an Ok reader that immediately yields nothing, or an Err — never a panic.
     if let Ok(mut reader) = result {
         let _ = reader.read_chunk(64);
@@ -40,9 +39,7 @@ fn io_csv_stream_no_panic_on_empty_input() {
 fn io_csv_stream_no_panic_on_binary_data() {
     let binary: Vec<u8> = (0u8..=255).cycle().take(4096).collect();
     let f = tmp_file(&binary);
-    if let Ok(mut reader) =
-        scirs2_io::streaming_csv::CsvStreamReader::new(f.path(), b',', true)
-    {
+    if let Ok(mut reader) = scirs2_io::streaming_csv::CsvStreamReader::new(f.path(), b',', true) {
         // Drain — must not panic even on non-UTF-8 bytes in fields.
         let _ = reader.read_chunk(128);
     }
@@ -52,12 +49,10 @@ fn io_csv_stream_no_panic_on_binary_data() {
 fn io_csv_stream_no_panic_on_deeply_quoted_line() {
     // A line with an extremely long quoted field.
     let mut line = String::from("\"");
-    line.extend(std::iter::repeat("a\"\"b").take(500));
-    line.push_str("\"");
+    line.extend(std::iter::repeat_n("a\"\"b", 500));
+    line.push('"');
     let f = tmp_file(line.as_bytes());
-    if let Ok(mut reader) =
-        scirs2_io::streaming_csv::CsvStreamReader::new(f.path(), b',', true)
-    {
+    if let Ok(mut reader) = scirs2_io::streaming_csv::CsvStreamReader::new(f.path(), b',', true) {
         let _ = reader.read_chunk(64);
     }
 }
@@ -125,7 +120,7 @@ fn io_json_parse_no_panic_on_deeply_nested() {
     // overflowing the test-thread stack.  Deeper nesting (≥ ~2000 levels)
     // triggers a stack overflow in the pure-Rust recursive-descent parser;
     // that is a known limitation documented as a TODO for iterative parsing.
-    let deep: String = "[".repeat(500) + &"]".repeat(500);
+    let deep: String = "[".repeat(500) + "]".repeat(500).as_str();
     let _ = scirs2_io::streaming_json::parse_json(&deep);
 }
 
@@ -183,9 +178,8 @@ fn io_json_lines_reader_no_panic_on_mixed_valid_invalid() {
     let f = tmp_file(data);
     if let Ok(mut reader) = scirs2_io::streaming_json::JsonLinesReader::open(f.path()) {
         for _ in 0..8 {
-            match reader.next_record() {
-                Ok(None) => break,
-                Ok(Some(_)) | Err(_) => {}
+            if let Ok(None) = reader.next_record() {
+                break;
             }
         }
     }
@@ -225,9 +219,7 @@ fn io_zarr_consolidated_no_panic_on_random_bytes() {
 #[test]
 fn io_zarr_group_v3_no_panic_on_truncated_json() {
     // GroupMetadataV3 uses serde_json directly (no custom from_json).
-    let _ = serde_json::from_slice::<scirs2_io::zarr::GroupMetadataV3>(
-        b"{\"zarr_fo",
-    );
+    let _ = serde_json::from_slice::<scirs2_io::zarr::GroupMetadataV3>(b"{\"zarr_fo");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -258,7 +250,8 @@ fn io_arff_no_panic_on_binary_data() {
 #[test]
 fn io_arff_sparse_no_panic_on_malformed_braces() {
     // Unclosed brace in sparse data section.
-    let data = b"@relation test\n@attribute x numeric\n@attribute y numeric\n@data\n{0 1.0, 1\n{broken\n";
+    let data =
+        b"@relation test\n@attribute x numeric\n@attribute y numeric\n@data\n{0 1.0, 1\n{broken\n";
     let f = tmp_file(data);
     let _ = scirs2_io::arff::read_sparse_arff(f.path());
 }
@@ -381,9 +374,7 @@ fn text_wordpiece_decode_no_panic_on_unknown_ids() {
 #[test]
 fn text_wordpiece_encode_no_panic_on_empty() {
     use scirs2_text::tokenization::WordPieceTokenizer;
-    let wp = WordPieceTokenizer::from_vocab_list(&[
-        "[PAD]", "[UNK]", "[CLS]", "[SEP]",
-    ]);
+    let wp = WordPieceTokenizer::from_vocab_list(&["[PAD]", "[UNK]", "[CLS]", "[SEP]"]);
     // encode(text, max_length, add_special_tokens) → Result<(Vec<u32>, Vec<u8>)>
     let result = wp.encode("", 512, true);
     // Should produce at least [CLS] and [SEP] tokens, or an Err — never panic.
@@ -397,8 +388,7 @@ fn text_wordpiece_encode_no_panic_on_empty() {
 #[test]
 fn text_bpe_encode_no_panic_on_empty_string() {
     use scirs2_text::tokenization::bpe::BpeTokenizer;
-    let tok = BpeTokenizer::train(&["hello world"], 32, 1)
-        .expect("BpeTokenizer::train");
+    let tok = BpeTokenizer::train(&["hello world"], 32, 1).expect("BpeTokenizer::train");
     let ids = tok.encode("");
     assert!(ids.is_empty());
 }
@@ -406,8 +396,7 @@ fn text_bpe_encode_no_panic_on_empty_string() {
 #[test]
 fn text_bpe_decode_no_panic_on_empty_ids() {
     use scirs2_text::tokenization::bpe::BpeTokenizer;
-    let tok = BpeTokenizer::train(&["hello world"], 32, 1)
-        .expect("BpeTokenizer::train");
+    let tok = BpeTokenizer::train(&["hello world"], 32, 1).expect("BpeTokenizer::train");
     let s = tok.decode(&[]);
     assert!(s.is_empty());
 }
@@ -445,5 +434,8 @@ fn text_bpe_round_trip_json() {
     let _ = BpeTokenizer::from_json(&json);
     // Original tokenizer must produce non-empty IDs without panicking.
     let original_ids = tok.encode("the quick brown fox");
-    assert!(!original_ids.is_empty(), "original tokenizer must produce IDs");
+    assert!(
+        !original_ids.is_empty(),
+        "original tokenizer must produce IDs"
+    );
 }

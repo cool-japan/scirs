@@ -273,7 +273,7 @@ impl LocalObjectStore {
         use sha2::{Digest, Sha256};
         let mut h = Sha256::new();
         h.update(data);
-        hex::encode(h.finalize())
+        crate::encoding_utils::hex_encode(h.finalize())
     }
 }
 
@@ -573,7 +573,7 @@ impl<'a> MultipartUpload<'a> {
             use sha2::{Digest, Sha256};
             let mut h = Sha256::new();
             h.update(&assembled);
-            hex::encode(h.finalize())
+            crate::encoding_utils::hex_encode(h.finalize())
         };
         self.store.put(&self.key, &assembled)?;
         Ok(UploadResult {

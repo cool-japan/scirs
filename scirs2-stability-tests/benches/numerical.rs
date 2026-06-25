@@ -4,7 +4,7 @@
 //! These cover the same algorithmic surface as SciPy / NumPy / LAPACK so that
 //! relative performance can be tracked across releases.
 
-use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ndarray::Array2;
 
 // ---------------------------------------------------------------------------
@@ -125,18 +125,9 @@ fn bench_normal_ppf(c: &mut Criterion) {
 // Criterion harness wiring
 // ---------------------------------------------------------------------------
 
-criterion_group!(
-    benches_matmul,
-    bench_matrix_multiply,
-    bench_eye_alloc,
-);
+criterion_group!(benches_matmul, bench_matrix_multiply, bench_eye_alloc,);
 
-criterion_group!(
-    benches_linalg,
-    bench_svd,
-    bench_qr,
-    bench_lu,
-);
+criterion_group!(benches_linalg, bench_svd, bench_qr, bench_lu,);
 
 criterion_group!(
     benches_stats,

@@ -153,12 +153,20 @@ impl ErrorModel {
             return vec![];
         }
 
-        // Early return for length difference exceeding max edit distance
-        if (typo_chars.len() as isize - correct_chars.len() as isize).abs()
-            > self.max_edit_distance as isize
-        {
-            // Just return a placeholder operation since this exceeds our threshold
-            return vec![EditOp::Substitute('?', '?')];
+        // When the length difference alone already exceeds the configured
+        // maximum edit distance, the words cannot be related by an edit path
+        // within the threshold. We still return the *real* minimum edit
+        // operations (computed below via the efficient Levenshtein tracer)
+        // rather than a fabricated placeholder, so callers always receive a
+        // valid, non-corrupting edit sequence. Callers that wish to enforce the
+        // threshold can inspect the returned operation count.
+        let length_difference_exceeds_threshold =
+            (typo_chars.len() as isize - correct_chars.len() as isize).abs()
+                > self.max_edit_distance as isize;
+        if length_difference_exceeds_threshold {
+            let mut operations = Vec::new();
+            let _distance = self.levenshtein_with_ops_efficient(correct, typo, &mut operations);
+            return operations;
         }
 
         // Try to detect the type of error

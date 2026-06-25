@@ -545,20 +545,69 @@ impl SciPyCompatibilityChecker {
     }
 
     fn run_behavior_test(&self, testcase: &BehaviorTestCase) -> Result<f64, BehaviorTestFailure> {
-        // Simplified implementation - would run actual scipy comparison
-        let relative_error = 1e-14; // Simulated small error
+        use crate::interp1d::{ExtrapolateMode, Interp1d, InterpolationMethod};
+        use crate::spline::CubicSpline;
+        use scirs2_core::ndarray::Array1;
+
+        // Run this crate's interpolators for real and compare the output against
+        // an analytically exact reference value that a SciPy-equivalent
+        // implementation is guaranteed to reproduce. The relative error is thus a
+        // genuine measurement of parity, never a hardcoded constant.
+        //
+        // Sample points lying on the straight line f(x) = 2x + 1. Both linear
+        // interpolation and a natural cubic spline reproduce a straight line
+        // exactly (a line has zero second derivative, satisfying the natural
+        // boundary condition), so the value at the query point is known precisely
+        // and matches what SciPy would compute.
+        let x = Array1::from(vec![0.0_f64, 1.0, 2.0, 3.0, 4.0]);
+        let y: Array1<f64> = x.mapv(|v| 2.0 * v + 1.0);
+        let query = 1.5_f64;
+        let reference = 2.0 * query + 1.0; // exact value of f at the query point
+
+        let make_failure = |relative_error: f64, actual: String| BehaviorTestFailure {
+            test_name: testcase.name.clone(),
+            input_description: testcase.description.clone(),
+            expected_result: format!("{reference:.17}"),
+            actual_result: actual,
+            relative_error,
+            error_type: ErrorType::NumericalError,
+        };
+
+        let computed = match testcase.name.as_str() {
+            "linear_interpolation" => {
+                let interp = Interp1d::new(
+                    &x.view(),
+                    &y.view(),
+                    InterpolationMethod::Linear,
+                    ExtrapolateMode::Error,
+                )
+                .map_err(|e| make_failure(f64::INFINITY, format!("constructor error: {e}")))?;
+                interp
+                    .evaluate(query)
+                    .map_err(|e| make_failure(f64::INFINITY, format!("evaluation error: {e}")))?
+            }
+            "cubic_spline_natural" => {
+                let spline = CubicSpline::new(&x.view(), &y.view())
+                    .map_err(|e| make_failure(f64::INFINITY, format!("constructor error: {e}")))?;
+                spline
+                    .evaluate(query)
+                    .map_err(|e| make_failure(f64::INFINITY, format!("evaluation error: {e}")))?
+            }
+            other => {
+                return Err(make_failure(
+                    f64::INFINITY,
+                    format!("no reference implementation for test case '{other}'"),
+                ));
+            }
+        };
+
+        // Real relative error between this crate's output and the exact reference.
+        let relative_error = ((computed - reference) / reference).abs();
 
         if relative_error <= self.config.max_acceptable_error {
             Ok(relative_error)
         } else {
-            Err(BehaviorTestFailure {
-                test_name: testcase.name.clone(),
-                input_description: testcase.description.clone(),
-                expected_result: "scipy_result".to_string(),
-                actual_result: "scirs2_result".to_string(),
-                relative_error,
-                error_type: ErrorType::NumericalError,
-            })
+            Err(make_failure(relative_error, format!("{computed:.17}")))
         }
     }
 }
@@ -681,6 +730,28 @@ mod tests {
         // Compatibility score reflects current feature parity with SciPy
         // Score of ~0.45 indicates partial compatibility with room for improvement
         assert!(score > 0.4, "Expected score > 0.4, got: {}", score);
+    }
+
+    #[test]
+    fn test_behavior_validation_uses_real_errors() {
+        // The behaviour tests must actually run this crate's interpolators and
+        // compare against an analytically exact reference. Both the linear and
+        // natural-cubic-spline checks reproduce a straight line exactly, so their
+        // real relative errors are well within tolerance and both must pass.
+        let checker = create_compatibility_checker();
+        let results = checker
+            .validate_behavior()
+            .expect("behavior validation should succeed");
+
+        assert_eq!(results.tests_passed, 2, "both behaviour checks must pass");
+        assert_eq!(results.tests_failed, 0, "no behaviour check should fail");
+        // The measured error is a real computed value, not the old fabricated
+        // 1e-14 constant; reproducing a line is exact to within rounding.
+        assert!(
+            results.max_relative_error <= checker.config.max_acceptable_error,
+            "real max relative error {} exceeded tolerance",
+            results.max_relative_error
+        );
     }
 
     #[test]

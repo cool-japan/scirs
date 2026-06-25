@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1] - 2026-06-25
+
+This is a correctness, API-stability, and Pure Rust hardening release.
+
+### Added
+- **scirs2-autograd**: `TraceBackwardOp` — exact reverse-mode gradient for `trace` (returns `gy·Iₙ`), enabling correct backpropagation through matrix-valued operations that depend on a trace
+- **scirs2-autograd**: Exact spectral gradients for matrix functions in new `tensor_ops/decomposition_backward.rs` — `MatrixSqrtBackwardOp` (Sylvester equation), `MatrixLogBackwardOp`/`MatrixPowBackwardOp` (Daleckii–Krein divided differences), and `SVDBackwardOp` (Townsend/Wan–Zhang reduced-SVD VJP with degenerate-singular-value detection)
+- **scirs2-neural**: New public `model_evaluation` module — `ModelEvaluator`, `EvaluationMetric`, classification/regression metrics, cross-validation, and statistical-significance utilities
+- **scirs2-stats**: Crate-local `Either<L, R>` sum type (`scirs2_stats::Either`) — return one of two types without boxing; replaces the external `either` crate
+- **scirs2-core**: GPU device-capability query API — `GpuDevice::get_info() -> GpuDeviceInfo` exposes device name/type, memory, work-group limits, and `fp64`/`fp16` support for validating a device before dispatch
+- **scirs2-special**: nth-order Bessel derivatives `jvp`/`yvp`/`ivp`/`kvp` now implement closed-form DLMF recurrences (10.6.7, 10.29.5), including negative-order reflection, in place of first-derivative stubs
+- **scirs2-optimize**: Constrained optimization gains closure-capturing constraints (`Constraint::new`) and optional analytical constraint Jacobians (`Constraint::with_jacobian`), used by the interior-point solver with finite-difference fallback (issues #126/#127)
+- **scirs2-io**: Zarr v2/v3 chunked-array support is now publicly exported (`pub mod zarr`) — directory stores, codec pipeline, and chunk-boundary slice I/O
+- **scirs2-vision / scirs2-datasets / scirs2-optimize**: Real GPU compute kernels — Vision multi-head attention (WGSL + CUDA, numerically-stable softmax), dataset-generation `gpu_dispatch` (regression/classification/blobs, threshold-gated), and distributed differential-evolution kernels; all fall back transparently to CPU when no adapter is present
+
+### Changed
+- Updated COOLJAPAN ecosystem dependencies: OxiArc 0.3.1 → 0.3.3, OxiSQL 0.1 → 0.3.1, OxiNum 0.1 → 0.1.2 (plus new `oxinum-complex`), OxiH5 0.1 → 0.1.3, OxiZ 0.2.2 → 0.2.3, OxiCode 0.2.3 → 0.2.4; added OxiEML 0.1.3
+- **Pure Rust hardening**: removed the C/MPFR `rug`, C-backed `rusqlite`, and `tokenizers` dependencies, plus the external `either`/`hex`/`urlencoding`/`data-encoding` crates — arbitrary precision now runs on `oxinum-*` (scirs2-special `arbitrary_precision` migrated `rug` → `oxinum-float`), SQLite on `oxisql-sqlite-compat`, `blake3` builds with its `pure` (no-ASM) feature, and scirs2-io vendors its own `encoding_utils` (hex / percent-encode / base64)
+- **GPU/CUDA honesty**: across scirs2-core, scirs2-linalg, and scirs2-fft, CUDA/GPU paths now report `BackendNotAvailable` / `NotImplemented` / `Option<f64>` performance metrics when no real device or measurement exists, instead of returning fabricated contexts, zero/identity results, or invented throughput numbers that silently produced wrong values
+- **scirs2-spatial**: consolidated duplicate alpha-shape implementations into a single `alphashapes` module (public `AlphaShape` API unchanged)
+- **scirs2-python**: Rust crate renamed `scirs2` → `scirs2_python` to avoid an rlib name collision; the Python import path remains `scirs2`
+
+### Fixed
+- **scirs2-core**: Restored the `#[non_exhaustive]` attribute on `CoreError` that had been lost — downstream exhaustive `match` expressions must again include a wildcard `_` arm so future error variants are non-breaking; a new `core_error_non_exhaustive` compile-fail test in the `scirs2-stability-tests` crate now guards the contract
+- **scirs2-autograd**: Corrected gradients that previously returned all-zeros or wrong shapes — `matrix_sqrt`/`matrix_log`/`matrix_power`, the SVD component extractors (U/S/Vᵀ), and the linear-solver gradient with respect to `A` (now `−grad_b·xᵀ`); linalg-integration norms and determinant no longer return hard-coded fallback values
+- **scirs2-autograd**: Lazy `to_ndarray` no longer fabricates dummy `[1, 2, 3, …]` data — it returns an explicit error and a context-aware `to_ndarray_with_context` evaluates within the graph; removed a stray debug `println!` from the solver hot path (issue #128, regression test added)
+- **scirs2-series**: Augmented Dickey–Fuller test now solves its OLS regression via a Moore–Penrose (SVD-based) pseudo-inverse, returning a finite statistic and a p-value in [0, 1] for rank-deficient designs (constant/collinear series) instead of failing
+- **scirs2-special**: Corrected verified expected values in Bessel (`k0_complex`, `k1`) and hypergeometric (`hyp1f1`, `hyp2f1`) doctests/tests against SciPy references
+- **scirs2-optimize**: `augmented_lagrangian` optimality measure now includes the constraint-Jacobian contribution to the Lagrangian gradient, aligning the convergence test with KKT stationarity (+217 lines of regression tests for issues #126/#127)
+- **scirs2-stability-tests**: Corrected a stale `Beta(2, 5).cdf(0.3)` accuracy-regression baseline (~1.0 → 0.579825) that had masked an already-fixed `regularized_incomplete_beta` bug, locking in the SciPy-matching value
+
+---
+
 ## [0.5.0] - 2026-06-02
 
 ### Added

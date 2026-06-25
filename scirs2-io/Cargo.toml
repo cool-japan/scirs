@@ -16,6 +16,10 @@ workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[package.metadata.cargo-machete]
+# kamadak-exif's lib name is `exif` (machete misses the rename); oxih5-* are staged noffi-migration placeholders
+ignored = ["kamadak-exif", "oxih5-core", "oxih5-format"]
+
 
 [dependencies]
 # Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
@@ -31,17 +35,12 @@ oxiarc-archive = { workspace = true }  # Pure Rust compression (COOLJAPAN Policy
 oxiarc-deflate = { workspace = true }
 oxiarc-lz4 = { workspace = true }
 oxiarc-zstd = { workspace = true }
-oxiarc-bzip2 = { workspace = true }
 sha2 = { workspace = true }
 crc32fast = { workspace = true }
 blake3 = { workspace = true }
-hex = { workspace = true }
-digest = { workspace = true }
-data-encoding = { workspace = true }
 chrono = { workspace = true }
 tempfile = { workspace = true }
 regex = { workspace = true }
-glob = { workspace = true }
 netcdf3 = { workspace = true }
 kamadak-exif = { workspace = true, optional = true }
 hdf5 = { workspace = true, optional = true }
@@ -50,7 +49,7 @@ oxih5-core = { workspace = true, optional = true }
 oxih5-format = { workspace = true, optional = true }
 # rayon = { workspace = true }  # Now use scirs2-core parallel abstractions
 thiserror = { workspace = true }
-tokio = { workspace = true, optional = true, features = ["fs", "io-util", "time", "rt"] }
+tokio = { workspace = true, optional = true, features = ["fs", "io-util", "time", "rt", "rt-multi-thread"] }
 futures = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 log = { workspace = true, optional = true }
@@ -63,21 +62,15 @@ statrs = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 # Apache Arrow and Parquet support
 arrow = { workspace = true, optional = true }
-arrow-array = { workspace = true, optional = true }
-arrow-schema = { workspace = true, optional = true }
-arrow-cast = { workspace = true, optional = true }
 parquet = { workspace = true, default-features = false, optional = true }
 serde_yaml = { workspace = true }
 toml = { workspace = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
-urlencoding = { workspace = true }
 crossbeam-channel = { workspace = true }
 cron = { workspace = true }
 oxiarc-snappy = { workspace = true }  # Pure Rust Snappy (COOLJAPAN Policy)
 oxiarc-brotli = { workspace = true }  # Pure Rust Brotli (COOLJAPAN Policy)
-# Database drivers
-rusqlite = { workspace = true, optional = true }
-# Pure-Rust SQLite-compatible backend (noffi migration; alpha — ROLLBACK/savepoints incomplete)
+# Pure-Rust SQLite-compatible backend (noffi migration; rusqlite removed per COOLJAPAN Policy)
 oxisql-core = { workspace = true, optional = true }
 oxisql-sqlite-compat = { workspace = true, optional = true }
 # sqlx removed - postgres/mysql implementations are stubs only
@@ -104,7 +97,7 @@ validation = []
 hdf5 = ["dep:hdf5", "dep:oxih5-core", "dep:oxih5-format"]
 # Keep the C-linked hdf5 crate available for write paths until oxih5 write support ships (M2+)
 hdf5-legacy = ["dep:hdf5"]
-parquet = ["dep:parquet", "dep:arrow", "dep:arrow-array", "dep:arrow-schema", "dep:arrow-cast"]
+parquet = ["dep:parquet", "dep:arrow"]
 async = ["dep:tokio", "dep:futures", "dep:futures-util", "dep:async-trait"]
 reqwest = ["dep:reqwest", "dep:log"]
 aws-sdk-s3 = []
@@ -113,10 +106,10 @@ azure-storage-blobs = []
 # GPU compression uses Pure Rust oxiarc-* compression (COOLJAPAN Policy)
 gpu = []
 exif = ["image_io"]
-# Database features
-sqlite = ["dep:rusqlite", "dep:oxisql-core", "dep:oxisql-sqlite-compat"]
-# Keep the C-linked rusqlite available as a stable fallback given oxisql-sqlite-compat alpha status
-sqlite-stable = ["dep:rusqlite"]
+# Database features — pure Rust via oxisql-sqlite-compat (COOLJAPAN Policy, rusqlite removed)
+sqlite = ["dep:oxisql-core", "dep:oxisql-sqlite-compat", "dep:tokio"]
+# sqlite-stable is now an alias for sqlite (rusqlite removed)
+sqlite-stable = ["sqlite"]
 postgres = ["async"]  # Stub implementation only (no actual sqlx dependency)
 mysql = ["async"]     # Stub implementation only (no actual sqlx dependency)
 mongodb = ["async"]   # Stub feature (no actual mongodb crate dependency)

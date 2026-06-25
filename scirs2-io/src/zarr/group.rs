@@ -345,7 +345,7 @@ fn div_ceil(a: usize, b: usize) -> usize {
 
 /// Iterate over all chunk coordinate tuples in row-major order.
 fn iterate_coords<F: FnMut(&[usize])>(counts: &[usize], mut f: F) {
-    if counts.is_empty() || counts.iter().any(|&c| c == 0) {
+    if counts.is_empty() || counts.contains(&0) {
         return;
     }
     let total: usize = counts.iter().product();
@@ -369,12 +369,15 @@ fn extract_chunk(
     chunk_coords: &[usize],
 ) -> Vec<f64> {
     let ndim = shape.len();
-    let starts: Vec<usize> = (0..ndim).map(|i| chunk_coords[i] * chunk_shape[i]).collect();
-    let ends: Vec<usize> =
-        (0..ndim).map(|i| (starts[i] + chunk_shape[i]).min(shape[i])).collect();
+    let starts: Vec<usize> = (0..ndim)
+        .map(|i| chunk_coords[i] * chunk_shape[i])
+        .collect();
+    let ends: Vec<usize> = (0..ndim)
+        .map(|i| (starts[i] + chunk_shape[i]).min(shape[i]))
+        .collect();
     let sizes: Vec<usize> = (0..ndim).map(|i| ends[i] - starts[i]).collect();
 
-    if sizes.iter().any(|&s| s == 0) {
+    if sizes.contains(&0) {
         return Vec::new();
     }
 
@@ -407,12 +410,15 @@ fn insert_chunk(
     out: &mut [f64],
 ) {
     let ndim = shape.len();
-    let starts: Vec<usize> = (0..ndim).map(|i| chunk_coords[i] * chunk_shape[i]).collect();
-    let ends: Vec<usize> =
-        (0..ndim).map(|i| (starts[i] + chunk_shape[i]).min(shape[i])).collect();
+    let starts: Vec<usize> = (0..ndim)
+        .map(|i| chunk_coords[i] * chunk_shape[i])
+        .collect();
+    let ends: Vec<usize> = (0..ndim)
+        .map(|i| (starts[i] + chunk_shape[i]).min(shape[i]))
+        .collect();
     let sizes: Vec<usize> = (0..ndim).map(|i| ends[i] - starts[i]).collect();
 
-    if sizes.iter().any(|&s| s == 0) {
+    if sizes.contains(&0) {
         return;
     }
 

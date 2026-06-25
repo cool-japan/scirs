@@ -19,7 +19,7 @@
 //!
 //! `add` uses an explicit work-stack. `rebuild` uses an iterative worklist.
 
-use hashbrown::HashMap;
+use std::collections::HashMap;
 
 use super::node::{
     node_kind_of_binary, node_kind_of_leaf, node_kind_of_unary, ClassId, EClass, ENode, NodeKind,

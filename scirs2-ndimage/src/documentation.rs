@@ -17,12 +17,14 @@
 //!
 //! # Usage
 //!
-//! ```rust
+//! ```no_run
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_ndimage::documentation::DocumentationSite;
 //!
 //! let mut site = DocumentationSite::new();
 //! site.build_comprehensive_documentation()?;
 //! site.generate_html_documentation("./docs")?;
+//! # Ok(()) }
 //! ```
 
 // Re-export all module components for backward compatibility

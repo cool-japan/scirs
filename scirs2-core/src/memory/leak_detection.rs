@@ -614,23 +614,30 @@ impl LeakDetector {
         Ok(())
     }
 
-    /// Get current memory usage
+    /// Get current memory usage of this process.
+    ///
+    /// Resident and virtual sizes are read from the operating system. Heap
+    /// usage is only reported when a real source is available (it is left as
+    /// `None` otherwise rather than being fabricated, since the standard
+    /// allocator exposes no portable heap-usage query).
     fn get_current_memory_usage(&self) -> Result<MemoryUsage, CoreError> {
-        // In a real implementation, this would query actual system memory usage
-        // For now, we'll return mock data
         Ok(MemoryUsage {
             rss_bytes: self.get_rss_memory()?,
             virtual_bytes: self.get_virtual_memory()?,
-            heap_bytes: Some(self.get_heap_memory()?),
+            heap_bytes: self.get_heap_memory(),
             stack_bytes: None,
             mappings_count: None,
             peak_bytes: None,
         })
     }
 
-    /// Get resident set size (RSS) memory
+    /// Get resident set size (RSS) memory in bytes.
+    ///
+    /// Reads the real value from the OS. On Linux this parses
+    /// `/proc/self/status`; on other platforms it uses `sysinfo` when that
+    /// feature is enabled. If no real source is available it returns an honest
+    /// error instead of a fabricated number.
     fn get_rss_memory(&self) -> Result<u64, CoreError> {
-        // Simplified implementation - in production, read from /proc/self/status or similar
         #[cfg(target_os = "linux")]
         {
             if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
@@ -646,13 +653,32 @@ impl LeakDetector {
             }
         }
 
-        // Fallback to mock data
-        Ok(64 * 1024 * 1024) // 64MB
+        #[cfg(feature = "sysinfo")]
+        {
+            use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+            let pid = Pid::from_u32(std::process::id());
+            let mut system = System::new();
+            system.refresh_processes_specifics(
+                ProcessesToUpdate::Some(&[pid]),
+                true,
+                ProcessRefreshKind::nothing().with_memory(),
+            );
+            if let Some(process) = system.process(pid) {
+                return Ok(process.memory());
+            }
+        }
+
+        Err(CoreError::ComputationError(crate::error::ErrorContext::new(
+            "Resident memory size is unavailable on this platform (enable the `sysinfo` feature for non-Linux support)".to_string(),
+        )))
     }
 
-    /// Get virtual memory size
+    /// Get virtual memory size in bytes.
+    ///
+    /// Reads the real value from the OS (Linux `/proc/self/status`, or
+    /// `sysinfo` when enabled). Returns an honest error when no real source is
+    /// available rather than fabricating a value.
     fn get_virtual_memory(&self) -> Result<u64, CoreError> {
-        // Simplified implementation
         #[cfg(target_os = "linux")]
         {
             if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
@@ -668,14 +694,37 @@ impl LeakDetector {
             }
         }
 
-        // Fallback
-        Ok(256 * 1024 * 1024) // 256MB
+        #[cfg(feature = "sysinfo")]
+        {
+            use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+            let pid = Pid::from_u32(std::process::id());
+            let mut system = System::new();
+            system.refresh_processes_specifics(
+                ProcessesToUpdate::Some(&[pid]),
+                true,
+                ProcessRefreshKind::nothing().with_memory(),
+            );
+            if let Some(process) = system.process(pid) {
+                return Ok(process.virtual_memory());
+            }
+        }
+
+        Err(CoreError::ComputationError(crate::error::ErrorContext::new(
+            "Virtual memory size is unavailable on this platform (enable the `sysinfo` feature for non-Linux support)".to_string(),
+        )))
     }
 
-    /// Get heap memory usage
-    fn get_heap_memory(&self) -> Result<u64, CoreError> {
-        // This would integrate with malloc stats or jemalloc
-        Ok(32 * 1024 * 1024) // 32MB mock
+    /// Get heap memory usage in bytes, if a real source is available.
+    ///
+    /// The Rust standard allocator does not expose a portable heap-usage query,
+    /// so this returns `None` unless a real source can be read. Returning a
+    /// fabricated value here would corrupt downstream leak accounting, so the
+    /// absence of data is reported honestly as `None`.
+    fn get_heap_memory(&self) -> Option<u64> {
+        // No portable real heap-usage source is wired up. When integrated with
+        // an allocator that exposes statistics (e.g. jemalloc's `stats.allocated`),
+        // this is where that value would be returned.
+        None
     }
 
     /// Get active allocation count
@@ -688,18 +737,54 @@ impl LeakDetector {
         Ok(allocations.len() as u64)
     }
 
-    /// Capture current call stack
+    /// Capture the current call stack.
+    ///
+    /// Uses `std::backtrace::Backtrace`, which is the only backtrace facility
+    /// available without pulling in the `backtrace` crate. The standard library
+    /// exposes the backtrace as formatted text rather than structured frames, so
+    /// each captured line is stored in the frame's `function` field; numeric
+    /// addresses are not recoverable through `std` and are reported as `0`
+    /// rather than being fabricated.
+    ///
+    /// If backtrace capture is disabled (e.g. `RUST_BACKTRACE` is unset) or
+    /// unsupported on the platform, an empty (but honest) call stack is
+    /// returned instead of inventing frames.
     fn capture_call_stack(&self) -> Result<CallStack, CoreError> {
-        // In a real implementation, this would use backtrace crate or similar
+        use std::backtrace::{Backtrace, BacktraceStatus};
+
+        let backtrace = Backtrace::capture();
+
+        if backtrace.status() != BacktraceStatus::Captured {
+            // Capturing is disabled or unsupported: report no frames honestly.
+            return Ok(CallStack {
+                frames: Vec::new(),
+                max_depth: 0,
+                truncated: false,
+            });
+        }
+
+        let rendered = backtrace.to_string();
+        let mut frames = Vec::new();
+        for line in rendered.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            frames.push(StackFrame {
+                function: Some(trimmed.to_string()),
+                file: None,
+                line: None,
+                // std does not expose resolved instruction addresses; use 0
+                // rather than a fabricated value.
+                address: 0,
+                module: None,
+            });
+        }
+
+        let max_depth = frames.len();
         Ok(CallStack {
-            frames: vec![StackFrame {
-                function: Some("capture_call_stack".to_string()),
-                file: Some("leak_detection.rs".to_string()),
-                line: Some(line!()),
-                address: 0x12345678,
-                module: Some("scirs2_core".to_string()),
-            }],
-            max_depth: 50,
+            frames,
+            max_depth,
             truncated: false,
         })
     }
@@ -911,12 +996,20 @@ impl ValgrindIntegration {
 impl ProfilerIntegration for ValgrindIntegration {
     fn check_leaks(&self) -> Result<Vec<MemoryLeak>, CoreError> {
         if !self.enabled {
+            // Not running under valgrind: there is genuinely nothing to report.
             return Ok(Vec::new());
         }
 
-        // In a real implementation, this would parse valgrind output
-        // For now, return empty
-        Ok(Vec::new())
+        // We detected a valgrind environment, but parsing valgrind's leak report
+        // (e.g. via the Valgrind client request API or its XML output) is not
+        // implemented. Returning an empty list here would falsely claim "no
+        // leaks", so report honestly that the integration cannot perform the
+        // check rather than fabricating a clean result.
+        Err(CoreError::ComputationError(
+            crate::error::ErrorContext::new(
+                "Valgrind leak parsing is not implemented; cannot report leak results".to_string(),
+            ),
+        ))
     }
 
     fn name(&self) -> &str {
@@ -1017,6 +1110,8 @@ mod tests {
         assert!(!*detector.monitoring_active.lock().expect("Operation failed"));
     }
 
+    // Requires a real RSS source: Linux (/proc/self/status) or the `sysinfo` feature on other platforms.
+    #[cfg(any(target_os = "linux", feature = "sysinfo"))]
     #[test]
     fn test_checkpoint_creation() {
         let config = LeakDetectionConfig::default();
@@ -1055,6 +1150,8 @@ mod tests {
         assert_eq!(count, 1);
     }
 
+    // Requires a real RSS source: Linux (/proc/self/status) or the `sysinfo` feature on other platforms.
+    #[cfg(any(target_os = "linux", feature = "sysinfo"))]
     #[test]
     fn test_leak_check_guard() {
         let config = LeakDetectionConfig::default();

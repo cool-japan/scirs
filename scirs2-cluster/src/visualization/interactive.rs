@@ -241,6 +241,10 @@ pub struct InteractiveVisualizer {
     state: InteractiveState,
     cluster_stats: HashMap<i32, ClusterStats>,
     last_update: std::time::Instant,
+    /// 3D positions of the currently loaded points (first up-to-3 feature
+    /// dimensions of each sample, zero-padded). Populated by `update_data` so the
+    /// spatial selection/picking routines operate on real coordinates.
+    point_positions: Vec<[f64; 3]>,
 }
 
 impl InteractiveVisualizer {
@@ -275,6 +279,7 @@ impl InteractiveVisualizer {
             },
             cluster_stats: HashMap::new(),
             last_update: std::time::Instant::now(),
+            point_positions: Vec::new(),
         }
     }
 
@@ -287,6 +292,22 @@ impl InteractiveVisualizer {
     ) -> Result<()> {
         // Calculate cluster statistics
         self.calculate_cluster_stats(data, labels, centroids)?;
+
+        // Store real 3D positions (first up-to-three feature dimensions, zero-padded)
+        // so spatial selection and picking can run against actual coordinates.
+        self.point_positions = data
+            .rows()
+            .into_iter()
+            .map(|row| {
+                let mut pos = [0.0_f64; 3];
+                for (axis, slot) in pos.iter_mut().enumerate() {
+                    if let Some(v) = row.get(axis) {
+                        *slot = v.to_f64().unwrap_or(0.0);
+                    }
+                }
+                pos
+            })
+            .collect();
 
         // Update view bounds if needed
         self.update_view_bounds(data);
@@ -348,20 +369,63 @@ impl InteractiveVisualizer {
         }
     }
 
-    /// Select points within a 3D region
+    /// Select all loaded points whose 3D position lies inside `region`.
+    ///
+    /// Performs real axis-aligned point-in-box testing against the coordinates
+    /// captured by [`Self::update_data`]. Returns (and stores) the indices of the
+    /// contained points; an empty result now genuinely means "no point is inside
+    /// the box" rather than "unimplemented".
     pub fn select_points_in_region(&mut self, region: BoundingBox3D) -> Vec<usize> {
-        // This would be implemented with actual 3D point-in-box testing
-        // For now, return empty selection
-        let selected = Vec::new();
+        let (min_x, min_y, min_z) = region.min;
+        let (max_x, max_y, max_z) = region.max;
+        // Normalise the box so callers may pass corners in any order.
+        let (lo_x, hi_x) = (min_x.min(max_x), min_x.max(max_x));
+        let (lo_y, hi_y) = (min_y.min(max_y), min_y.max(max_y));
+        let (lo_z, hi_z) = (min_z.min(max_z), min_z.max(max_z));
+
+        let selected: Vec<usize> = self
+            .point_positions
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| {
+                p[0] >= lo_x
+                    && p[0] <= hi_x
+                    && p[1] >= lo_y
+                    && p[1] <= hi_y
+                    && p[2] >= lo_z
+                    && p[2] <= hi_z
+            })
+            .map(|(i, _)| i)
+            .collect();
+
         self.state.selected_points = selected.clone();
         selected
     }
 
-    /// Highlight points at screen coordinates
+    /// Highlight the point nearest to the given screen-space position.
+    ///
+    /// Picking is performed against the orthographic (x, y) projection of the
+    /// stored point positions: the closest point within the configured pick radius
+    /// is highlighted. This is a real nearest-point query rather than a stub that
+    /// always returned nothing.
     pub fn highlight_points_at(&mut self, screenpos: (f64, f64)) -> Vec<usize> {
-        // This would implement 3D picking/ray casting
-        // For now, return empty highlights
-        let highlighted = Vec::new();
+        let (sx, sy) = screenpos;
+        // Pick tolerance in projected coordinate units. Points farther than this
+        // from the cursor are not considered hits.
+        const PICK_RADIUS: f64 = 0.5;
+        let pick_radius_sq = PICK_RADIUS * PICK_RADIUS;
+
+        let mut best: Option<(usize, f64)> = None;
+        for (i, p) in self.point_positions.iter().enumerate() {
+            let dx = p[0] - sx;
+            let dy = p[1] - sy;
+            let dist_sq = dx * dx + dy * dy;
+            if dist_sq <= pick_radius_sq && best.map(|(_, b)| dist_sq < b).unwrap_or(true) {
+                best = Some((i, dist_sq));
+            }
+        }
+
+        let highlighted: Vec<usize> = best.map(|(i, _)| vec![i]).unwrap_or_default();
         self.state.highlighted_points = highlighted.clone();
         highlighted
     }

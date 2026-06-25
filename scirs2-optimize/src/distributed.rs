@@ -264,6 +264,91 @@ impl<M: MPIInterface> DistributedOptimizationContext<M> {
         Ok(result)
     }
 
+    /// Perform all-reduce operation (element-wise minimum)
+    pub fn allreduce_min(&self, local_data: &Array1<f64>) -> ScirsResult<Array1<f64>> {
+        let mut result = Array1::zeros(local_data.len());
+        self.mpi.allreduce(
+            local_data.as_slice().expect("Operation failed"),
+            result.as_slice_mut().expect("Operation failed"),
+            ReductionOp::Min,
+        )?;
+        Ok(result)
+    }
+
+    /// Broadcast a vector from an arbitrary root rank to all processes
+    pub fn broadcast_from(&self, params: &mut Array1<f64>, root: i32) -> ScirsResult<()> {
+        let data = params.as_slice_mut().expect("Operation failed");
+        self.mpi.broadcast(data, root)
+    }
+
+    /// Select the globally-best candidate across the whole communicator.
+    ///
+    /// Given each process's local best point and its objective value, returns
+    /// the best `(point, value)` pair over all processes. The global-best value
+    /// is obtained with a `Min` all-reduce; the owning rank (lowest rank on
+    /// ties) is identified by a second `Min` all-reduce over rank indices, and
+    /// its point is broadcast so every process agrees on the winning candidate.
+    pub fn select_global_best(
+        &self,
+        local_best: &Array1<f64>,
+        local_value: f64,
+    ) -> ScirsResult<(Array1<f64>, f64)> {
+        if self.size <= 1 {
+            return Ok((local_best.to_owned(), local_value));
+        }
+
+        // Global-best objective value.
+        let value_buf = Array1::from_elem(1, local_value);
+        let global_value = self.allreduce_min(&value_buf)?[0];
+
+        // Identify the owning rank: holders of the global-best value propose
+        // their own rank, everyone else proposes a sentinel larger than any
+        // valid rank. The minimum proposal is the lowest rank holding the best.
+        let owner_proposal = if local_value <= global_value {
+            self.rank as f64
+        } else {
+            self.size as f64
+        };
+        let owner_buf = Array1::from_elem(1, owner_proposal);
+        let owner_rank = self.allreduce_min(&owner_buf)?[0] as i32;
+
+        // Broadcast the winning point from its owner to all processes.
+        let mut winner = local_best.to_owned();
+        self.broadcast_from(&mut winner, owner_rank)?;
+
+        Ok((winner, global_value))
+    }
+
+    /// Exchange a vector around a unidirectional process ring.
+    ///
+    /// Sends `outgoing` to rank `(rank + 1) % size` and returns the vector
+    /// received from rank `(rank - 1 + size) % size`. A deadlock-free ordering
+    /// is used (rank 0 receives before sending, every other rank sends before
+    /// receiving), so it is safe with blocking point-to-point primitives for any
+    /// communicator size. Returns `None` when there is only a single process.
+    pub fn ring_exchange(&self, outgoing: &Array1<f64>) -> ScirsResult<Option<Array1<f64>>> {
+        if self.size <= 1 {
+            return Ok(None);
+        }
+
+        let next = (self.rank + 1).rem_euclid(self.size);
+        let prev = (self.rank - 1).rem_euclid(self.size);
+        let tag = 0;
+        let send = outgoing.as_slice().expect("Operation failed");
+        let mut incoming = vec![0.0_f64; outgoing.len()];
+
+        if self.rank == 0 {
+            // Rank 0 receives first to break the cyclic dependency.
+            self.mpi.recv(&mut incoming, prev, tag)?;
+            self.mpi.send(send, next, tag)?;
+        } else {
+            self.mpi.send(send, next, tag)?;
+            self.mpi.recv(&mut incoming, prev, tag)?;
+        }
+
+        Ok(Some(Array1::from_vec(incoming)))
+    }
+
     /// Get performance statistics
     pub fn stats(&self) -> &DistributedStats {
         &self.performance_stats
@@ -324,8 +409,44 @@ impl WorkDistribution {
     }
 
     fn hybrid_assignment(&self, total_work: usize) -> WorkAssignment {
-        // Simplified hybrid: use data parallel for now
-        self.data_parallel_assignment(total_work)
+        // Hybrid data/model parallelism: arrange the processes into a 2-D grid
+        // of `data_groups` x `model_groups`. The data dimension partitions the
+        // work range (as in data parallelism), while processes that share a
+        // data range form a model-parallel group splitting the parameter space.
+        //
+        // For a single process, or a communicator that cannot be factored into
+        // more than one model group (e.g. a prime size), this reduces exactly
+        // to data parallelism over all processes.
+        let size = (self.size.max(1)) as usize;
+
+        // Choose the number of model-parallel groups as the largest divisor of
+        // `size` not exceeding sqrt(size); this yields a balanced process grid.
+        let mut model_groups = 1usize;
+        let mut divisor = 2usize;
+        while divisor * divisor <= size {
+            if size % divisor == 0 {
+                model_groups = divisor;
+            }
+            divisor += 1;
+        }
+        let data_groups = size / model_groups;
+
+        // Coordinate of this process along the data dimension of the grid.
+        let rank = (self.rank.max(0)) as usize;
+        let data_coord = (rank / model_groups).min(data_groups.saturating_sub(1));
+
+        // Partition the work range across the data groups.
+        let work_per_group = total_work / data_groups;
+        let remainder = total_work % data_groups;
+        let start = data_coord * work_per_group + data_coord.min(remainder);
+        let extra = if data_coord < remainder { 1 } else { 0 };
+        let count = work_per_group + extra;
+
+        WorkAssignment {
+            start_index: start,
+            count,
+            strategy: DistributionStrategy::Hybrid,
+        }
     }
 
     fn master_worker_assignment(&self, total_work: usize) -> WorkAssignment {
@@ -553,13 +674,9 @@ pub mod algorithms {
 
             let local_best = local_population.row(best_idx).to_owned();
 
-            // Find global best across all processes
-            let global_fitness = Array1::from_elem(1, best_fitness);
-            let global_fitness_sum = self.context.allreduce_sum(&global_fitness)?;
-
-            // For simplicity, we'll use the local best for now
-            // In a full implementation, we'd need to communicate the actual best individual
-            Ok((local_best, best_fitness))
+            // Reduce to the true global best across all processes: the global
+            // minimum fitness and a broadcast of the individual that owns it.
+            self.context.select_global_best(&local_best, best_fitness)
         }
 
         fn generate_trial_population(&self, population: &Array2<f64>) -> ScirsResult<Array2<f64>> {
@@ -619,7 +736,10 @@ pub mod algorithms {
             population: &mut Array2<f64>,
             fitness: &mut Array1<f64>,
         ) -> ScirsResult<()> {
-            // Simple migration: send best individual to next process
+            // Island-model migration around a unidirectional process ring: send
+            // this island's best individual to the next process and adopt the
+            // migrant received from the previous process if it improves on the
+            // local worst individual.
             if self.context.size() <= 1 {
                 return Ok(());
             }
@@ -631,15 +751,32 @@ pub mod algorithms {
                 .map(|(i, _)| i)
                 .unwrap_or(0);
 
-            let _next_rank = (self.context.rank() + 1) % self.context.size();
-            let _prev_rank = (self.context.rank() - 1 + self.context.size()) % self.context.size();
+            // Pack the best individual together with its fitness so the migrant
+            // arrives with a valid objective value (the islands share the same
+            // objective, so the value transfers without re-evaluation).
+            let dims = population.ncols();
+            let mut payload = population.row(best_idx).to_vec();
+            payload.push(fitness[best_idx]);
+            let payload = Array1::from_vec(payload);
 
-            // Send best individual to next process
-            let _best_individual = population.row(best_idx).to_owned();
-            let _best_fitness_val = fitness[best_idx];
+            if let Some(received) = self.context.ring_exchange(&payload)? {
+                let migrant_fitness = received[dims];
 
-            // In a real implementation, we would use MPI send/recv here
-            // For now, we'll skip the actual communication
+                // Replace the local worst individual when the migrant is better.
+                let worst_idx = fitness
+                    .iter()
+                    .enumerate()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("Operation failed"))
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+
+                if migrant_fitness < fitness[worst_idx] {
+                    for j in 0..dims {
+                        population[[worst_idx, j]] = received[j];
+                    }
+                    fitness[worst_idx] = migrant_fitness;
+                }
+            }
 
             Ok(())
         }
@@ -819,8 +956,9 @@ pub mod algorithms {
 
             let local_best = positions.row(best_idx).to_owned();
 
-            // In a full implementation, we would find the global best across all processes
-            Ok((local_best, best_fitness))
+            // Reduce to the true global best across all processes: the global
+            // minimum fitness and a broadcast of the particle that owns it.
+            self.context.select_global_best(&local_best, best_fitness)
         }
 
         fn update_swarm(

@@ -1140,8 +1140,3 @@ mod tests {
         assert_eq!(optimizer.stats().points_processed, 1);
     }
 }
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
-}

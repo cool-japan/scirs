@@ -255,6 +255,108 @@ pub trait MixedPrecisionSupport: ArrayProtocol {
 
     /// Check if the array supports the specified precision.
     fn supports_precision(&self, precision: Precision) -> bool;
+
+    /// Borrow this value as an [`ArrayProtocol`] trait object.
+    ///
+    /// `MixedPrecisionSupport` has `ArrayProtocol` as a supertrait, but on stable
+    /// Rust a `&dyn MixedPrecisionSupport` cannot be upcast to `&dyn ArrayProtocol`
+    /// without the unstable `trait_upcasting` feature (RFC #65991). This method
+    /// provides that bridge explicitly: every implementor already *is* an
+    /// `ArrayProtocol`, so the default implementation simply returns `self`.
+    ///
+    /// This allows mixed-precision arrays to be passed to operations that are
+    /// generic over `&dyn ArrayProtocol` (such as those in
+    /// `crate::array_protocol::operations`) on stable Rust.
+    fn as_array_protocol(&self) -> &dyn ArrayProtocol;
+}
+
+/// Extract the inner `ndarray` of element type `T` and dimension `D` from a
+/// boxed argument produced by the operation dispatcher.
+///
+/// The dispatcher in [`crate::array_protocol::operations`] boxes operands as
+/// `Box<dyn ArrayProtocol>` (further boxed into `Box<dyn Any>`). This helper
+/// looks through that indirection and recognises both [`MixedPrecisionArray`]
+/// and [`NdarrayWrapper`] operands, returning an owned copy of the underlying
+/// `ndarray`. Returns `None` if the argument is not a recognised array of the
+/// requested `T`/`D`.
+fn extract_inner_ndarray<T, D>(arg: &dyn Any) -> Option<Array<T, D>>
+where
+    T: Clone + Float + Send + Sync + 'static,
+    D: Dimension + Send + Sync + 'static,
+{
+    // Case 1: the operand was boxed as `Box<dyn ArrayProtocol>` (the path used
+    // by the operation dispatcher).
+    if let Some(ap) = arg.downcast_ref::<Box<dyn ArrayProtocol>>() {
+        let inner: &dyn ArrayProtocol = &**ap;
+        if let Some(mp) = inner.as_any().downcast_ref::<MixedPrecisionArray<T, D>>() {
+            return Some(mp.array.clone());
+        }
+        if let Some(nd) = inner.as_any().downcast_ref::<NdarrayWrapper<T, D>>() {
+            return Some(nd.as_array().clone());
+        }
+        return None;
+    }
+
+    // Case 2: the operand was boxed directly as its concrete type.
+    if let Some(mp) = arg.downcast_ref::<MixedPrecisionArray<T, D>>() {
+        return Some(mp.array.clone());
+    }
+    if let Some(nd) = arg.downcast_ref::<NdarrayWrapper<T, D>>() {
+        return Some(nd.as_array().clone());
+    }
+
+    None
+}
+
+/// Normalise the result returned by `NdarrayWrapper`'s array-function kernels
+/// into the `Box<dyn Any>`-of-`Box<dyn ArrayProtocol>` shape expected by the
+/// operation dispatcher in [`crate::array_protocol::operations`].
+///
+/// `NdarrayWrapper::array_function` returns its array results boxed as the
+/// concrete `NdarrayWrapper<T, _>` type, whereas the dispatcher downcasts the
+/// result to `Box<dyn ArrayProtocol>`. This helper bridges that gap for the
+/// floating-point element type `T` across the dimensionalities the kernels can
+/// produce (`Ix1`, `Ix2`, `IxDyn`). Non-array results (for example the scalar
+/// produced by `sum`) do not match any branch and are returned unchanged so the
+/// caller can downcast them directly.
+fn rewrap_result_as_array_protocol<T>(result: Box<dyn Any>) -> Box<dyn Any>
+where
+    T: Clone + Float + Send + Sync + 'static,
+{
+    use crate::ndarray::{Ix1, Ix2, IxDyn};
+
+    // Already in the expected shape (e.g. produced by another delegating layer).
+    if result.is::<Box<dyn ArrayProtocol>>() {
+        return result;
+    }
+
+    // 2-D results: matmul, and element-wise ops on 2-D inputs.
+    let result = match result.downcast::<NdarrayWrapper<T, Ix2>>() {
+        Ok(wrapper) => {
+            let boxed: Box<dyn ArrayProtocol> = wrapper;
+            return Box::new(boxed);
+        }
+        Err(other) => other,
+    };
+
+    // 1-D results: element-wise ops on 1-D inputs, reshape to 1-D.
+    let result = match result.downcast::<NdarrayWrapper<T, Ix1>>() {
+        Ok(wrapper) => {
+            let boxed: Box<dyn ArrayProtocol> = wrapper;
+            return Box::new(boxed);
+        }
+        Err(other) => other,
+    };
+
+    // Dynamic-dimension results.
+    match result.downcast::<NdarrayWrapper<T, IxDyn>>() {
+        Ok(wrapper) => {
+            let boxed: Box<dyn ArrayProtocol> = wrapper;
+            Box::new(boxed)
+        }
+        // Not an array result (e.g. a scalar from `sum`): pass through unchanged.
+        Err(other) => other,
+    }
 }
 
 /// Implement ArrayProtocol for MixedPrecisionArray.
@@ -270,112 +372,66 @@ where
         args: &[Box<dyn Any>],
         kwargs: &HashMap<String, Box<dyn Any>>,
     ) -> Result<Box<dyn Any>, NotImplemented> {
-        // If the function supports mixed precision, delegate to the appropriate implementation
+        // Wrap `self` as a plain `NdarrayWrapper`. The mixed-precision storage is
+        // a regular `ndarray`, so all numeric kernels live in `NdarrayWrapper`'s
+        // implementation; this struct only manages precision metadata.
+        let wrapped_self = NdarrayWrapper::new(self.array.clone());
+
+        // Determine operating precision based on function and arguments. The
+        // precision is currently used to validate the requested operation; the
+        // actual numeric computation is delegated to `NdarrayWrapper`.
         let precision = kwargs
             .get("precision")
             .and_then(|p| p.downcast_ref::<Precision>())
             .cloned()
             .unwrap_or(self.computeprecision);
 
-        // Determine operating precision based on function and arguments
         match func.name {
-            "scirs2::array_protocol::operations::matmul" => {
-                // If we have a second argument, check its precision
-                if args.len() >= 2 {
-                    // Adjust to highest precision of the two arrays
-                    if let Some(other) = args[1].downcast_ref::<MixedPrecisionArray<T, D>>() {
-                        let other_precision = other.computeprecision;
-                        let _precision_to_use = match (precision, other_precision) {
-                            (Precision::Double, _) | (_, Precision::Double) => Precision::Double,
-                            (Precision::Mixed, _) | (_, Precision::Mixed) => Precision::Mixed,
-                            (Precision::Single, _) | (_, Precision::Single) => Precision::Single,
-                            (Precision::Half, Precision::Half) => Precision::Half,
-                        };
-
-                        // We can't modify kwargs, so we'll just forward directly
-                        // Get NdarrayWrapper for self array
-                        let wrapped_self = NdarrayWrapper::new(self.array.clone());
-
-                        // Delegate to the NdarrayWrapper implementation
-                        return wrapped_self.array_function(func, types, args, kwargs);
-                    }
-                }
-
-                // Convert to the requested precision and use standard implementation
-                match precision {
-                    Precision::Single | Precision::Double => {
-                        // Wrap in NdarrayWrapper for computation
-                        let wrapped = NdarrayWrapper::new(self.array.clone());
-
-                        // Adjust args to use wrapped version
-                        let mut new_args = Vec::with_capacity(args.len());
-                        new_args.push(Box::new(wrapped.clone()));
-
-                        // We don't need to include other args since we already have a new wrapped object
-                        // For simplicity, just delegate to the original args
-                        // Delegate to NdarrayWrapper
-                        wrapped.array_function(func, types, args, kwargs)
-                    }
-                    Precision::Mixed => {
-                        // Use Double precision for Mixed calculations
-                        let wrapped = NdarrayWrapper::new(self.array.clone());
-
-                        // Create new args and kwargs with Double precision
-                        let mut new_args = Vec::with_capacity(args.len());
-                        new_args.push(Box::new(wrapped.clone()));
-
-                        // We can't modify kwargs, so just forward along
-                        // Delegate to NdarrayWrapper directly with original args and kwargs
-                        wrapped.array_function(func, types, args, kwargs)
-                    }
-                    _ => Err(NotImplemented),
-                }
-            }
-            "scirs2::array_protocol::operations::add"
+            "scirs2::array_protocol::operations::matmul"
+            | "scirs2::array_protocol::operations::add"
             | "scirs2::array_protocol::operations::subtract"
             | "scirs2::array_protocol::operations::multiply" => {
-                // Similar pattern for element-wise operations
-                // If we have a second argument, check its precision
-                if args.len() >= 2 {
-                    if let Some(other) = args[1].downcast_ref::<MixedPrecisionArray<T, D>>() {
-                        // Use the highest precision for the operation
-                        let other_precision = other.computeprecision;
-                        let _precision_to_use = match (precision, other_precision) {
-                            (Precision::Double, _) | (_, Precision::Double) => Precision::Double,
-                            (Precision::Mixed, _) | (_, Precision::Mixed) => Precision::Mixed,
-                            (Precision::Single, _) | (_, Precision::Single) => Precision::Single,
-                            (Precision::Half, Precision::Half) => Precision::Half,
-                        };
-
-                        // We can't modify kwargs, so we'll just forward directly
-                        // Get NdarrayWrapper for self array
-                        let wrapped_self = NdarrayWrapper::new(self.array.clone());
-
-                        // Delegate to the NdarrayWrapper implementation
-                        return wrapped_self.array_function(func, types, args, kwargs);
-                    }
+                // Binary operations need the second operand. The dispatcher boxes
+                // operands as `Box<dyn ArrayProtocol>`, so we extract the inner
+                // ndarray (whether it arrived as a `MixedPrecisionArray` or an
+                // `NdarrayWrapper`) and re-wrap it as an `NdarrayWrapper` so the
+                // delegated kernel receives the concrete type it expects.
+                if args.len() < 2 {
+                    return Err(NotImplemented);
                 }
 
-                // Convert to the requested precision and use standard implementation
-                let wrapped = NdarrayWrapper::new(self.array.clone());
+                let Some(other_array) = extract_inner_ndarray::<T, D>(args[1].as_ref()) else {
+                    return Err(NotImplemented);
+                };
+                let wrapped_other = NdarrayWrapper::new(other_array);
 
-                // Delegate to NdarrayWrapper with original args
-                wrapped.array_function(func, types, args, kwargs)
+                // Forbid precision levels we cannot honour numerically. Half is
+                // not representable by the underlying storage on stable Rust.
+                if matches!(precision, Precision::Half) {
+                    return Err(NotImplemented);
+                }
+
+                let new_args: Vec<Box<dyn Any>> =
+                    vec![Box::new(wrapped_self.clone()), Box::new(wrapped_other)];
+                wrapped_self
+                    .array_function(func, types, &new_args, kwargs)
+                    .map(rewrap_result_as_array_protocol::<T>)
             }
             "scirs2::array_protocol::operations::transpose"
             | "scirs2::array_protocol::operations::reshape"
             | "scirs2::array_protocol::operations::sum" => {
-                // For unary operations, simply use the current precision
-                // Convert to standard wrapper and delegate
-                let wrapped = NdarrayWrapper::new(self.array.clone());
-
-                // Delegate to NdarrayWrapper with original args
-                wrapped.array_function(func, types, args, kwargs)
+                // Unary operations: delegate to `NdarrayWrapper` with `self`
+                // re-wrapped as the first argument. Array results (transpose,
+                // reshape) are normalised; scalar results (sum) pass through.
+                let new_args: Vec<Box<dyn Any>> = vec![Box::new(wrapped_self.clone())];
+                wrapped_self
+                    .array_function(func, types, &new_args, kwargs)
+                    .map(rewrap_result_as_array_protocol::<T>)
             }
             _ => {
-                // For any other function, delegate to standard implementation
-                let wrapped = NdarrayWrapper::new(self.array.clone());
-                wrapped.array_function(func, types, args, kwargs)
+                // For any other function, delegate to the standard implementation
+                // with the original arguments.
+                wrapped_self.array_function(func, types, args, kwargs)
             }
         }
     }
@@ -461,6 +517,10 @@ where
     fn supports_precision(&self, precision: Precision) -> bool {
         matches!(precision, Precision::Single | Precision::Double)
     }
+
+    fn as_array_protocol(&self) -> &dyn ArrayProtocol {
+        self
+    }
 }
 
 /// Implement MixedPrecisionSupport for GPUNdarray.
@@ -503,6 +563,10 @@ where
         // Most GPUs support all precision levels
         true
     }
+
+    fn as_array_protocol(&self) -> &dyn ArrayProtocol {
+        self
+    }
 }
 
 /// Execute an operation with a specific precision.
@@ -528,20 +592,29 @@ where
         }
     }
 
-    // Convert arrays to the requested precision
-    let mut converted_arrays = Vec::with_capacity(arrays.len());
+    // Convert arrays to the requested precision. Each conversion yields a
+    // `Box<dyn MixedPrecisionSupport>` that owns its precision-converted data.
+    let mut converted_arrays: Vec<Box<dyn MixedPrecisionSupport>> =
+        Vec::with_capacity(arrays.len());
 
     for &array in arrays {
         let converted = array.to_precision(precision)?;
         converted_arrays.push(converted);
     }
 
-    // NOTE: Trait upcasting is unstable, so we skip this for now
-    // This functionality is not critical for TenRSo
-    // TODO: Re-enable once trait_upcasting is stabilized (RFC #65991)
+    // Bridge `&dyn MixedPrecisionSupport` to `&dyn ArrayProtocol` on stable Rust.
+    //
+    // Trait upcasting (`&dyn MixedPrecisionSupport` -> `&dyn ArrayProtocol`) is
+    // unstable (RFC #65991), so instead of relying on it we use the explicit
+    // `as_array_protocol` bridge method defined on `MixedPrecisionSupport`. Every
+    // implementor already *is* an `ArrayProtocol`, so this is a zero-cost borrow.
+    let protocol_refs: Vec<&dyn ArrayProtocol> = converted_arrays
+        .iter()
+        .map(|array| array.as_array_protocol())
+        .collect();
 
-    // Workaround: just return error for now
-    Err("Mixed precision batch execution not supported on stable Rust - requires trait_upcasting feature".to_string().into())
+    // Run the requested operation on the precision-converted arrays.
+    executor(&protocol_refs)
 }
 
 /// Implementation of common array operations with mixed precision.
@@ -695,5 +768,76 @@ mod tests {
         assert_eq!(as_f32.shape(), &[2, 2]);
         assert!((as_f32[[0, 0]] - 1.0_f32).abs() < 1e-6);
         assert!((as_f32[[1, 1]] - 4.0_f32).abs() < 1e-6);
+    }
+
+    // ── execute_with_precision end-to-end tests ──────────────────────────────
+
+    /// `ops::matmul` must run through `execute_with_precision` end-to-end on
+    /// stable Rust and return the correct numeric result (no `Err`, no upcast).
+    #[test]
+    fn test_execute_with_precision_matmul_single() {
+        crate::array_protocol::init();
+
+        // [[1, 2], [3, 4]] x [[5, 6], [7, 8]] = [[19, 22], [43, 50]]
+        let a = MixedPrecisionArray::new(arr2(&[[1.0_f64, 2.0], [3.0, 4.0]]));
+        let b = MixedPrecisionArray::new(arr2(&[[5.0_f64, 6.0], [7.0, 8.0]]));
+
+        let result = ops::matmul(&a, &b, Precision::Single)
+            .expect("mixed-precision matmul should succeed on stable Rust");
+
+        let wrapper = result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, crate::ndarray::Ix2>>()
+            .expect("matmul result should be an NdarrayWrapper<f64, Ix2>");
+        let out = wrapper.as_array();
+
+        assert_eq!(out.shape(), &[2, 2]);
+        assert!((out[[0, 0]] - 19.0).abs() < 1e-9);
+        assert!((out[[0, 1]] - 22.0).abs() < 1e-9);
+        assert!((out[[1, 0]] - 43.0).abs() < 1e-9);
+        assert!((out[[1, 1]] - 50.0).abs() < 1e-9);
+    }
+
+    /// `ops::add` must run through `execute_with_precision` end-to-end and return
+    /// the correct element-wise sum.
+    #[test]
+    fn test_execute_with_precision_add_single() {
+        crate::array_protocol::init();
+
+        let a = MixedPrecisionArray::new(arr2(&[[1.0_f64, 2.0], [3.0, 4.0]]));
+        let b = MixedPrecisionArray::new(arr2(&[[10.0_f64, 20.0], [30.0, 40.0]]));
+
+        let result = ops::add(&a, &b, Precision::Single)
+            .expect("mixed-precision add should succeed on stable Rust");
+
+        let wrapper = result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, crate::ndarray::Ix2>>()
+            .expect("add result should be an NdarrayWrapper<f64, Ix2>");
+        let out = wrapper.as_array();
+
+        assert_eq!(out.shape(), &[2, 2]);
+        assert!((out[[0, 0]] - 11.0).abs() < 1e-9);
+        assert!((out[[0, 1]] - 22.0).abs() < 1e-9);
+        assert!((out[[1, 0]] - 33.0).abs() < 1e-9);
+        assert!((out[[1, 1]] - 44.0).abs() < 1e-9);
+    }
+
+    /// Half precision is not numerically representable by the stable backend, so
+    /// the operation must surface an error rather than silently producing wrong
+    /// results.
+    #[test]
+    fn test_execute_with_precision_half_is_rejected() {
+        crate::array_protocol::init();
+
+        let a = MixedPrecisionArray::new(arr2(&[[1.0_f64, 2.0], [3.0, 4.0]]));
+        let b = MixedPrecisionArray::new(arr2(&[[5.0_f64, 6.0], [7.0, 8.0]]));
+
+        // `supports_precision` returns false for Half, so this must be rejected.
+        let result = ops::matmul(&a, &b, Precision::Half);
+        assert!(
+            result.is_err(),
+            "Half precision matmul must return an error"
+        );
     }
 }

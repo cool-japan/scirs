@@ -658,7 +658,11 @@ pub mod vulkan_impl {
         }
 
         fn available_memory(&self) -> LinalgResult<usize> {
-            // Mock implementation - would query actual available memory
+            // Derived from this device's reported memory heaps. No physical Vulkan
+            // device is enumerated in this build (the backend reports unavailable),
+            // so a `VulkanContext` is never actually constructed and this path is
+            // not reachable; when it is, it sums real heap sizes rather than
+            // returning a fabricated constant (empty heaps yield 0).
             let total_memory: usize = self
                 .physical_device_info
                 .memory_properties

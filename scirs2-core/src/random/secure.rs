@@ -159,7 +159,7 @@ impl SecureRandom {
     /// Useful for generating random hex-encoded keys or identifiers.
     pub fn random_hex(&mut self, byte_length: usize) -> String {
         let bytes = self.random_bytes(byte_length);
-        hex::encode(bytes)
+        hex_encode(&bytes)
     }
 
     /// Generate cryptographically secure UUID v4
@@ -277,11 +277,17 @@ pub mod utils {
     }
 }
 
-// Hex encoding utilities (simple implementation to avoid external dependency)
-mod hex {
-    pub fn encode(bytes: Vec<u8>) -> String {
-        bytes.iter().map(|b| format!("{:02x}", b)).collect()
+/// Encode bytes as a lowercase hexadecimal string.
+///
+/// Std-only implementation that avoids pulling in the external `hex` crate.
+fn hex_encode(bytes: &[u8]) -> String {
+    const HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for &byte in bytes {
+        out.push(HEX_CHARS[usize::from(byte >> 4)] as char);
+        out.push(HEX_CHARS[usize::from(byte & 0x0f)] as char);
     }
+    out
 }
 
 #[cfg(test)]
@@ -315,6 +321,15 @@ mod tests {
         let text = secure_rng.random_alphanumeric(20);
         assert_eq!(text.len(), 20);
         assert!(text.chars().all(|c| c.is_alphanumeric()));
+    }
+
+    #[test]
+    fn test_hex_encode() {
+        assert_eq!(hex_encode(&[]), "");
+        assert_eq!(hex_encode(&[0x00]), "00");
+        assert_eq!(hex_encode(&[0xff]), "ff");
+        assert_eq!(hex_encode(&[0xde, 0xad, 0xbe, 0xef]), "deadbeef");
+        assert_eq!(hex_encode(&[0x01, 0x0a, 0x10, 0x7f]), "010a107f");
     }
 
     #[test]

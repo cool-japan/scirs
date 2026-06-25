@@ -11,12 +11,14 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 
 use crate::filters::BorderMode;
 
 use crate::error::{NdimageError, NdimageResult};
 use crate::filters::{median_filter, uniform_filter};
+use crate::measurements::center_of_mass;
+use crate::morphology::{binary_dilation, binary_erosion, distance_transform_edt, label};
 use crate::performance_profiler::{PerformanceProfiler, ProfilerConfig};
 
 /// Comprehensive benchmark suite for comparing with SciPy
@@ -296,8 +298,7 @@ impl SciPyBenchmarkSuite {
             + std::fmt::Debug
             + Send
             + Sync
-            + std::ops::AddAssign
-            + std::ops::DivAssign
+            + NumAssign
             + 'static,
     {
         let _height_width = array_size;
@@ -360,8 +361,7 @@ impl SciPyBenchmarkSuite {
             + std::fmt::Debug
             + Send
             + Sync
-            + std::ops::AddAssign
-            + std::ops::DivAssign
+            + NumAssign
             + 'static,
     {
         let mut timings = Vec::new();
@@ -402,8 +402,7 @@ impl SciPyBenchmarkSuite {
             + std::fmt::Debug
             + Send
             + Sync
-            + std::ops::AddAssign
-            + std::ops::DivAssign
+            + NumAssign
             + 'static,
     {
         match operation {
@@ -423,8 +422,54 @@ impl SciPyBenchmarkSuite {
             BenchmarkOperation::UniformFilter => {
                 uniform_filter(&input_data, &[3, 3], Some(BorderMode::Reflect), None)
             }
-            _ => {
-                // For other operations, return a dummy result
+            BenchmarkOperation::BinaryErosion => {
+                // Threshold to a binary mask (matching the SciPy `data > 0.5`
+                // benchmark) and run the real erosion, then map the boolean
+                // result back to `T` so the measured timing reflects real work.
+                let threshold = T::from_f64(0.5).unwrap_or_else(T::zero);
+                let mask = input_data.mapv(|v| v > threshold);
+                let eroded = binary_erosion(&mask, None, None, None, None, None, None)?;
+                Ok(eroded.mapv(|b| if b { T::one() } else { T::zero() }))
+            }
+            BenchmarkOperation::BinaryDilation => {
+                let threshold = T::from_f64(0.5).unwrap_or_else(T::zero);
+                let mask = input_data.mapv(|v| v > threshold);
+                let dilated = binary_dilation(&mask, None, None, None, None, None, None)?;
+                Ok(dilated.mapv(|b| if b { T::one() } else { T::zero() }))
+            }
+            BenchmarkOperation::DistanceTransform => {
+                let threshold = T::from_f64(0.5).unwrap_or_else(T::zero);
+                // `distance_transform_edt` requires `&[usize]: NdIndex<D>`, which
+                // only holds for the dynamic dimension, so operate on a dyn view.
+                let mask = input_data.mapv(|v| v > threshold).into_dyn();
+                let (distances, _) = distance_transform_edt(&mask, None, true, false)?;
+                let distances = distances.ok_or_else(|| {
+                    NdimageError::ComputationError(
+                        "distance_transform_edt returned no distances".to_string(),
+                    )
+                })?;
+                let distances = distances
+                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                    .map_err(|e| {
+                        NdimageError::ComputationError(format!(
+                            "distance transform result was not 2-dimensional: {}",
+                            e
+                        ))
+                    })?;
+                Ok(distances.mapv(|d| T::from_f64(d).unwrap_or_else(T::zero)))
+            }
+            BenchmarkOperation::LabelObjects => {
+                let threshold = T::from_f64(0.5).unwrap_or_else(T::zero);
+                let mask = input_data.mapv(|v| v > threshold);
+                let (labels, _) = label(&mask, None, None, None)?;
+                Ok(labels.mapv(|l| T::from_usize(l).unwrap_or_else(T::zero)))
+            }
+            BenchmarkOperation::CenterOfMass => {
+                // Center of mass yields a coordinate vector rather than an
+                // image. Run the real computation so the timing is genuine,
+                // then return the (unchanged) input as the operation's array
+                // output for this benchmark harness.
+                let _com = center_of_mass(input_data)?;
                 Ok(input_data.clone())
             }
         }
@@ -818,9 +863,34 @@ if __name__ == "__main__":
         ))
     }
 
+    /// Current resident set size of this process in bytes.
+    ///
+    /// On Linux this parses `VmRSS` from `/proc/self/status`. On other
+    /// platforms (or if the file cannot be read) it returns `0`, signalling
+    /// that no real measurement is available rather than fabricating one.
     fn get_memory_usage(&self) -> usize {
-        // Placeholder implementation - would use actual memory monitoring
-        0
+        #[cfg(target_os = "linux")]
+        {
+            if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+                for line in status.lines() {
+                    if let Some(rest) = line.strip_prefix("VmRSS:") {
+                        if let Some(kib) = rest
+                            .split_whitespace()
+                            .next()
+                            .and_then(|field| field.parse::<usize>().ok())
+                        {
+                            return kib.saturating_mul(1024);
+                        }
+                    }
+                }
+            }
+            0
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
+            0
+        }
     }
 
     /// Generate a comprehensive report

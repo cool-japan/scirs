@@ -403,8 +403,31 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + NumAssign
     for BertFeedForward<F>
 {
     fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        // The Dense layers operate on 2D `[rows, features]` tensors, so flatten
+        // the 3D `[batch, seq, hidden]` activations to `[batch * seq, hidden]`
+        // before applying them and restore the original shape afterwards.
+        let original_shape = input.shape().to_vec();
+        let needs_flatten = original_shape.len() > 2;
+        let feature_dim = *original_shape
+            .last()
+            .ok_or_else(|| NeuralError::InferenceError("Empty feed-forward input".to_string()))?;
+
+        let input_2d = if needs_flatten {
+            let rows: usize = original_shape[..original_shape.len() - 1].iter().product();
+            input
+                .clone()
+                .into_shape_with_order(IxDyn(&[rows, feature_dim]))
+                .map_err(|e| {
+                    NeuralError::InferenceError(format!(
+                        "Failed to flatten feed-forward input: {e}"
+                    ))
+                })?
+        } else {
+            input.clone()
+        };
+
         // Intermediate layer with GELU activation
-        let hidden = self.intermediate_dense.forward(input)?;
+        let hidden = self.intermediate_dense.forward(&input_2d)?;
         let hidden = hidden.mapv(|v: F| {
             // GELU approximation
             let x3 = v * v * v;
@@ -415,7 +438,16 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + NumAssign
         });
 
         // Output layer
-        let output = self.output_dense.forward(&hidden)?;
+        let mut output = self.output_dense.forward(&hidden)?;
+        if needs_flatten {
+            output = output
+                .into_shape_with_order(IxDyn(&original_shape))
+                .map_err(|e| {
+                    NeuralError::InferenceError(format!(
+                        "Failed to restore feed-forward output shape: {e}"
+                    ))
+                })?;
+        }
         let output = self.dropout.forward(&output)?;
 
         // Add residual and layer norm

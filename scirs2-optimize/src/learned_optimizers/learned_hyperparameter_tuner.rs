@@ -732,6 +732,7 @@ impl LearnedHyperparameterTuner {
         // Simple optimization with extracted parameters
         let mut current_params = initial_params.to_owned();
         let mut best_value = objective(initial_params);
+        let mut best_params = current_params.clone();
 
         for iter in 0..max_nit {
             // Compute gradient
@@ -754,6 +755,7 @@ impl LearnedHyperparameterTuner {
             let current_value = objective(&current_params.view());
             if current_value < best_value {
                 best_value = current_value;
+                best_params = current_params.clone();
             }
 
             // Early stopping for low fidelity
@@ -763,7 +765,7 @@ impl LearnedHyperparameterTuner {
         }
 
         Ok(OptimizeResults::<f64> {
-            x: current_params,
+            x: best_params,
             fun: best_value,
             success: true,
             nit: max_nit,
@@ -1506,9 +1508,4 @@ mod tests {
         assert_eq!(result.x.len(), 2);
         assert!(result.success);
     }
-}
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
 }

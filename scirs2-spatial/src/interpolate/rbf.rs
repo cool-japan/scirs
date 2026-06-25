@@ -428,11 +428,12 @@ impl RBFInterpolator {
                 }
             }
 
-            // Manually solve using pseudo-inverse (not ideal but works for now)
-            let trans_a = a.t();
-            let ata = trans_a.dot(&a);
-            let atb = trans_a.dot(&values.to_owned());
-            let weights = solve_linear_system(ata, atb);
+            // The RBF interpolation matrix `A` is square, so solve `A w = y`
+            // directly via Gaussian elimination with partial pivoting. This is
+            // mathematically the exact interpolation solution and avoids
+            // forming the normal equations `AᵀA w = Aᵀy`, which would square
+            // the (already large) condition number of the kernel matrix.
+            let weights = solve_linear_system(a, values.to_owned());
             match weights {
                 Ok(weights) => Ok((weights, None)),
                 Err(e) => Err(SpatialError::ComputationError(format!(
@@ -480,11 +481,10 @@ impl RBFInterpolator {
                 aug_values[i] = values[i];
             }
 
-            // Manually solve using pseudo-inverse (not ideal but works for now)
-            let trans_a = aug_matrix.t();
-            let ata = trans_a.dot(&aug_matrix);
-            let atb = trans_a.dot(&aug_values);
-            let solution = solve_linear_system(ata, atb);
+            // The augmented RBF + polynomial system is square; solve it
+            // directly rather than via the normal equations, for the same
+            // accuracy/conditioning reasons as the non-polynomial branch.
+            let solution = solve_linear_system(aug_matrix, aug_values);
             match solution {
                 Ok(solution) => {
                     // Extract weights and polynomial coefficients

@@ -56,54 +56,50 @@ impl HfHub {
         self
     }
 
-    /// List available models
-    pub fn list_models(&self, filter: Option<&str>) -> Result<Vec<String>> {
-        // Simulated model list (in practice, this would make HTTP requests)
-        let models = vec![
-            "bert-base-uncased",
-            "bert-large-uncased",
-            "distilbert-base-uncased",
-            "roberta-base",
-            "roberta-large",
-            "gpt2",
-            "gpt2-medium",
-            "gpt2-large",
-            "t5-small",
-            "t5-base",
-            "t5-large",
-            "facebook/bart-base",
-            "facebook/bart-large",
-            "microsoft/DialoGPT-medium",
-            "microsoft/DialoGPT-large",
-        ];
-
-        let filtered_models: Vec<String> = models
-            .into_iter()
-            .filter(|model| filter.is_none_or(|f| model.to_lowercase().contains(&f.to_lowercase())))
-            .map(|s| s.to_string())
-            .collect();
-
-        Ok(filtered_models)
+    /// List available models on the Hugging Face Hub matching an optional filter.
+    ///
+    /// Querying the live model index requires HTTP access to
+    /// `https://huggingface.co/api/models`. This build of `scirs2-text` does not
+    /// bundle an HTTP client, so the operation cannot be performed and an honest
+    /// error is returned instead of a fabricated list. Once a networking backend
+    /// is available, this method should issue the real request and parse the JSON
+    /// response.
+    pub fn list_models(&self, _filter: Option<&str>) -> Result<Vec<String>> {
+        Err(TextError::RuntimeError(
+            "Listing Hugging Face Hub models requires network access via an HTTP \
+             client, which is not available in this build of scirs2-text. Enable a \
+             networking backend or query https://huggingface.co/api/models directly."
+                .to_string(),
+        ))
     }
 
-    /// Get model information
+    /// Get model information from the Hugging Face Hub.
+    ///
+    /// Returns a previously cached [`HfModelInfo`] if one was inserted via
+    /// [`HfHub::cache_model_info`]. Otherwise the metadata must be fetched from
+    /// `https://huggingface.co/api/models/{model_id}`, which requires HTTP access
+    /// that is not available in this build. Rather than fabricate download/like
+    /// counts and tags, an honest error is returned.
     pub fn model_info(&mut self, model_id: &str) -> Result<HfModelInfo> {
         if let Some(info) = self.model_cache.get(model_id) {
             return Ok(info.clone());
         }
 
-        // Create mock model info (in practice, this would fetch from API)
-        let info = HfModelInfo {
-            model_id: model_id.to_string(),
-            tags: vec!["pytorch".to_string(), "transformers".to_string()],
-            pipeline_tag: Some(self.infer_pipeline_tag(model_id)),
-            downloads: 1000000,
-            likes: 500,
-            library_name: Some("transformers".to_string()),
-        };
+        Err(TextError::RuntimeError(format!(
+            "Fetching metadata for '{model_id}' requires network access to the \
+             Hugging Face Hub, which is not available in this build of scirs2-text. \
+             Provide the information explicitly via HfHub::cache_model_info, or query \
+             https://huggingface.co/api/models/{model_id} directly."
+        )))
+    }
 
-        self.model_cache.insert(model_id.to_string(), info.clone());
-        Ok(info)
+    /// Insert known model information into the local cache.
+    ///
+    /// This lets callers that already have model metadata (for example, obtained
+    /// out-of-band or from a local registry) make it available to
+    /// [`HfHub::model_info`] without performing a network request.
+    pub fn cache_model_info(&mut self, info: HfModelInfo) {
+        self.model_cache.insert(info.model_id.clone(), info);
     }
 
     /// Download model files
@@ -116,45 +112,27 @@ impl HfHub {
             .map(|p| p.as_ref().to_path_buf())
             .unwrap_or_else(|| self.cache_dir.join(model_id));
 
-        // Create download directory
-        std::fs::create_dir_all(&download_dir)
-            .map_err(|e| TextError::IoError(format!("Failed to create download directory: {e}")))?;
-
-        // In a real implementation, this would download files from the hub
-        // For now, create placeholder files
-        let files = [
-            "config.json",
-            "pytorch_model.bin",
-            "tokenizer.json",
-            "vocab.txt",
-        ];
-
-        for file in &files {
-            let file_path = download_dir.join(file);
-            if !file_path.exists() {
-                let content = if file == &"config.json" {
-                    // Create a valid JSON config for testing
-                    r#"{
-  "architectures": ["BertModel"],
-  "model_type": "bert",
-  "num_attention_heads": 12,
-  "hidden_size": 768,
-  "intermediate_size": 3072,
-  "num_hidden_layers": 12,
-  "vocab_size": 30522,
-  "max_position_embeddings": 512,
-  "extraconfig": {}
-}"#
-                    .to_string()
-                } else {
-                    format!("# Placeholder {file} for {model_id}")
-                };
-                std::fs::write(&file_path, content)
-                    .map_err(|e| TextError::IoError(format!("Failed to create {file}: {e}")))?;
-            }
+        // If the model has already been materialised locally (for example by a
+        // prior real download performed out-of-band, or by an external tool such
+        // as `huggingface-cli`), return the existing path. A model is considered
+        // present when its `config.json` exists.
+        if download_dir.join("config.json").exists() {
+            return Ok(download_dir);
         }
 
-        Ok(download_dir)
+        // Otherwise we would need to fetch the model weights and configuration
+        // from `https://huggingface.co/{model_id}`, which requires HTTP access
+        // that this build of scirs2-text does not provide. We deliberately do
+        // NOT fabricate placeholder weight/config files, as that would masquerade
+        // as a successful download and silently corrupt downstream loading.
+        Err(TextError::RuntimeError(format!(
+            "Model '{model_id}' is not available locally at {} and downloading it \
+             requires network access to the Hugging Face Hub, which is not enabled \
+             in this build of scirs2-text. Place the model files there manually (for \
+             example via `huggingface-cli download {model_id}`) or enable a \
+             networking backend.",
+            download_dir.display()
+        )))
     }
 
     /// Upload model to hub
@@ -208,18 +186,6 @@ impl HfHub {
     /// Get cached model path
     pub fn get_cached_model_path(&self, model_id: &str) -> PathBuf {
         self.cache_dir.join(model_id)
-    }
-
-    fn infer_pipeline_tag(&self, model_id: &str) -> String {
-        if model_id.contains("bert") || model_id.contains("roberta") {
-            "text-classification".to_string()
-        } else if model_id.contains("gpt") || model_id.contains("t5") {
-            "text-generation".to_string()
-        } else if model_id.contains("bart") {
-            "summarization".to_string()
-        } else {
-            "feature-extraction".to_string()
-        }
     }
 }
 

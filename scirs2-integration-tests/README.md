@@ -1,6 +1,6 @@
 # SciRS2 Integration Tests
 
-Cross-crate integration test suite for the SciRS2 ecosystem, v0.5.0.
+Cross-crate integration test suite for the SciRS2 ecosystem, v0.5.1.
 
 ## Purpose
 
@@ -10,7 +10,7 @@ All tests run with `--all-features` so that every optional sub-crate is exercise
 
 ---
 
-## Integration Scenarios Tested (v0.5.0)
+## Integration Scenarios Tested (v0.5.1)
 
 ### autograd + neural
 
@@ -126,7 +126,7 @@ scirs2-integration-tests/
 
 ---
 
-## Current Status (v0.5.0, 2026-06-02)
+## Current Status (v0.5.1, 2026-06-02)
 
 - All five baseline integration scenarios above are implemented and passing
 - v0.4.2 Wave 42/44 added 6 additional pipeline tests: ML pipeline, signal analysis, computer vision, graph ML, scientific computing, NLP — all green

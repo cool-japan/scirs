@@ -7,25 +7,6 @@ use std::fmt::Debug;
 use super::RegionProperties;
 use crate::error::{NdimageError, NdimageResult};
 
-/// Helper function to convert dimension pattern to coordinate vector
-fn pattern_to_coords<D: Dimension>(pattern: &D::Pattern, shape: &[usize]) -> Vec<usize> {
-    // For now, we'll use unsafe transmute as a workaround
-    // This is not ideal but works for common cases
-    let pattern_size = std::mem::size_of::<D::Pattern>();
-    let coord_count = shape.len();
-
-    if pattern_size == coord_count * std::mem::size_of::<usize>() {
-        // Pattern is likely a tuple of usize values
-        unsafe {
-            let ptr = pattern as *const D::Pattern as *const usize;
-            (0..coord_count).map(|i| *ptr.add(i)).collect()
-        }
-    } else {
-        // Fallback: return zeros
-        vec![0; coord_count]
-    }
-}
-
 /// Extract comprehensive properties of labeled regions
 ///
 /// This function analyzes segmented images to compute geometric and statistical properties
@@ -291,6 +272,12 @@ where
 
     let mut region_props = Vec::new();
 
+    // Convert to dynamic-dimensional views so that pixel coordinates can be
+    // recovered exactly via `IxDyn` indices (correct for any dimensionality,
+    // unlike a raw pointer reinterpretation of `D::Pattern`).
+    let input_dyn = input.view().into_dyn();
+    let labels_dyn = labels.view().into_dyn();
+
     // Compute _properties for each region
     for &label in unique_labels.iter() {
         let mut area = 0;
@@ -299,12 +286,12 @@ where
         let mut max_coords = vec![0; input.ndim()];
 
         // Iterate through all pixels to compute _properties
-        for ((coords, &value), &pixel_label) in input.indexed_iter().zip(labels.iter()) {
+        for ((coords, &value), &pixel_label) in input_dyn.indexed_iter().zip(labels_dyn.iter()) {
             if pixel_label == label {
                 area += 1;
 
                 // Update sum for centroid calculation
-                let coord_vec = pattern_to_coords::<D>(&coords, input.shape());
+                let coord_vec: Vec<usize> = coords.as_array_view().to_vec();
                 for (i, coord) in coord_vec.iter().enumerate() {
                     sum_coords[i] += T::from_usize(*coord).expect("Operation failed") * value;
                     min_coords[i] = min_coords[i].min(*coord);
@@ -593,6 +580,10 @@ where
 
     let mut bboxes = Vec::new();
 
+    // Convert to a dynamic-dimensional view so pixel coordinates can be
+    // recovered exactly via `IxDyn` indices, regardless of dimensionality.
+    let input_dyn = input.view().into_dyn();
+
     // Calculate bounding box for each object
     for &label in unique_labels.iter() {
         let mut min_coords = vec![usize::MAX; input.ndim()];
@@ -600,12 +591,12 @@ where
         let mut found_object = false;
 
         // Scan through all pixels to find object bounds
-        for (coords, &pixel_label) in input.indexed_iter() {
+        for (coords, &pixel_label) in input_dyn.indexed_iter() {
             if pixel_label == label {
                 found_object = true;
 
                 // Update bounding box coordinates
-                let coord_vec = pattern_to_coords::<D>(&coords, input.shape());
+                let coord_vec: Vec<usize> = coords.as_array_view().to_vec();
                 for (i, coord) in coord_vec.iter().enumerate() {
                     min_coords[i] = min_coords[i].min(*coord);
                     max_coords[i] = max_coords[i].max(*coord);

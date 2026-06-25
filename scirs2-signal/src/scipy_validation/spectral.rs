@@ -511,7 +511,7 @@ fn generate_spectral_test_signal(length: usize, fs: f64) -> Array1<f64> {
         signal[i] += 0.3 * (2.0 * std::f64::consts::PI * 0.4 * fs * t).sin(); // High frequency
 
         // Add small amount of noise
-        signal[i] += 0.05 * (fastrand::f64() * 2.0 - 1.0);
+        signal[i] += 0.05 * (scirs2_core::random::random::<f64>() * 2.0 - 1.0);
     }
 
     signal
@@ -535,11 +535,11 @@ fn generate_lombscargle_test_data(length: usize, fs: f64, irregular: bool) -> (V
             let freq2 = 0.25 * fs;
             let s = (2.0 * std::f64::consts::PI * freq1 * current_time).sin()
                 + 0.5 * (2.0 * std::f64::consts::PI * freq2 * current_time).sin()
-                + 0.1 * (fastrand::f64() * 2.0 - 1.0);
+                + 0.1 * (scirs2_core::random::random::<f64>() * 2.0 - 1.0);
             signal.push(s);
 
             // Irregular time step
-            let jitter = 0.3 * mean_dt * (fastrand::f64() * 2.0 - 1.0);
+            let jitter = 0.3 * mean_dt * (scirs2_core::random::random::<f64>() * 2.0 - 1.0);
             current_time += mean_dt + jitter;
         }
     } else {
@@ -554,7 +554,7 @@ fn generate_lombscargle_test_data(length: usize, fs: f64, irregular: bool) -> (V
             let freq2 = 0.25 * fs;
             let s = (2.0 * std::f64::consts::PI * freq1 * time).sin()
                 + 0.5 * (2.0 * std::f64::consts::PI * freq2 * time).sin()
-                + 0.1 * (fastrand::f64() * 2.0 - 1.0);
+                + 0.1 * (scirs2_core::random::random::<f64>() * 2.0 - 1.0);
             signal.push(s);
         }
     }
@@ -577,7 +577,7 @@ fn generate_ar_test_signal(length: usize, fs: f64, order: usize) -> Array1<f64> 
     let noise_std = 0.1;
 
     for i in 0..length {
-        let mut value = noise_std * (fastrand::f64() * 2.0 - 1.0);
+        let mut value = noise_std * (scirs2_core::random::random::<f64>() * 2.0 - 1.0);
 
         // Add AR terms
         for j in 0..order {

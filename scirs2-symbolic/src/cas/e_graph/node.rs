@@ -18,7 +18,7 @@ use crate::eml::LoweredOp;
 /// `egraph.find(id)` to get the canonical representative.
 ///
 /// Implements `Ord` so that `Vec<ClassId>` can be sorted to ensure
-/// deterministic iteration order during equality saturation — hashbrown
+/// deterministic iteration order during equality saturation —
 /// `HashMap` iteration order is non-deterministic (randomised hash seed), so
 /// collecting and sorting the class ids before the saturation inner loop
 /// eliminates iteration-order sensitivity.

@@ -1,17 +1,65 @@
 //! SLSQP (Sequential Least SQuares Programming) algorithm for constrained optimization
 
-use crate::constrained::{Constraint, ConstraintFn, ConstraintKind, Options};
+use crate::constrained::{Constraint, ConstraintKind, Options};
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1};
 
-/// Implements the SLSQP algorithm for constrained optimization
+/// Fill one row of a constraint Jacobian using the constraint's analytical
+/// Jacobian when present, otherwise forward finite differences.
+///
+/// `c_val` is the constraint value already evaluated at `x` (reused for the FD
+/// path). Returns the number of objective/constraint evaluations performed so
+/// that the caller can keep `nfev` accurate. If an analytical Jacobian returns
+/// a vector of the wrong length, the routine falls back to finite differences
+/// (no panic, no unwrap).
+#[allow(clippy::too_many_arguments)]
+fn fill_constraint_jac_row<S>(
+    a: &mut Array2<f64>,
+    row: usize,
+    constraint: &Constraint,
+    x: &ArrayBase<S, Ix1>,
+    c_val: f64,
+    n: usize,
+    eps: f64,
+) -> usize
+where
+    S: Data<Elem = f64>,
+{
+    if let Some(ref jac_fn) = constraint.jac {
+        let grad = jac_fn(x.as_slice().expect("Operation failed"));
+        if grad.len() == n {
+            for j in 0..n {
+                a[[row, j]] = grad[j];
+            }
+            return 0;
+        }
+        // Length mismatch: fall through to finite differences.
+    }
+
+    let mut evals = 0;
+    for j in 0..n {
+        let mut x_h = x.to_owned();
+        x_h[j] += eps;
+        let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
+        a[[row, j]] = (c_h - c_val) / eps;
+        evals += 1;
+    }
+    evals
+}
+
+/// Implements the SLSQP algorithm for constrained optimization.
+///
+/// `obj_jac` optionally supplies an analytical objective gradient (issue #127);
+/// when `None`, finite differences are used. Per-constraint analytical
+/// Jacobians attached via [`Constraint::with_jacobian`] are honoured.
 #[allow(clippy::many_single_char_names)]
 #[allow(dead_code)]
 pub fn minimize_slsqp<F, S>(
     func: F,
     x0: &ArrayBase<S, Ix1>,
-    constraints: &[Constraint<ConstraintFn>],
+    constraints: &[Constraint],
+    obj_jac: Option<&dyn Fn(&[f64]) -> Array1<f64>>,
     options: &Options,
 ) -> OptimizeResult<OptimizeResults<f64>>
 where
@@ -50,15 +98,20 @@ where
     let mut lambda_ineq = Array1::zeros(n_ineq);
     let mut lambda_eq = Array1::zeros(n_eq);
 
-    // Calculate initial gradient using finite differences
-    let mut g = Array1::zeros(n);
-    for i in 0..n {
-        let mut x_h = x.clone();
-        x_h[i] += eps;
-        let f_h = func(x_h.as_slice().expect("Operation failed"));
-        g[i] = (f_h - f) / eps;
-        nfev += 1;
-    }
+    // Calculate initial gradient (analytical if supplied, else finite differences)
+    let mut g = if let Some(grad_fn) = obj_jac {
+        grad_fn(x.as_slice().expect("Operation failed"))
+    } else {
+        let mut grad = Array1::zeros(n);
+        for i in 0..n {
+            let mut x_h = x.clone();
+            x_h[i] += eps;
+            let f_h = func(x_h.as_slice().expect("Operation failed"));
+            grad[i] = (f_h - f) / eps;
+            nfev += 1;
+        }
+        grad
+    };
 
     // Evaluate initial constraints
     let mut c_ineq = Array1::zeros(n_ineq);
@@ -82,26 +135,14 @@ where
     let mut a_ineq = Array2::zeros((n_ineq, n));
     let mut a_eq = Array2::zeros((n_eq, n));
 
-    // Inequality constraint Jacobian
+    // Inequality constraint Jacobian (analytical per-constraint if attached)
     for (idx, (_, constraint)) in ineq_constraints.iter().enumerate() {
-        for j in 0..n {
-            let mut x_h = x.clone();
-            x_h[j] += eps;
-            let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
-            a_ineq[[idx, j]] = (c_h - c_ineq[idx]) / eps;
-            nfev += 1;
-        }
+        nfev += fill_constraint_jac_row(&mut a_ineq, idx, constraint, &x, c_ineq[idx], n, eps);
     }
 
-    // Equality constraint Jacobian
+    // Equality constraint Jacobian (analytical per-constraint if attached)
     for (idx, (_, constraint)) in eq_constraints.iter().enumerate() {
-        for j in 0..n {
-            let mut x_h = x.clone();
-            x_h[j] += eps;
-            let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
-            a_eq[[idx, j]] = (c_h - c_eq[idx]) / eps;
-            nfev += 1;
-        }
+        nfev += fill_constraint_jac_row(&mut a_eq, idx, constraint, &x, c_eq[idx], n, eps);
     }
 
     // Initialize working matrices
@@ -285,40 +326,49 @@ where
             break;
         }
 
-        // Calculate new gradient
-        let mut g_new = Array1::zeros(n);
-        for i in 0..n {
-            let mut x_h = x_new.clone();
-            x_h[i] += eps;
-            let f_h = func(x_h.as_slice().expect("Operation failed"));
-            g_new[i] = (f_h - f_new) / eps;
-            nfev += 1;
-        }
+        // Calculate new gradient (analytical if supplied, else finite differences)
+        let g_new = if let Some(grad_fn) = obj_jac {
+            grad_fn(x_new.as_slice().expect("Operation failed"))
+        } else {
+            let mut grad = Array1::zeros(n);
+            for i in 0..n {
+                let mut x_h = x_new.clone();
+                x_h[i] += eps;
+                let f_h = func(x_h.as_slice().expect("Operation failed"));
+                grad[i] = (f_h - f_new) / eps;
+                nfev += 1;
+            }
+            grad
+        };
 
-        // Calculate new constraint Jacobians
+        // Calculate new constraint Jacobians (analytical per-constraint if attached)
         let mut a_ineq_new = Array2::zeros((n_ineq, n));
         let mut a_eq_new = Array2::zeros((n_eq, n));
 
         // New inequality constraint Jacobian
         for (idx, (_, constraint)) in ineq_constraints.iter().enumerate() {
-            for j in 0..n {
-                let mut x_h = x_new.clone();
-                x_h[j] += eps;
-                let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
-                a_ineq_new[[idx, j]] = (c_h - c_ineq_new[idx]) / eps;
-                nfev += 1;
-            }
+            nfev += fill_constraint_jac_row(
+                &mut a_ineq_new,
+                idx,
+                constraint,
+                &x_new,
+                c_ineq_new[idx],
+                n,
+                eps,
+            );
         }
 
         // New equality constraint Jacobian
         for (idx, (_, constraint)) in eq_constraints.iter().enumerate() {
-            for j in 0..n {
-                let mut x_h = x_new.clone();
-                x_h[j] += eps;
-                let c_h = (constraint.fun)(x_h.as_slice().expect("Operation failed"));
-                a_eq_new[[idx, j]] = (c_h - c_eq_new[idx]) / eps;
-                nfev += 1;
-            }
+            nfev += fill_constraint_jac_row(
+                &mut a_eq_new,
+                idx,
+                constraint,
+                &x_new,
+                c_eq_new[idx],
+                n,
+                eps,
+            );
         }
 
         // Update Lagrange multipliers

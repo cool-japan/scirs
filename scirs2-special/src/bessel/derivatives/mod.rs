@@ -535,15 +535,86 @@ where
     F: Float + FromPrimitive + Debug + std::ops::AddAssign,
 {
     let n = n.unwrap_or(1);
+    if n < 0 {
+        return F::nan();
+    }
     match n {
         0 => jv(v, x),
         1 => jv_prime(v, x),
         _ => {
-            // For higher derivatives, we need to implement recursively
-            // For now, just return the first derivative for simplicity
-            jv_prime(v, x)
+            // Higher-order derivative via the closed-form recurrence (DLMF 10.6.7):
+            //   d^n/dx^n J_v(x) = (1/2^n) * sum_{k=0}^{n} (-1)^k C(n,k) J_{v-n+2k}(x)
+            bessel_derivative_alternating(jv, v, x, n)
         }
     }
+}
+
+/// Evaluates the nth derivative of an ordinary Bessel function (first or second
+/// kind) using the alternating-sign recurrence:
+///
+/// ```text
+/// f^(n)(x) = (1 / 2^n) * sum_{k=0}^{n} (-1)^k C(n,k) f_{v - n + 2k}(x)
+/// ```
+///
+/// where `base(order, x)` evaluates the underlying Bessel function `f_order(x)`.
+/// This is DLMF 10.6.7 and applies to both `J_v` and `Y_v`.
+fn bessel_derivative_alternating<F, B>(base: B, v: F, x: F, n: i32) -> F
+where
+    F: Float + FromPrimitive + Debug + std::ops::AddAssign,
+    B: Fn(F, F) -> F,
+{
+    let n_usize = n as usize;
+    let mut acc = F::zero();
+    for k in 0..=n_usize {
+        let coeff = binomial_coefficient::<F>(n_usize, k);
+        let order = v - F::from(n).expect("convert n") + F::from(2 * k).expect("convert 2k");
+        let term = coeff * base(order, x);
+        if k % 2 == 0 {
+            acc += term;
+        } else {
+            acc += -term;
+        }
+    }
+    acc / F::from(2.0_f64.powi(n)).expect("convert 2^n")
+}
+
+/// Evaluates the nth derivative of a modified Bessel function using the
+/// all-positive recurrence with an optional overall sign:
+///
+/// ```text
+/// f^(n)(x) = (sign^n / 2^n) * sum_{k=0}^{n} C(n,k) f_{v - n + 2k}(x)
+/// ```
+///
+/// For `I_v` the overall sign is `+1` (DLMF 10.29.5), and for `K_v` it is `-1`.
+fn bessel_derivative_modified<F, B>(base: B, v: F, x: F, n: i32, sign: F) -> F
+where
+    F: Float + FromPrimitive + Debug + std::ops::AddAssign,
+    B: Fn(F, F) -> F,
+{
+    let n_usize = n as usize;
+    let mut acc = F::zero();
+    for k in 0..=n_usize {
+        let coeff = binomial_coefficient::<F>(n_usize, k);
+        let order = v - F::from(n).expect("convert n") + F::from(2 * k).expect("convert 2k");
+        acc += coeff * base(order, x);
+    }
+    let overall_sign = sign.powi(n);
+    overall_sign * acc / F::from(2.0_f64.powi(n)).expect("convert 2^n")
+}
+
+/// Computes the binomial coefficient C(n, k) exactly for the small `n` used by
+/// the Bessel derivative recurrences, returning it in the target float type.
+fn binomial_coefficient<F: FromPrimitive>(n: usize, k: usize) -> F {
+    if k > n {
+        return F::from_f64(0.0).expect("convert 0");
+    }
+    let k = k.min(n - k);
+    // Accumulate in f64; the orders used here keep this well within range.
+    let mut result = 1.0_f64;
+    for i in 0..k {
+        result = result * (n - i) as f64 / (i + 1) as f64;
+    }
+    F::from_f64(result.round()).expect("convert binomial coefficient")
 }
 
 /// Compute the nth derivative of the Bessel function of the second kind Yv(x)
@@ -577,15 +648,26 @@ where
     F: Float + FromPrimitive + Debug + std::ops::AddAssign,
 {
     let n = n.unwrap_or(1);
+    if n < 0 {
+        return F::nan();
+    }
+
+    // The Bessel function of the second kind of arbitrary (non-integer) order is
+    // not available in this module, so derivatives are only supported for integer
+    // orders. For non-integer `v` we honestly return NaN rather than fabricating a
+    // value.
+    let v_f64 = v.to_f64().expect("convert order to f64");
+    let is_integer_order = v_f64.fract() == 0.0;
+
     match n {
         0 => {
             if v == F::zero() {
                 y0(x)
             } else if v == F::one() {
                 y1(x)
+            } else if is_integer_order {
+                yn(v_f64 as i32, x)
             } else {
-                // For arbitrary order, we need to implement yv
-                // For now, return NaN for non-integer orders
                 F::nan()
             }
         }
@@ -594,15 +676,27 @@ where
                 y0_prime(x)
             } else if v == F::one() {
                 y1_prime(x)
+            } else if is_integer_order {
+                // Y_v'(x) = (Y_{v-1}(x) - Y_{v+1}(x)) / 2
+                let m = v_f64 as i32;
+                (yn(m - 1, x) - yn(m + 1, x)) / F::from(2.0).expect("convert 2")
             } else {
-                // For arbitrary order, compute using recurrence
-                // (Yv-1(x) - Yv+1(x))/2
-                F::nan() // Placeholder - would need yv function
+                F::nan()
             }
         }
         _ => {
-            // For higher derivatives, implement recursively
-            F::nan() // Placeholder
+            if is_integer_order {
+                // Higher-order derivative via the alternating recurrence
+                // (DLMF 10.6.7), evaluated with the integer-order Yn function:
+                //   d^n/dx^n Y_v(x) = (1/2^n) * sum_{k=0}^{n} (-1)^k C(n,k) Y_{v-n+2k}(x)
+                let yn_base = |order: F, arg: F| -> F {
+                    let order_i = order.to_f64().expect("convert order to f64").round() as i32;
+                    yn(order_i, arg)
+                };
+                bessel_derivative_alternating(yn_base, v, x, n)
+            } else {
+                F::nan()
+            }
         }
     }
 }
@@ -638,13 +732,34 @@ where
     F: Float + FromPrimitive + Debug + std::ops::AddAssign,
 {
     let n = n.unwrap_or(1);
+    if n < 0 {
+        return F::nan();
+    }
     match n {
         0 => iv(v, x),
         1 => iv_prime(v, x),
         _ => {
-            // For higher derivatives, implement recursively
-            iv_prime(v, x) // Placeholder
+            // Higher-order derivative via the modified-Bessel recurrence
+            // (DLMF 10.29.5):
+            //   d^n/dx^n I_v(x) = (1/2^n) * sum_{k=0}^{n} C(n,k) I_{v-n+2k}(x)
+            //
+            // The recurrence visits orders `v - n + 2k`, which can be negative
+            // integers. For those, apply the exact reflection I_{-m}(x) = I_m(x)
+            // (DLMF 10.27.1), since the underlying `iv` only covers non-negative
+            // integer orders along its fast path.
+            bessel_derivative_modified(iv_reflected, v, x, n, F::one())
         }
+    }
+}
+
+/// Evaluates `I_order(x)` with support for negative integer orders via the exact
+/// reflection `I_{-m}(x) = I_m(x)` (DLMF 10.27.1).
+fn iv_reflected<F: Float + FromPrimitive + Debug + std::ops::AddAssign>(order: F, x: F) -> F {
+    let order_f64 = order.to_f64().expect("convert order to f64");
+    if order_f64 < 0.0 && order_f64.fract() == 0.0 {
+        iv(-order, x)
+    } else {
+        iv(order, x)
     }
 }
 
@@ -679,12 +794,17 @@ where
     F: Float + FromPrimitive + Debug + std::ops::AddAssign,
 {
     let n = n.unwrap_or(1);
+    if n < 0 {
+        return F::nan();
+    }
     match n {
         0 => kv(v, x),
         1 => kv_prime(v, x),
         _ => {
-            // For higher derivatives, implement recursively
-            kv_prime(v, x) // Placeholder
+            // Higher-order derivative via the modified-Bessel recurrence
+            // (DLMF 10.29.5), which carries an overall (-1)^n for K_v:
+            //   d^n/dx^n K_v(x) = ((-1)^n/2^n) * sum_{k=0}^{n} C(n,k) K_{v-n+2k}(x)
+            bessel_derivative_modified(kv, v, x, n, -F::one())
         }
     }
 }
@@ -763,5 +883,129 @@ mod tests {
         let x = 2.0;
         let expected = (jn(1, x) - jn(3, x)) / 2.0;
         assert_relative_eq!(jn_prime(2, x), expected, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_jvp_second_derivative_against_finite_difference() {
+        // The second derivative of J_v must match a central finite-difference
+        // estimate, confirming the recurrence is not just returning the first
+        // derivative.
+        let x = 3.0_f64;
+        let v = 0.0_f64;
+        let h = 1e-4;
+        let fd = (jvp(v, x + h, Some(1)) - jvp(v, x - h, Some(1))) / (2.0 * h);
+        assert_relative_eq!(jvp(v, x, Some(2)), fd, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_jvp_second_derivative_closed_form() {
+        // d^2/dx^2 J_v(x) = (1/4)(J_{v-2} - 2 J_v + J_{v+2})
+        let x = 2.5_f64;
+        let v = 2.0_f64;
+        let expected = 0.25 * (jv(v - 2.0, x) - 2.0 * jv(v, x) + jv(v + 2.0, x));
+        assert_relative_eq!(jvp(v, x, Some(2)), expected, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_jvp_higher_order_differs_from_first() {
+        // The 3rd derivative must genuinely differ from the 1st.
+        let x = 2.0_f64;
+        let v = 1.0_f64;
+        let d1 = jvp(v, x, Some(1));
+        let d3 = jvp(v, x, Some(3));
+        assert!(
+            (d1 - d3).abs() > 1e-3,
+            "3rd derivative should differ from 1st: d1={}, d3={}",
+            d1,
+            d3
+        );
+        // Closed form: d^3/dx^3 J_v = (1/8)(J_{v-3} - 3 J_{v-1} + 3 J_{v+1} - J_{v+3})
+        let expected =
+            (jv(v - 3.0, x) - 3.0 * jv(v - 1.0, x) + 3.0 * jv(v + 1.0, x) - jv(v + 3.0, x)) / 8.0;
+        assert_relative_eq!(d3, expected, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_ivp_second_derivative_closed_form() {
+        // d^2/dx^2 I_v(x) = (1/4)(I_{v-2} + 2 I_v + I_{v+2})
+        // Use v = 2 so all orders (0, 2, 4) are non-negative.
+        let x = 1.5_f64;
+        let v = 2.0_f64;
+        let expected = 0.25 * (iv(v - 2.0, x) + 2.0 * iv(v, x) + iv(v + 2.0, x));
+        assert_relative_eq!(ivp(v, x, Some(2)), expected, epsilon = 1e-9);
+    }
+
+    #[test]
+    fn test_ivp_reflection_negative_integer_order() {
+        // The recurrence for I_v with small integer v relies on I_{-m}(x)=I_m(x).
+        // Verify ivp at v=0 (which needs I_{-2}) matches the reflected closed form.
+        let x = 1.5_f64;
+        let v = 0.0_f64;
+        // I_{-2}=I_2, I_0, I_2
+        let expected = 0.25 * (iv(2.0, x) + 2.0 * iv(0.0, x) + iv(2.0, x));
+        assert_relative_eq!(ivp(v, x, Some(2)), expected, epsilon = 1e-9);
+    }
+
+    #[test]
+    fn test_ivp_second_derivative_against_finite_difference() {
+        let x = 2.0_f64;
+        let v = 0.0_f64;
+        let h = 1e-4;
+        let fd = (ivp(v, x + h, Some(1)) - ivp(v, x - h, Some(1))) / (2.0 * h);
+        assert_relative_eq!(ivp(v, x, Some(2)), fd, epsilon = 1e-5);
+    }
+
+    #[test]
+    fn test_kvp_second_derivative_closed_form() {
+        // d^2/dx^2 K_v(x) = (1/4)(K_{v-2} + 2 K_v + K_{v+2})
+        // (the (-1)^n overall sign is +1 for n = 2)
+        let x = 1.5_f64;
+        let v = 1.0_f64;
+        let expected = 0.25 * (kv(v - 2.0, x) + 2.0 * kv(v, x) + kv(v + 2.0, x));
+        assert_relative_eq!(kvp(v, x, Some(2)), expected, epsilon = 1e-9);
+    }
+
+    #[test]
+    fn test_kvp_second_derivative_against_finite_difference() {
+        let x = 2.0_f64;
+        let v = 0.0_f64;
+        let h = 1e-4;
+        let fd = (kvp(v, x + h, Some(1)) - kvp(v, x - h, Some(1))) / (2.0 * h);
+        assert_relative_eq!(kvp(v, x, Some(2)), fd, epsilon = 1e-5);
+    }
+
+    #[test]
+    fn test_yvp_integer_second_derivative_closed_form() {
+        // d^2/dx^2 Y_v(x) = (1/4)(Y_{v-2} - 2 Y_v + Y_{v+2}) for integer order
+        let x = 2.5_f64;
+        let v = 1.0_f64;
+        let expected = 0.25 * (yn(-1, x) - 2.0 * yn(1, x) + yn(3, x));
+        assert_relative_eq!(yvp(v, x, Some(2)), expected, epsilon = 1e-9);
+    }
+
+    #[test]
+    fn test_yvp_noninteger_returns_nan() {
+        // Non-integer order Y_v derivatives are honestly unsupported.
+        let x = 2.0_f64;
+        assert!(yvp(0.5_f64, x, Some(2)).is_nan());
+        assert!(yvp(1.5_f64, x, Some(1)).is_nan());
+    }
+
+    #[test]
+    fn test_derivative_negative_order_returns_nan() {
+        // A negative derivative order is invalid for all SciPy-compatible wrappers.
+        let x = 2.0_f64;
+        assert!(jvp(0.0_f64, x, Some(-1)).is_nan());
+        assert!(ivp(0.0_f64, x, Some(-1)).is_nan());
+        assert!(kvp(0.0_f64, x, Some(-1)).is_nan());
+        assert!(yvp(0.0_f64, x, Some(-1)).is_nan());
+    }
+
+    #[test]
+    fn test_binomial_coefficient_values() {
+        assert_relative_eq!(binomial_coefficient::<f64>(4, 0), 1.0, epsilon = 1e-12);
+        assert_relative_eq!(binomial_coefficient::<f64>(4, 2), 6.0, epsilon = 1e-12);
+        assert_relative_eq!(binomial_coefficient::<f64>(5, 2), 10.0, epsilon = 1e-12);
+        assert_relative_eq!(binomial_coefficient::<f64>(3, 5), 0.0, epsilon = 1e-12);
     }
 }

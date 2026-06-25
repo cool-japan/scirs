@@ -54,121 +54,218 @@ pub fn gpu_multi_head_attention(
     let head_dim = hidden_dim / num_heads;
     let scale = 1.0 / (head_dim as f32).sqrt();
 
-    // Flatten matrices for GPU processing
+    // The on-device softmax accumulates attention weights in a fixed-size
+    // thread-local array; reject sequences longer than that bound so we never
+    // read past it. Larger problems fall back to the CPU/SIMD path.
+    const MAX_GPU_SEQ_LEN: usize = 512;
+    if seq_len > MAX_GPU_SEQ_LEN {
+        return fallback_multi_head_attention(queries, keys, values, num_heads);
+    }
+
+    // Flatten matrices for GPU processing (row-major, matching the CPU path).
     let q_flat: Vec<f32> = queries.iter().cloned().collect();
     let k_flat: Vec<f32> = keys.iter().cloned().collect();
     let v_flat: Vec<f32> = values.iter().cloned().collect();
 
-    // Create GPU buffers
+    // Pack the scalar parameters into a dedicated storage buffer with an
+    // explicit, deterministic layout: [seq_len, hidden_dim, num_heads,
+    // head_dim, scale]. The first four are small integers stored exactly as
+    // f32 and read back via `u32(...)` in the shader. We deliberately avoid
+    // `var<uniform>` here because the high-level kernel handle packs uniform
+    // fields from an unordered map (non-deterministic field order) and binds
+    // only a single uniform block; a storage buffer bound by name is
+    // unambiguous and fully under our control.
+    let params: Vec<f32> = vec![
+        seq_len as f32,
+        hidden_dim as f32,
+        num_heads as f32,
+        head_dim as f32,
+        scale,
+    ];
+
+    // Create GPU buffers. The output buffer is created with element count
+    // `seq_len * hidden_dim`; `copy_to_host` later maps it back through a
+    // staging buffer (STORAGE | COPY_SRC -> MAP_READ | COPY_DST).
     let q_buffer = ctx.context.create_buffer_from_slice(&q_flat);
     let k_buffer = ctx.context.create_buffer_from_slice(&k_flat);
     let v_buffer = ctx.context.create_buffer_from_slice(&v_flat);
+    let params_buffer = ctx.context.create_buffer_from_slice(&params);
     let output_buffer = ctx.context.create_buffer::<f32>(seq_len * hidden_dim);
 
-    // GPU kernel for attention computation
-    let attention_kernel = r#"
-        #version 450
+    // Select a compute kernel for the active backend. Each invocation computes
+    // the full attention output for one (sequence position, head) pair.
+    let kernel_source = match ctx.backend() {
+        GpuBackend::Wgpu => {
+            r#"
+@group(0) @binding(0) var<storage, read> queries: array<f32>;
+@group(0) @binding(1) var<storage, read> keys: array<f32>;
+@group(0) @binding(2) var<storage, read> values: array<f32>;
+@group(0) @binding(3) var<storage, read_write> output: array<f32>;
+@group(0) @binding(4) var<storage, read> params: array<f32>;
 
-        layout(local_size_x = 16, local_size_y = 16) in;
+@compute @workgroup_size(16, 16)
+fn multi_head_attention(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let seq_idx = global_id.x;
+    let head_idx = global_id.y;
 
-        layout(set = 0, binding = 0) readonly buffer QueriesBuffer {{
-            float queries[];
-        }};
+    let seq_len = u32(params[0]);
+    let hidden_dim = u32(params[1]);
+    let num_heads = u32(params[2]);
+    let head_dim = u32(params[3]);
+    let scale = params[4];
 
-        layout(set = 0, binding = 1) readonly buffer KeysBuffer {{
-            float keys[];
-        }};
-
-        layout(set = 0, binding = 2) readonly buffer ValuesBuffer {{
-            float values[];
-        }};
-
-        layout(set = 0, binding = 3) writeonly buffer OutputBuffer {{
-            float output[];
-        }};
-
-        layout(push_constant) uniform PushConstants {{
-            uint seq_len;
-            uint hidden_dim;
-            uint num_heads;
-            uint head_dim;
-            float scale;
-        }};
-
-        void main() {{
-            uint seq_idx = gl_GlobalInvocationID.x;
-            uint head_idx = gl_GlobalInvocationID.y;
-
-            if (seq_idx >= seq_len || head_idx >= num_heads) return;
-
-            // Compute attention for one head
-            uint head_offset = head_idx * head_dim;
-
-            // Compute attention scores for this sequence position
-            float max_score = -1e9;
-            for (uint k = 0; k < seq_len; k++) {{
-                float score = 0.0;
-                for (uint d = 0; d < head_dim; d++) {{
-                    uint q_idx = seq_idx * hidden_dim + head_offset + d;
-                    uint k_idx = k * hidden_dim + head_offset + d;
-                    score += queries[q_idx] * keys[k_idx];
-                }}
-                score *= scale;
-                max_score = max(max_score, score);
-            }}
-
-            // Softmax computation
-            float sum_exp = 0.0;
-            float attention_weights[512]; // Assuming max seq_len = 512
-            for (uint k = 0; k < seq_len; k++) {{
-                float score = 0.0;
-                for (uint d = 0; d < head_dim; d++) {{
-                    uint q_idx = seq_idx * hidden_dim + head_offset + d;
-                    uint k_idx = k * hidden_dim + head_offset + d;
-                    score += queries[q_idx] * keys[k_idx];
-                }}
-                score = (score * scale) - max_score;
-                attention_weights[k] = exp(score);
-                sum_exp += attention_weights[k];
-            }}
-
-            // Normalize and apply to values
-            for (uint d = 0; d < head_dim; d++) {{
-                float result = 0.0;
-                for (uint k = 0; k < seq_len; k++) {{
-                    float weight = attention_weights[k] / sum_exp;
-                    uint v_idx = k * hidden_dim + head_offset + d;
-                    result += weight * values[v_idx];
-                }}
-                uint out_idx = seq_idx * hidden_dim + head_offset + d;
-                output[out_idx] = result;
-            }}
-        }}
-        "#;
-
-    // Execute GPU kernel - fallback to SIMD for now
-    // TODO: Fix GPU execution to properly handle buffer reads
-    match ctx.context.execute_kernel(
-        attention_kernel,
-        &[q_buffer, k_buffer, v_buffer, output_buffer],
-        (seq_len as u32, num_heads as u32, 1),
-        &[
-            seq_len as u32,
-            hidden_dim as u32,
-            num_heads as u32,
-            head_dim as u32,
-        ],
-        &[scale],
-    ) {
-        Ok(_) => {
-            // Fallback to SIMD for now - GPU result reading needs to be fixed
-            fallback_multi_head_attention(queries, keys, values, num_heads)
-        }
-        Err(_) => {
-            // Fall back to SIMD
-            fallback_multi_head_attention(queries, keys, values, num_heads)
-        }
+    if (seq_idx >= seq_len || head_idx >= num_heads) {
+        return;
     }
+
+    let head_offset = head_idx * head_dim;
+
+    // Pass 1: numerically-stable max of the scaled scores.
+    var max_score = -3.0e38;
+    for (var k: u32 = 0u; k < seq_len; k = k + 1u) {
+        var score = 0.0;
+        for (var d: u32 = 0u; d < head_dim; d = d + 1u) {
+            let q_idx = seq_idx * hidden_dim + head_offset + d;
+            let k_idx = k * hidden_dim + head_offset + d;
+            score = score + queries[q_idx] * keys[k_idx];
+        }
+        score = score * scale;
+        max_score = max(max_score, score);
+    }
+
+    // Pass 2: exp/sum and value accumulation in a single pass over keys.
+    var sum_exp = 0.0;
+    var weights: array<f32, 512>;
+    for (var k: u32 = 0u; k < seq_len; k = k + 1u) {
+        var score = 0.0;
+        for (var d: u32 = 0u; d < head_dim; d = d + 1u) {
+            let q_idx = seq_idx * hidden_dim + head_offset + d;
+            let k_idx = k * hidden_dim + head_offset + d;
+            score = score + queries[q_idx] * keys[k_idx];
+        }
+        let w = exp(score * scale - max_score);
+        weights[k] = w;
+        sum_exp = sum_exp + w;
+    }
+
+    let inv_sum = 1.0 / sum_exp;
+    for (var d: u32 = 0u; d < head_dim; d = d + 1u) {
+        var result = 0.0;
+        for (var k: u32 = 0u; k < seq_len; k = k + 1u) {
+            let v_idx = k * hidden_dim + head_offset + d;
+            result = result + weights[k] * inv_sum * values[v_idx];
+        }
+        let out_idx = seq_idx * hidden_dim + head_offset + d;
+        output[out_idx] = result;
+    }
+}
+"#
+        }
+        GpuBackend::Cuda => {
+            r#"
+extern "C" __global__ void multi_head_attention(
+    const float* __restrict__ queries,
+    const float* __restrict__ keys,
+    const float* __restrict__ values,
+    float* __restrict__ output,
+    const float* __restrict__ params
+) {
+    unsigned int seq_len = (unsigned int)params[0];
+    unsigned int hidden_dim = (unsigned int)params[1];
+    unsigned int num_heads = (unsigned int)params[2];
+    unsigned int head_dim = (unsigned int)params[3];
+    float scale = params[4];
+
+    unsigned int seq_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int head_idx = blockIdx.y * blockDim.y + threadIdx.y;
+    if (seq_idx >= seq_len || head_idx >= num_heads) {
+        return;
+    }
+
+    unsigned int head_offset = head_idx * head_dim;
+
+    float max_score = -3.0e38f;
+    for (unsigned int k = 0; k < seq_len; ++k) {
+        float score = 0.0f;
+        for (unsigned int d = 0; d < head_dim; ++d) {
+            score += queries[seq_idx * hidden_dim + head_offset + d]
+                   * keys[k * hidden_dim + head_offset + d];
+        }
+        score *= scale;
+        max_score = fmaxf(max_score, score);
+    }
+
+    float sum_exp = 0.0f;
+    float weights[512];
+    for (unsigned int k = 0; k < seq_len; ++k) {
+        float score = 0.0f;
+        for (unsigned int d = 0; d < head_dim; ++d) {
+            score += queries[seq_idx * hidden_dim + head_offset + d]
+                   * keys[k * hidden_dim + head_offset + d];
+        }
+        float w = expf(score * scale - max_score);
+        weights[k] = w;
+        sum_exp += w;
+    }
+
+    float inv_sum = 1.0f / sum_exp;
+    for (unsigned int d = 0; d < head_dim; ++d) {
+        float result = 0.0f;
+        for (unsigned int k = 0; k < seq_len; ++k) {
+            result += weights[k] * inv_sum
+                    * values[k * hidden_dim + head_offset + d];
+        }
+        output[seq_idx * hidden_dim + head_offset + d] = result;
+    }
+}
+"#
+        }
+        _ => {
+            // No GPU kernel available for this backend; use the CPU/SIMD path.
+            return fallback_multi_head_attention(queries, keys, values, num_heads);
+        }
+    };
+
+    // Compile and dispatch the kernel, then map the output buffer back to the
+    // host. `copy_to_host` performs the staging-buffer readback (create a
+    // MAP_READ | COPY_DST staging buffer, copy_buffer_to_buffer, submit, poll
+    // until mapped, read the mapped range, then unmap). On any compile or
+    // readback failure we transparently fall back to the CPU/SIMD path.
+    ctx.context.execute(|compiler| match compiler.compile(kernel_source) {
+        Ok(kernel_handle) => {
+            kernel_handle.set_buffer("queries", &q_buffer);
+            kernel_handle.set_buffer("keys", &k_buffer);
+            kernel_handle.set_buffer("values", &v_buffer);
+            kernel_handle.set_buffer("output", &output_buffer);
+            // All scalar parameters travel through a single storage buffer with
+            // a fixed layout, so no per-field ordering assumptions are needed.
+            kernel_handle.set_buffer("params", &params_buffer);
+
+            let work_groups_x = seq_len.div_ceil(16);
+            let work_groups_y = num_heads.div_ceil(16);
+            kernel_handle.dispatch([work_groups_x as u32, work_groups_y as u32, 1]);
+
+            let mut result_flat = vec![0.0f32; seq_len * hidden_dim];
+            match output_buffer.copy_to_host(&mut result_flat) {
+                Ok(()) => Array2::from_shape_vec((seq_len, hidden_dim), result_flat).map_err(
+                    |e| VisionError::Other(format!("Failed to reshape attention output: {e}")),
+                ),
+                Err(copy_error) => {
+                    eprintln!(
+                        "GPU attention readback failed: {copy_error}. Using CPU fallback."
+                    );
+                    fallback_multi_head_attention(queries, keys, values, num_heads)
+                }
+            }
+        }
+        Err(compile_error) => {
+            eprintln!(
+                "GPU multi-head attention kernel compilation failed for backend {:?}: {compile_error}. Using CPU fallback.",
+                ctx.backend()
+            );
+            fallback_multi_head_attention(queries, keys, values, num_heads)
+        }
+    })
 }
 
 /// GPU-accelerated batch matrix multiplication for transformer operations
@@ -688,4 +785,87 @@ fn fallback_multi_head_attention(
     }
 
     Ok(output)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    /// Deterministic pseudo-random fill so the test is reproducible without
+    /// pulling in an RNG. Values are bounded to keep softmax well-conditioned.
+    fn filled(rows: usize, cols: usize, seed: f32) -> Array2<f32> {
+        Array2::from_shape_fn((rows, cols), |(r, c)| {
+            let x = (r as f32 * 0.37 + c as f32 * 0.11 + seed) * 1.3;
+            (x.sin() * 0.5) + (x.cos() * 0.25)
+        })
+    }
+
+    /// The GPU multi-head attention must produce the same result as the CPU
+    /// reference (within f32 tolerance). When no GPU adapter is available the
+    /// GPU entry point transparently falls back to the CPU/SIMD path, so this
+    /// test still verifies the dispatch plumbing and skips gracefully.
+    #[test]
+    fn test_gpu_multi_head_attention_matches_cpu() {
+        let Ok(ctx) = GpuVisionContext::new() else {
+            eprintln!("Skipping: no GPU context (not even CPU backend) available");
+            return;
+        };
+
+        let seq_len = 6;
+        let hidden_dim = 8;
+        let num_heads = 2;
+
+        let queries = filled(seq_len, hidden_dim, 0.0);
+        let keys = filled(seq_len, hidden_dim, 1.0);
+        let values = filled(seq_len, hidden_dim, 2.0);
+
+        let gpu_result = gpu_multi_head_attention(
+            &ctx,
+            &queries.view(),
+            &keys.view(),
+            &values.view(),
+            num_heads,
+        )
+        .expect("GPU multi-head attention should succeed (with fallback)");
+
+        let cpu_reference =
+            fallback_multi_head_attention(&queries.view(), &keys.view(), &values.view(), num_heads)
+                .expect("CPU reference multi-head attention should succeed");
+
+        assert_eq!(gpu_result.dim(), (seq_len, hidden_dim));
+        assert_eq!(gpu_result.dim(), cpu_reference.dim());
+
+        for (g, c) in gpu_result.iter().zip(cpu_reference.iter()) {
+            assert!(
+                (g - c).abs() < 1e-3,
+                "GPU attention output {g} diverged from CPU reference {c} on backend {:?}",
+                ctx.backend()
+            );
+        }
+    }
+
+    /// Mismatched Q/K/V shapes must be rejected before any GPU work.
+    #[test]
+    fn test_gpu_multi_head_attention_rejects_bad_shapes() {
+        let Ok(ctx) = GpuVisionContext::new() else {
+            return;
+        };
+
+        let queries = filled(4, 8, 0.0);
+        let keys = filled(5, 8, 1.0); // wrong seq_len
+        let values = filled(4, 8, 2.0);
+
+        let result =
+            gpu_multi_head_attention(&ctx, &queries.view(), &keys.view(), &values.view(), 2);
+        assert!(result.is_err(), "mismatched K shape must be rejected");
+
+        // hidden_dim not divisible by num_heads
+        let q = filled(4, 6, 0.0);
+        let result = gpu_multi_head_attention(&ctx, &q.view(), &q.view(), &q.view(), 4);
+        assert!(
+            result.is_err(),
+            "hidden_dim not divisible by num_heads must be rejected"
+        );
+    }
 }

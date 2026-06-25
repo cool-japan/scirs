@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 description = "Policy linter for SciRS2 workspace compliance"
 license.workspace = true
+repository.workspace = true
 authors.workspace = true
 readme = "README.md"
 keywords = ["cargo", "policy", "lint", "cooljapan", "workspace"]
@@ -22,4 +23,4 @@ clap = { workspace = true, features = ["derive"] }
 toml = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-walkdir = "2"
+walkdir.workspace = true

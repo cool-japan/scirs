@@ -34,7 +34,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-text = "0.5.0"
+//! scirs2-text = "0.5.1"
 //! ```
 //!
 //! ```rust,no_run
@@ -50,7 +50,7 @@
 //! let matrix = vectorizer.fit_transform(&docs).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.5.0 (March 27, 2026)
+//! ## 🔒 Version: 0.5.1 (March 27, 2026)
 //!
 //! ## Quick Start
 //!
@@ -208,11 +208,13 @@ pub mod keywords;
 pub mod multilingual_ext;
 pub mod ner;
 pub mod pos_tagging_original;
-// TODO: pos_tagging_original_tests uses the pre-refactor API (single-arg lemmatize,
-// remove_word, add_lemma, add_exception, MorphologicalAnalyzer::analyze, etc.) which
-// no longer matches the current pos_tagging module. Re-enable once updated to new API.
-// #[cfg(test)]
-// pub mod pos_tagging_original_tests;
+// The `pos_tagging_original_tests` suite is compiled and run as a child of
+// `pos_tagging_original` via the `#[cfg(test)] #[path = "pos_tagging_original_tests.rs"]`
+// include at the bottom of that module. It must NOT be declared here as a top-level
+// crate module: its `use super::*;` relies on the `pos_tagging_original` items
+// (`MorphologicalAnalyzer`, `ContextualDisambiguator`, and the private `PosTagger`
+// fields/methods) which are not re-exported at the crate root, and the crate root
+// instead re-exports the refactored `pos_tagging` versions.
 pub mod question_answering;
 pub mod regex_lite;
 pub mod segmentation;

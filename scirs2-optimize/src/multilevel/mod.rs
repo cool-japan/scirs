@@ -30,11 +30,11 @@
 //! };
 //!
 //! // High-fidelity function (expensive)
-//! let high_fi = |x: &[f64]| -> f64 {
+//! let high_fi: fn(&[f64]) -> f64 = |x| {
 //!     (x[0] - 2.0).powi(2) + (x[1] - 3.0).powi(2)
 //! };
 //! // Low-fidelity function (cheap approximation)
-//! let low_fi = |x: &[f64]| -> f64 {
+//! let low_fi: fn(&[f64]) -> f64 = |x| {
 //!     (x[0] - 1.8).powi(2) + (x[1] - 2.8).powi(2)
 //! };
 //!

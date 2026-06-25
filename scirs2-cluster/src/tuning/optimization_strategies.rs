@@ -11,6 +11,7 @@ use crate::error::{ClusteringError, Result};
 
 use super::bayesian_optimization::BayesianOptimizer;
 use super::config::*;
+use super::utilities::population_diversity_score;
 
 /// Parameter combination generator for different search strategies
 pub struct ParameterGenerator {
@@ -342,20 +343,32 @@ impl ParameterGenerator {
         Ok(all_combinations)
     }
 
-    /// Tournament selection for evolutionary algorithm
+    /// Tournament selection for the evolutionary candidate generator.
+    ///
+    /// Fitness (clustering quality) is only measured later by the tuner, so at
+    /// generation time we select on a real *diversity* surrogate instead: among the
+    /// randomly drawn tournament members we keep the one farthest (largest summed
+    /// squared distance) from the rest of the population, steering offspring toward
+    /// unexplored regions. This replaces the previous loop that always returned the
+    /// last sampled candidate regardless of its parameter values.
     fn tournament_selection(
         &self,
         population: &[HashMap<String, f64>],
         rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> HashMap<String, f64> {
         let tournament_size = 3.min(population.len());
-        let mut best = &population[rng.random_range(0..population.len())];
+
+        let first_idx = rng.random_range(0..population.len());
+        let mut best = &population[first_idx];
+        let mut best_score = population_diversity_score(best, population);
 
         for _ in 1..tournament_size {
             let candidate = &population[rng.random_range(0..population.len())];
-            // In practice, we'd need fitness scores to compare
-            // For now, just return the first candidate
-            best = candidate;
+            let score = population_diversity_score(candidate, population);
+            if score > best_score {
+                best_score = score;
+                best = candidate;
+            }
         }
 
         best.clone()

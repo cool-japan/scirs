@@ -773,11 +773,13 @@ impl MatV73Features {
     ) -> Result<()> {
         let mut file = HDF5File::open(path, FileMode::ReadWrite)?;
 
-        // Write data to the specified offset
+        // Write data to the specified hyperslab via real read-modify-write on the
+        // f64 dataset (the in-memory representation is patched and stored back).
         let data_slice = data.as_slice().ok_or_else(|| {
             IoError::FormatError("Cannot convert array to contiguous slice".to_string())
         })?;
-        file.write_dataset_slice(dataset_name, data_slice, offset)?;
+        let shape = data.shape().to_vec();
+        file.write_f64_dataset_slice(dataset_name, data_slice, &shape, offset)?;
 
         file.close()?;
         Ok(())
@@ -793,8 +795,8 @@ impl MatV73Features {
     ) -> Result<ArrayD<f64>> {
         let file = HDF5File::open(path, FileMode::ReadOnly)?;
 
-        // Read data from the specified offset and shape
-        let data_vec = file.read_dataset_slice(dataset_name, shape, offset)?;
+        // Read the requested hyperslab from the real f64 dataset contents.
+        let data_vec = file.read_f64_dataset_slice(dataset_name, shape, offset)?;
 
         // Convert Vec to ArrayD
         let array = ArrayD::from_shape_vec(IxDyn(shape), data_vec)

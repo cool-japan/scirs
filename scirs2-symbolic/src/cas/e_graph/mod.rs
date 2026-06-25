@@ -270,7 +270,7 @@ mod tests {
     //    engine.
     //
     // Root-cause fix: `saturate.rs` now sorts `class_ids` before iterating so
-    // that hashbrown's random-seed HashMap order does not affect which rules
+    // that the random-seed HashMap order does not affect which rules
     // fire first.  The numeric check remains for belt-and-suspenders robustness.
     // -----------------------------------------------------------------------
     #[test]

@@ -402,15 +402,17 @@ impl HeterogeneousScheduler {
         }
     }
 
-    /// Calculate device utilization statistics
+    /// Calculate device utilization statistics.
+    ///
+    /// Per-device utilization is not tracked: the scheduler only records total
+    /// wall-clock time per workload key in `performance_history`, which does not
+    /// attribute time to individual devices. Rather than fabricating a value
+    /// (e.g. reporting every device as `0.0`, which reads as "idle"), this
+    /// returns an empty map to honestly signal that no utilization data is
+    /// available. When per-device accounting is added, populate this from the
+    /// recorded per-device execution times.
     fn calculate_device_utilization(&self) -> HashMap<ComputeDevice, f64> {
-        // In a real implementation, this would track actual device usage
-        // For now, return mock data
-        let mut utilization = HashMap::new();
-        for device in &self.available_devices {
-            utilization.insert(device.device, 0.0);
-        }
-        utilization
+        HashMap::new()
     }
 
     /// Optimize execution strategy based on historical performance

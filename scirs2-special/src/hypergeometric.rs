@@ -271,7 +271,7 @@ where
 /// assert!((result1 - 1.2974425414002564).abs() < 1e-10);
 ///
 /// let result2: f64 = hyp1f1(2.0, 3.0, -1.0).expect("test/example should not fail");
-/// assert!((result2 - 0.5).abs() < 1e-10);
+/// assert!((result2 - 0.5284822353142304).abs() < 1e-10);
 /// ```
 /// Confluent hypergeometric limit function 0F1(v, z)
 ///
@@ -825,10 +825,10 @@ where
 ///
 /// // Some known values
 /// let result1: f64 = hyp2f1(1.0, 2.0, 3.0, 0.5).expect("test/example should not fail");
-/// assert!((result1 - 1.4326648536822129).abs() < 1e-10);
+/// assert!((result1 - 1.545177444479562).abs() < 1e-10);
 ///
 /// let result2: f64 = hyp2f1(0.5, 1.0, 1.5, 0.25).expect("test/example should not fail");
-/// assert!((result2 - 1.1861859247859235).abs() < 1e-10);
+/// assert!((result2 - 1.098612288668109).abs() < 1e-10);
 /// ```
 #[allow(dead_code)]
 pub fn hyp2f1<F>(a: F, b: F, c: F, z: F) -> SpecialResult<F>

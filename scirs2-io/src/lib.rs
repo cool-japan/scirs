@@ -58,7 +58,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-io = "0.5.0"
+//! scirs2-io = "0.5.1"
 //! ```
 //!
 //! ```rust,no_run
@@ -73,7 +73,7 @@
 //! let (headers, data) = read_csv("data.csv", Some(config)).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.5.0 (March 27, 2026)
+//! ## 🔒 Version: 0.5.1 (March 27, 2026)
 //!
 //! ## Modules
 //!
@@ -564,6 +564,11 @@ pub mod wavfile;
 /// - Progress monitoring and notifications
 /// - Common workflow templates (ETL, batch processing)
 pub mod workflow;
+/// Zarr v2/v3 chunked array format support
+///
+/// Reading/writing of Zarr arrays in directory stores, codec pipeline
+/// (bytes, transpose, compression via oxiarc-*), and chunk-boundary slice I/O.
+pub mod zarr;
 /// Zero-copy I/O optimizations
 ///
 /// Provides zero-copy implementations for various I/O operations:
@@ -615,6 +620,8 @@ pub mod arrow_streaming;
 pub mod binary_format;
 pub mod binary_formats;
 pub mod compression_utils;
+// Crate-internal std-only encoding helpers (hex, percent-encoding, base64).
+pub(crate) mod encoding_utils;
 pub mod format_detect;
 pub mod lineage;
 pub mod msgpack;

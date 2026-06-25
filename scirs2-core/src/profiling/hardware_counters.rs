@@ -232,10 +232,17 @@ pub trait PerformanceCounter: Send + Sync {
     fn is_overflowed(&self, countertype: &CounterType) -> CoreResult<bool>;
 }
 
-/// Linux perf_event implementation
+/// Linux `perf_event` implementation.
+///
+/// When the `profiling_perf` feature is enabled this opens real kernel
+/// performance counters via the `perf-event` crate (the `perf_event_open(2)`
+/// syscall) and reports their genuine values. Without that feature the crate
+/// has no mechanism to talk to the kernel, so every operation returns an
+/// honest [`HardwareCounterError::NotAvailable`] instead of fabricating data.
 #[cfg(target_os = "linux")]
 pub struct LinuxPerfCounter {
-    active_counters: RwLock<HashMap<CounterType, i32>>, // file descriptors
+    #[cfg(feature = "profiling_perf")]
+    active_counters: Mutex<HashMap<CounterType, perf_event::Counter>>,
 }
 
 #[cfg(target_os = "linux")]
@@ -243,23 +250,30 @@ impl LinuxPerfCounter {
     /// Create a new Linux perf counter
     pub fn new() -> Self {
         Self {
-            active_counters: RwLock::new(HashMap::new()),
+            #[cfg(feature = "profiling_perf")]
+            active_counters: Mutex::new(HashMap::new()),
         }
     }
 
-    /// Convert counter type to perf event type and config
-    fn counter_to_perf_config(&self, countertype: &CounterType) -> Option<(u32, u64)> {
+    /// Map a [`CounterType`] to the corresponding `perf-event` hardware event.
+    ///
+    /// Returns `None` for counters that are not exposed as generic
+    /// `PERF_TYPE_HARDWARE` events (e.g. detailed L1/L2/L3 cache or TLB events,
+    /// which would require `PERF_TYPE_HW_CACHE` configuration).
+    #[cfg(feature = "profiling_perf")]
+    fn counter_to_hardware(countertype: &CounterType) -> Option<perf_event::events::Hardware> {
+        use perf_event::events::Hardware;
         match countertype {
-            CounterType::CpuCycles => Some((0, 0)), // PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES
-            CounterType::Instructions => Some((0, 1)), // PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS
-            CounterType::CacheReferences => Some((0, 2)), // PERF_COUNT_HW_CACHE_REFERENCES
-            CounterType::CacheMisses => Some((0, 3)),  // PERF_COUNT_HW_CACHE_MISSES
-            CounterType::BranchInstructions => Some((0, 4)), // PERF_COUNT_HW_BRANCH_INSTRUCTIONS
-            CounterType::BranchMisses => Some((0, 5)), // PERF_COUNT_HW_BRANCH_MISSES
-            CounterType::BusCycles => Some((0, 6)),    // PERF_COUNT_HW_BUS_CYCLES
-            CounterType::StalledCyclesFrontend => Some((0, 7)), // PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
-            CounterType::StalledCyclesBackend => Some((0, 8)), // PERF_COUNT_HW_STALLED_CYCLES_BACKEND
-            _ => None, // Not supported or requires hardware cache events
+            CounterType::CpuCycles => Some(Hardware::CPU_CYCLES),
+            CounterType::Instructions => Some(Hardware::INSTRUCTIONS),
+            CounterType::CacheReferences => Some(Hardware::CACHE_REFERENCES),
+            CounterType::CacheMisses => Some(Hardware::CACHE_MISSES),
+            CounterType::BranchInstructions => Some(Hardware::BRANCH_INSTRUCTIONS),
+            CounterType::BranchMisses => Some(Hardware::BRANCH_MISSES),
+            CounterType::BusCycles => Some(Hardware::BUS_CYCLES),
+            CounterType::StalledCyclesFrontend => Some(Hardware::STALLED_CYCLES_FRONTEND),
+            CounterType::StalledCyclesBackend => Some(Hardware::STALLED_CYCLES_BACKEND),
+            _ => None,
         }
     }
 }
@@ -271,7 +285,7 @@ impl Default for LinuxPerfCounter {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "profiling_perf"))]
 impl PerformanceCounter for LinuxPerfCounter {
     fn available_counters(&self) -> Vec<CounterType> {
         vec![
@@ -288,60 +302,67 @@ impl PerformanceCounter for LinuxPerfCounter {
     }
 
     fn is_available(&self, countertype: &CounterType) -> bool {
-        self.counter_to_perf_config(countertype).is_some()
+        Self::counter_to_hardware(countertype).is_some()
     }
 
     fn start_counter(&self, countertype: &CounterType) -> CoreResult<()> {
-        if let Some(_event_type_config) = self.counter_to_perf_config(countertype) {
-            // In a real implementation, we would:
-            // 1. Create perf_event_attr structure
-            // 2. Call perf_event_open syscall
-            // 3. Store the file descriptor
+        let hardware = Self::counter_to_hardware(countertype)
+            .ok_or_else(|| HardwareCounterError::CounterNotFound(format!("{countertype:?}")))?;
 
-            // For now, simulate with a dummy file descriptor
-            let fd = 42; // Would be actual fd from perf_event_open
+        // Open a real kernel counter via perf_event_open(2) and enable it.
+        let mut counter = perf_event::Builder::new()
+            .one_cpu(0)
+            .kind(hardware)
+            .build()
+            .map_err(|e| {
+                HardwareCounterError::SystemError(format!(
+                    "perf_event_open failed for {countertype:?}: {e}"
+                ))
+            })?;
+        counter.enable().map_err(|e| {
+            HardwareCounterError::SystemError(format!(
+                "Failed to enable counter {countertype:?}: {e}"
+            ))
+        })?;
 
-            let mut counters = self.active_counters.write().expect("Operation failed");
-            counters.insert(countertype.clone(), fd);
-
-            Ok(())
-        } else {
-            Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into())
-        }
+        let mut counters = self
+            .active_counters
+            .lock()
+            .map_err(|_| HardwareCounterError::SystemError("Counter map poisoned".to_string()))?;
+        counters.insert(countertype.clone(), counter);
+        Ok(())
     }
 
     fn stop_counter(&self, countertype: &CounterType) -> CoreResult<()> {
-        let mut counters = self.active_counters.write().expect("Operation failed");
-        if let Some(fd) = counters.remove(countertype) {
-            // In real implementation: close(fd)
-            let _ = fd;
-            Ok(())
-        } else {
-            Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into())
+        let mut counters = self
+            .active_counters
+            .lock()
+            .map_err(|_| HardwareCounterError::SystemError("Counter map poisoned".to_string()))?;
+        match counters.remove(countertype) {
+            Some(mut counter) => {
+                // Best-effort disable; the fd is closed when `counter` drops.
+                let _ = counter.disable();
+                Ok(())
+            }
+            None => Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into()),
         }
     }
 
     fn read_counter(&self, countertype: &CounterType) -> CoreResult<CounterValue> {
-        let counters = self.active_counters.read().expect("Operation failed");
-        if let Some(_fd) = counters.get(countertype) {
-            // In real implementation: read() from fd
-            // For now, return a mock value
-            let mock_value = match countertype {
-                CounterType::CpuCycles => 1_000_000,
-                CounterType::Instructions => 500_000,
-                CounterType::CacheReferences => 10_000,
-                CounterType::CacheMisses => 1_000,
-                CounterType::BranchInstructions => 100_000,
-                CounterType::BranchMisses => 5_000,
-                CounterType::BusCycles => 50_000,
-                CounterType::StalledCyclesFrontend => 10_000,
-                CounterType::StalledCyclesBackend => 20_000,
-                _ => 0,
-            };
-
-            Ok(CounterValue::new(countertype.clone(), mock_value))
-        } else {
-            Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into())
+        let mut counters = self
+            .active_counters
+            .lock()
+            .map_err(|_| HardwareCounterError::SystemError("Counter map poisoned".to_string()))?;
+        match counters.get_mut(countertype) {
+            Some(counter) => {
+                let value = counter.read().map_err(|e| {
+                    HardwareCounterError::SystemError(format!(
+                        "Failed to read counter {countertype:?}: {e}"
+                    ))
+                })?;
+                Ok(CounterValue::new(countertype.clone(), value))
+            }
+            None => Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into()),
         }
     }
 
@@ -354,24 +375,75 @@ impl PerformanceCounter for LinuxPerfCounter {
     }
 
     fn reset_counter(&self, countertype: &CounterType) -> CoreResult<()> {
-        let counters = self.active_counters.read().expect("Operation failed");
-        if counters.contains_key(countertype) {
-            // In real implementation: ioctl(fd, PERF_EVENT_IOC_RESET, 0)
-            Ok(())
-        } else {
-            Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into())
+        let mut counters = self
+            .active_counters
+            .lock()
+            .map_err(|_| HardwareCounterError::SystemError("Counter map poisoned".to_string()))?;
+        match counters.get_mut(countertype) {
+            Some(counter) => counter.reset().map_err(|e| {
+                HardwareCounterError::SystemError(format!(
+                    "Failed to reset counter {countertype:?}: {e}"
+                ))
+                .into()
+            }),
+            None => Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into()),
         }
     }
 
     fn is_overflowed(&self, countertype: &CounterType) -> CoreResult<bool> {
-        let counters = self.active_counters.read().expect("Operation failed");
+        // perf hardware counters are 64-bit and the kernel scales/accumulates
+        // them transparently on read; the `perf-event` crate exposes no overflow
+        // flag, so for an active counter we report "not overflowed".
+        let counters = self
+            .active_counters
+            .lock()
+            .map_err(|_| HardwareCounterError::SystemError("Counter map poisoned".to_string()))?;
         if counters.contains_key(countertype) {
-            // In real implementation: check overflow bit from perf_event read
-            // For now, always return false (not overflowed)
             Ok(false)
         } else {
             Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into())
         }
+    }
+}
+
+/// Honest fallback for Linux builds without the `profiling_perf` feature.
+///
+/// The crate cannot read hardware counters without the `perf-event`
+/// integration, so rather than returning fabricated numbers every operation
+/// reports that counters are unavailable. Enable the `profiling_perf` feature
+/// for real `perf_event_open(2)`-backed measurements.
+#[cfg(all(target_os = "linux", not(feature = "profiling_perf")))]
+impl PerformanceCounter for LinuxPerfCounter {
+    fn available_counters(&self) -> Vec<CounterType> {
+        Vec::new()
+    }
+
+    fn is_available(&self, _countertype: &CounterType) -> bool {
+        false
+    }
+
+    fn start_counter(&self, _countertype: &CounterType) -> CoreResult<()> {
+        Err(HardwareCounterError::NotAvailable.into())
+    }
+
+    fn stop_counter(&self, _countertype: &CounterType) -> CoreResult<()> {
+        Err(HardwareCounterError::NotAvailable.into())
+    }
+
+    fn read_counter(&self, _countertype: &CounterType) -> CoreResult<CounterValue> {
+        Err(HardwareCounterError::NotAvailable.into())
+    }
+
+    fn read_counters(&self, _countertypes: &[CounterType]) -> CoreResult<Vec<CounterValue>> {
+        Err(HardwareCounterError::NotAvailable.into())
+    }
+
+    fn reset_counter(&self, _countertype: &CounterType) -> CoreResult<()> {
+        Err(HardwareCounterError::NotAvailable.into())
+    }
+
+    fn is_overflowed(&self, _countertype: &CounterType) -> CoreResult<bool> {
+        Err(HardwareCounterError::NotAvailable.into())
     }
 }
 
@@ -447,15 +519,14 @@ impl PerformanceCounter for WindowsPdhCounter {
     fn read_counter(&self, countertype: &CounterType) -> CoreResult<CounterValue> {
         let counters = self.active_counters.read().expect("Operation failed");
         if counters.contains_key(countertype) {
-            // Mock values for Windows
-            let mock_value = match countertype {
-                CounterType::CpuCycles => 85,               // CPU usage percentage
-                CounterType::CpuFrequency => 2_400_000_000, // 2.4 GHz
-                CounterType::CpuPower => 45,                // 45 watts
-                _ => 0,
-            };
-
-            Ok(CounterValue::new(countertype.clone(), mock_value))
+            // Reading a live value requires the Windows PDH API (PdhCollectQueryData
+            // / PdhGetFormattedCounterValue), which is not yet wired up. Returning a
+            // fabricated number here would be misleading, so report honestly that
+            // the value cannot be read rather than inventing one.
+            Err(HardwareCounterError::SystemError(format!(
+                "Reading Windows PDH counter {countertype:?} is not implemented"
+            ))
+            .into())
         } else {
             Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into())
         }
@@ -549,16 +620,14 @@ impl PerformanceCounter for MacOSCounter {
     fn read_counter(&self, countertype: &CounterType) -> CoreResult<CounterValue> {
         let counters = self.active_counters.read().expect("Operation failed");
         if counters.contains_key(countertype) {
-            // Mock values for macOS
-            let mock_value = match countertype {
-                CounterType::CpuCycles => 2_000_000,
-                CounterType::Instructions => 1_000_000,
-                CounterType::CpuFrequency => 3_200_000_000, // 3.2 GHz
-                CounterType::CpuTemperature => 65,          // 65°C
-                _ => 0,
-            };
-
-            Ok(CounterValue::new(countertype.clone(), mock_value))
+            // macOS exposes CPU performance counters through the private kperf /
+            // IOKit interfaces (or `powermetrics` for power/thermal), none of which
+            // are wired up here. Rather than returning a plausible-looking but
+            // fabricated value, report honestly that the read is unavailable.
+            Err(HardwareCounterError::SystemError(format!(
+                "Reading macOS hardware counter {countertype:?} is not implemented"
+            ))
+            .into())
         } else {
             Err(HardwareCounterError::CounterNotFound(format!("{countertype:?}")).into())
         }

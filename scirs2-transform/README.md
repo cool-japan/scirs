@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-transform.svg)](https://crates.io/crates/scirs2-transform)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-transform)](https://docs.rs/scirs2-transform)
-[![Version](https://img.shields.io/badge/version-0.5.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
 
 Data transformation, dimensionality reduction, and feature engineering library for machine learning in Rust, part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
@@ -150,14 +150,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-transform = "0.5.0"
+scirs2-transform = "0.5.1"
 ```
 
 With SIMD and parallel features:
 
 ```toml
 [dependencies]
-scirs2-transform = { version = "0.5.0", features = ["parallel", "simd"] }
+scirs2-transform = { version = "0.5.1", features = ["parallel", "simd"] }
 ```
 
 ### Normalization

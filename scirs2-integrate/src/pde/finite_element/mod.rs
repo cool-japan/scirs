@@ -11,7 +11,7 @@
 //! - Various boundary condition types
 
 pub mod higher_order;
-// pub mod petrov_galerkin;  // TODO: fix orphan stub - multiple syntax errors in implementation
+pub mod petrov_galerkin;
 
 #[cfg(test)]
 mod higher_order_tests;
@@ -29,6 +29,9 @@ use crate::pde::{
 pub use higher_order::{
     HigherOrderMeshGenerator, HigherOrderTriangle, ShapeFunctions, TriangularQuadrature,
 };
+
+// Re-export Petrov-Galerkin functionality
+pub use petrov_galerkin::{PetrovGalerkinSolver, PetrovGalerkinType, StabilizedFormulations};
 
 /// A point in 2D space
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -534,7 +534,15 @@ impl FutureExecutor {
 
     /// Shut down the executor.  Waits for all queued tasks to complete.
     pub fn shutdown(self) -> CoreResult<()> {
-        self.stop.store(true, Ordering::SeqCst);
+        {
+            // Publish the stop flag under the queue lock so a worker that is between
+            // its `stop` check and `cond.wait` cannot miss the wakeup (lost-wakeup fix).
+            let _guard = self
+                .tx
+                .lock()
+                .map_err(|e| lock_err("FutureExecutor::shutdown", e))?;
+            self.stop.store(true, Ordering::SeqCst);
+        }
         self.cond.notify_all();
         for h in self.handles {
             h.join().map_err(|_| {

@@ -125,7 +125,14 @@ impl MetaLearningOptimizer {
         optimizer: &TaskSpecificOptimizer,
         task: &TrainingTask,
     ) -> OptimizeResult<f64> {
-        // Simplified training simulation
+        // Meta-training rolls the current meta-strategy out on a smooth
+        // surrogate of the task. A `TrainingTask` supplies only a problem
+        // descriptor (dimension, class and, when available, the ground-truth
+        // optimum) rather than a callable objective, so the surrogate is built
+        // from that descriptor: a bowl centred on the known optimum (or the
+        // origin when it is unknown) whose curvature reflects the problem class.
+        // The returned value is the real objective improvement the strategy
+        // achieves on this surrogate, which drives the meta-parameter updates.
         let initial_params = match &task.initial_distribution {
             super::ParameterDistribution::Uniform { low, high } => {
                 Array1::from_shape_fn(task.problem.dimension, |_| {
@@ -146,8 +153,30 @@ impl MetaLearningOptimizer {
             }
         };
 
-        // Simple quadratic objective for training
-        let training_objective = |x: &ArrayView1<f64>| x.iter().map(|&xi| xi * xi).sum::<f64>();
+        // Centre of the surrogate: the task's ground-truth optimum when known.
+        let center = match &task.true_optimum {
+            Some(opt) if opt.len() == task.problem.dimension => opt.clone(),
+            _ => Array1::zeros(task.problem.dimension),
+        };
+        let problem_class = task.problem.problem_class.clone();
+
+        // Smooth surrogate objective with its global minimum at `center`. The
+        // problem class shapes the landscape: a plain quadratic bowl by default,
+        // a mildly non-convex bowl for neural-network-like tasks, and a bowl
+        // with a smooth L1 term rewarding sparse displacement for sparse tasks.
+        let training_objective = move |x: &ArrayView1<f64>| -> f64 {
+            let mut value = 0.0;
+            for i in 0..x.len().min(center.len()) {
+                let d = x[i] - center[i];
+                value += d * d;
+                match problem_class.as_str() {
+                    "neural_network" => value += 0.1 * d.sin().powi(2),
+                    "sparse" => value += 0.1 * (d * d + 1e-12).sqrt(),
+                    _ => {}
+                }
+            }
+            value
+        };
 
         let initial_value = training_objective(&initial_params.view());
         let mut current_params = initial_params;
@@ -673,9 +702,4 @@ mod tests {
         assert!(optimizer.meta_state.meta_params != initial_params);
         assert_eq!(optimizer.meta_state.performance_history.len(), 1);
     }
-}
-
-#[allow(dead_code)]
-pub fn placeholder() {
-    // Placeholder function to prevent unused module warnings
 }

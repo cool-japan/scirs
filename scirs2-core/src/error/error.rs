@@ -144,7 +144,13 @@ impl fmt::Display for ErrorContext {
 }
 
 /// Core error type for ``SciRS2``
+///
+/// This enum is `#[non_exhaustive]`: downstream crates must include a wildcard
+/// `_` arm when matching on it, so that adding new variants here is not a
+/// breaking change.  The `core_error_non_exhaustive` compile-fail test in
+/// `scirs2-stability-tests` guards this contract.
 #[derive(Error, Debug, Clone)]
+#[non_exhaustive]
 pub enum CoreError {
     /// Computation error (generic error)
     #[error("{0}")]

@@ -1,78 +1,65 @@
-// use scirs2_core::ndarray::Array; // Unused import
-use scirs2_neural::{
-    error::Result,
-    // models::architectures::{ConvNeXt, ConvNeXtConfig, ConvNeXtVariant}, // TODO: Implement models module
-    // prelude::*, // Unused import
-};
+//! ConvNeXt example
+//!
+//! Demonstrates building a ConvNeXt model and running a forward pass on a small
+//! dummy image batch. A small custom configuration and input are used so the
+//! example runs quickly.
 
-#[allow(dead_code)]
+use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_neural::error::Result;
+use scirs2_neural::layers::Layer;
+use scirs2_neural::models::architectures::{ConvNeXt, ConvNeXtConfig, ConvNeXtVariant};
+
 fn main() -> Result<()> {
     println!("ConvNeXt Example");
     println!("----------------");
-    println!("Note: ConvNeXt models are not yet implemented.");
-    println!("This example is a placeholder for future ConvNeXt functionality.");
 
-    // TODO: Implement ConvNeXt models module and uncomment the following code
-    /*
-    // Create a random input tensor (batch_size=1, channels=3, height=224, width=224)
-    let inputshape = [1, 3, 224, 224];
-    let mut input = Array::<f32>::zeros(inputshape).into_dyn();
-    // Fill with random values between 0 and 1
-    for elem in input.iter_mut() {
-        *elem = scirs2_core::random::random::<f32>();
-    }
-    // Create ConvNeXt-Tiny with default configuration
-    println!("\nConvNeXt-Tiny:");
-    let convnext_tiny = ConvNeXt::convnext_tiny(1000, true)?;
-    let output_tiny = convnext_tiny.forward(&input)?;
-    println!("Output shape: {:?}", output_tiny.shape());
-    // Create ConvNeXt-Small with default configuration
-    println!("\nConvNeXt-Small:");
-    let convnext_small = ConvNeXt::convnext_small(1000, true)?;
-    let output_small = convnext_small.forward(&input)?;
-    println!("Output shape: {:?}", output_small.shape());
-    // Create ConvNeXt-Base with default configuration
-    println!("\nConvNeXt-Base:");
-    let convnext_base = ConvNeXt::convnext_base(1000, true)?;
-    let output_base = convnext_base.forward(&input)?;
-    println!("Output shape: {:?}", output_base.shape());
-    // Create ConvNeXt-Large with default configuration
-    println!("\nConvNeXt-Large:");
-    let convnext_large = ConvNeXt::convnext_large(1000, true)?;
-    let output_large = convnext_large.forward(&input)?;
-    println!("Output shape: {:?}", output_large.shape());
-    // Custom ConvNeXt with specific configuration
-    println!("\nCustom ConvNeXt:");
-    let custom_config = ConvNeXtConfig {
+    // Small custom ConvNeXt configuration for a lightweight forward pass.
+    let config = ConvNeXtConfig {
         variant: ConvNeXtVariant::Tiny,
         input_channels: 3,
-        depths: vec![3, 3, 9, 3],
-        dims: vec![96, 192, 384, 768],
+        depths: vec![1, 1, 1, 1],
+        dims: vec![8, 16, 32, 64],
         num_classes: 10,
-        dropout_rate: Some(0.2),
+        dropout_rate: Some(0.1),
         layer_scale_init_value: 1e-6,
         include_top: true,
     };
-    let custom_convnext = ConvNeXt::new(custom_config)?;
-    let output_custom = custom_convnext.forward(&input)?;
-    println!("Output shape: {:?}", output_custom.shape());
-    // Example of inference
-    println!("\nInference example with ConvNeXt-Tiny:");
-    let inference_input = Array::<f32>::zeros(inputshape).into_dyn();
-    let inference_output = convnext_tiny.forward(&inference_input)?;
-    // Get top prediction (normally you'd have class labels)
+
+    println!("Creating a small custom ConvNeXt model...");
+    let model = ConvNeXt::<f32>::new(config)?;
+
+    // Small dummy input (batch_size=1, channels=3, height=16, width=16) so the
+    // naive convolution kernels run quickly.
+    let input = Array::from_shape_fn(IxDyn(&[1, 3, 16, 16]), |_| {
+        scirs2_core::random::random::<f32>()
+    });
+    println!("Input shape: {:?}", input.shape());
+
+    let output = model.forward(&input)?;
+    println!("Output shape: {:?}", output.shape());
+
+    // Find the top predicted class.
     let mut max_val = f32::MIN;
     let mut max_idx = 0;
-    for (i, &val) in inference_output.iter().enumerate() {
+    for (i, &val) in output.iter().enumerate() {
         if val > max_val {
             max_val = val;
             max_idx = i;
         }
     }
-    println!(
-        "Predicted class: {} with confidence: {:.4}",
-        max_idx, max_val
-    );
-    */
+    println!("Predicted class: {} with score: {:.4}", max_idx, max_val);
+
+    // Demonstrate the `convnext_tiny` convenience constructor. The full Tiny
+    // configuration ([3, 3, 9, 3] depths up to 768 channels) is heavy for the
+    // naive convolution kernels, so we construct it and report its configuration
+    // rather than running a full forward pass, keeping the example fast. (The
+    // forward-pass demonstration above uses the small custom model.)
+    println!("\nCreating ConvNeXt-Tiny (feature extractor)...");
+    let tiny = ConvNeXt::<f32>::convnext_tiny(10, false)?;
+    println!("ConvNeXt-Tiny model created successfully.");
+    println!("  - stage depths: {:?}", tiny.config.depths);
+    println!("  - stage dims: {:?}", tiny.config.dims);
+
+    println!("\nConvNeXt example completed successfully!");
     Ok(())
 }

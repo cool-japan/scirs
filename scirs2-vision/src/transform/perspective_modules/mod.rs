@@ -30,5 +30,5 @@ pub use warping::{
 
 // Re-export rectification functionality
 pub use rectification::{
-    auto_perspective_correction, extract_rectangle,
+    auto_perspective_correction, detect_quadrilateral, extract_rectangle,
 };

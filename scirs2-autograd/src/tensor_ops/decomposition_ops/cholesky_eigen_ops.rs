@@ -31,8 +31,6 @@ impl<F: Float> Op<F> for CholeskyOp {
 
         let n = shape[0];
 
-        println!("Computing Cholesky decomposition for matrix of shape: [{n}, {n}]");
-
         let input_2d = input
             .view()
             .into_dimensionality::<Ix2>()
@@ -71,9 +69,6 @@ impl<F: Float> Op<F> for CholeskyOp {
                 }
             }
         }
-
-        println!("Cholesky decomposition results:");
-        println!("L shape: {:?}", l.shape());
 
         ctx.append_output(l.into_dyn());
 
@@ -210,8 +205,6 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SymmetricEigenOp 
         }
 
         let n = shape[0];
-
-        println!("Computing symmetric eigendecomposition for matrix of shape: [{n}, {n}]");
 
         let input_2d = input
             .view()

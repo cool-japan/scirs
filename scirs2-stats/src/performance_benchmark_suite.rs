@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use crate::benchmark_suite::{BenchmarkConfig, BenchmarkMetrics};
-use crate::error::StatsResult;
+use crate::error::{StatsError, StatsResult};
 // use crate::advanced_error_enhancements_v2::CompatibilityImpact; // Commented out temporarily
 use scirs2_core::ndarray::Array1;
 use scirs2_core::random::{Distribution, Exponential, LogNormal, Normal, Pareto, Uniform};
@@ -773,7 +773,14 @@ impl AdvancedBenchmarkSuite {
         })
     }
 
-    /// Benchmark numerical stability
+    /// Benchmark numerical stability.
+    ///
+    /// Computes a genuine numerical-stability assessment (relative error of the
+    /// production `mean` against a high-precision reference) **and** measures the
+    /// real wall-clock execution time of the statistic using the same
+    /// warmup-then-measure protocol as
+    /// [`benchmark_scalability`](Self::benchmark_scalability). Returns an honest
+    /// error if no measurement iterations are configured.
     fn benchmark_stability(
         &self,
         name: &str,
@@ -795,45 +802,36 @@ impl AdvancedBenchmarkSuite {
             distribution_stability: HashMap::new(),
         };
 
-        let base_metrics = crate::benchmark_suite::BenchmarkMetrics {
-            function_name: name.to_string(),
-            datasize: data.len(),
-            timing: crate::benchmark_suite::TimingStats {
-                mean_ns: 1000.0,
-                std_dev_ns: 100.0,
-                min_ns: 900.0,
-                max_ns: 1200.0,
-                median_ns: 1000.0,
-                p95_ns: 1100.0,
-                p99_ns: 1150.0,
-            },
-            memory: None,
-            algorithm_config: crate::benchmark_suite::AlgorithmConfig {
-                simd_enabled: false,
-                parallel_enabled: false,
-                thread_count: None,
-                simd_width: None,
-                algorithm_variant: "standard".to_string(),
-            },
-            throughput: data.len() as f64 / 1e-6, // operations per second
-            baseline_comparison: None,
-        };
+        // Measure the real execution time of `mean` on this data, mirroring the
+        // warmup-then-measure protocol used by `benchmark_scalability`.
+        let mut timings = Vec::with_capacity(self.config.base_config.iterations);
+
+        // Warmup iterations (not measured) to stabilise caches/branch predictors.
+        for _ in 0..self.config.base_config.warmup_iterations {
+            let _ = crate::mean(&data.view())?;
+        }
+
+        // Measured iterations: time the real computation.
+        for _ in 0..self.config.base_config.iterations {
+            let start = Instant::now();
+            let _ = crate::mean(&data.view())?;
+            timings.push(start.elapsed().as_nanos() as f64);
+        }
+
+        // Guard against an empty measurement set (iterations == 0).
+        if timings.is_empty() {
+            return Err(StatsError::InvalidArgument(
+                "stability benchmark requires at least one measurement iteration".to_string(),
+            ));
+        }
+
+        let base_metrics = self.calculatebase_metrics(name, data.len(), &timings);
+        let scalability_metrics = self.calculate_scalability_metrics(data.len(), &timings);
 
         Ok(AdvancedBenchmarkMetrics {
             base_metrics,
             stability_metrics,
-            scalability_metrics: ScalabilityMetrics {
-                complexity_class: ComplexityClass::Linear,
-                measured_scaling_factor: 1.0,
-                scale_efficiency: vec![(data.len(), 1.0)],
-                memory_scaling: MemoryScalingMetrics {
-                    allocation_efficiency: 0.95,
-                    memory_reuse_factor: 0.8,
-                    fragmentation_growth_rate: 0.01,
-                    cache_miss_rate_growth: 0.05,
-                },
-                parallel_scaling: None,
-            },
+            scalability_metrics,
             power_metrics: None,
             memory_hierarchy_metrics: self.calculate_memory_hierarchy_metrics(),
             platform_variance: None,
@@ -841,52 +839,44 @@ impl AdvancedBenchmarkSuite {
         })
     }
 
-    /// Benchmark scalability characteristics
+    /// Benchmark scalability characteristics.
+    ///
+    /// Runs the statistic (`mean`) on the supplied data and measures its real
+    /// wall-clock execution time using the same warmup-then-measure protocol as
+    /// [`benchmark_function`](Self::benchmark_function). The resulting timing
+    /// statistics and per-size efficiency are derived from genuine
+    /// measurements; cross-size scaling is then analysed by the caller, which
+    /// invokes this routine for each test size.
     fn benchmark_scalability(
         &self,
         name: &str,
         data: &Array1<f64>,
         size: usize,
     ) -> StatsResult<AdvancedBenchmarkMetrics> {
-        // This is a simplified implementation
-        // In practice, you would run multiple sizes and analyze scaling
+        let mut timings = Vec::with_capacity(self.config.base_config.iterations);
 
-        let base_metrics = crate::benchmark_suite::BenchmarkMetrics {
-            function_name: name.to_string(),
-            datasize: size,
-            timing: crate::benchmark_suite::TimingStats {
-                mean_ns: (size as f64 * 10.0), // Simulated linear scaling
-                std_dev_ns: (size as f64 * 1.0),
-                min_ns: (size as f64 * 9.0),
-                max_ns: (size as f64 * 12.0),
-                median_ns: (size as f64 * 10.0),
-                p95_ns: (size as f64 * 11.0),
-                p99_ns: (size as f64 * 11.5),
-            },
-            memory: None,
-            algorithm_config: crate::benchmark_suite::AlgorithmConfig {
-                simd_enabled: false,
-                parallel_enabled: false,
-                thread_count: None,
-                simd_width: None,
-                algorithm_variant: "standard".to_string(),
-            },
-            throughput: size as f64 / (size as f64 * 10e-9), // operations per second
-            baseline_comparison: None,
-        };
+        // Warmup iterations (not measured) to stabilise caches/branch predictors.
+        for _ in 0..self.config.base_config.warmup_iterations {
+            let _ = crate::mean(&data.view())?;
+        }
 
-        let scalability_metrics = ScalabilityMetrics {
-            complexity_class: ComplexityClass::Linear,
-            measured_scaling_factor: 1.0,
-            scale_efficiency: vec![(size, 1.0)],
-            memory_scaling: MemoryScalingMetrics {
-                allocation_efficiency: 0.95,
-                memory_reuse_factor: 0.8,
-                fragmentation_growth_rate: 0.01,
-                cache_miss_rate_growth: 0.05,
-            },
-            parallel_scaling: None,
-        };
+        // Measured iterations: time the real computation.
+        for _ in 0..self.config.base_config.iterations {
+            let start = Instant::now();
+            let _ = crate::mean(&data.view())?;
+            timings.push(start.elapsed().as_nanos() as f64);
+        }
+
+        // Guard against an empty measurement set (iterations == 0).
+        if timings.is_empty() {
+            let _ = crate::mean(&data.view())?;
+            return Err(StatsError::InvalidArgument(
+                "scalability benchmark requires at least one measurement iteration".to_string(),
+            ));
+        }
+
+        let base_metrics = self.calculatebase_metrics(name, size, &timings);
+        let scalability_metrics = self.calculate_scalability_metrics(size, &timings);
 
         Ok(AdvancedBenchmarkMetrics {
             base_metrics,
@@ -899,51 +889,77 @@ impl AdvancedBenchmarkSuite {
         })
     }
 
-    /// Benchmark cross-platform performance
+    /// Benchmark "cross-platform" performance on the current platform.
+    ///
+    /// A single process can only execute on the architecture it is running on,
+    /// so a genuine cross-platform variance figure (comparing, e.g., `x86_64`
+    /// vs `aarch64` vs `wasm32`) cannot be produced here. Rather than fabricate
+    /// per-platform numbers, this routine:
+    ///
+    /// * runs the **real** benchmark on the current target using the same
+    ///   warmup-then-measure protocol as the other benchmark routines;
+    /// * reports the genuine measured timing under the current target's
+    ///   architecture key in `platform_specific_metrics` (a single entry, since
+    ///   only one platform is observable);
+    /// * sets `coefficient_of_variation` to the **real** run-to-run CV measured
+    ///   on this platform (std / mean of the per-iteration timings) — this is
+    ///   intra-platform jitter, not cross-platform variance;
+    /// * leaves the SIMD/compiler/hardware feature-impact maps empty, because
+    ///   those require building/running on multiple targets.
+    ///
+    /// True cross-platform comparison requires running this benchmark on each
+    /// target architecture and aggregating the per-target results externally.
     fn benchmark_cross_platform(
         &self,
         name: &str,
         data: &Array1<f64>,
     ) -> StatsResult<AdvancedBenchmarkMetrics> {
-        // This would involve running on multiple platforms
-        // For now, we simulate the metrics
+        // Measure the real execution time of `mean` on this platform, mirroring
+        // the warmup-then-measure protocol used by `benchmark_scalability`.
+        let mut timings = Vec::with_capacity(self.config.base_config.iterations);
 
-        let base_metrics = crate::benchmark_suite::BenchmarkMetrics {
-            function_name: name.to_string(),
-            datasize: data.len(),
-            timing: crate::benchmark_suite::TimingStats {
-                mean_ns: 1000.0,
-                std_dev_ns: 100.0,
-                min_ns: 900.0,
-                max_ns: 1200.0,
-                median_ns: 1000.0,
-                p95_ns: 1100.0,
-                p99_ns: 1150.0,
-            },
-            memory: None,
-            algorithm_config: crate::benchmark_suite::AlgorithmConfig {
-                simd_enabled: false,
-                parallel_enabled: false,
-                thread_count: None,
-                simd_width: None,
-                algorithm_variant: "standard".to_string(),
-            },
-            throughput: data.len() as f64 / 1e-6,
-            baseline_comparison: None,
+        // Warmup iterations (not measured) to stabilise caches/branch predictors.
+        for _ in 0..self.config.base_config.warmup_iterations {
+            let _ = crate::mean(&data.view())?;
+        }
+
+        // Measured iterations: time the real computation.
+        for _ in 0..self.config.base_config.iterations {
+            let start = Instant::now();
+            let _ = crate::mean(&data.view())?;
+            timings.push(start.elapsed().as_nanos() as f64);
+        }
+
+        // Guard against an empty measurement set (iterations == 0).
+        if timings.is_empty() {
+            return Err(StatsError::InvalidArgument(
+                "cross-platform benchmark requires at least one measurement iteration".to_string(),
+            ));
+        }
+
+        let base_metrics = self.calculatebase_metrics(name, data.len(), &timings);
+
+        // Real run-to-run coefficient of variation on this platform.
+        let mean_ns = base_metrics.timing.mean_ns;
+        let coefficient_of_variation = if mean_ns > 0.0 {
+            base_metrics.timing.std_dev_ns / mean_ns
+        } else {
+            0.0
         };
 
+        // Only the current architecture is observable from this process. Report
+        // its genuine measured mean timing (ns) and leave the cross-target
+        // feature-impact maps empty (not measured here).
+        let mut platform_specific_metrics = HashMap::new();
+        platform_specific_metrics.insert(std::env::consts::ARCH.to_string(), mean_ns);
+
         let platform_variance = PlatformVarianceMetrics {
-            coefficient_of_variation: 0.15, // 15% variance across platforms
-            platform_specific_metrics: [
-                ("x86_64".to_string(), 1.0),
-                ("aarch64".to_string(), 0.85),
-                ("wasm32".to_string(), 0.6),
-            ]
-            .iter()
-            .cloned()
-            .collect(),
+            coefficient_of_variation,
+            platform_specific_metrics,
             architecture_impact: HashMap::new(),
             feature_dependency_analysis: FeatureDependencyAnalysis {
+                // Populating these requires building/running on multiple targets;
+                // not measured within a single process (left empty, not faked).
                 simd_feature_impact: HashMap::new(),
                 compiler_optimization_impact: HashMap::new(),
                 hardware_capability_impact: HashMap::new(),
@@ -953,18 +969,7 @@ impl AdvancedBenchmarkSuite {
         Ok(AdvancedBenchmarkMetrics {
             base_metrics,
             stability_metrics: self.calculate_stability_metrics(data),
-            scalability_metrics: ScalabilityMetrics {
-                complexity_class: ComplexityClass::Linear,
-                measured_scaling_factor: 1.0,
-                scale_efficiency: vec![(data.len(), 1.0)],
-                memory_scaling: MemoryScalingMetrics {
-                    allocation_efficiency: 0.95,
-                    memory_reuse_factor: 0.8,
-                    fragmentation_growth_rate: 0.01,
-                    cache_miss_rate_growth: 0.05,
-                },
-                parallel_scaling: None,
-            },
+            scalability_metrics: self.calculate_scalability_metrics(data.len(), &timings),
             power_metrics: None,
             memory_hierarchy_metrics: self.calculate_memory_hierarchy_metrics(),
             platform_variance: Some(platform_variance),
@@ -1671,5 +1676,97 @@ mod tests {
             .expect("Operation failed");
         assert!(matches!(model.model_type, ModelType::Linear));
         assert_eq!(model.coefficients.len(), 2); // intercept and slope
+    }
+
+    /// Build a config with controlled, small iteration counts so the
+    /// measurement-based benchmarks run quickly and deterministically.
+    fn fast_config(warmup_iterations: usize, iterations: usize) -> AdvancedBenchmarkConfig {
+        let mut config = AdvancedBenchmarkConfig::default();
+        config.base_config.warmup_iterations = warmup_iterations;
+        config.base_config.iterations = iterations;
+        config
+    }
+
+    #[test]
+    fn test_benchmark_stability_reports_real_timing() {
+        // `benchmark_stability` must measure the real execution time of `mean`,
+        // not return the old fabricated `mean_ns: 1000.0` constant.
+        let suite = AdvancedBenchmarkSuite::new(fast_config(2, 8));
+        let data = Array1::from_elem(1000, 3.5_f64);
+
+        let metrics = suite
+            .benchmark_stability("mean_stability_real", &data)
+            .expect("stability benchmark should succeed with iterations > 0");
+
+        // Real measurement: a positive, finite wall-clock mean derived from the
+        // measured samples (ordering of percentiles is internally consistent).
+        let timing = &metrics.base_metrics.timing;
+        assert!(timing.mean_ns > 0.0, "measured mean must be positive");
+        assert!(timing.mean_ns.is_finite());
+        assert!(timing.min_ns <= timing.mean_ns);
+        assert!(timing.mean_ns <= timing.max_ns);
+        assert_eq!(metrics.base_metrics.function_name, "mean_stability_real");
+        assert_eq!(metrics.base_metrics.datasize, 1000);
+    }
+
+    #[test]
+    fn test_benchmark_stability_honest_error_on_zero_iterations() {
+        // With zero measurement iterations there is nothing real to report, so
+        // an honest error must be returned rather than fabricated timings.
+        let suite = AdvancedBenchmarkSuite::new(fast_config(0, 0));
+        let data = Array1::from_elem(100, 1.0_f64);
+
+        let err = suite
+            .benchmark_stability("mean_stability_empty", &data)
+            .expect_err("zero iterations must yield an honest error, not fake data");
+        assert!(matches!(err, StatsError::InvalidArgument(_)));
+    }
+
+    #[test]
+    fn test_benchmark_cross_platform_reports_current_platform_only() {
+        // A single process can only observe its own architecture. The result
+        // must contain a real measured timing keyed by the current ARCH, not the
+        // old fabricated per-platform constants (x86_64/aarch64/wasm32).
+        let suite = AdvancedBenchmarkSuite::new(fast_config(2, 8));
+        let data = Array1::from_elem(1000, 2.0_f64);
+
+        let metrics = suite
+            .benchmark_cross_platform("mean_cross_platform_real", &data)
+            .expect("cross-platform benchmark should succeed with iterations > 0");
+
+        let variance = metrics
+            .platform_variance
+            .expect("platform variance must be present");
+
+        // Exactly one observable platform: the current architecture.
+        assert_eq!(variance.platform_specific_metrics.len(), 1);
+        let arch = std::env::consts::ARCH;
+        let measured = variance
+            .platform_specific_metrics
+            .get(arch)
+            .copied()
+            .expect("current architecture must be reported");
+        assert!(measured > 0.0, "reported timing must be a real measurement");
+
+        // CV is the real intra-platform jitter (non-negative, finite).
+        assert!(variance.coefficient_of_variation >= 0.0);
+        assert!(variance.coefficient_of_variation.is_finite());
+
+        // No fabricated per-target feature impacts.
+        assert!(variance
+            .feature_dependency_analysis
+            .simd_feature_impact
+            .is_empty());
+    }
+
+    #[test]
+    fn test_benchmark_cross_platform_honest_error_on_zero_iterations() {
+        let suite = AdvancedBenchmarkSuite::new(fast_config(0, 0));
+        let data = Array1::from_elem(100, 1.0_f64);
+
+        let err = suite
+            .benchmark_cross_platform("mean_cross_platform_empty", &data)
+            .expect_err("zero iterations must yield an honest error, not fake data");
+        assert!(matches!(err, StatsError::InvalidArgument(_)));
     }
 }

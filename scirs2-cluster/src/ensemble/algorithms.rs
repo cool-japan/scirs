@@ -19,6 +19,22 @@ pub struct EnsembleClusterer<F: Float> {
     phantom: std::marker::PhantomData<F>,
 }
 
+impl<F: Float> EnsembleClusterer<F> {
+    /// Borrow the ensemble's configuration.
+    pub fn config(&self) -> &EnsembleConfig {
+        &self.config
+    }
+
+    /// Mutably borrow the ensemble's configuration.
+    ///
+    /// Enables online adaptation of the ensemble composition (for example
+    /// adjusting `n_estimators` based on observed performance) without rebuilding
+    /// the clusterer.
+    pub fn config_mut(&mut self) -> &mut EnsembleConfig {
+        &mut self.config
+    }
+}
+
 impl<
         F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Display + Send + Sync,
     > EnsembleClusterer<F>

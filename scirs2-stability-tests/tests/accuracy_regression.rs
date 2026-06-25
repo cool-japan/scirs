@@ -31,10 +31,18 @@ enum TolKind {
 
 impl Ref {
     fn rel(value: f64, tol: f64) -> Self {
-        Self { value, tol, kind: TolKind::Relative }
+        Self {
+            value,
+            tol,
+            kind: TolKind::Relative,
+        }
     }
     fn abs(value: f64, tol: f64) -> Self {
-        Self { value, tol, kind: TolKind::Absolute }
+        Self {
+            value,
+            tol,
+            kind: TolKind::Absolute,
+        }
     }
     fn check(&self, name: &str, computed: f64) {
         let err = match self.kind {
@@ -47,7 +55,8 @@ impl Ref {
         assert!(
             err <= self.tol,
             "{name}: computed={computed:.10e} ref={:.10e} err={err:.2e} tol={:.2e}",
-            self.value, self.tol
+            self.value,
+            self.tol
         );
     }
 }
@@ -62,8 +71,11 @@ fn hilbert(n: usize) -> Array2<f64> {
 
 fn diag_dominant(n: usize) -> Array2<f64> {
     Array2::from_shape_fn((n, n), |(i, j)| {
-        if i == j { (n as f64) + (i as f64) + 1.0 }
-        else { 0.01 * ((i * n + j) as f64).sin() }
+        if i == j {
+            (n as f64) + (i as f64) + 1.0
+        } else {
+            0.01 * ((i * n + j) as f64).sin()
+        }
     })
 }
 
@@ -124,9 +136,7 @@ fn test_frobenius_norm_ones_4x4() {
 
 #[test]
 fn test_frobenius_norm_diag_1234() {
-    let a = Array2::from_shape_fn((4, 4), |(i, j)| {
-        if i == j { (i + 1) as f64 } else { 0.0 }
-    });
+    let a = Array2::from_shape_fn((4, 4), |(i, j)| if i == j { (i + 1) as f64 } else { 0.0 });
     let norm = frobenius(&a);
     let expected = 30.0_f64.sqrt();
     Ref::rel(expected, 1e-13).check("‖diag(1..4)‖_F", norm);
@@ -146,9 +156,16 @@ fn test_svd_identity_3x3_singular_values() {
 
 #[test]
 fn test_svd_diagonal_4x3_singular_values() {
-    let a = Array2::from_shape_fn((3, 3), |(i, j)| {
-        if i == j { [4.0_f64, 3.0, 2.0][i] } else { 0.0 }
-    });
+    let a = Array2::from_shape_fn(
+        (3, 3),
+        |(i, j)| {
+            if i == j {
+                [4.0_f64, 3.0, 2.0][i]
+            } else {
+                0.0
+            }
+        },
+    );
     let (_, s, _) = svd(&a.view(), false, None).expect("svd diag(4,3,2) must succeed");
     let expected = [4.0_f64, 3.0, 2.0];
     for (&sv, &exp) in s.iter().zip(expected.iter()) {
@@ -233,14 +250,15 @@ fn test_normal_cdf_nist_table() {
     // NIST standard values vs SciRS2 current accuracy.
     // Tolerance is set to 5e-7 to accommodate the current erfc approximation error,
     // which is most visible at |x| = 3 (err ~6.9e-8 for x=-3 in current implementation).
+    #[allow(clippy::excessive_precision)]
     let reference: &[(f64, f64)] = &[
         (-3.0, 0.001_349_898_031_630_0),
         (-2.0, 0.022_750_131_948_179_2),
         (-1.0, 0.158_655_253_931_457_1),
-        ( 0.0, 0.5),
-        ( 1.0, 0.841_344_746_068_542_8),
-        ( 2.0, 0.977_249_868_051_820_8),
-        ( 3.0, 0.998_650_101_968_370_0),
+        (0.0, 0.5),
+        (1.0, 0.841_344_746_068_542_8),
+        (2.0, 0.977_249_868_051_820_8),
+        (3.0, 0.998_650_101_968_370_0),
     ];
     let dist = Normal::new(0.0_f64, 1.0_f64).expect("valid Normal(0,1)");
     for &(x, phi_ref) in reference {
@@ -277,53 +295,50 @@ fn test_normal_ppf_roundtrip() {
         let p_back = dist.cdf(q);
         assert!(
             (p - p_back).abs() < 1e-3,
-            "N(0,1) ppf roundtrip p={p:.4}: |p - cdf(ppf(p))| = {:.2e}", (p - p_back).abs()
+            "N(0,1) ppf roundtrip p={p:.4}: |p - cdf(ppf(p))| = {:.2e}",
+            (p - p_back).abs()
         );
     }
 }
 
 #[test]
 fn test_beta_2_5_pdf_at_0_3() {
-    let dist = Beta::new(2.0_f64, 5.0_f64, 0.0_f64, 1.0_f64)
-        .expect("valid Beta(2,5)");
+    let dist = Beta::new(2.0_f64, 5.0_f64, 0.0_f64, 1.0_f64).expect("valid Beta(2,5)");
     let computed = dist.pdf(0.3_f64);
-    // SciRS2 baseline: 2.1609 (SciPy reference: 2.6460)
-    // The difference is due to the incomplete beta function implementation.
-    // This test guards against regression from the current SciRS2 baseline.
-    // Note: a future fix to regularized_incomplete_beta would update this to ~2.646.
+    // Beta(2,5).pdf(0.3) = 0.3 · 0.7^4 · 30 = 2.1609, since B(2,5) = 1/30.
+    // This matches SciPy's scipy.stats.beta(2,5).pdf(0.3) and guards against
+    // regression in the pdf normalization.
     Ref::rel(2.160_9_f64, 0.05).check("Beta(2,5).pdf(0.3)", computed);
 }
 
 #[test]
 fn test_beta_2_5_cdf_at_0_3() {
-    let dist = Beta::new(2.0_f64, 5.0_f64, 0.0_f64, 1.0_f64)
-        .expect("valid Beta(2,5)");
+    let dist = Beta::new(2.0_f64, 5.0_f64, 0.0_f64, 1.0_f64).expect("valid Beta(2,5)");
     let computed = dist.cdf(0.3_f64);
-    // SciRS2 baseline: 1.0 (regularized_incomplete_beta returns 1.0 for these params)
-    // SciPy reference: 0.5796.  This is a known deficiency in the current
-    // regularized_incomplete_beta implementation.  The test documents the current
-    // behavior so we detect any change.
-    assert!(
-        computed >= 0.99_f64,
-        "Beta(2,5).cdf(0.3): baseline is ~1.0, got {computed:.6e} (known bug)"
-    );
+    // Beta(2,5).cdf(0.3) is the regularized incomplete beta I_0.3(2,5) = 0.579825,
+    // matching SciPy's scipy.stats.beta(2,5).cdf(0.3).  Closed form:
+    //   I_0.3(2,5) = Σ_{j=2}^{6} C(6,j) · 0.3^j · 0.7^(6-j) = 0.579825.
+    // An earlier regularized_incomplete_beta bug returned ~1.0 here; that bug
+    // has since been fixed, so this test now locks in the correct value.
+    Ref::rel(0.579_825_f64, 1e-3).check("Beta(2,5).cdf(0.3)", computed);
 }
 
 #[test]
 fn test_beta_2_5_cdf_boundary() {
-    let dist = Beta::new(2.0_f64, 5.0_f64, 0.0_f64, 1.0_f64)
-        .expect("valid Beta(2,5)");
+    let dist = Beta::new(2.0_f64, 5.0_f64, 0.0_f64, 1.0_f64).expect("valid Beta(2,5)");
     let at_zero = dist.cdf(0.0_f64);
     let at_one = dist.cdf(1.0_f64);
     assert!(at_zero < 1e-14, "Beta(2,5).cdf(0) = {at_zero:.2e}");
-    assert!((at_one - 1.0_f64).abs() < 1e-13, "Beta(2,5).cdf(1) = {at_one:.15e}");
+    assert!(
+        (at_one - 1.0_f64).abs() < 1e-13,
+        "Beta(2,5).cdf(1) = {at_one:.15e}"
+    );
 }
 
 #[test]
 fn test_beta_2_5_mean_numeric() {
     // Numeric mean via trapezoidal integration on [0,1]
-    let dist = Beta::new(2.0_f64, 5.0_f64, 0.0_f64, 1.0_f64)
-        .expect("valid Beta(2,5)");
+    let dist = Beta::new(2.0_f64, 5.0_f64, 0.0_f64, 1.0_f64).expect("valid Beta(2,5)");
     let n = 10_000_usize;
     let h = 1.0_f64 / (n - 1) as f64;
     let mean: f64 = (0..n)
@@ -357,8 +372,7 @@ fn test_ols_exact_coefficients() {
             [1.0_f64, x1, x2]
         })
         .collect();
-    let x_matrix = Array2::from_shape_vec((n, 3), x_data)
-        .expect("shape matches");
+    let x_matrix = Array2::from_shape_vec((n, 3), x_data).expect("shape matches");
     let y_data: Vec<f64> = (0..n)
         .map(|i| {
             let x1 = i as f64 / n as f64;
@@ -398,6 +412,7 @@ fn test_sqrt_2pi_precision() {
 #[test]
 fn test_pi_constant_precision() {
     // Sanity check that std::f64::consts::PI matches a known value.
+    #[allow(clippy::excessive_precision, clippy::approx_constant)]
     let expected = 3.141_592_653_589_793_2_f64;
     let rel_err = (PI - expected).abs() / expected;
     assert!(rel_err < 1e-15, "PI rel_err={rel_err:.2e}");

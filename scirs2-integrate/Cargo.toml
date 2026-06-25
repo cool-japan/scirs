@@ -24,10 +24,7 @@ scirs2-core = { workspace = true, features = ["random", "array"] }
 # scirs2-linalg = { workspace = true }
 scirs2-fft = { workspace = true, features = ["oxifft"] }
 thiserror = { workspace = true }
-libc = { workspace = true }
 libm = { workspace = true }
-sobol = { workspace = true }
-halton = { workspace = true }
 num_cpus = { workspace = true }
 half = { workspace = true }
 serde = { workspace = true }

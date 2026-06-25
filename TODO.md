@@ -1,9 +1,9 @@
 # SciRS2 Development Roadmap
 
-**Current Version**: 0.5.0
-**Status**: Production Ready — ~36,082 tests passing (Wave 77 baseline, 2026-05-25)
+**Current Version**: 0.5.1
+**Status**: Production Ready — 36,606 tests passing (0.5.1 release, 2026-06-25); Wave 78 (2026-06-13) cleared 11/15 /cooljapan-stub-check items with ~40 new tests across 10 crates
 **Scale**: ~4.2M lines total, ~3.87M Rust SLoC, ~8,129 source files, ~29 workspace crates
-**Last Updated**: 2026-06-02
+**Last Updated**: 2026-06-25
 
 This document tracks the development roadmap for SciRS2. Completed items in v0.3.4 are documented here for historical reference; the active roadmap is the v0.4.0 section.
 
@@ -630,7 +630,7 @@ See CHANGELOG.md `[0.4.3]` for the full feature list. Highlights: 34,883 tests p
 - [x] **`docs/cas_tutorial.md` end-to-end walkthrough** (planned 2026-05-15) (DONE Wave 75, 2026-05-15 — docs/cas_tutorial.md 1488 lines; primary verification at scirs2-symbolic/tests/cas_tutorial_compile.rs with 13 #[test] functions, one per section)
   - **Goal:** A 1000-1500-line tutorial markdown that walks a new user through using `scirs2-symbolic` from raw parsing to JIT-compiled execution, exercising every Phase-2 entry-point. Becomes the canonical "how to use the CAS" reference for v0.5.0.
   - **Design:** 13-section structure covering: EML substrate, parsing/pretty-printing, canonicalization, identity DB + SMT (OxiZ NLSAT 0.2.1 limitation noted), cas::solve (linear/poly/system/ODE), integrate_rational (Risch-LITE), GradGraph differentiation, Cranelift JIT, GPU WGSL codegen, Python+WASM bindings, cross-crate integration (optimize::symbolic::newton), diffgeom Schwarzschild Ricci scalar, reference and next-steps.
-  - **Files:** `/Users/kitasan/work/scirs/docs/cas_tutorial.md` (new, ~1200 lines); `/Users/kitasan/work/scirs/scirs2-symbolic/tests/cas_tutorial_compile.rs` (new, ≥13 `#[test]` functions, one per tutorial section).
+  - **Files:** `docs/cas_tutorial.md` (new, ~1200 lines); `scirs2-symbolic/tests/cas_tutorial_compile.rs` (new, ≥13 `#[test]` functions, one per tutorial section).
   - **Tests:** `cargo nextest run -p scirs2-symbolic --test cas_tutorial_compile` — ≥13 tests pass. This is the PRIMARY harness (doc lives outside crate; `cargo test --doc` can't reach it).
   - **Risk:** API drift between Wave 70 and 75 could invalidate samples; `tests/cas_tutorial_compile.rs` is the single source of truth.
 
@@ -800,9 +800,9 @@ All development must adhere to the following policies:
 
 ---
 
-**Last Updated**: 2026-06-02
-**Branch**: 0.5.0
-**Status**: v0.5.0 (current) — Waves 53–77 complete. EML-IR CAS substrate (Phases 0–3 complete, Phase 4 ongoing); GPU dispatch real (BFS/SSSP/delta-stepping/RBF/CG/Newton/L-BFGS via wgpu); GpuNdarray<f32> with axis ops; NUMA par_map_chunks; ALiBi + Riemann/Weyl diffgeom + SR-as-prior + SymbolicPriorLoss; ~36,082 tests passing. See CHANGELOG.md `[0.5.0]` for full release notes.
+**Last Updated**: 2026-06-25
+**Branch**: 0.5.1
+**Status**: v0.5.1 (current) — Waves 53–78 complete. EML-IR CAS substrate (Phases 0–3 complete, Phase 4 ongoing); GPU dispatch real (BFS/SSSP/delta-stepping/RBF/CG/Newton/L-BFGS via wgpu); GpuNdarray<f32> with axis ops; NUMA par_map_chunks; ALiBi + Riemann/Weyl diffgeom + SR-as-prior + SymbolicPriorLoss; 0.5.1 correctness/Pure-Rust hardening (exact spectral/trace autograd gradients, CoreError #[non_exhaustive] restored, GPU/CUDA honesty, Zarr v2/v3 public, rug/rusqlite/tokenizers removed); 36,606 tests passing. See CHANGELOG.md `[0.5.1]` for full release notes.
 
 ---
 
@@ -895,9 +895,10 @@ These stubs were discovered by /stub-check but deferred because they require ext
 
 ---
 
-## v0.5.0 — IN PROGRESS (June 2, 2026)
+## v0.5.1 — RELEASE PREP COMPLETE (June 25, 2026)
 
 **Focus**: GPU acceleration, advanced CAS, NUMA, and symbolic AI/ML integrations.
+**Release-prep status**: All quality gates green (36,606 tests, 0 failures; 4,999 doctests; 0 clippy warnings).
 
 ### Completed (Waves 73–77)
 
@@ -931,6 +932,20 @@ These stubs were discovered by /stub-check but deferred because they require ext
 - [x] `scirs2-graph` true delta-stepping WGSL — `DELTA_LIGHT_WGSL` + `DELTA_APPLY_WGSL` + `DELTA_HEAVY_WGSL` with changed_flag convergence fix; 2 new smoke tests
 - [x] `scirs2-core` GpuNdarray advanced ops — `concat_axis.wgsl` (axis>0, uniform-based stride gather) + `reduce_sum_axis.wgsl` (rank≥3); `gpu_ndarray_shaders.rs` split; 3 smoke tests
 
+#### Wave 78 (2026-06-13) — /cooljapan-stub-check batch (11 implemented, 4 deferred)
+- [x] `scirs2-integrate` petrov_galerkin.rs re-enabled — 19 mechanical fixes (underscore field shorthands `GLS { _tau }`→`{ tau }`, composite indices `i_j`→`[i, j]`, tuple destructure) **plus** real defects: rewrote `apply_boundary_conditions` to the geometry-based `BoundaryCondition` API (Dirichlet/Neumann/Robin/Periodic), switched `Custom` variant to `Arc<dyn Fn>` + manual Debug; `pub mod` + re-exports; 3 petrov tests + full 1803-test suite green, clippy clean
+- [x] `scirs2-neural` sequential tests (`StdRng`→`SmallRng`) + all 5 architecture examples (vit/bert/convnext/mobilenet/transformer) un-commented, auto-discovered, and runnable (exit 0). Fixed real library bugs surfaced by the examples: 3D-tensor `Dense` flatten in ViT/BERT FFN, MobileNet residual indexing + classifier channel count, Conv2D `Same`-padding per-side-vs-total. Transformer example adapted to real `encoder().forward`/`forward_train`/`forward_inference` API. 1769-test suite green, clippy clean
+- [x] `scirs2-ndimage` quantum_consciousness wired to the real `neural_processing::reorganize_network_structure` (`pub(crate)`; dead duplicate removed); `apply_temporal_causal_inference` implemented (Granger-style causal propagation over `causal_graph`/`temporal_memory` with exp temporal decay) + wired into `simulate_quantum_consciousness`; 3 new tests; 1170-test suite green, clippy clean
+- [x] `scirs2-series` cloud_deployment_demo example re-enabled against the already-complete `src/cloud_deployment.rs` (API matched exactly; one unused import dropped); runs all 4 demos (15 jobs) under `--features wasm`, default build green
+- [x] `scirs2-text` pos_tagging_original_tests — root cause was a **stale TODO**: the suite was already wired via an in-module `#[path]` include in `pos_tagging_original.rs` and passing; declaring it at crate root would have double-compiled and broken it. Corrected the lib.rs comment + removed a duplicate `use super::*`; 26 pos tests + 1717-test suite green, clippy clean
+- [x] `scirs2-core` mixed_precision batch execution now works on stable Rust — added `MixedPrecisionSupport::as_array_protocol` bridge (avoids unstable `trait_upcasting`) + fixed 2 latent operand/result dispatch bugs so it actually computes; new `GpuDevice::get_info()` + `GpuDeviceInfo` (`src/gpu/device_info.rs`); `performance_optimization.rs:840` clippy `nonminimal_bool` macro false-positive fixed via let-binding; 3020-test suite green, clippy clean (default + gpu)
+- [x] `scirs2-io` gpu/backend_management real device-capability validation via `scirs2_core::gpu::GpuDevice::get_info()` (per-backend fp64/fp16/memory/workgroup checks, unknown(0)=skip); 6 new tests; 1244-test suite green, clippy clean (default + gpu)
+- [x] `scirs2-datasets` generators GPU dispatch — new `gpu_dispatch.rs` + `gpu_wgpu` feature; classification/regression/blobs heavy linalg via `GpuNdarray` (matmul/add/scalar), threshold 4096, host-RNG-first for exact CPU equivalence (max diff ≤1.3e-7); 4 smoke tests (GPU adapter ran)
+- [x] `scirs2-optimize` distributed_gpu — DE population fitness-reduction / donor matrix `a+F·(b−c)` / selection deltas via `GpuNdarray`; reuses `gpu` feature, threshold 4096; 9 new tests; 2006-test suite (gpu) green, clippy clean
+- [x] `scirs2-vision` neural_operations GPU multi-head attention — root cause was a no-op `execute_kernel` stub whose output buffer was never read back; rewrote to the real `GpuContext` execute/compile + `copy_to_host` path with a stable-softmax WGSL compute shader (wgpu 29); `gpu` feature; 2 new tests; 1341-test suite green, clippy clean (default + gpu)
+- Deferred (external SDK / upstream-blocked — Pure Rust policy): `scirs2-ndimage` native Metal backend (wgpu is the Pure-Rust path); `scirs2-sparse` `gpu/cuda.rs` CUDA SpMV (route via future wgpu SpMV wave); `scirs2-io` hdf5→oxih5 (blocked on oxih5 **write** support); `scirs2-core` numpy_compat zero-copy PyBuffer (opportunistic)
+- Note: `scirs2-core::GpuContext::execute_kernel` remains a no-op stub; `scirs2-vision` neural_operations still has 2 more functions (`gpu_batch_matmul_transformer`, `gpu_feature_matching_advanced`) on that stale path — candidate follow-up wave.
+
 ### Planned
 - [x] ~~Symbolic computing enhancements (Phase 4 diffgeom extensions)~~ (DONE Wave 72, 2026-05-07)
 - [x] ~~NUMA scheduler public API (`scirs2-core::par_map_chunks` ecosystem-wide)~~ (DONE Wave 73, 2026-05-08)
@@ -943,7 +958,7 @@ These stubs were discovered by /stub-check but deferred because they require ext
 - [x] **State-sync: flip Wave 75 `[~]` items to `[x]` + acknowledge finance pricing residue** (planned 2026-05-16)
   - **Goal:** Bring `TODO.md` in line with Wave 75 reality: flip the 3 Wave 75 `[~]` items (distributed FFT >3D, Voronoi nD, cas_tutorial) to `[x]`; add finance-pricing acceptance note.
   - **Design:** Find and flip the three `[~]` plan blocks for Wave 75 Slices 3/4/5 to `[x]` with DONE annotations. Append a note under a `## Notes` section (creating one if absent) about the Wave 75 finance-pricing code (+913 LoC SABR/Hull-White/Bates/LocalVolatility) accepted and retained.
-  - **Files:** `/Users/kitasan/work/scirs/TODO.md` only.
+  - **Files:** `TODO.md` only.
   - **Tests:** none required.
 
 ---
@@ -975,3 +990,126 @@ Three concrete sub-items: (i) extended SR-as-prior for time-series; (ii) ALiBi p
 ## Notes
 
 - 2026-05-15 (Wave 75 acceptance): scirs2-integrate/src/specialized/finance/pricing/{monte_carlo,finite_difference,fourier}.rs gained +913 LoC (SABR, Hull-White, Bates, LocalVolatility) outside the approved Wave 75 scope. Code is correct, tests pass, clippy clean — accepted and retained. No revert.
+
+## Stubs to implement (added 2026-06-12 by /cooljapan-stub-check) — 11/15 DONE (Wave 78, 2026-06-13)
+
+- [x] `scirs2-integrate`: `pde/finite_element/mod.rs:14` — petrov_galerkin fixed + wired (Wave 78); 19 mechanical + real boundary-condition/Custom-variant rewrites; 3 tests + 1803-suite green
+
+- [ ] `scirs2-ndimage`: `backend/mod.rs:27,125`, `gpu_chunked.rs:546` — **DEFERRED (Wave 78)**: native Metal backend conflicts with Pure-Rust policy; wgpu is the Pure-Rust GPU path. Revisit as a wgpu-image-kernels wave.
+  - Priority: P3 | Scope: medium | Hint: prefer wgpu dispatch over the `metal` crate
+
+- [x] `scirs2-ndimage`: `advanced_fusion_algorithms/quantum_consciousness.rs:781,785,792` — wired to existing `neural_processing::reorganize_network_structure` + implemented `apply_temporal_causal_inference` (Wave 78); 3 tests + 1170-suite green
+
+- [x] `scirs2-neural`: `models/sequential.rs:368` — tests re-enabled (`StdRng`→`SmallRng`) (Wave 78); 1769-suite green
+
+- [x] `scirs2-neural`: `examples/{vit,bert,convnext,mobilenet,transformer}_example.rs` — all 5 examples un-commented + runnable against existing architectures; real library bugs fixed along the way (Wave 78)
+
+- [x] `scirs2-core`: `array_protocol/mixed_precision.rs:541` — batch execution works on stable via `as_array_protocol` bridge (no `trait_upcasting`) + 2 dispatch-bug fixes (Wave 78); 3020-suite green
+
+- [x] `scirs2-core`: `python/numpy_compat.rs:86` — **DEFERRED (Wave 78)**: true zero-copy PyBuffer/PyCapsule; opportunistic, lower priority. zero-copy view already implemented via `numpy_readonly_to_scirs_view`; doc updated 2026-06-22
+  - Priority: P3 | Scope: medium | Hint: pyo3 buffer protocol / PyBuffer; scirs2-numpy zero-copy path
+
+- [ ] `scirs2-io`: `hdf5/mod.rs:20,40`, `scirs2-datasets/src/hdf5_dataset.rs:28` — **DEFERRED (Wave 78)**: blocked on oxih5 **write** support (read-only at M1).
+  - Priority: P2 | Scope: large | Hint: oxih5-core read at M1; write path upstream-blocked
+
+- [x] `scirs2-io`: `gpu/backend_management.rs:34,106,114,121,128` — real device-capability validation via new `GpuDevice::get_info()` (Wave 78); 6 tests + 1244-suite green
+
+- [ ] `scirs2-sparse`: `gpu/cuda.rs:310` — **DEFERRED (Wave 78)**: CUDA-native SpMV conflicts with Pure-Rust policy; route via a future wgpu SpMV wave (GpuNdarray sparse path).
+  - Priority: P2 | Scope: medium | Hint: wgpu SpMV via scirs2-core GpuNdarray, not cuSPARSE FFI
+
+- [x] `scirs2-vision`: `gpu_modules/neural_operations.rs:150` — real `GpuContext` execute+`copy_to_host` WGSL attention path (no-op `execute_kernel` stub replaced) (Wave 78); 2 tests + 1341-suite green
+
+- [x] `scirs2-optimize`: `distributed_gpu.rs:303,330,373` — real `GpuNdarray` dispatch (DE reduction/donor/selection) (Wave 78); 9 tests + 2006-suite (gpu) green
+
+- [x] `scirs2-datasets`: `generators/gpu.rs:256,309,506,683` — real `GpuNdarray` dispatch + `gpu_wgpu` feature (Wave 78); 4 smoke tests, max diff ≤1.3e-7 vs CPU
+
+- [x] `scirs2-text`: `lib.rs:211` — stale TODO corrected; suite already wired via in-module `#[path]` include and passing (Wave 78); 26 pos tests + 1717-suite green
+
+- [x] `scirs2-series`: `examples/cloud_deployment_demo.rs:6,29,31` — example re-enabled against already-complete `src/cloud_deployment.rs` (Wave 78); runs under `--features wasm`
+
+---
+
+## Policy follow-ups (added 2026-06-13 by /policy-check)
+
+### #1 No-unwrap purge — production code only (tests on infallible paths are policy-allowed)
+
+- [x] **All 22 crates** — Verified 2026-06-22: 0 production `.unwrap()` calls. Prior counts (47, 23, etc.) were raw `grep` artifacts including `#[cfg(test)]` modules (policy-exempt) and doc-comments. v0.4.3 quality gate confirmed unwrap-clean; verified again on 0.5.1 branch.
+
+### #9 Test temp-dir hygiene — use std::env::temp_dir()
+
+All hits classified below. BENIGN = error probe on a deliberately non-existent path (no fs write), doc-comment example, data-under-test string, or production validation logic; ACTIONABLE = test that performs real file I/O at a hardcoded path.
+
+**ACTIONABLE** (tests that actually write/read real files at a hardcoded `/tmp/...` path):
+
+- [x] **scirs2-core**: replace hardcoded `/tmp/` in file-creating example — `scirs2-core/examples/simd_scipy_comparison_benchmark.rs:435` (writes CSV to `/tmp/scirs2_benchmark_results.csv`)
+- [x] **scirs2-core**: replace hardcoded `/tmp/` in example — `scirs2-core/examples/memory_metrics_snapshots.rs:116` (constructs `Path::new("/tmp/memory_snapshots")`)
+- [x] **scirs2-core**: replace hardcoded `/tmp/` in example — `scirs2-core/examples/performance_dashboards_demo.rs:321` (`NotificationChannel::File("/tmp/dashboard_alerts.log")`)
+- [x] **scirs2-io**: replace hardcoded `/tmp/` in example — `scirs2-io/examples/network_cloud_example.rs:83` (`cache_dir: Some("/tmp/scirs2_cache")`)
+- [x] **scirs2-transform**: replace hardcoded `/tmp/` in example — `scirs2-transform/examples/transform_large_dataset_processing.rs:46` (creates/reads `/tmp/large_dataset.csv`)
+
+**BENIGN** (error probes — deliberately non-existent paths to test error handling; no file is created):
+
+- `scirs2-signal/src/model_weights.rs:437` — loads a non-existent `/tmp/no_such_file_xyzzy.ox` to assert `is_err()`; no write, BENIGN
+- `scirs2-datasets/src/hdf5_dataset.rs:201,215` — `is_valid_hdf5` + `from_file` on non-existent paths; no write, BENIGN
+- `scirs2-datasets/src/netcdf_dataset.rs:580` — `from_file` on `/tmp/__scirs2_nonexistent_9999.nc`; no write, BENIGN
+- `scirs2-neural/src/training/checkpoint.rs:1335,1341` — `load_checkpoint`/`list_checkpoints` on non-existent paths; no write, BENIGN
+- `scirs2-neural/src/training/checkpoint.rs:1655` — error-message string content `"/tmp/missing"` only; BENIGN
+- `scirs2-core/src/validation/cross_platform.rs:499` — production logic checking if path starts with `/tmp/` for WASM warning; BENIGN (correct usage)
+- `scirs2-core/src/validation/cross_platform.rs:882` — calls `validate_path("/tmp/test.txt")`; just validates a path string, no file I/O, BENIGN
+- `scirs2-core/src/profiling/mod.rs:310` — already uses `std::env::temp_dir()` for the path; `/tmp/test_profile.csv` is only the `unwrap_or` fallback string (never written), BENIGN
+- All `//!` doc-comment lines (`scirs2-core/src/mmap_utils.rs:25`, `src/memory_efficient/*.rs`, `src/serialization/mod.rs:31,207,264,593,617`, `src/arrow_compat/ipc.rs:153`, `src/memory/async_out_of_core.rs:188,424,676,677`, `scirs2-io/src/jsonl.rs:22,23,133`, `scirs2-io/src/formats/orc_lite.rs:254`, `scirs2-io/src/ndjson_streaming.rs:15,22`, `scirs2-autograd/src/variable.rs:57`, `scirs2-autograd/src/graph_viz.rs:321,349`, `scirs2-neural/src/serialization/model_serializer.rs:65,68`, `scirs2-neural/src/training/checkpoint.rs:29`) — all doc comments / examples-in-docs, BENIGN
+- `scirs2-stats/examples/advanced_cross_platform_demo.rs:31` — data-under-test string in a test-paths array (no actual I/O call), BENIGN
+
+## Stubs to implement (added 2026-06-22 by /cooljapan-stub-check)
+
+Captured from `rg 'TODO|FIXME|HACK|XXX'` across the SciRS2 workspace (raw ~65 hits; doc-prose, SPDX/license, CHANGELOG, `\uXXXX`/hex placeholders, `// NOTE:`, resolved-notes, and `///`/`//!` doc-examples filtered out; vendored upstream code recorded separately below). The following are the genuinely local, actionable items.
+
+- [ ] **scirs2** `scirs2-interpolate`: `scirs2-interpolate/src/simd_bspline.rs:251` — `TODO`: Fix SIMD implementation in scirs2-core (weighted_sum falls back to scalar to avoid stack overflow)
+  - **Priority:** P2  **Scope:** medium  **Cross-project:** none
+  - **Approach:** Validate the `SimdUnifiedOps` weighted-sum kernel path, re-enable it behind the `simd` feature, and add a scalar-parity test asserting bit-comparable results vs the current `iter().zip().fold()` fallback.
+  - **Risk:** Earlier stack-overflow regression in the SIMD path; gate behind `simd` and keep the scalar fold as the default fallback until parity test is green.
+- [ ] **scirs2** `scirs2-interpolate`: `scirs2-interpolate/src/spatial/optimized_search.rs:70` — `TODO`: Fix SIMD implementation in scirs2-core (squared_euclidean_distance falls back to scalar)
+  - **Priority:** P2  **Scope:** medium  **Cross-project:** none
+  - **Approach:** Same root cause as simd_bspline:251 — re-enable the SIMD squared-Euclidean kernel under `simd` with a scalar-parity test on representative dimension sizes; share the fix with the b-spline path.
+  - **Risk:** Same stack-overflow class; mismatched lane handling on non-multiple-of-lane lengths — test tail handling explicitly.
+- [ ] **scirs2** `scirs2-signal`: `scirs2-signal/src/lib.rs:443` — `TODO`: Investigate perfect reconstruction requirements (DWT test only checks non-empty output, not PR)
+  - **Priority:** P2  **Scope:** medium  **Cross-project:** none
+  - **Approach:** Correct the analysis/synthesis filter normalization so the DWT→IDWT round-trip satisfies the perfect-reconstruction condition, then replace the placeholder `!reconstructed.is_empty()` assert with a tolerance check `reconstructed ≈ input`.
+  - **Risk:** Boundary-handling mode (symmetric/periodic) affects PR at signal edges; pick and document one mode so the test tolerance is well-defined.
+- [ ] **scirs2** `scirs2-stats`: `scirs2-stats/src/scipy_benchmark_framework.rs:360` — `TODO`: Implement memory tracking (`peak_memory: 0`, `average_memory: 0`)
+  - **Priority:** P2  **Scope:** small  **Cross-project:** none
+  - **Approach:** Sample RSS via the scirs2-core metrics/profiling facility (e.g. `scirs2_core::profiling`/memory-metrics) around the benchmarked call and populate `peak_memory`/`average_memory`/`efficiency_ratio` in `MemoryComparison`.
+  - **Risk:** Cross-platform RSS sampling differs (macOS vs Linux); guard behind the metrics feature and default to the current zero when unavailable.
+- [ ] **scirs2** `scirs2-io`: `scirs2-io/src/gpu/compression.rs:301` — `TODO`: Add compute units when available in PlatformCapabilities (writes a hardcoded `32u32` placeholder into the OpenCL header)
+  - **Priority:** P2  **Scope:** small  **Cross-project:** none
+  - **Approach:** Query the real compute-unit count from `PlatformCapabilities` (extend the struct/accessor if absent) and serialize it instead of the `32` placeholder; fall back to a documented default only when the platform cannot report it.
+  - **Risk:** Header format/byte-width must stay stable for the matching reader; add a round-trip test so the value change does not break decode.
+- [ ] **scirs2** `scirs2-core`: `scirs2-core/src/python/numpy_compat.rs:86` — `TODO`: Investigate true zero-copy with lifetimes (currently always `to_owned()`)
+  - **Priority:** P2  **Scope:** medium  **Cross-project:** none
+  - **Approach:** Prototype a borrowed `ArrayView` path tied to the PyReadonlyArray lifetime to avoid the defensive copy, gated so the owned-copy path remains the safe default; benchmark to confirm the copy elimination.
+  - **Risk:** Lifetime/aliasing soundness with the GIL and NumPy buffer ownership — must not outlive the Python object; keep `to_owned()` as fallback.
+- [ ] **scirs2** `scirs2-core`: `scirs2-core/src/random/neural_sampling.rs:154` — `TODO`: use `_total_loss` (negative log-likelihood) for monitoring (computed then discarded)
+  - **Priority:** P2  **Scope:** small  **Cross-project:** none
+  - **Approach:** Surface the accumulated NLL through a returned diagnostic / monitoring callback (or store on the sampler state) instead of dropping it into the `_total_loss` discard; rename off the `_` prefix once consumed.
+  - **Risk:** Trivial; ensure the added field/return does not change the public sampling signature in a breaking way (extend, don't replace).
+
+### Known external/upstream-blocked placeholders (not actionable)
+
+These are blocked on scirs2-core GPU/SIMD API surface stabilizing, on absent hardware backends, or live in vendored upstream crates. Track but do not implement locally yet.
+
+- `scirs2-special/src/array_ops.rs:421` — GPU kernel execution path returns `NotImplemented`; re-enable when scirs2-core exposes direct kernel execution.
+- `scirs2-sparse/src/gpu/cuda.rs:310` — CUDA optimized execution returns `NotImplemented`; commented kernel body awaits proper GPU buffer setup API.
+- `scirs2-ndimage/src/gpu_chunked.rs:546` — chunked GPU kernel falls back to CPU `apply()`; awaits GPU backend.
+- `scirs2-ndimage/src/backend/mod.rs:27,125` — `MetalContext`/Metal backend not implemented in `concrete_gpu_backends.rs`; macOS Metal path commented out.
+- `scirs2-optimize/src/gpu/tensor_core_optimization.rs:54,484,495,512` — tensor-core capability check + gradient/array-op/NaN-Inf paths all deferred until the scirs2-core GPU API supports them.
+- `scirs2-datasets/src/gpu_optimization.rs:11` — uses local GPU impl; re-enable core GPU integration when features stabilize.
+- `scirs2/src/lib.rs:386` — `TODO(0.5.0)`: wire `scirs2_core::wasm` backend re-export once scirs2-core exposes a stable WASM module path.
+- `scirs2-integrate/src/specialized/mod.rs:18,50,58` and `scirs2-integrate/src/lib.rs:537,619-640` — large blocks of commented `pub use` (advanced Monte-Carlo, real-time risk, turbulence/LES, neural-adaptive solver, quantum ML/SVM, visualization/bifurcation builders) awaiting the underlying modules being created/mapped.
+- `scirs2-core/src/gpu/backends/metal_mpsgraph/functions.rs:5` & `types.rs:5` — `#![allow(deprecated)]` until objc2 `msg_send_id!` → `msg_send!` migration when that API stabilizes (upstream objc2).
+- `scirs2-core/src/lib.rs:5` — crate-level "remove dead code or justify" reminder (housekeeping, not a feature stub).
+- `scirs2-spatial/src/quantum_inspired/mod.rs:32` — "classical adaptations of quantum algorithms (TODO)" roadmap note in module docs.
+
+#### Vendored upstream (do not modify — track upstream only)
+
+- `scirs2-numpy/src/array.rs:1322`, `borrow/shared.rs:158`, `slice_container.rs:32,56`, `npyffi/objects.rs:548` — `FIXME(kngwyu/icxolu/adamreichold)` from the vendored PyO3-numpy fork (negative strides, MSRV `read`, `Box/Vec::into_raw_parts`, extern types).
+- `patches/pathfinder_simd-0.5.6/src/scalar/mod.rs:715,894`, `arm/mod.rs:821`, `x86/mod.rs:535` — `FIXME/TODO(pcwalton)` from the vendored pathfinder_simd patch (overflow asserts, `U32x2` usage).

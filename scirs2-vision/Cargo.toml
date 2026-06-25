@@ -38,6 +38,10 @@ criterion = { workspace = true }
 
 [features]
 default = []
+# Enable real GPU (WebGPU/wgpu) execution for accelerated vision kernels.
+# Without this feature the high-level `scirs2-core` GPU abstraction is still
+# compiled, but kernel dispatch transparently falls back to the CPU/SIMD path.
+gpu = ["scirs2-core/wgpu_backend"]
 
 [[example]]
 name = "feature_detection"

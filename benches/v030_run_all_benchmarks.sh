@@ -22,9 +22,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-BENCH_DIR="/Users/kitasan/work/scirs/benches"
+BENCH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESULTS_DIR="/tmp/scirs2_v030_benchmarks"
-CRITERION_DIR="/Users/kitasan/work/scirs/target/criterion"
+CRITERION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/target/criterion"
 
 # Parse arguments
 QUICK_MODE=false

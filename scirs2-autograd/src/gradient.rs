@@ -1,5 +1,4 @@
 use crate::graph::TensorID;
-use crate::op::SmallVec;
 use crate::tensor::Tensor;
 use crate::tensor_ops as T;
 use crate::Float;
@@ -322,13 +321,22 @@ fn compute_grad_for_input<'graph, F: Float>(
     else if op_name.contains("ExtractDiagOp") || op_name == "ExtractDiag" {
         let diag_grad = T::diag(gy);
         Some(diag_grad)
-    } else if op_name.contains("CheckpointOp")
-        || op_name.contains("Checkpoint")
-        || op_name.contains("TraceOp")
-        || op_name == "Trace"
-    {
-        // Checkpoint and Trace ops pass gradient through unchanged
+    } else if op_name.contains("CheckpointOp") || op_name.contains("Checkpoint") {
+        // Checkpoint ops pass gradient through unchanged
         Some(gy)
+    } else if op_name.contains("TraceOp") || op_name == "Trace" {
+        // trace: ℝ^{n×n} → ℝ.  The VJP w.r.t. the input matrix for an upstream
+        // scalar cotangent `gy` is `gy · I_n`, NOT the scalar `gy` passed
+        // through unchanged (the previous behaviour, which emitted a 0-d
+        // gradient that matrix-valued backward ops could not consume — e.g.
+        // MatrixSqrtBackward's `dS must be 2D`).  Delivered via a dedicated
+        // backward op because the string-dispatch path does not call Op::grad.
+        let x_input = y_tensor.get_backprop_input(0);
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(x_input, false)
+            .append_input(gy, false)
+            .build(crate::tensor_ops::TraceBackwardOp);
+        Some(gx)
     } else if op_name.contains("MatrixInverseOp")
         || op_name.contains("MatrixInverse")
         || op_name == "MatInv"
@@ -360,11 +368,46 @@ fn compute_grad_for_input<'graph, F: Float>(
             let inv_a_t = T::transpose(inv_a, &[1, 0]);
             Some(T::matmul(inv_a_t, gy))
         }
-    } else if op_name == "MatrixSqrt" || op_name == "MatrixLog" || op_name == "MatrixPow" {
-        // For these matrix functions, return zeros
-        let zero_scalar = T::scalar(F::zero(), g);
-        let zeros = T::mul(x_tensor, zero_scalar);
-        Some(zeros)
+    } else if op_name == "MatrixSqrt" {
+        // Exact VJP via the Sylvester equation S·X + X·S = dS (S = √A).
+        // Delivered through a dedicated backward op because the string-dispatch
+        // gradient path does not call Op::grad.
+        let a_input = y_tensor.get_backprop_input(0);
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(a_input, false)
+            .append_input(gy, false)
+            .build(crate::tensor_ops::MatrixSqrtBackwardOp);
+        Some(gx)
+    } else if op_name == "MatrixLog" {
+        // Exact VJP via the Daleckii-Krein spectral formula (symmetric input).
+        let a_input = y_tensor.get_backprop_input(0);
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(a_input, false)
+            .append_input(gy, false)
+            .build(crate::tensor_ops::MatrixLogBackwardOp);
+        Some(gx)
+    } else if op_name == "MatrixPow" {
+        // Exact VJP via the spectral divided-difference of λ↦λ^p (symmetric
+        // input).  Recover the exponent `p` from the forward op via downcast.
+        let power = y_tensor
+            .inner()
+            .get_op()
+            .as_any()
+            .and_then(|any| any.downcast_ref::<crate::tensor_ops::MatrixPowOp>())
+            .map(|op| op.power);
+        if let Some(power) = power {
+            let a_input = y_tensor.get_backprop_input(0);
+            let gx = crate::tensor::Tensor::builder(g)
+                .append_input(a_input, false)
+                .append_input(gy, false)
+                .build(crate::tensor_ops::MatrixPowBackwardOp { power });
+            Some(gx)
+        } else {
+            // Downcast failed: cannot recover the exponent, so the exact VJP is
+            // unavailable.  Return None (no gradient) rather than a fabricated
+            // zero-valued gradient tensor that would silently corrupt training.
+            None
+        }
     }
     // -----------------------------------------------------------
     // 8) Shape-changing operations
@@ -637,6 +680,22 @@ fn compute_grad_for_input<'graph, F: Float>(
             .append_input(gy, false)
             .build(QRExtractBackwardOp { component: 1 });
         Some(gx)
+    } else if op_name == "SVDExtractU" || op_name == "SVDExtractS" || op_name == "SVDExtractVt" {
+        // Exact reduced-SVD VJP for the extracted component (U / S / Vᵀ).
+        // The backward op recomputes the SVD of A and applies the analytic
+        // Townsend/Wan-Zhang VJP; it raises an honest error on degenerate
+        // singular values rather than fabricating a zero gradient.
+        use crate::tensor_ops::decomposition_ops::SVDBackwardOp;
+        let component = match op_name {
+            "SVDExtractU" => 0,
+            "SVDExtractS" => 1,
+            _ => 2, // SVDExtractVt
+        };
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(x_tensor, false)
+            .append_input(gy, false)
+            .build(SVDBackwardOp { component });
+        Some(gx)
     } else {
         // Default case: pass through gradient for unknown ops.
         // This is generally safer than returning None (zero gradient)
@@ -730,7 +789,7 @@ impl<'graph, F: Float> GradientMap<'graph, F> {
 
 // GradientInfo is keyed by a TensorID and holds its gradient info for back-prop
 struct GradientInfo<'graph, F: Float> {
-    gradients: SmallVec<Tensor<'graph, F>>,
+    gradients: Vec<Tensor<'graph, F>>,
     on_backprop_path: bool,
 }
 
@@ -739,7 +798,7 @@ impl<'graph, F: Float> GradientInfo<'graph, F> {
     fn new(on_backprop_path: bool) -> GradientInfo<'graph, F> {
         GradientInfo {
             on_backprop_path,
-            gradients: SmallVec::new(),
+            gradients: Vec::new(),
         }
     }
 

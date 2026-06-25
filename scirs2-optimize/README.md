@@ -23,7 +23,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ---
 
-## Feature List (v0.5.0)
+## Feature List (v0.5.1)
 
 ### Unconstrained Optimization
 - Nelder-Mead simplex with adaptive parameter selection
@@ -184,7 +184,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.5.0"
+scirs2-optimize = "0.5.1"
 ```
 
 ### Unconstrained Minimisation (BFGS)
@@ -370,7 +370,7 @@ println!("Nash equilibrium: row={:?}, col={:?}", nash.strategy_row, nash.strateg
 | `symbolic` | Symbolic Newton (exact gradient/Hessian via `scirs2-symbolic`), Lagrangian/KKT, L-BFGS symbolic, trust-region symbolic |
 | `gpu` | GPU-accelerated optimizers (CG, Newton, L-BFGS) via `GpuNdarray` and wgpu dispatch |
 
-### Symbolic and GPU Optimizers (v0.5.0)
+### Symbolic and GPU Optimizers (v0.5.1)
 
 | Module | Description |
 |---|---|

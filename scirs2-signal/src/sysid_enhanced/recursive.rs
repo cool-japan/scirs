@@ -21,8 +21,11 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 ///
 /// // Initialize with initial parameter guess
 /// let initial_params = Array1::from_vec(vec![0.0, 0.0, 0.0]);
-/// let config = EnhancedSysIdConfig::recursive();
+/// let config = EnhancedSysIdConfig::default();
 /// let mut recursive_id = RecursiveSysId::new(initial_params, &config);
+///
+/// let input_data = Array1::from_vec(vec![1.0, 0.5, -0.5, 1.0, 0.0, 0.8, -0.3, 0.6]);
+/// let output_data = Array1::from_vec(vec![0.0, 0.5, 0.25, -0.1, 0.45, 0.2, 0.5, 0.1]);
 ///
 /// // Update with new data points
 /// for (input, output) in input_data.iter().zip(output_data.iter()) {
