@@ -3,13 +3,13 @@
 //! This module provides WebGPU-specific implementations for cross-platform GPU operations.
 
 use std::collections::HashMap;
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 // wgpu 26 removed earlier Poll enum; Device::poll exists but Maintain enum not re-exported here; we avoid explicit polling for now.
 use std::sync::{Arc, Mutex};
 
 use crate::gpu::{GpuBufferImpl, GpuCompilerImpl, GpuContextImpl, GpuError, GpuKernelImpl};
 
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 #[allow(unused_imports)]
 use wgpu::{
     util::DeviceExt, Backends, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
@@ -21,20 +21,20 @@ use wgpu::{
 };
 
 // Fallback types for when WebGPU is not available
-#[cfg(not(feature = "wgpu_backend"))]
+#[cfg(not(feature = "wgpu"))]
 type WgpuDevice = *mut std::ffi::c_void;
-#[cfg(not(feature = "wgpu_backend"))]
+#[cfg(not(feature = "wgpu"))]
 type WgpuQueue = *mut std::ffi::c_void;
-#[cfg(not(feature = "wgpu_backend"))]
+#[cfg(not(feature = "wgpu"))]
 type WgpuBuffer = *mut std::ffi::c_void;
-#[cfg(not(feature = "wgpu_backend"))]
+#[cfg(not(feature = "wgpu"))]
 type WgpuComputePipeline = *mut std::ffi::c_void;
 
 /// A compiled WebGPU compute pipeline, containing all state needed to dispatch a compute shader.
 ///
 /// Created by [`try_compile_wgsl`]. On hosts without a GPU adapter this is never constructed
 /// and that function returns an error instead.
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 pub struct WgpuComputePipeline {
     /// The underlying wgpu compute pipeline.
     pub pipeline: ComputePipeline,
@@ -44,10 +44,10 @@ pub struct WgpuComputePipeline {
     pub workgroup_size: [u32; 3],
 }
 
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 // SAFETY: wgpu's `ComputePipeline` and `BindGroupLayout` are `Send + Sync` on all native backends.
 unsafe impl Send for WgpuComputePipeline {}
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 unsafe impl Sync for WgpuComputePipeline {}
 
 /// Attempt to compile `source` as a WGSL compute shader and return a [`WgpuComputePipeline`].
@@ -59,7 +59,7 @@ unsafe impl Sync for WgpuComputePipeline {}
 ///
 /// # Example
 /// ```rust,no_run
-/// # #[cfg(feature = "wgpu_backend")]
+/// # #[cfg(feature = "wgpu")]
 /// # {
 /// use scirs2_core::gpu::backends::try_compile_wgsl;
 /// let pipeline = try_compile_wgsl(r#"
@@ -70,7 +70,7 @@ unsafe impl Sync for WgpuComputePipeline {}
 /// let _ = pipeline;
 /// # }
 /// ```
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 pub fn try_compile_wgsl(source: &str) -> Result<WgpuComputePipeline, GpuError> {
     let ctx = WebGPUContext::new()?;
     ctx.compile_to_pipeline(source)
@@ -80,7 +80,7 @@ pub fn try_compile_wgsl(source: &str) -> Result<WgpuComputePipeline, GpuError> {
 ///
 /// Uploads `a` and `b` to device buffers, dispatches the WGSL kernel, then reads back the result.
 /// Returns `Ok(result_vec)` on success. Returns `Err` if no adapter is available.
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 pub fn run_vector_add_wgsl(a: &[f32], b: &[f32]) -> Result<Vec<f32>, GpuError> {
     let ctx = WebGPUContext::new()?;
     ctx.run_vector_add(a, b)
@@ -129,13 +129,13 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 
 /// WebGPU context wrapper
 pub struct WebGPUContext {
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     device: Arc<Device>,
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     queue: Arc<Queue>,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     device: Arc<WgpuDevice>,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     queue: Arc<WgpuQueue>,
     compiled_shaders: Arc<Mutex<HashMap<String, WebGPUShader>>>,
     memory_pool: Arc<Mutex<WebGPUMemoryPool>>,
@@ -148,7 +148,7 @@ unsafe impl Sync for WebGPUContext {}
 impl WebGPUContext {
     /// Create a new WebGPU context
     pub fn new() -> Result<Self, GpuError> {
-        #[cfg(feature = "wgpu_backend")]
+        #[cfg(feature = "wgpu")]
         {
             // Real WebGPU implementation
             let instance_desc = InstanceDescriptor {
@@ -185,7 +185,7 @@ impl WebGPUContext {
                 memory_pool: Arc::new(Mutex::new(WebGPUMemoryPool::new(1024 * 1024 * 1024))), // 1GB pool
             })
         }
-        #[cfg(not(feature = "wgpu_backend"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             // Fallback implementation
             let device = Self::initialize_webgpu()?;
@@ -202,7 +202,7 @@ impl WebGPUContext {
 
     /// Check if WebGPU is available and working
     pub fn is_available() -> bool {
-        #[cfg(feature = "wgpu_backend")]
+        #[cfg(feature = "wgpu")]
         {
             // Real WebGPU implementation - try to create an instance and adapter
             let instance_desc = InstanceDescriptor {
@@ -226,7 +226,7 @@ impl WebGPUContext {
                     .is_ok()
             })
         }
-        #[cfg(not(feature = "wgpu_backend"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             // Fallback: return false since we don't have real WebGPU
             false
@@ -235,7 +235,7 @@ impl WebGPUContext {
 
     /// Compile a shader from WGSL source
     fn compile_shader_internal(&self, source: &str, name: &str) -> Result<WebGPUShader, GpuError> {
-        #[cfg(feature = "wgpu_backend")]
+        #[cfg(feature = "wgpu")]
         {
             // Real WebGPU implementation
             let shader_module = self.device.create_shader_module(ShaderModuleDescriptor {
@@ -281,7 +281,7 @@ impl WebGPUContext {
                 workgroup_size,
             })
         }
-        #[cfg(not(feature = "wgpu_backend"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             // Fallback implementation
             let pipeline = Self::compile_wgsl_source(source, name)?;
@@ -297,7 +297,7 @@ impl WebGPUContext {
     }
 
     /// Create bind group layout from WGSL source analysis
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     fn create_bind_group_layout_from_source(
         &self,
         source: &str,
@@ -430,19 +430,19 @@ impl WebGPUContext {
     }
 
     /// Return a reference to the underlying `wgpu::Device`.
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     pub fn device(&self) -> &Device {
         &self.device
     }
 
     /// Return a reference to the underlying `wgpu::Queue`.
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     pub fn queue(&self) -> &Queue {
         &self.queue
     }
 
     /// Allocate device memory
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     pub fn allocate_device_memory(&self, size: usize) -> Result<Buffer, GpuError> {
         let buffer = self.device.create_buffer(&BufferDescriptor {
             label: Some("SciRS2 Buffer"),
@@ -455,26 +455,26 @@ impl WebGPUContext {
     }
 
     /// Allocate device memory (fallback)
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     pub fn allocate_device_memory_2(&self, size: usize) -> Result<WgpuBuffer, GpuError> {
         // Fallback implementation: return a simulated buffer handle
         Ok((0x1000 + size) as WgpuBuffer)
     }
 
     // Fallback methods for when WebGPU is not available
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     fn initialize_webgpu() -> Result<WgpuDevice, GpuError> {
         // Stub implementation
         Ok(0x1 as WgpuDevice)
     }
 
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     fn create_queue(device: WgpuDevice) -> Result<WgpuQueue, GpuError> {
         // Stub implementation
         Ok(0x2 as WgpuQueue)
     }
 
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     fn compile_wgsl_source(source: &str, name: &str) -> Result<WgpuComputePipeline, GpuError> {
         // Stub implementation
         Ok(0x3 as WgpuComputePipeline)
@@ -485,7 +485,7 @@ impl WebGPUContext {
     /// This exposes the same compilation path as [`try_compile_wgsl`] but operates
     /// on an already-created context so the adapter/device creation overhead is
     /// incurred only once.
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     pub fn compile_to_pipeline(&self, source: &str) -> Result<WgpuComputePipeline, GpuError> {
         let shader = self.compile_shader_internal(source, "scirs2-pipeline")?;
         Ok(WgpuComputePipeline {
@@ -496,7 +496,7 @@ impl WebGPUContext {
     }
 
     /// Run a vector-add end-to-end: upload `a` and `b`, dispatch, read back `result`.
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     pub fn run_vector_add(&self, a: &[f32], b: &[f32]) -> Result<Vec<f32>, GpuError> {
         use wgpu::{util::DeviceExt as _, BufferUsages};
 
@@ -733,11 +733,11 @@ impl GpuContextImpl for WebGPUContext {
             if let Some(device_buffer) = pool.allocate(size) {
                 return Arc::new(WebGPUBuffer {
                     device_buffer: Some(device_buffer),
-                    #[cfg(feature = "wgpu_backend")]
+                    #[cfg(feature = "wgpu")]
                     queue: Arc::clone(&self.queue),
-                    #[cfg(feature = "wgpu_backend")]
+                    #[cfg(feature = "wgpu")]
                     device: Arc::clone(&self.device),
-                    #[cfg(not(feature = "wgpu_backend"))]
+                    #[cfg(not(feature = "wgpu"))]
                     queue: self.queue,
                     size,
                     memory_pool: Arc::clone(&self.memory_pool),
@@ -755,7 +755,7 @@ impl GpuContextImpl for WebGPUContext {
                     e
                 );
 
-                #[cfg(feature = "wgpu_backend")]
+                #[cfg(feature = "wgpu")]
                 {
                     // Create a CPU fallback buffer with minimal size for WebGPU compatibility
                     // This is a last resort when GPU memory is exhausted
@@ -765,7 +765,7 @@ impl GpuContextImpl for WebGPUContext {
                         memory_pool: Arc::clone(&self.memory_pool),
                     });
                 }
-                #[cfg(not(feature = "wgpu_backend"))]
+                #[cfg(not(feature = "wgpu"))]
                 {
                     (0x2000 + size) as WgpuBuffer
                 }
@@ -774,11 +774,11 @@ impl GpuContextImpl for WebGPUContext {
 
         Arc::new(WebGPUBuffer {
             device_buffer: Some(device_buffer),
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             queue: Arc::clone(&self.queue),
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             device: Arc::clone(&self.device),
-            #[cfg(not(feature = "wgpu_backend"))]
+            #[cfg(not(feature = "wgpu"))]
             queue: self.queue,
             size,
             memory_pool: Arc::clone(&self.memory_pool),
@@ -790,13 +790,13 @@ impl GpuContextImpl for WebGPUContext {
             context: Arc::new(WebGPUContext {
                 memory_pool: Arc::clone(&self.memory_pool),
                 compiled_shaders: Arc::clone(&self.compiled_shaders),
-                #[cfg(feature = "wgpu_backend")]
+                #[cfg(feature = "wgpu")]
                 device: Arc::clone(&self.device),
-                #[cfg(feature = "wgpu_backend")]
+                #[cfg(feature = "wgpu")]
                 queue: Arc::clone(&self.queue),
-                #[cfg(not(feature = "wgpu_backend"))]
+                #[cfg(not(feature = "wgpu"))]
                 device: Arc::clone(&self.device),
-                #[cfg(not(feature = "wgpu_backend"))]
+                #[cfg(not(feature = "wgpu"))]
                 queue: Arc::clone(&self.queue),
             }),
         })
@@ -809,14 +809,14 @@ impl GpuContextImpl for WebGPUContext {
 
 /// WebGPU shader wrapper (augmented with basic reflection info)
 struct WebGPUShader {
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     pipeline: ComputePipeline,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     pipeline: WgpuComputePipeline,
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     #[allow(dead_code)]
     bind_group_layout: BindGroupLayout,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     #[allow(dead_code)]
     bind_group_layout: *mut std::ffi::c_void,
     #[allow(dead_code)]
@@ -843,15 +843,15 @@ impl GpuCompilerImpl for WebGPUCompiler {
             shader_name: shader.name.clone(),
             compiled_shaders: Arc::clone(&self.context.compiled_shaders),
             params: Arc::new(Mutex::new(HashMap::new())),
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             device: Arc::clone(&self.context.device),
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             queue: Arc::clone(&self.context.queue),
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             ephemeral_uniforms: Mutex::new(Vec::new()),
-            #[cfg(not(feature = "wgpu_backend"))]
+            #[cfg(not(feature = "wgpu"))]
             device: self.context.device,
-            #[cfg(not(feature = "wgpu_backend"))]
+            #[cfg(not(feature = "wgpu"))]
             queue: self.context.queue,
         }))
     }
@@ -866,15 +866,15 @@ impl GpuCompilerImpl for WebGPUCompiler {
             shader_name: name.to_string(),
             compiled_shaders: Arc::clone(&self.context.compiled_shaders),
             params: Arc::new(Mutex::new(HashMap::new())),
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             device: Arc::clone(&self.context.device),
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             queue: Arc::clone(&self.context.queue),
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             ephemeral_uniforms: Mutex::new(Vec::new()),
-            #[cfg(not(feature = "wgpu_backend"))]
+            #[cfg(not(feature = "wgpu"))]
             device: self.context.device,
-            #[cfg(not(feature = "wgpu_backend"))]
+            #[cfg(not(feature = "wgpu"))]
             queue: self.context.queue,
         })
     }
@@ -885,15 +885,15 @@ struct WebGPUKernelHandle {
     shader_name: String,
     compiled_shaders: Arc<Mutex<HashMap<String, WebGPUShader>>>,
     params: Arc<Mutex<HashMap<String, KernelParam>>>,
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     device: Arc<Device>,
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     queue: Arc<Queue>,
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     ephemeral_uniforms: Mutex<Vec<wgpu::Buffer>>,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     device: WgpuDevice,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     queue: WgpuQueue,
 }
 
@@ -1002,7 +1002,7 @@ impl GpuKernelImpl for WebGPUKernelHandle {
     // raw bytes helper removed from trait; use internal helper if needed
 
     fn dispatch(&self, workgroups: [u32; 3]) {
-        #[cfg(feature = "wgpu_backend")]
+        #[cfg(feature = "wgpu")]
         {
             // Real WebGPU compute dispatch
             let shaders = match self.compiled_shaders.lock() {
@@ -1047,7 +1047,7 @@ impl GpuKernelImpl for WebGPUKernelHandle {
                 self.queue.submit(std::iter::once(command_buffer));
             }
         }
-        #[cfg(not(feature = "wgpu_backend"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             // Fallback: no GPU available; dispatch is a no-op
             let _ = workgroups;
@@ -1058,15 +1058,15 @@ impl GpuKernelImpl for WebGPUKernelHandle {
 
 /// WebGPU buffer implementation
 struct WebGPUBuffer {
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     device_buffer: Option<Buffer>,
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     queue: Arc<Queue>,
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     device: Arc<Device>,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     device_buffer: Option<WgpuBuffer>,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     queue: WgpuQueue,
     size: usize,
     memory_pool: Arc<Mutex<WebGPUMemoryPool>>,
@@ -1084,7 +1084,7 @@ impl GpuBufferImpl for WebGPUBuffer {
     }
 
     unsafe fn copy_from_host(&self, data: *const u8, size: usize) {
-        #[cfg(feature = "wgpu_backend")]
+        #[cfg(feature = "wgpu")]
         {
             // Validate data size
             if size > self.size {
@@ -1104,7 +1104,7 @@ impl GpuBufferImpl for WebGPUBuffer {
                 self.queue.write_buffer(buffer, 0, data_slice);
             }
         }
-        #[cfg(not(feature = "wgpu_backend"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             // Fallback implementation - just validate
             if size > self.size {
@@ -1118,7 +1118,7 @@ impl GpuBufferImpl for WebGPUBuffer {
     }
 
     unsafe fn copy_to_host(&self, data: *mut u8, size: usize) {
-        #[cfg(feature = "wgpu_backend")]
+        #[cfg(feature = "wgpu")]
         {
             // Validate data size
             if size > self.size {
@@ -1167,7 +1167,7 @@ impl GpuBufferImpl for WebGPUBuffer {
                 }
             }
         }
-        #[cfg(not(feature = "wgpu_backend"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             // Fallback implementation - just validate and zero out
             if size > self.size {
@@ -1184,13 +1184,13 @@ impl GpuBufferImpl for WebGPUBuffer {
     }
 
     fn device_ptr(&self) -> u64 {
-        #[cfg(feature = "wgpu_backend")]
+        #[cfg(feature = "wgpu")]
         {
             // WebGPU doesn't expose raw device pointers, so we return a placeholder
             // In a real implementation, this might return a handle or ID
             &self.device_buffer as *const _ as u64
         }
-        #[cfg(not(feature = "wgpu_backend"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             self.device_buffer as u64
         }
@@ -1201,7 +1201,7 @@ impl GpuBufferImpl for WebGPUBuffer {
     }
 }
 
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 impl WebGPUKernelHandle {
     fn create_bind_group_from_params(
         &self,
@@ -1308,14 +1308,14 @@ impl Drop for WebGPUBuffer {
     fn drop(&mut self) {
         // Return buffer to memory pool if possible
         if let Ok(mut pool) = self.memory_pool.lock() {
-            #[cfg(feature = "wgpu_backend")]
+            #[cfg(feature = "wgpu")]
             {
                 // In real implementation, would return buffer to pool
                 if let Some(buffer) = self.device_buffer.take() {
                     pool.deallocate(buffer);
                 }
             }
-            #[cfg(not(feature = "wgpu_backend"))]
+            #[cfg(not(feature = "wgpu"))]
             {
                 if let Some(buffer) = self.device_buffer.take() {
                     pool.deallocate(buffer);
@@ -1387,9 +1387,9 @@ unsafe impl Sync for WebGPUCpuFallbackBuffer {}
 
 /// WebGPU memory pool for efficient buffer management
 struct WebGPUMemoryPool {
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     available_buffers: HashMap<usize, Vec<Buffer>>,
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     available_buffers: HashMap<usize, Vec<WgpuBuffer>>,
     #[allow(dead_code)]
     total_size: usize,
@@ -1405,7 +1405,7 @@ impl WebGPUMemoryPool {
         }
     }
 
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     fn allocate(&mut self, size: usize) -> Option<Buffer> {
         // Try to find a suitable buffer in the pool
         if let Some(buffers) = self.available_buffers.get_mut(&size) {
@@ -1417,7 +1417,7 @@ impl WebGPUMemoryPool {
         None
     }
 
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     fn allocate(&mut self, size: usize) -> Option<WgpuBuffer> {
         // Try to find a suitable buffer in the pool
         if let Some(buffers) = self.available_buffers.get_mut(&size) {
@@ -1429,7 +1429,7 @@ impl WebGPUMemoryPool {
         None
     }
 
-    #[cfg(feature = "wgpu_backend")]
+    #[cfg(feature = "wgpu")]
     fn deallocate(&mut self, buffer: Buffer) {
         // Return buffer to pool
         let size = buffer.size() as usize;
@@ -1440,7 +1440,7 @@ impl WebGPUMemoryPool {
         self.used_size = self.used_size.saturating_sub(size);
     }
 
-    #[cfg(not(feature = "wgpu_backend"))]
+    #[cfg(not(feature = "wgpu"))]
     fn deallocate(&mut self, buffer: WgpuBuffer) {
         // Fallback implementation - track the buffer
         let size = 1024; // Placeholder size

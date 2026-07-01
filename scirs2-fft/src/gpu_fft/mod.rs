@@ -33,7 +33,7 @@
 //! | `pipeline`    | `GpuFftPipeline` — plan cache, single/batch/R2C/C2R/signal execution |
 //! | `dispatch`    | `fft_auto_dispatch`, `fft_batch_gpu` — CPU/GPU auto-dispatch layer |
 //! | `overlap_save`| `overlap_save_gpu` — FFT-based overlap-save (OLS) convolution |
-//! | `wgpu_backend`| wgpu compute shader back-end (feature `wgpu_fft`) |
+//! | `wgpu_backend`| wgpu compute shader back-end (feature `wgpu`) |
 
 pub mod dispatch;
 pub mod kernels;

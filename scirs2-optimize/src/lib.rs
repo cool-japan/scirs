@@ -43,7 +43,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-optimize = "0.5.1"
+//! scirs2-optimize = "0.6.0"
 //! ```
 //!
 //! ### Unconstrained Minimization (Rosenbrock Function)
@@ -416,6 +416,8 @@ pub mod distributed;
 pub mod distributed_gpu;
 pub mod global;
 pub mod gpu;
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
 pub mod jit_optimization;
 pub mod learned_optimizers;
 pub mod least_squares;

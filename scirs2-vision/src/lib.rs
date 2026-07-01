@@ -35,7 +35,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-vision = "0.5.1"
+//! scirs2-vision = "0.6.0"
 //! ```
 //!
 //! ### Feature Detection (Harris Corners)
@@ -262,7 +262,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.5.1**
+//! Current version: **0.6.0**
 
 #![warn(missing_docs)]
 
@@ -288,6 +288,8 @@ pub mod feature;
 /// Rotation, scaling (nearest/bilinear/bicubic), affine and perspective transforms,
 /// cropping, padding, and horizontal/vertical flipping.
 pub mod geometric;
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
 pub mod gpu_ops;
 /// Histogram operations for image analysis
 ///

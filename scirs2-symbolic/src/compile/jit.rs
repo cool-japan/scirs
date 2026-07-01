@@ -31,7 +31,9 @@
 
 use crate::eml::op::{LoweredOp, OxiOp};
 use cranelift_codegen::ir::types::F64;
-use cranelift_codegen::ir::{AbiParam, Function, InstBuilder, MemFlags, Signature, UserFuncName};
+use cranelift_codegen::ir::{
+    AbiParam, Function, InstBuilder, MemFlagsData, Signature, UserFuncName,
+};
 use cranelift_codegen::ir::{FuncRef, Value};
 use cranelift_codegen::isa::CallConv;
 use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext};
@@ -387,9 +389,20 @@ fn emit_op(
         OxiOp::Var(i) => {
             let byte_offset = i.checked_mul(8).ok_or(JitError::VarIndexOverflow(*i))?;
             let offset = i32::try_from(byte_offset).map_err(|_| JitError::VarIndexOverflow(*i))?;
+            // Cranelift 0.133 removed `MemFlags::trusted()` — `MemFlags` is
+            // now an opaque per-function handle into a deduplicated
+            // `MemFlagsSet`, not a free-standing bitset. The generated
+            // `InstBuilder::load` takes `impl Into<MemFlagsData>` and interns
+            // it into that set internally (deduped, so passing the same
+            // `MemFlagsData` on every `Var` load is cheap — one entry total).
+            // `MemFlagsData::trusted()` reproduces the exact old semantics:
+            // `notrap` (no bounds-check trap — the `vars` slice is verified
+            // in-bounds by the host, see `eval_checked`) + `aligned` (skip
+            // alignment checks — `vars_ptr` comes from an `&[f64]`, always
+            // 8-byte aligned).
             let v = builder
                 .ins()
-                .load(F64, MemFlags::trusted(), vars_ptr, offset);
+                .load(F64, MemFlagsData::trusted(), vars_ptr, offset);
             vstack.push(v);
         }
         OxiOp::Add => {

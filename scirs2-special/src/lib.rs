@@ -44,7 +44,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-special = "0.5.1"
+//! scirs2-special = "0.6.0"
 //! ```
 //!
 //!
@@ -96,7 +96,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.5.1
+//! - **Version**: 0.6.0
 //! - **Release Date**: March 27, 2026
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
 
@@ -201,6 +201,10 @@ pub mod clebsch_gordan_lie;
 pub mod gpu_dispatch;
 // GPU kernel sources and dispatch stubs (WGSL / CUDA / ROCm)
 pub mod gpu_kernels;
+
+// Direct oxicuda CUDA path for batched erf (NVIDIA-only, runtime-probed, default off)
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
 // Hall polynomials for p-group extensions
 pub mod hall_polynomials;
 // Dedekind zeta function
@@ -566,6 +570,10 @@ pub use simd_ops::gamma_f32_simd_parallel;
 
 // Error function and related functions
 pub use erf::{dawsn, erf, erfc, erfcinv, erfcx, erfi, erfinv, wofz};
+
+// CUDA erf path (oxicuda direct, gated on the `cuda` feature)
+#[cfg(feature = "cuda")]
+pub use gpu_cuda::{cuda_erf_batch, cuda_is_available};
 
 // Arbitrary precision functions (when enabled)
 #[cfg(feature = "high-precision")]

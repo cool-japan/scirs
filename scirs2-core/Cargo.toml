@@ -81,7 +81,7 @@ async-trait = { workspace = true, optional = true }  # For object-safe async tra
 
 # GPU backend dependencies
 # Note: metal and objc2-metal-performance-shaders are macOS-specific, moved to target-specific section
-# Note: cudarc is only available on x86_64 Linux and Windows, moved to target-specific section
+# Note: CUDA was retired from scirs2-core in 0.6.x — CUDA acceleration now lives in the per-crate oxicuda-* backends (no cudarc here)
 opencl3 = { workspace = true, optional = true }  # OpenCL runtime
 wgpu = { workspace = true, optional = true }  # WebGPU runtime
 pollster = { workspace = true, optional = true }  # Async runtime for WebGPU
@@ -152,11 +152,6 @@ objc2-metal-performance-shaders-graph = { workspace = true, optional = true }  #
 
 # NOTE: Platform-specific BLAS dependencies removed - using pure Rust OxiBLAS
 
-# CUDA support - only available on x86_64 Linux and Windows
-[target.'cfg(all(target_arch = "x86_64", any(target_os = "linux", target_os = "windows")))'.dependencies]
-cudarc = { workspace = true, optional = true }  # CUDA runtime
-
-
 # Linux-specific profiling and system dependencies
 [target.'cfg(target_os = "linux")'.dependencies]
 perf-event = { workspace = true, optional = true }  # Linux perf integration
@@ -196,10 +191,9 @@ opencl = ["std", "gpu", "dep:opencl3"]  # OpenCL-specific GPU acceleration (requ
 metal = ["std", "gpu", "dep:metal", "dep:objc2", "dep:objc2-foundation", "dep:objc2-metal", "dep:objc2-metal-performance-shaders"]  # Metal-specific GPU acceleration (Apple) (requires std)
 mpsgraph = ["std", "metal", "dep:objc2-metal-performance-shaders-graph", "dep:cc"]  # MPSGraph high-performance operations (Apple, requires metal + cc for ObjC wrapper) (requires std)
 c-opt = ["dep:cc"]  # Enable C/Objective-C compiler for optional native extensions (mpsgraph Obj-C wrapper)
-wgpu_backend = ["std", "gpu", "dep:wgpu", "dep:pollster"]  # WebGPU-specific GPU acceleration (requires std)
+wgpu = ["std", "gpu", "dep:wgpu", "dep:pollster"]  # WebGPU-specific GPU acceleration (requires std)
 rocm = ["std", "gpu"]  # ROCm-specific GPU acceleration (AMD) (requires std)
-# CUDA feature is platform-conditional - only works on x86_64 Linux and Windows
-cuda = ["std", "gpu", "dep:cudarc"]  # CUDA-specific GPU acceleration (platform-conditional) (requires std)
+# NOTE: the `cuda` feature was removed from scirs2-core in 0.6.x — CUDA now lives in the per-crate oxicuda-* backends (see SCIRS2_POLICY.md)
 memory_management = ["std", "oxicode", "dep:tempfile", "serialization"]  # Advanced memory management (oxicode for SIMD optimization) (requires std)
 mmap = ["std", "memmap2", "bytemuck", "memory_management", "dep:tempfile"]  # Memory-mapped array wrapper with COW semantics (requires std)
 memory_efficient = ["std", "dep:tempfile", "oxicode", "memmap2", "rayon", "serialization"]  # Memory-efficient operations (oxicode for SIMD) (requires std)
@@ -243,13 +237,12 @@ linalg = ["std", "array", "oxiblas-ndarray", "oxiblas-blas", "oxiblas-lapack"]  
 array_protocol = []  # Array Protocol for third-party array implementations
 array_protocol_jit = ["std", "array_protocol"]  # JIT compilation for Array Protocol (requires std)
 array_protocol_gpu = ["array_protocol", "gpu"]  # GPU support for Array Protocol
-array_protocol_cuda = ["array_protocol_gpu", "cuda"]  # CUDA support for Array Protocol
 array_protocol_opencl = ["array_protocol_gpu", "opencl"]  # OpenCL support for Array Protocol
 array_protocol_metal = ["array_protocol_gpu", "metal"]  # Metal support for Array Protocol
-array_protocol_wgpu = ["array_protocol_gpu", "wgpu_backend"]  # WebGPU support for Array Protocol
+array_protocol_wgpu = ["array_protocol_gpu", "wgpu"]  # WebGPU support for Array Protocol
 array_protocol_rocm = ["array_protocol_gpu", "rocm"]  # ROCm support for Array Protocol
 array_protocol_distributed = ["array_protocol", "parallel"]  # Distributed computing for Array Protocol
-array_protocol_all = ["array_protocol", "array_protocol_jit", "array_protocol_cuda", "array_protocol_distributed"]  # All Array Protocol features
+array_protocol_all = ["array_protocol", "array_protocol_jit", "array_protocol_distributed"]  # All Array Protocol features
 # Production-level features for enterprise deployments
 observability = ["std", "serde", "serde_json"]  # Observability infrastructure (tracing, audit logging) (requires std)
 observability_http = ["std", "observability", "reqwest"]  # HTTP export for observability (requires std)
@@ -269,7 +262,7 @@ arbitrary-precision = ["std", "num-bigint", "oxinum-core", "oxinum-int", "oxinum
 python = ["std", "dep:pyo3", "dep:scirs2-numpy", "serialization"]  # Python bindings with NumPy integration (uses scirs2-numpy with ndarray 0.17) (requires std)
 all = [
     "simd", "parallel", "cache", "validation", "logging",
-    "gpu", "cuda", "memory_management", "memory_efficient", "memory_compression",
+    "gpu", "memory_management", "memory_efficient", "memory_compression",
     "array", "array_stats", "array_io", "linalg", "profiling", "random", "types", "ufuncs", "testing", "benchmarking",
     "array_protocol_all", "production", "arbitrary-precision"
     # Note: "python" can now be used with all other features (uses scirs2-numpy with ndarray 0.17)
@@ -485,7 +478,7 @@ required-features = ["array_protocol_distributed", "serialization"]
 [[example]]
 name = "array_protocol_gpu"
 path = "examples/array_protocol_gpu.rs"
-required-features = ["array_protocol_cuda"]
+required-features = ["array_protocol_gpu"]
 
 [[example]]
 name = "custom_array_protocol"

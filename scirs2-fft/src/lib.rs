@@ -41,7 +41,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-fft = "0.5.1"
+//! scirs2-fft = "0.6.0"
 //! ```
 //!
 //!
@@ -157,7 +157,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.5.1
+//! - **Version**: 0.6.0
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-fft](https://docs.rs/scirs2-fft)
@@ -540,6 +540,12 @@ pub mod cyclostationary;
 pub mod fractional;
 // GPU FFT stub
 pub mod gpu_fft;
+// Pure-Rust CUDA FFT dense path (optional, behind `cuda` feature; NVIDIA-only, runtime-probed).
+// Off by default; does not route through scirs2-core and does not affect the CPU or wgpu paths.
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
+#[cfg(feature = "cuda")]
+pub use gpu_cuda::{cuda_fft_1d, cuda_ifft_1d, cuda_is_available};
 // N-dimensional FFT
 pub mod ndim_fft;
 // Quantum FFT (QFT, QPE)

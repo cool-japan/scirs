@@ -113,7 +113,6 @@ autograd = ["dep:scirs2-autograd"]
 # Gates GPU-accelerated paths in sub-crates that declare the `cuda` feature.
 # When scirs2-cuda platform crates land, add them here.
 cuda = [
-    "scirs2-core/cuda",
     "scirs2-linalg?/cuda",
     "scirs2-fft?/cuda",
     "scirs2-cluster?/cuda",

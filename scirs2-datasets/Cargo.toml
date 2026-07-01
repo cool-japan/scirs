@@ -62,6 +62,11 @@ oxih5-format = { workspace = true, optional = true }
 # v0.4.3: NetCDF3 reader (Item 8) — pure Rust, always available
 netcdf3 = { workspace = true }
 
+# Phase 2 (0.6.0): optional NVIDIA-only CUDA backend via oxicuda-* library crates.
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-blas = { workspace = true, optional = true }
+
 # v0.2.0: Benchmarking
 criterion = { workspace = true, optional = true }
 
@@ -78,8 +83,9 @@ parallel = ["scirs2-core/parallel"]
 lazy-loading = ["memmap2"]
 augmentation = ["scirs2-core/gpu"]
 # Real GPU-accelerated dataset generation via scirs2-core's wgpu-backed GpuNdarray.
-# Mirrors scirs2-optimize's `gpu` feature, which enables `scirs2-core/array_protocol_wgpu`.
-gpu_wgpu = ["scirs2-core/array_protocol_wgpu"]
+# Mirrors scirs2-optimize's `wgpu` feature, which enables `scirs2-core/array_protocol_wgpu`.
+wgpu = ["scirs2-core/array_protocol_wgpu"]
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-blas"]
 formats = ["scirs2-io", "dep:arrow", "dep:parquet"]
 distributed = ["tokio"]
 benchmarks = ["criterion"]

@@ -1,8 +1,8 @@
 //! Integration tests for wgpu compute dispatch (scirs2-special).
 //!
-//! Gated on `wgpu_kernels` feature. Tests gracefully skip when no GPU adapter is available.
+//! Gated on `wgpu` feature. Tests gracefully skip when no GPU adapter is available.
 
-#![cfg(feature = "wgpu_kernels")]
+#![cfg(feature = "wgpu")]
 
 use scirs2_special::gpu_kernels::wgsl::{
     bessel_j0_batch_wgpu, erf_batch_wgpu, erfc_batch_wgpu, erfinv_batch_wgpu, gamma_batch_wgpu,

@@ -14,7 +14,6 @@ use scirs2_spatial::{
     gpu_accel::is_gpu_acceleration_available,
     memory_pool::global_distance_pool,
     neuromorphic::SpikingNeuralClusterer,
-    quantum_classical_hybrid::HybridClusterer,
 
     // Advanced algorithms to benchmark
     quantum_inspired::{QuantumClusterer, QuantumNearestNeighbor},
@@ -23,6 +22,11 @@ use scirs2_spatial::{
     // Classical algorithms for comparison
     KDTree,
 };
+
+// `HybridClusterer` is async-only (its `fit` is awaited on a tokio runtime), so it
+// is gated behind the `async` feature to keep default builds warning-free.
+#[cfg(feature = "async")]
+use scirs2_spatial::quantum_classical_hybrid::HybridClusterer;
 
 /// Generate test datasets for benchmarking
 struct BenchmarkDatasets {
@@ -129,7 +133,8 @@ fn benchmark_clustering(c: &mut Criterion) {
             },
         );
 
-        // Benchmark hybrid clustering
+        // Benchmark hybrid clustering (async-only: `fit` is awaited on a tokio runtime)
+        #[cfg(feature = "async")]
         group.bench_with_input(
             BenchmarkId::new("hybrid", name),
             &(data, n_clusters),

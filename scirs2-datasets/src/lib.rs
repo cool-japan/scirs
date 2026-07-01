@@ -27,7 +27,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-datasets = "0.5.1"
+//! scirs2-datasets = "0.6.0"
 //! ```
 //!
 //! ```rust
@@ -41,7 +41,7 @@
 //! let data = make_classification(100, 5, 3, 2, 4, Some(42)).expect("Operation failed");
 //! ```
 //!
-//! ## 🔒 Version: 0.5.1
+//! ## 🔒 Version: 0.6.0
 //!
 //! ### v0.5.0 New Features
 //!
@@ -144,6 +144,9 @@ pub mod explore;
 pub mod external;
 pub mod generators;
 pub mod gpu;
+/// Optional NVIDIA-only CUDA acceleration (off by default; enable the `cuda` feature).
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
 pub mod gpu_optimization;
 pub mod loaders;
 pub mod ml_integration;

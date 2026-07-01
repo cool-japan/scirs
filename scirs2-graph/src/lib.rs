@@ -30,7 +30,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-graph = "0.5.1"
+//! scirs2-graph = "0.6.0"
 //! ```
 //!
 //! ```rust,no_run
@@ -43,7 +43,7 @@
 //! g.add_edge(0, 1, 1.0);
 //! ```
 //!
-//! ## 🔒 Version: 0.5.1
+//! ## 🔒 Version: 0.6.0
 //!
 //! ## API Stability and Versioning
 //!
@@ -101,6 +101,11 @@ pub mod condensation;
 pub mod distributed;
 // GPU-accelerated graph operations
 pub mod gpu;
+
+/// CUDA-accelerated sparse graph linear algebra (optional, off-by-default,
+/// NVIDIA-only). Compiles to nothing unless the `cuda` feature is enabled.
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
 // Graph transformers (GraphGPS, Graphormer)
 pub mod graph_transformer;
 // Graph partitioning (METIS, FENNEL)
@@ -396,6 +401,9 @@ pub use numerical_accuracy_validation::{
 
 // Compressed sparse row graph representation
 pub use compressed::{AdjacencyList, CsrGraph, CsrGraphBuilder, NeighborIter};
+
+#[cfg(feature = "cuda")]
+pub use gpu_cuda::{cuda_is_available, cuda_spmv_csr};
 
 // Parallel graph algorithms on CSR graphs
 pub use parallel_algorithms::{

@@ -1,10 +1,10 @@
 //! Smoke tests for the Wave 76 WGSL kernel stubs.
 //!
-//! These tests are only compiled and run when the `wgpu_backend` feature is enabled.
+//! These tests are only compiled and run when the `wgpu` feature is enabled.
 //! On hosts without a GPU adapter (headless CI), all GPU tests skip gracefully (they
 //! print a note and pass rather than failing).
 
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 mod wgpu_kernels_smoke {
     use scirs2_core::gpu::backends::try_compile_wgsl;
     use scirs2_core::gpu::kernels::{GpuKernel, KernelRegistry};

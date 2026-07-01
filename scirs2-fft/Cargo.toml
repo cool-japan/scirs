@@ -20,12 +20,12 @@ parallel = []
 simd = [] # SIMD acceleration support
 oxifft = ["dep:oxifft"] # Pure Rust FFT backend (default)
 serde = [] # Serialization support
-cuda = [] # Optional CUDA support for GPU acceleration (dependencies disabled)
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-fft"] # Optional pure-Rust CUDA FFT (oxicuda) - off by default, NVIDIA-only, runtime-probed
 hip = [] # Optional ROCm/HIP support for AMD GPU acceleration
 sycl = [] # Optional SYCL support for cross-platform GPU acceleration
 never = [] # Used to conditionally disable tests during development
 python = ["scirs2-core/python"] # Python bindings support
-wgpu_fft = ["dep:wgpu", "dep:pollster"] # wgpu-based GPU FFT dispatch (optional, behind feature gate)
+wgpu = ["dep:wgpu", "dep:pollster"] # wgpu-based GPU FFT dispatch (optional, behind feature gate)
 
 [lints]
 workspace = true
@@ -59,11 +59,17 @@ tempfile = { workspace = true }
 # hiprt = { version = "0.2", optional = true }
 # rocblas = { version = "0.2", optional = true }
 
-# wgpu GPU FFT backend (optional, behind wgpu_fft feature)
+# wgpu GPU FFT backend (optional, behind wgpu feature)
 wgpu = { workspace = true, optional = true }
 
-# Blocking executor for synchronous wgpu adapter checks (used by wgpu_fft feature)
+# Blocking executor for synchronous wgpu adapter checks (used by wgpu feature)
 pollster = { workspace = true, optional = true }
+
+# OxiCUDA pure-Rust CUDA FFT backend (optional, behind `cuda` feature; off by default).
+# LOCAL-ONLY path deps pending oxicuda 0.4.0 publish. NVIDIA-only at runtime (UnsupportedPlatform elsewhere).
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-fft = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }

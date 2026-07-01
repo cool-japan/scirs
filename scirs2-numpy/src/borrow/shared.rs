@@ -1,5 +1,5 @@
 use std::collections::hash_map::Entry;
-use std::ffi::{c_void, CString};
+use std::ffi::c_void;
 use std::mem::forget;
 use std::os::raw::{c_char, c_int};
 use std::ptr::NonNull;
@@ -136,10 +136,10 @@ fn insert_shared<'py>(py: Python<'py>) -> PyResult<NonNull<Shared>> {
                 release_mut: release_mut_shared,
             };
 
-            let capsule = PyCapsule::new_with_destructor(
+            let capsule = PyCapsule::new_with_value_and_destructor(
                 py,
                 shared,
-                Some(CString::new("_RUST_NUMPY_BORROW_CHECKING_API").expect("Operation failed")),
+                c_str!("_RUST_NUMPY_BORROW_CHECKING_API"),
                 |shared, _ctx| {
                     // SAFETY: `shared.flags` was initialized using `Box::into_raw`.
                     let _ = unsafe { Box::from_raw(shared.flags as *mut BorrowFlags) };

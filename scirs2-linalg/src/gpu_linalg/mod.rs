@@ -1,7 +1,19 @@
 //! GPU-accelerated linear algebra operations.
 //!
 //! This module provides GPU-accelerated versions of key linear algebra operations
-//! using the GPU backends from `scirs2-core` (Metal, CUDA, WebGPU, OpenCL, CPU).
+//! using scirs2-core's portable wgpu/WebGPU backend (f32, with CPU fallback).
+//!
+//! # Which GPU module is this? (PORTABILITY path)
+//!
+//! This is the **portability** path. It builds on scirs2-core's wgpu/WebGPU
+//! portability layer — `scirs2_core::gpu::{GpuBackend, GpuContext}` — a shared,
+//! cross-platform (f32, CPU-fallback) foundation; that coupling to core is
+//! intentional. The `GpuContext` used here is **core's**, NOT the self-contained
+//! `crate::gpu::GpuContext` trait. Gated on the `gpu` feature.
+//!
+//! For the NVIDIA-only, f64, real-CUDA **performance** path (via `oxicuda-*`, no
+//! fallback) see `crate::gpu_cuda` (feature `cuda`); for the self-contained local
+//! GPU abstraction with its own trait, see `crate::gpu`.
 //!
 //! # Architecture
 //!

@@ -2,7 +2,7 @@
 //!
 //! This module exposes `fft_auto_dispatch`, `fft_batch_gpu`, and
 //! `overlap_save_gpu` as the high-level public API.  The dispatch logic
-//! routes computations to the GPU (via the `wgpu_fft` feature) for large
+//! routes computations to the GPU (via the `wgpu` feature) for large
 //! inputs and falls back to the CPU-based [`GpuFftPipeline`] otherwise.
 //!
 //! # Design
@@ -14,7 +14,7 @@
 //!
 //! # Feature flags
 //!
-//! * `wgpu_fft` — enables the wgpu GPU back-end.  When absent (or when
+//! * `wgpu` — enables the wgpu GPU back-end.  When absent (or when
 //!   no adapter is available at runtime) every call transparently falls
 //!   back to the CPU pipeline.
 
@@ -111,7 +111,7 @@ fn build_pipeline() -> GpuFftPipeline {
 /// 1. **Zero-pad** `input` to the next power of two when its length is not
 ///    already a power of two.  The `data` field in the returned
 ///    [`DispatchFftOutput`] has this padded length.
-/// 2. **Route to GPU** when the `wgpu_fft` feature is enabled, the padded
+/// 2. **Route to GPU** when the `wgpu` feature is enabled, the padded
 ///    length ≥ `config.gpu_threshold`, and a wgpu adapter is available.
 ///    If the adapter is unavailable the call falls through to the CPU path.
 /// 3. **CPU path**: the existing [`GpuFftPipeline`] is used (pure Rust,
@@ -138,7 +138,7 @@ pub fn fft_auto_dispatch(
     buf.resize(n_padded, Complex64::new(0.0, 0.0));
 
     // Try the wgpu path first (compile-time + runtime guarded).
-    #[cfg(feature = "wgpu_fft")]
+    #[cfg(feature = "wgpu")]
     {
         if n_padded >= config.gpu_threshold {
             match super::wgpu_backend::fft_wgpu(&buf, config.inverse) {

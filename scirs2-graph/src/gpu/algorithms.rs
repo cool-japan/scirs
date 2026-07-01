@@ -1,7 +1,7 @@
 //! Parallel BFS and SSSP algorithms with GPU dispatch.
 //!
 //! All algorithms accept graphs in standard formats (CSR or adjacency lists)
-//! and dispatch to the GPU (wgpu) when the `gpu` feature is enabled and a
+//! and dispatch to the GPU (wgpu) when the `wgpu` feature is enabled and a
 //! compatible adapter is present.  When no adapter is available, or when the
 //! edge count is below the threshold (4096), the call falls back to the
 //! CPU-parallel implementations in `super::parallel`.
@@ -96,7 +96,7 @@ pub fn gpu_bfs(
     match config.backend {
         GpuGraphBackend::CpuParallel => Ok(parallel_bfs_atomic(row_ptr, col_idx, source)),
         GpuGraphBackend::Gpu => {
-            #[cfg(feature = "gpu")]
+            #[cfg(feature = "wgpu")]
             {
                 let n_edges = col_idx.len();
                 if n_edges >= GPU_EDGE_THRESHOLD {
@@ -183,7 +183,7 @@ pub fn gpu_sssp_bellman_ford(
             }
         }
         GpuGraphBackend::Gpu => {
-            #[cfg(feature = "gpu")]
+            #[cfg(feature = "wgpu")]
             {
                 let n_edges = col_idx.len();
                 if !has_negative && n_edges >= GPU_EDGE_THRESHOLD {
@@ -359,7 +359,7 @@ pub fn gpu_sssp_delta_stepping(
         }
         GpuGraphBackend::Gpu => {
             // True GPU delta-stepping: light-edge proposal + apply + heavy-edge BF pass.
-            #[cfg(feature = "gpu")]
+            #[cfg(feature = "wgpu")]
             {
                 if total_edges >= GPU_EDGE_THRESHOLD {
                     match wgpu_delta_stepping(adj, source, delta) {
@@ -401,10 +401,10 @@ fn dijkstra_sequential(adj: &[Vec<(usize, f64)>], src: usize) -> Vec<f64> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// wgpu dispatch (compiled only when `gpu` feature + wgpu_backend available)
+// wgpu dispatch (compiled only when `wgpu` feature + scirs2-core/wgpu available)
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn wgpu_bfs(
     row_ptr: &[usize],
     col_idx: &[usize],
@@ -699,7 +699,7 @@ fn wgpu_bfs(
     Ok(dist_usize)
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn wgpu_bellman_ford(
     row_ptr: &[usize],
     col_idx: &[usize],
@@ -896,7 +896,7 @@ fn wgpu_bellman_ford(
 // True GPU delta-stepping dispatch (light/heavy partition + atomicMin)
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn wgpu_delta_stepping(
     adj: &[Vec<(usize, f64)>],
     source: usize,
@@ -1391,7 +1391,7 @@ fn wgpu_delta_stepping(
 // Helper functions for bind group layout entries
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn bgl_storage_ro(binding: u32) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
@@ -1405,7 +1405,7 @@ fn bgl_storage_ro(binding: u32) -> wgpu::BindGroupLayoutEntry {
     }
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn bgl_storage_rw(binding: u32) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
@@ -1419,7 +1419,7 @@ fn bgl_storage_rw(binding: u32) -> wgpu::BindGroupLayoutEntry {
     }
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn bgl_uniform(binding: u32) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
@@ -1437,7 +1437,7 @@ fn bgl_uniform(binding: u32) -> wgpu::BindGroupLayoutEntry {
 // GPU buffer readback helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn read_u32_from_staging(
     device: &wgpu::Device,
     staging: &wgpu::Buffer,
@@ -1460,7 +1460,7 @@ fn read_u32_from_staging(
     Ok(val)
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn read_u32_vec_from_staging(
     device: &wgpu::Device,
     staging: &wgpu::Buffer,
@@ -1488,7 +1488,7 @@ fn read_u32_vec_from_staging(
     Ok(result)
 }
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn read_i32_vec_from_staging(
     device: &wgpu::Device,
     staging: &wgpu::Buffer,

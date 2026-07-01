@@ -61,7 +61,7 @@ pub(crate) fn try_gpu_cg_update(
 
 /// Dispatch to GPU implementation; compiled only when `gpu` feature is active.
 fn do_gpu_cg_dispatch(g: &Array1<f64>, g_new: &Array1<f64>, p: &Array1<f64>) -> GpuCgResult {
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     {
         use scirs2_core::array_protocol::gpu_ndarray::{global_context, is_gpu_available};
 
@@ -78,7 +78,7 @@ fn do_gpu_cg_dispatch(g: &Array1<f64>, g_new: &Array1<f64>, p: &Array1<f64>) -> 
             Err(_) => GpuCgResult::FallbackToCpu,
         }
     }
-    #[cfg(not(feature = "gpu"))]
+    #[cfg(not(feature = "wgpu"))]
     {
         let _ = (g, g_new, p);
         GpuCgResult::FallbackToCpu
@@ -86,7 +86,7 @@ fn do_gpu_cg_dispatch(g: &Array1<f64>, g_new: &Array1<f64>, p: &Array1<f64>) -> 
 }
 
 /// Core GPU implementation — only compiled with the `gpu` feature.
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn gpu_cg_update_inner(
     g: &Array1<f64>,
     g_new: &Array1<f64>,

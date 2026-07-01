@@ -61,6 +61,8 @@ pub mod cas;
 #[cfg(feature = "jit")]
 pub mod compile;
 pub mod diffgeom;
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
 pub mod neural_priors;
 
 #[cfg(feature = "macros")]
@@ -95,6 +97,9 @@ pub use regression::{
 };
 pub use simplify::{simplify, simplify_full};
 pub use units::{Dimension, SiBase, UnitAware, UnitError};
+
+#[cfg(feature = "cuda")]
+pub use gpu_cuda::{cuda_eval_batch, cuda_is_available, CudaEvalError};
 
 #[cfg(test)]
 mod tests {

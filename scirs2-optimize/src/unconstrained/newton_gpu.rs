@@ -66,7 +66,7 @@ pub(crate) fn try_gpu_newton_cg_solve(
 
 /// Dispatch to GPU implementation; compiled only when `gpu` feature is active.
 fn do_gpu_newton_dispatch(g: &Array1<f64>, hess: &Array2<f64>, tol: f64) -> GpuNewtonResult {
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     {
         use scirs2_core::array_protocol::gpu_ndarray::{global_context, is_gpu_available};
 
@@ -83,7 +83,7 @@ fn do_gpu_newton_dispatch(g: &Array1<f64>, hess: &Array2<f64>, tol: f64) -> GpuN
             Err(_) => GpuNewtonResult::FallbackToCpu,
         }
     }
-    #[cfg(not(feature = "gpu"))]
+    #[cfg(not(feature = "wgpu"))]
     {
         let _ = (g, hess, tol);
         GpuNewtonResult::FallbackToCpu
@@ -91,7 +91,7 @@ fn do_gpu_newton_dispatch(g: &Array1<f64>, hess: &Array2<f64>, tol: f64) -> GpuN
 }
 
 /// Core GPU implementation — only compiled with the `gpu` feature.
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn gpu_newton_cg_inner(
     g: &Array1<f64>,
     hess: &Array2<f64>,

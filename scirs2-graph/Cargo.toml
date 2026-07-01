@@ -35,10 +35,16 @@ sysinfo = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
-# GPU acceleration (optional, behind `gpu` feature)
+# GPU acceleration (optional, behind `wgpu` feature)
 wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true }
+
+# Optional, off-by-default, NVIDIA-only CUDA backend (direct oxicuda-* path deps).
+# oxicuda-sparse transitively pulls oxicuda-launch / -ptx / -blas.
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-sparse = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
@@ -56,7 +62,13 @@ unstable = []
 # Performance features
 parallel = ["scirs2-core/parallel"]
 simd = ["scirs2-core/simd"]
-gpu = ["scirs2-core/gpu", "scirs2-core/wgpu_backend", "dep:wgpu", "dep:pollster", "dep:bytemuck"]
+wgpu = ["scirs2-core/gpu", "scirs2-core/wgpu", "dep:wgpu", "dep:pollster", "dep:bytemuck"]
+
+# Optional, off-by-default, NVIDIA-only CUDA acceleration for sparse graph
+# linear algebra (adjacency-matrix SpMV) via the pure-Rust oxicuda library
+# crates. Compiles everywhere; the runtime probe returns false when no NVIDIA
+# device is present (e.g. macOS), so callers fall back to the CPU SpMV.
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-sparse"]
 sysinfo = []
 
 # Algorithm features

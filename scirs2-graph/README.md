@@ -297,7 +297,7 @@ fn temporal_example() -> CoreResult<()> {
 
 ## GPU Acceleration (v0.5.0)
 
-`scirs2-graph` provides real wgpu GPU dispatch for large-scale graph traversal and shortest paths (feature `gpu`):
+`scirs2-graph` provides real wgpu GPU dispatch for large-scale graph traversal and shortest paths (feature `wgpu`):
 
 | Algorithm | Implementation |
 |-----------|---------------|
@@ -315,7 +315,7 @@ All GPU algorithms gracefully skip to CPU when no wgpu adapter is available (tes
 |------|-------------|
 | `parallel` | Enable Rayon-based parallel processing for large graph algorithms |
 | `simd` | Enable SIMD-accelerated numerical operations |
-| `gpu` | Enable wgpu GPU dispatch for BFS, SSSP, delta-stepping (requires wgpu/pollster/bytemuck) |
+| `wgpu` | Enable wgpu GPU dispatch for BFS, SSSP, delta-stepping (requires wgpu/pollster/bytemuck) |
 
 ## Performance
 

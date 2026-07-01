@@ -2,6 +2,7 @@
 //!
 //! This module provides GPU implementations of sparse FFT algorithms through
 //! the scirs2-core::gpu module. All direct GPU API calls are forbidden.
+//! NOTE: The dense pure-Rust CUDA FFT path (oxicuda) lives in `gpu_cuda.rs` (feature `cuda`); this module covers SPARSE FFT only and remains an honest NotImplementedError stub.
 
 use crate::error::{FFTError, FFTResult};
 use crate::sparse_fft::{

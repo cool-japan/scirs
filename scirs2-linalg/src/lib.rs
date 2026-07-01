@@ -49,9 +49,9 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-linalg = "0.5.1"
+//! scirs2-linalg = "0.6.0"
 //! # Optional features
-//! scirs2-linalg = { version = "0.5.1", features = ["simd", "parallel", "gpu"] }
+//! scirs2-linalg = { version = "0.6.0", features = ["simd", "parallel", "gpu"] }
 //! ```
 //!
 //! ### Basic Matrix Operations
@@ -210,7 +210,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.5.1
+//! - **Version**: 0.6.0
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-linalg](https://docs.rs/scirs2-linalg)
@@ -367,6 +367,15 @@ pub mod tucker;
 // Distributed computing support (temporarily disabled - needs extensive API fixes)
 // pub mod distributed;
 
+// ── GPU module map: three distinct, intentional stories (do NOT conflate) ──
+//   `gpu`        : self-contained LOCAL abstraction — defines its OWN `GpuContext`
+//                  trait; does NOT use `scirs2_core::gpu`. (cuda/opencl/rocm/metal)
+//   `gpu_linalg` : PORTABILITY path — builds on scirs2-core's wgpu/WebGPU layer
+//                  (`scirs2_core::gpu::{GpuBackend, GpuContext}`), f32, CPU fallback. (gpu)
+//   `gpu_cuda`   : PERFORMANCE path — NVIDIA-only, f64, real CUDA via `oxicuda-*`,
+//                  no fallback. (cuda)
+// `gpu`'s local `GpuContext` is NOT core's `GpuContext`. See each module's header.
+//
 // GPU acceleration foundations
 #[cfg(any(
     feature = "cuda",
@@ -375,6 +384,10 @@ pub mod tucker;
     feature = "metal"
 ))]
 pub mod gpu;
+
+// Optional NVIDIA-only CUDA acceleration via the pure-Rust oxicuda library crates.
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
 
 // GPU-accelerated linear algebra (uses scirs2-core GPU backends)
 #[cfg(feature = "gpu")]

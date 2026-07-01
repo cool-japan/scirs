@@ -101,3 +101,5 @@ scirs2-text/*.w2v
 **/rustc-ice-*.txt
 **/.doctest-exclude
 **/target-pdf/
+# Local Python virtualenv (regenerable; pyvenv.cfg leaks absolute dev path)
+scirs2-python/.venv_314/

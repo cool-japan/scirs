@@ -817,14 +817,14 @@ mod gpu_kernels {
     ///
     /// `GpuNdarray` accumulates in `f32`, so a single-precision relative bound is
     /// the tightest meaningful agreement target.
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     const GPU_REDUCTION_REL_TOL: f64 = 1e-3;
 
     /// Cached result of probing for a usable wgpu adapter.
     ///
     /// Probing creates a `WebGPUContext`, which is comparatively expensive; the
     /// outcome is stable for the lifetime of the process, so it is memoised.
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     fn gpu_context() -> Option<std::sync::Arc<scirs2_core::gpu::backends::WebGPUContext>> {
         use scirs2_core::array_protocol::gpu_ndarray::{global_context, is_gpu_available};
         use std::sync::OnceLock;
@@ -854,7 +854,7 @@ mod gpu_kernels {
         gpu_batch_reduction_inner(fitness)
     }
 
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     fn gpu_batch_reduction_inner(fitness: &[f64]) -> bool {
         use scirs2_core::array_protocol::gpu_ndarray::GpuNdarray;
 
@@ -882,7 +882,7 @@ mod gpu_kernels {
         (gpu_sum - cpu_sum).abs() <= GPU_REDUCTION_REL_TOL * scale
     }
 
-    #[cfg(not(feature = "gpu"))]
+    #[cfg(not(feature = "wgpu"))]
     fn gpu_batch_reduction_inner(_fitness: &[f64]) -> bool {
         false
     }
@@ -902,7 +902,7 @@ mod gpu_kernels {
         let (pop_size, dims) = population.dim();
         let total = pop_size.saturating_mul(dims);
 
-        #[cfg(feature = "gpu")]
+        #[cfg(feature = "wgpu")]
         {
             if total >= GPU_DISTRIBUTED_THRESHOLD {
                 if let Some(donor) = donor_matrix_gpu(population, donor_indices, f_scale) {
@@ -910,7 +910,7 @@ mod gpu_kernels {
                 }
             }
         }
-        #[cfg(not(feature = "gpu"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             let _ = total;
         }
@@ -936,7 +936,7 @@ mod gpu_kernels {
 
     /// GPU donor-matrix dispatch; returns `None` on any failure (caller falls
     /// back to [`donor_matrix_cpu`]).
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     fn donor_matrix_gpu(
         population: &Array2<f64>,
         donor_indices: &[[usize; 3]],
@@ -1001,7 +1001,7 @@ mod gpu_kernels {
             _ => return Ok(vec![0.0; len]),
         };
 
-        #[cfg(feature = "gpu")]
+        #[cfg(feature = "wgpu")]
         {
             if len >= GPU_DISTRIBUTED_THRESHOLD {
                 if let Some(delta) = fitness_delta_gpu(trial, current) {
@@ -1009,7 +1009,7 @@ mod gpu_kernels {
                 }
             }
         }
-        #[cfg(not(feature = "gpu"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             let _ = len;
         }
@@ -1026,7 +1026,7 @@ mod gpu_kernels {
     }
 
     /// GPU fitness-delta dispatch; returns `None` on any failure.
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     fn fitness_delta_gpu(trial: &[f64], current: &[f64]) -> Option<Vec<f64>> {
         use scirs2_core::array_protocol::gpu_ndarray::GpuNdarray;
 
@@ -1052,7 +1052,7 @@ mod gpu_kernels {
     }
 
     // Donor/delta GPU dispatchers are unused when the `gpu` feature is off; the
-    // `#[cfg(feature = "gpu")]` definitions above are simply absent in that build
+    // `#[cfg(feature = "wgpu")]` definitions above are simply absent in that build
     // and the size-gated call sites never reference them.
 }
 
@@ -1221,7 +1221,7 @@ mod tests {
 
     // The `gpu` feature must be enabled (and an adapter present) for the GPU
     // dispatch to actually fire; otherwise these tests print a skip notice.
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     #[test]
     fn donor_matrix_gpu_matches_cpu_or_skips() {
         use scirs2_core::array_protocol::gpu_ndarray::is_gpu_available;
@@ -1248,7 +1248,7 @@ mod tests {
         println!("donor_matrix_gpu_matches_cpu_or_skips passed: max diff = {max_diff:.2e}");
     }
 
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     #[test]
     fn fitness_delta_gpu_matches_cpu_or_skips() {
         use scirs2_core::array_protocol::gpu_ndarray::is_gpu_available;
@@ -1280,7 +1280,7 @@ mod tests {
         println!("fitness_delta_gpu_matches_cpu_or_skips passed: max diff = {max_diff:.2e}");
     }
 
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     #[test]
     fn batch_reduction_gpu_matches_cpu_or_skips() {
         use scirs2_core::array_protocol::gpu_ndarray::is_gpu_available;
@@ -1301,7 +1301,7 @@ mod tests {
     /// End-to-end smoke test of the differential-evolution loop through a
     /// `MockMPI` optimizer, exercising the rewired evaluate/mutate/select sites.
     /// Skips when a GPU context cannot be created (no adapter on this host).
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     #[test]
     fn distributed_de_gpu_path_runs_or_skips() {
         use crate::distributed::MockMPI;

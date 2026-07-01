@@ -1,11 +1,13 @@
 # SciRS2 Development Roadmap
 
-**Current Version**: 0.5.1
+**Current Version**: 0.6.0
 **Status**: Production Ready — 36,606 tests passing (0.5.1 release, 2026-06-25); Wave 78 (2026-06-13) cleared 11/15 /cooljapan-stub-check items with ~40 new tests across 10 crates
 **Scale**: ~4.2M lines total, ~3.87M Rust SLoC, ~8,129 source files, ~29 workspace crates
 **Last Updated**: 2026-06-25
 
 This document tracks the development roadmap for SciRS2. Completed items in v0.3.4 are documented here for historical reference; the active roadmap is the v0.4.0 section.
+
+> **NVIDIA/CUDA validation:** real-hardware validation of the oxicuda CUDA paths is tracked in [`TODO_CUDA.md`](./TODO_CUDA.md). **First-ever validation done 2026-06-29 on an NVIDIA RTX A4000 (sm_86, CUDA 12.4):** all 10 oxicuda CUDA paths now execute correctly on-device. The first run exposed 4 oxicuda root causes (a GEMM f64-PTX + launch-geometry bug; an SpMV PTX label/`shfl.b64` bug; and — notably — two *silent stub* kernels: a no-op Cholesky factorization and a comment-only depthwise conv), all fixed and re-verified. See `TODO_CUDA.md` for the sign-off matrix and remaining latent follow-ups.
 
 ---
 
@@ -801,7 +803,7 @@ All development must adhere to the following policies:
 ---
 
 **Last Updated**: 2026-06-25
-**Branch**: 0.5.1
+**Branch**: 0.6.0
 **Status**: v0.5.1 (current) — Waves 53–78 complete. EML-IR CAS substrate (Phases 0–3 complete, Phase 4 ongoing); GPU dispatch real (BFS/SSSP/delta-stepping/RBF/CG/Newton/L-BFGS via wgpu); GpuNdarray<f32> with axis ops; NUMA par_map_chunks; ALiBi + Riemann/Weyl diffgeom + SR-as-prior + SymbolicPriorLoss; 0.5.1 correctness/Pure-Rust hardening (exact spectral/trace autograd gradients, CoreError #[non_exhaustive] restored, GPU/CUDA honesty, Zarr v2/v3 public, rug/rusqlite/tokenizers removed); 36,606 tests passing. See CHANGELOG.md `[0.5.1]` for full release notes.
 
 ---

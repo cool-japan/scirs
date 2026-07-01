@@ -1,10 +1,10 @@
 //! Smoke tests for the real wgpu RBF dispatch path in scirs2-interpolate.
 //!
-//! All tests are gated on `#[cfg(feature = "wgpu_rbf")]`.  On hosts without a
+//! All tests are gated on `#[cfg(feature = "wgpu")]`.  On hosts without a
 //! GPU adapter (headless CI), each test detects the absence of an adapter at
 //! runtime and skips gracefully — the test passes rather than fails.
 
-#[cfg(feature = "wgpu_rbf")]
+#[cfg(feature = "wgpu")]
 mod wgpu_rbf_smoke {
     use scirs2_core::ndarray::Array1;
     use scirs2_interpolate::gpu_accelerated::{

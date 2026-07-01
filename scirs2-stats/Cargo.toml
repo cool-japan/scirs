@@ -25,6 +25,11 @@ scirs2-symbolic = { workspace = true, optional = true }
 thiserror = { workspace = true }
 wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
+# CUDA backend (oxicuda-*, optional, off by default)
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-launch = { workspace = true, optional = true }
+oxicuda-ptx = { workspace = true, optional = true }
 
 # Statistics specific dependencies
 statrs = { workspace = true }
@@ -60,7 +65,9 @@ symbolic = ["dep:scirs2-symbolic"]
 # GPU abstraction layer (delegates to scirs2-core/gpu)
 gpu = ["scirs2-core/gpu"]
 # Pure-Rust wgpu compute kernels for batch distribution evaluation
-gpu_wgpu = ["gpu", "dep:wgpu", "dep:pollster", "scirs2-core/wgpu_backend"]
+wgpu = ["gpu", "dep:wgpu", "dep:pollster", "scirs2-core/wgpu"]
+# Pure-Rust direct oxicuda CUDA path (NVIDIA-only, runtime-probed; default off)
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-launch", "dep:oxicuda-ptx"]
 
 [[bench]]
 name = "distributions"

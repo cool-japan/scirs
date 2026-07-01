@@ -3,12 +3,12 @@
 //! This module provides batch evaluation of common distribution functions
 //! (Normal and Exponential) using WGSL compute shaders dispatched through
 //! the wgpu backend.  Each public function has a CPU fallback that is always
-//! available, regardless of whether the `gpu_wgpu` feature is enabled.
+//! available, regardless of whether the `wgpu` feature is enabled.
 //!
 //! # Feature flags
 //!
 //! * `gpu`       — enables GPU abstraction layer via `scirs2-core/gpu`
-//! * `gpu_wgpu`  — enables WGSL/wgpu compute path (implies `gpu`)
+//! * `wgpu`  — enables WGSL/wgpu compute path (implies `gpu`)
 //!
 //! # Examples
 //!
@@ -162,7 +162,7 @@ pub enum GpuStatsError {
     GpuNotAvailable,
     /// A runtime error occurred during GPU pipeline setup or dispatch.
     RuntimeError(String),
-    /// The `gpu_wgpu` feature flag is not enabled in this build.
+    /// The `wgpu` feature flag is not enabled in this build.
     FeatureNotEnabled,
 }
 
@@ -176,7 +176,7 @@ impl std::fmt::Display for GpuStatsError {
                 write!(f, "GPU runtime error: {msg}")
             }
             GpuStatsError::FeatureNotEnabled => {
-                write!(f, "gpu_wgpu feature is not enabled in this build")
+                write!(f, "wgpu feature is not enabled in this build")
             }
         }
     }
@@ -185,7 +185,7 @@ impl std::fmt::Display for GpuStatsError {
 impl std::error::Error for GpuStatsError {}
 
 // ---------------------------------------------------------------------------
-// GPU dispatch helper — real path (gpu_wgpu feature)
+// GPU dispatch helper — real path (wgpu feature)
 // ---------------------------------------------------------------------------
 
 /// Upload `xs` as `f32`, dispatch the WGSL shader with a uniform parameter
@@ -199,7 +199,7 @@ impl std::error::Error for GpuStatsError {}
 /// `params_bytes` must be 16-byte aligned (wgpu requirement for uniform
 /// buffers); all parameter structs in this module use 4 × f32/u32 fields
 /// (= 16 bytes) to satisfy this constraint.
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn dispatch_with_params_f32(
     wgsl: &str,
     xs: &[f32],
@@ -403,7 +403,7 @@ fn dispatch_with_params_f32(
 // Layout: mu (f32), sigma (f32), n (u32), _pad (u32) → 16 bytes.
 // ---------------------------------------------------------------------------
 
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn encode_normal_params(mu: f32, sigma: f32, n: u32) -> [u8; 16] {
     let mut out = [0u8; 16];
     out[0..4].copy_from_slice(&mu.to_le_bytes());
@@ -414,7 +414,7 @@ fn encode_normal_params(mu: f32, sigma: f32, n: u32) -> [u8; 16] {
 }
 
 // Encode ExponParams: lambda (f32), n (u32), _pad0, _pad1 → 16 bytes.
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn encode_expon_params(lambda: f32, n: u32) -> [u8; 16] {
     let mut out = [0u8; 16];
     out[0..4].copy_from_slice(&lambda.to_le_bytes());
@@ -424,13 +424,13 @@ fn encode_expon_params(lambda: f32, n: u32) -> [u8; 16] {
 }
 
 // ---------------------------------------------------------------------------
-// WGPU dispatch wrappers (gpu_wgpu feature)
+// WGPU dispatch wrappers (wgpu feature)
 // ---------------------------------------------------------------------------
 
 /// Attempt batch Normal log-PDF evaluation via WebGPU.
 ///
 /// Returns `Err(GpuStatsError::GpuNotAvailable)` when no adapter is found.
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn normal_log_pdf_wgpu(xs: &[f64], mu: f64, sigma: f64) -> Result<Vec<f64>, GpuStatsError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&v| v as f32).collect();
     let params = encode_normal_params(mu as f32, sigma as f32, xs_f32.len() as u32);
@@ -439,7 +439,7 @@ fn normal_log_pdf_wgpu(xs: &[f64], mu: f64, sigma: f64) -> Result<Vec<f64>, GpuS
 }
 
 /// Attempt batch Normal CDF evaluation via WebGPU.
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn normal_cdf_wgpu(xs: &[f64], mu: f64, sigma: f64) -> Result<Vec<f64>, GpuStatsError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&v| v as f32).collect();
     let params = encode_normal_params(mu as f32, sigma as f32, xs_f32.len() as u32);
@@ -448,7 +448,7 @@ fn normal_cdf_wgpu(xs: &[f64], mu: f64, sigma: f64) -> Result<Vec<f64>, GpuStats
 }
 
 /// Attempt batch Exponential log-PDF evaluation via WebGPU.
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn exponential_log_pdf_wgpu(xs: &[f64], lambda: f64) -> Result<Vec<f64>, GpuStatsError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&v| v as f32).collect();
     let params = encode_expon_params(lambda as f32, xs_f32.len() as u32);
@@ -457,7 +457,7 @@ fn exponential_log_pdf_wgpu(xs: &[f64], lambda: f64) -> Result<Vec<f64>, GpuStat
 }
 
 /// Attempt batch Exponential CDF evaluation via WebGPU.
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn exponential_cdf_wgpu(xs: &[f64], lambda: f64) -> Result<Vec<f64>, GpuStatsError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&v| v as f32).collect();
     let params = encode_expon_params(lambda as f32, xs_f32.len() as u32);
@@ -543,7 +543,7 @@ const MIN_GPU_SIZE: usize = 1024;
 /// Computes `log_pdf(xᵢ; µ, σ) = -½·((xᵢ−µ)/σ)² − ln(σ) − ln(√(2π))`
 /// for each element.
 ///
-/// When the `gpu_wgpu` feature is enabled and a compatible GPU is available,
+/// When the `wgpu` feature is enabled and a compatible GPU is available,
 /// the computation is dispatched to a WGSL compute shader; otherwise the
 /// function silently falls back to a vectorised CPU loop.
 ///
@@ -557,7 +557,7 @@ const MIN_GPU_SIZE: usize = 1024;
 ///
 /// A `Vec<f64>` of the same length as `xs`.
 pub fn normal_log_pdf_batch(xs: &[f64], mu: f64, sigma: f64) -> Vec<f64> {
-    #[cfg(feature = "gpu_wgpu")]
+    #[cfg(feature = "wgpu")]
     {
         if xs.len() >= MIN_GPU_SIZE {
             if let Ok(result) = normal_log_pdf_wgpu(xs, mu, sigma) {
@@ -574,7 +574,7 @@ pub fn normal_log_pdf_batch(xs: &[f64], mu: f64, sigma: f64) -> Vec<f64> {
 ///
 /// Computes `Φ((xᵢ−µ)/σ)` where Φ is the standard-normal CDF.
 ///
-/// When the `gpu_wgpu` feature is enabled and a compatible GPU is available,
+/// When the `wgpu` feature is enabled and a compatible GPU is available,
 /// computation is dispatched to a WGSL compute shader; otherwise the
 /// function falls back to a CPU loop using the A&S erf approximation.
 ///
@@ -588,7 +588,7 @@ pub fn normal_log_pdf_batch(xs: &[f64], mu: f64, sigma: f64) -> Vec<f64> {
 ///
 /// A `Vec<f64>` of the same length as `xs`, with values in `[0, 1]`.
 pub fn normal_cdf_batch(xs: &[f64], mu: f64, sigma: f64) -> Vec<f64> {
-    #[cfg(feature = "gpu_wgpu")]
+    #[cfg(feature = "wgpu")]
     {
         if xs.len() >= MIN_GPU_SIZE {
             if let Ok(result) = normal_cdf_wgpu(xs, mu, sigma) {
@@ -606,7 +606,7 @@ pub fn normal_cdf_batch(xs: &[f64], mu: f64, sigma: f64) -> Vec<f64> {
 /// For `xᵢ ≥ 0`: `log_pdf(xᵢ; λ) = ln(λ) − λ·xᵢ`.
 /// For `xᵢ < 0`: returns `f64::NEG_INFINITY`.
 ///
-/// When the `gpu_wgpu` feature is enabled and a compatible GPU is available,
+/// When the `wgpu` feature is enabled and a compatible GPU is available,
 /// computation is dispatched to a WGSL compute shader; otherwise the
 /// function falls back to a CPU loop.
 ///
@@ -619,7 +619,7 @@ pub fn normal_cdf_batch(xs: &[f64], mu: f64, sigma: f64) -> Vec<f64> {
 ///
 /// A `Vec<f64>` of the same length as `xs`.
 pub fn exponential_log_pdf_batch(xs: &[f64], lambda: f64) -> Vec<f64> {
-    #[cfg(feature = "gpu_wgpu")]
+    #[cfg(feature = "wgpu")]
     {
         if xs.len() >= MIN_GPU_SIZE {
             if let Ok(result) = exponential_log_pdf_wgpu(xs, lambda) {
@@ -637,7 +637,7 @@ pub fn exponential_log_pdf_batch(xs: &[f64], lambda: f64) -> Vec<f64> {
 /// For `xᵢ ≥ 0`: `CDF(xᵢ; λ) = 1 − exp(−λ·xᵢ)`.
 /// For `xᵢ < 0`: returns `0.0`.
 ///
-/// When the `gpu_wgpu` feature is enabled and a compatible GPU is available,
+/// When the `wgpu` feature is enabled and a compatible GPU is available,
 /// computation is dispatched to a WGSL compute shader; otherwise the
 /// function falls back to a CPU loop.
 ///
@@ -650,7 +650,7 @@ pub fn exponential_log_pdf_batch(xs: &[f64], lambda: f64) -> Vec<f64> {
 ///
 /// A `Vec<f64>` of the same length as `xs`, with values in `[0, 1]`.
 pub fn exponential_cdf_batch(xs: &[f64], lambda: f64) -> Vec<f64> {
-    #[cfg(feature = "gpu_wgpu")]
+    #[cfg(feature = "wgpu")]
     {
         if xs.len() >= MIN_GPU_SIZE {
             if let Ok(result) = exponential_cdf_wgpu(xs, lambda) {
@@ -915,7 +915,7 @@ mod tests {
 
     // ── GPU test (skipped when wgpu adapter unavailable) ─────────────────────
 
-    #[cfg(feature = "gpu_wgpu")]
+    #[cfg(feature = "wgpu")]
     #[test]
     fn test_normal_log_pdf_wgpu_or_skip() {
         let xs = vec![0.0_f64, 1.0, -1.0];
@@ -939,7 +939,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "gpu_wgpu")]
+    #[cfg(feature = "wgpu")]
     #[test]
     fn test_normal_cdf_wgpu_or_skip() {
         let xs = vec![-1.0_f64, 0.0, 1.0];
@@ -958,7 +958,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "gpu_wgpu")]
+    #[cfg(feature = "wgpu")]
     #[test]
     fn test_exponential_log_pdf_wgpu_or_skip() {
         let xs = vec![0.0_f64, 1.0, 2.0];
@@ -981,7 +981,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "gpu_wgpu")]
+    #[cfg(feature = "wgpu")]
     #[test]
     fn test_exponential_cdf_wgpu_or_skip() {
         let xs = vec![0.0_f64, 1.0, 2.0];

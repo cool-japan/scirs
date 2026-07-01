@@ -46,6 +46,9 @@ num_cpus = { workspace = true }
 default = ["parallel"]
 parallel = []
 async = ["dep:tokio"]
+# cuda/rocm/vulkan currently gate only GPU *capability detection*
+# (nvidia-smi/rocm-smi/vulkaninfo probes) in gpu_accel.rs; they do not yet
+# unlock GPU compute, which falls back to CPU SIMD.
 cuda = []
 rocm = []
 vulkan = []

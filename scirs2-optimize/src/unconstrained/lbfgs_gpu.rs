@@ -63,7 +63,7 @@ fn do_gpu_dispatch(
     rho_values: &[f64],
     gradient: &Array1<f64>,
 ) -> GpuDispatchResult {
-    #[cfg(feature = "gpu")]
+    #[cfg(feature = "wgpu")]
     {
         use scirs2_core::array_protocol::gpu_ndarray::{global_context, is_gpu_available};
 
@@ -80,7 +80,7 @@ fn do_gpu_dispatch(
             Err(_) => GpuDispatchResult::FallbackToCpu,
         }
     }
-    #[cfg(not(feature = "gpu"))]
+    #[cfg(not(feature = "wgpu"))]
     {
         let _ = (s_vectors, y_vectors, rho_values, gradient);
         GpuDispatchResult::FallbackToCpu
@@ -88,7 +88,7 @@ fn do_gpu_dispatch(
 }
 
 /// Core GPU implementation — only compiled with the `gpu` feature.
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 fn gpu_two_loop_inner(
     s_vectors: &[Array1<f64>],
     y_vectors: &[Array1<f64>],

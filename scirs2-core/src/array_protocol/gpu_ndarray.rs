@@ -6,7 +6,7 @@
 
 //! Real wgpu-backed `GpuNdarray<T>` that implements `ArrayProtocol`.
 //!
-//! Enabled only with the `array_protocol_wgpu` feature, which implies `wgpu_backend`.
+//! Enabled only with the `array_protocol_wgpu` feature, which implies `wgpu`.
 //!
 //! ## Supported operations (GPU dispatch)
 //! - `add`, `subtract`, `multiply` — elementwise binary, workgroup (256,1,1), uses `arrayLength`

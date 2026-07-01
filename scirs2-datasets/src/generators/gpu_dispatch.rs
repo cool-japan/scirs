@@ -45,7 +45,7 @@ pub(crate) enum GpuDispatch<T> {
 /// sequence matches the CPU path exactly.
 ///
 /// Falls back to CPU when the output is below [`GPU_DATASET_THRESHOLD`], the
-/// `gpu_wgpu` feature is off, or no adapter is available.
+/// `wgpu` feature is off, or no adapter is available.
 pub(crate) fn try_regression_targets_gpu(
     data: &[f64],
     coef: &[f64],
@@ -104,11 +104,11 @@ pub(crate) fn try_blobs_center_gpu(
 
 // ──────────────────────────────────────────────────────────────────────
 // Inner implementations — compiled with the GPU kernels only when the
-// `gpu_wgpu` feature is active; otherwise they always fall back to CPU.
+// `wgpu` feature is active; otherwise they always fall back to CPU.
 // ──────────────────────────────────────────────────────────────────────
 
 /// `base + scale * delta`, elementwise, on the GPU (length `n`).
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn affine_offset_gpu_inner(
     base: &[f64],
     delta: &[f64],
@@ -155,8 +155,8 @@ fn affine_offset_gpu_inner(
     }
 }
 
-/// CPU-only stub used when the `gpu_wgpu` feature is disabled.
-#[cfg(not(feature = "gpu_wgpu"))]
+/// CPU-only stub used when the `wgpu` feature is disabled.
+#[cfg(not(feature = "wgpu"))]
 fn affine_offset_gpu_inner(
     base: &[f64],
     delta: &[f64],
@@ -168,7 +168,7 @@ fn affine_offset_gpu_inner(
 }
 
 /// Regression targets `y = X[:, :k] · coef` via a GPU `matmul`.
-#[cfg(feature = "gpu_wgpu")]
+#[cfg(feature = "wgpu")]
 fn regression_targets_gpu_inner(
     data: &[f64],
     coef: &[f64],
@@ -230,8 +230,8 @@ fn regression_targets_gpu_inner(
     }
 }
 
-/// CPU-only stub used when the `gpu_wgpu` feature is disabled.
-#[cfg(not(feature = "gpu_wgpu"))]
+/// CPU-only stub used when the `wgpu` feature is disabled.
+#[cfg(not(feature = "wgpu"))]
 fn regression_targets_gpu_inner(
     data: &[f64],
     coef: &[f64],

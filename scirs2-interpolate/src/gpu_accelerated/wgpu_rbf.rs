@@ -1,6 +1,6 @@
 //! Real wgpu RBF kernel-matrix and evaluation dispatch.
 //!
-//! This module is compiled **only** when the `wgpu_rbf` feature is enabled.
+//! This module is compiled **only** when the `wgpu` feature is enabled.
 //! It provides:
 //!
 //! - `is_gpu_available()` — one-time adapter probe cached in a `OnceLock<bool>`.

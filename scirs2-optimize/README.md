@@ -368,7 +368,7 @@ println!("Nash equilibrium: row={:?}, col={:?}", nash.strategy_row, nash.strateg
 | `root_finding` | Hybrid, Broyden, Anderson acceleration, Krylov |
 | `scalar` | Brent, golden section, bounded scalar optimisation |
 | `symbolic` | Symbolic Newton (exact gradient/Hessian via `scirs2-symbolic`), Lagrangian/KKT, L-BFGS symbolic, trust-region symbolic |
-| `gpu` | GPU-accelerated optimizers (CG, Newton, L-BFGS) via `GpuNdarray` and wgpu dispatch |
+| `wgpu` | GPU-accelerated optimizers (CG, Newton, L-BFGS) via `GpuNdarray` and wgpu dispatch |
 
 ### Symbolic and GPU Optimizers (v0.5.1)
 
@@ -392,7 +392,7 @@ println!("Nash equilibrium: row={:?}, col={:?}", nash.strategy_row, nash.strateg
 | `async` | Async function evaluation for expensive oracles |
 | `serde` | Serialization of results and configurations |
 | `symbolic` | Symbolic Newton/Lagrangian/KKT/L-BFGS via `scirs2-symbolic` |
-| `gpu` | GPU-accelerated CG/Newton/L-BFGS via wgpu (`scirs2-core` GpuNdarray) |
+| `wgpu` | GPU-accelerated CG/Newton/L-BFGS via wgpu (`scirs2-core` GpuNdarray) |
 
 Default features: none (pure Rust, no C/Fortran dependencies).
 

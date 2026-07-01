@@ -90,7 +90,6 @@ pub mod sparse;
 pub mod ndimage;
 
 #[cfg(feature = "graph")]
-#[allow(deprecated)] // For PyAnyMethods::downcast - will be updated in future pyo3 version
 #[allow(unused_must_use)] // For graph.add_edge() Result
 pub mod graph;
 

@@ -84,25 +84,15 @@ impl GpuBackend {
     pub fn is_available(&self) -> bool {
         match self {
             // Check runtime availability for GPU backends
-            GpuBackend::Cuda => {
-                #[cfg(feature = "cuda")]
-                {
-                    use crate::gpu::backends::cuda::CudaContext;
-                    CudaContext::is_available()
-                }
-                #[cfg(not(feature = "cuda"))]
-                {
-                    false
-                }
-            }
+            GpuBackend::Cuda => false, // CUDA backend retired from scirs2-core in 0.6.x — use oxicuda-* crates
             GpuBackend::Rocm => cfg!(feature = "rocm"), // Would use ROCm runtime check
             GpuBackend::Wgpu => {
-                #[cfg(feature = "wgpu_backend")]
+                #[cfg(feature = "wgpu")]
                 {
                     use crate::gpu::backends::wgpu::WebGPUContext;
                     WebGPUContext::is_available()
                 }
-                #[cfg(not(feature = "wgpu_backend"))]
+                #[cfg(not(feature = "wgpu"))]
                 {
                     false
                 }
@@ -592,6 +582,15 @@ pub struct GpuContext {
 impl GpuContext {
     /// Create a new GPU context with the specified backend
     pub fn new(backend: GpuBackend) -> Result<Self, GpuError> {
+        // CUDA was retired from scirs2-core in 0.6.x (moved to the per-crate oxicuda-*
+        // backends). Intercept it before the generic availability checks so callers
+        // receive explicit migration guidance instead of a bare "not available".
+        if backend == GpuBackend::Cuda {
+            return Err(GpuError::BackendNotAvailable(
+                "CUDA backend was removed from scirs2-core in 0.6.x; use the oxicuda-* crates directly (per-crate `cuda` feature). See SCIRS2_POLICY.md".to_string(),
+            ));
+        }
+
         // First check if the backend is available at compile time
         if !backend.is_available() {
             return Err(GpuError::BackendNotAvailable(backend.to_string()));
@@ -614,18 +613,9 @@ impl GpuContext {
 
         let inner = match backend {
             GpuBackend::Cuda => {
-                #[cfg(feature = "cuda")]
-                {
-                    use crate::gpu::backends::cuda::CudaContext;
-                    match CudaContext::new() {
-                        Ok(ctx) => Arc::new(ctx) as Arc<dyn GpuContextImpl>,
-                        Err(e) => return Err(e),
-                    }
-                }
-                #[cfg(not(feature = "cuda"))]
-                {
-                    return Err(GpuError::UnsupportedBackend(backend));
-                }
+                return Err(GpuError::BackendNotAvailable(
+                    "CUDA backend was removed from scirs2-core in 0.6.x; use the oxicuda-* crates directly (per-crate `cuda` feature). See SCIRS2_POLICY.md".to_string(),
+                ));
             }
             GpuBackend::Rocm => {
                 #[cfg(feature = "rocm")]
@@ -648,7 +638,7 @@ impl GpuContext {
                 }
             }
             GpuBackend::Wgpu => {
-                #[cfg(feature = "wgpu_backend")]
+                #[cfg(feature = "wgpu")]
                 {
                     use crate::gpu::backends::wgpu::WebGPUContext;
                     match WebGPUContext::new() {
@@ -656,7 +646,7 @@ impl GpuContext {
                         Err(e) => return Err(e),
                     }
                 }
-                #[cfg(not(feature = "wgpu_backend"))]
+                #[cfg(not(feature = "wgpu"))]
                 {
                     return Err(GpuError::UnsupportedBackend(backend));
                 }
@@ -1350,12 +1340,7 @@ mod tests {
         assert!(backend.is_available());
 
         // Test other backends - availability depends on runtime, not just feature flags
-        #[cfg(feature = "cuda")]
-        {
-            // CUDA feature enabled doesn't guarantee runtime availability
-            let _ = GpuBackend::Cuda.is_available(); // Just check without asserting
-        }
-        #[cfg(not(feature = "cuda"))]
+        // CUDA backend was retired from scirs2-core in 0.6.x — always unavailable now.
         assert!(!GpuBackend::Cuda.is_available());
 
         #[cfg(feature = "rocm")]
@@ -1539,19 +1524,18 @@ mod tests {
 
     #[test]
     fn test_gpu_context_unsupported_backend() {
-        // Test a backend that's not available
-        #[cfg(not(feature = "cuda"))]
-        {
-            let result = GpuContext::new(GpuBackend::Cuda);
-            assert!(result.is_err());
-            match result {
-                Err(GpuError::UnsupportedBackend(_)) => {}
-                Err(GpuError::BackendNotAvailable(_)) => {} // Also accept this error
-                Err(e) => panic!(
-                    "Expected UnsupportedBackend or BackendNotAvailable error, got: {:?}",
-                    e
-                ),
-                Ok(_) => panic!("Expected error, got Ok"),
+        // CUDA was retired from scirs2-core in 0.6.x; constructing a context for it
+        // must fail with explicit oxicuda migration guidance.
+        let result = GpuContext::new(GpuBackend::Cuda);
+        match result {
+            Err(GpuError::BackendNotAvailable(msg)) => {
+                assert!(
+                    msg.contains("oxicuda"),
+                    "expected oxicuda guidance, got: {msg}"
+                );
+            }
+            other => {
+                panic!("expected BackendNotAvailable for retired CUDA backend, got: {other:?}")
             }
         }
     }

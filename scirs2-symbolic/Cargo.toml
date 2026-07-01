@@ -44,6 +44,12 @@ gpu = [
     "dep:wgpu",
     "dep:pollster",
 ]
+# Optional, off-by-default, NVIDIA-only, runtime-probed CUDA path for batched
+# f64 LoweredOp evaluation via the pure-Rust oxicuda ecosystem. Validates the
+# CUSTOM-KERNEL pattern (oxicuda-ptx generates PTX, oxicuda-launch dispatches),
+# distinct from scirs2-fft's library-call pattern. Default builds pull ZERO
+# oxicuda. macOS compiles fine; the runtime probe returns false (no NVIDIA driver).
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-ptx", "dep:oxicuda-launch"]
 
 [dependencies]
 thiserror = { workspace = true }
@@ -64,6 +70,11 @@ cranelift-jit = { workspace = true, optional = true }
 cranelift-module = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }
 pollster = { workspace = true, optional = true }
+# OxiCUDA pure-Rust CUDA backend (optional, behind `cuda` feature; off by default).
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-ptx = { workspace = true, optional = true }
+oxicuda-launch = { workspace = true, optional = true }
 scirs2-symbolic-macros = { workspace = true, optional = true }
 
 [dev-dependencies]

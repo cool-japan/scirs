@@ -13,13 +13,12 @@ use serde_json;
 use regex::Regex;
 
 // Backend implementation modules
-#[cfg(feature = "cuda")]
-pub mod cuda;
-
+// NOTE: The cudarc-based CUDA backend was retired from scirs2-core in 0.6.x.
+// CUDA acceleration now lives in the per-crate oxicuda-* backends (see SCIRS2_POLICY.md).
 #[cfg(feature = "opencl")]
 pub mod opencl;
 
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 pub mod wgpu;
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
@@ -39,13 +38,10 @@ pub mod msl_kernels;
 pub mod metal_mpsgraph;
 
 // Re-export backend implementations
-#[cfg(feature = "cuda")]
-pub use cuda::{get_optimizer_kernels, CudaContext, CudaStream};
-
 #[cfg(feature = "opencl")]
 pub use opencl::OpenCLContext;
 
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 pub use wgpu::{run_vector_add_wgsl, try_compile_wgsl, WebGPUContext, WgpuComputePipeline};
 
 #[cfg(all(feature = "metal", target_os = "macos"))]

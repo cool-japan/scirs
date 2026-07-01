@@ -1,7 +1,7 @@
 //! GPU-accelerated and parallel graph algorithms.
 //!
 //! This module provides parallel graph traversal and shortest-path algorithms
-//! designed with a GPU-ready interface. When the `gpu` feature is enabled and
+//! designed with a GPU-ready interface. When the `wgpu` feature is enabled and
 //! a compatible wgpu adapter is present, BFS and Bellman-Ford SSSP dispatch to
 //! real GPU compute shaders. Otherwise, all operations fall back to
 //! CPU-parallel implementations using atomic compare-and-swap.
@@ -36,7 +36,7 @@
 pub mod algorithms;
 pub(crate) mod parallel;
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 pub(crate) mod wgpu_shaders;
 
 pub use algorithms::{

@@ -583,7 +583,7 @@ SciRS2 and all its modules are available on [crates.io](https://crates.io/crates
 ```toml
 # Add the main integration crate for all functionality
 [dependencies]
-scirs2 = "0.5.1"
+scirs2 = "0.6.0"
 ```
 
 Or include only the specific modules you need:
@@ -591,16 +591,16 @@ Or include only the specific modules you need:
 ```toml
 [dependencies]
 # Core utilities
-scirs2-core = "0.5.1"
+scirs2-core = "0.6.0"
 
 # Scientific computing modules
-scirs2-linalg = "0.5.1"
-scirs2-stats = "0.5.1"
-scirs2-optimize = "0.5.1"
+scirs2-linalg = "0.6.0"
+scirs2-stats = "0.6.0"
+scirs2-optimize = "0.6.0"
 
 # AI/ML modules
-scirs2-neural = "0.5.1"
-scirs2-autograd = "0.5.1"
+scirs2-neural = "0.6.0"
+scirs2-autograd = "0.6.0"
 # Note: For ML optimization algorithms, use the independent OptiRS project
 ```
 
@@ -865,10 +865,10 @@ All SciRS2 modules are available on crates.io. Add the modules you need to your 
 
 ```toml
 [dependencies]
-scirs2 = "0.5.1"  # Core library with all modules
+scirs2 = "0.6.0"  # Core library with all modules
 # Or individual modules:
-scirs2-linalg = "0.5.1"  # Linear algebra
-scirs2-stats = "0.5.1"   # Statistics
+scirs2-linalg = "0.6.0"  # Linear algebra
+scirs2-stats = "0.6.0"   # Statistics
 # ... and more
 ```
 

@@ -90,6 +90,14 @@ The scirs2-core crate serves as the central hub for all common functionality, op
 
 The SciRS2 ecosystem follows a strict layered architecture where only the core crate can use external dependencies directly, while all other crates must use SciRS2-Core abstractions.
 
+> **GPU exception (0.6.x):** The `oxicuda-*` crate family is a sanctioned per-crate
+> **direct** dependency for the NVIDIA-only CUDA performance path. GPU acceleration is
+> decentralized in 0.6.x, so a non-core crate MAY depend on `oxicuda-*` directly in its
+> own `Cargo.toml` (behind an OFF-by-default, runtime-probed `cuda` feature) rather than
+> routing CUDA through `scirs2-core`. See the *GPU Operations Policy* for the full rules.
+> This carve-out applies only to `oxicuda-*`; all other external deps (`rand`, `ndarray`,
+> num-traits, BLAS, …) remain core-only.
+
 ### Policy: No Direct External Dependencies in Non-Core Crates
 
 **Applies to:** All SciRS2 crates except `scirs2-core`
@@ -198,6 +206,10 @@ use scirs2_core::linalg::*;           // Linear algebra (nalgebra when needed)
 - ✅ Direct integration with external scientific computing libraries
 - ✅ Platform-specific optimizations and SIMD operations
 
+**GPU carve-out (0.6.x):** the `oxicuda-*` family is the one external dependency that
+non-core crates MAY depend on directly (per-crate, OFF-by-default `cuda` feature,
+runtime-probed, NVIDIA-only). See the *GPU Operations Policy*.
+
 ### Benefits of This Architecture
 
 1. **Consistent APIs**: All SciRS2 crates use the same interfaces
@@ -295,33 +307,160 @@ All operations are available through the `SimdUnifiedOps` trait:
 
 ## GPU Operations Policy
 
-### Mandatory Rules
+> **Revised for the 0.6.x series (decentralized GPU).** Prior to 0.6.0 this policy
+> mandated that *all* GPU work be routed through `scirs2-core::gpu`. That single-hub
+> rule is **superseded**. GPU acceleration is now **decentralized**: each crate owns
+> its GPU story, the CPU path remains the per-crate source of truth, and `scirs2-core`
+> provides an **optional** portable backend rather than a mandatory gateway.
+>
+> As of 0.6.x, **`scirs2-core` ships no CUDA backend at all.** The `cudarc` dependency
+> and `gpu/backends/cuda.rs` were removed (a Pure-Rust win); `GpuBackend::Cuda` survives
+> only as an enum tag whose context constructor returns an honest error pointing at the
+> per-crate `oxicuda-*` `cuda` features. The portable wgpu backend
+> (`GpuNdarray`/`WebGPUContext`) **remains** in core — only CUDA was retired — and
+> gradually phasing out that wgpu hub is still future work.
 
-1. **ALWAYS use `scirs2-core::gpu` module** for all GPU operations
-2. **NEVER implement direct CUDA/OpenCL/Metal kernels** in modules
-3. **NEVER make direct GPU API calls** outside of core
-4. **ALWAYS register GPU kernels** in the core GPU kernel registry
+### Two complementary GPU stories
 
-### GPU Backend Support
+SciRS2 supports two GPU paths that are **complementary, not alternatives**. A crate may
+ship either, both, or neither — but always atop a CPU implementation.
 
-The core GPU module provides unified abstractions for:
-- CUDA
-- ROCm
-- WebGPU
-- Metal
-- OpenCL
+| Story | Backend | Crates / feature | Devices | Precision | Routing |
+|-------|---------|------------------|---------|-----------|---------|
+| **Portability** | wgpu / WebGPU | `scirs2-core::gpu` (`GpuNdarray`) **or** a crate's own wgpu | macOS, browser, AMD, Intel, NVIDIA | f32 only | core (optional) or per-crate |
+| **Performance** | `oxicuda-*` | per-crate **direct** path dep | NVIDIA only | f32 + f64 | **never** through core |
+
+`oxicuda-*` does **not** replace wgpu; it is the high-performance NVIDIA-only path that
+complements the portable wgpu backend. Pick wgpu when portability/browser/non-NVIDIA
+matters; reach for `oxicuda-*` when you need NVIDIA throughput and/or f64.
+
+### Mandatory Rules (0.6.x)
+
+1. **CPU is always the source of truth.** Every GPU-accelerated function MUST have a
+   CPU implementation in the same crate that is correct and complete on its own.
+2. **CUDA = `oxicuda-*`, as a per-crate DIRECT dependency.** A crate that wants NVIDIA
+   acceleration depends on the relevant `oxicuda-*` crates directly in its own
+   `Cargo.toml`. This GPU path is **NOT** routed through `scirs2-core`. (This is the one
+   sanctioned exception to the "only core uses external deps" rule — see
+   *Dependency Abstraction Policy*.)
+3. **`scirs2-core::gpu` / `GpuNdarray` is the OPTIONAL portable wgpu backend.** It is no
+   longer the mandatory hub. Crates MAY use it for portable f32 wgpu work, and crates
+   that already maintain their own wgpu kernels are explicitly sanctioned (see below).
+4. **All GPU features are OFF by default and runtime-probed.** No GPU feature may be in a
+   crate's `default` feature set. At runtime, code MUST probe for an actual device/adapter
+   before dispatching and fall back to CPU when none is present.
+5. **macOS stays green.** Because `oxicuda-*` is NVIDIA-only and macOS has no NVIDIA path,
+   `cuda` features are OFF by default and MUST remain compile-only on macOS — a default
+   `cargo build`/`cargo test` on macOS MUST NOT require CUDA. Portable GPU work on macOS
+   goes through wgpu (Metal backend).
+6. **Honesty is mandatory — never fabricate GPU results.** When no device/adapter is
+   available, or a path is unimplemented, return an explicit error
+   (`BackendNotAvailable` / `NotImplemented`) or fall back to the real CPU path. NEVER
+   return fabricated, simulated, or hard-coded "GPU" numbers, and NEVER report a GPU
+   dispatch that did not occur.
+
+### Standard feature naming
+
+As of the 0.6.x series, the earlier feature-name sprawl (`gpu`, `wgpu`, `wgpu_rbf`,
+`gpu_wgpu`, `wgpu_fft`, `wgpu_kernels`, `gpu_kdtree`, `gpu_fem`, `cuda`, …) has been
+**standardized** — the portability backends are unified under `wgpu`, parallel to the
+per-crate `cuda`:
+
+| Feature | Meaning |
+|---------|---------|
+| `cuda`  | NVIDIA-only acceleration via direct `oxicuda-*` deps (f32 + f64). |
+| `wgpu`  | Portable f32 acceleration via wgpu/WebGPU (own kernels or core's `GpuNdarray`). |
+| `gpu`   | Umbrella convenience feature; enables whichever of `cuda`/`wgpu` the crate offers. |
+
+All three are OFF by default. The 0.6.x phase-out below migrated every real (`dep:wgpu`)
+portability feature in the ecosystem to this standard: `scirs2-core`'s `wgpu_backend`, the
+per-crate `gpu`/`gpu_wgpu`/`wgpu_fft` features (vision, graph, optimize, datasets, stats, fft),
+special's `wgpu_kernels`, and interpolate's `wgpu_rbf` are now all `wgpu`, so each exposes a
+consistent `cuda` + `wgpu` pair. The only non-`wgpu` GPU flags left are the two empty bare-flag
+placeholders `scirs2-integrate/gpu_fem` and `scirs2-interpolate/gpu_kdtree`, which pull no
+`dep:wgpu` acceleration and gate orthogonal paths.
+
+### Reference implementation
+
+**`scirs2-fft` is the pilot / reference implementation** for the decentralized model
+(Phase 0). New GPU work in other crates should mirror its structure: CPU source of truth,
+`cuda` feature wiring direct `oxicuda-*` deps with a runtime probe + CPU fallback, optional
+portable `wgpu` path, macOS-green defaults, and honest no-device behavior.
+
+### GPU Decentralization — 0.6.x phases
+
+The single-hub model has been dismantled across four phases, all landed in the 0.6.x
+series. Core's portable wgpu `GpuNdarray` deliberately **stays in place** — only the CUDA
+hub was removed — and gradually phasing out the wgpu hub remains future work.
+
+- **Phase 0 — Pilot (`scirs2-fft`) ✅.** Stood up the reference: per-crate direct
+  `oxicuda-*` `cuda` feature (oxicuda-fft), runtime probe, CPU fallback, standardized
+  features, macOS-green.
+- **Phase 1 — Sanction + extend ✅.** Added off-by-default direct `oxicuda-*` `cuda` paths
+  to six crates: `scirs2-fft` (oxicuda-fft), `scirs2-symbolic` (oxicuda-ptx custom
+  kernels), `scirs2-interpolate` (oxicuda-blas + oxicuda-solver), `scirs2-special` and
+  `scirs2-stats` (oxicuda-ptx custom kernels), and `scirs2-graph` (oxicuda-sparse). No
+  requirement to route through core.
+- **Phase 2 — Migrate core-coupled crates ✅.** Gave the four crates that consumed core's
+  `GpuNdarray` their own per-crate `cuda` path plus a `gpu_cuda` module: `scirs2-linalg`
+  (oxicuda-blas + oxicuda-solver), `scirs2-optimize` (oxicuda-blas GEMV), `scirs2-datasets`
+  (oxicuda-blas GEMV), and `scirs2-vision` (oxicuda-dnn conv2d). Added `oxicuda-dnn` to
+  `[workspace.dependencies]`.
+- **Phase 3 — Retire core's CUDA backend ✅.** Removed `scirs2-core`'s own cudarc-based
+  CUDA backend: deleted `gpu/backends/cuda.rs`, dropped the `cudarc` dependency (a
+  Pure-Rust win), and removed core's `cuda` / `array_protocol_cuda` features.
+  `GpuBackend::Cuda` remains only as an enum tag whose context constructor returns an
+  honest error pointing at the per-crate `oxicuda-*` `cuda` features; core's portable wgpu
+  `GpuNdarray`/`WebGPUContext` is retained. Tidy: made `scirs2-spatial`'s GPU docs honest
+  (its `gpu_accel` path is a CPU-SIMD fallback, not GPU) and removed dead GPU feature
+  aliases (`opencl`/`metal`/`oneapi`) from `scirs2-cluster`.
+
+Net: ten crates now ship direct per-crate `oxicuda-*` CUDA paths — `scirs2-fft`,
+`scirs2-symbolic`, `scirs2-interpolate`, `scirs2-special`, `scirs2-stats`, `scirs2-graph`,
+`scirs2-linalg`, `scirs2-optimize`, `scirs2-datasets`, and `scirs2-vision` — while
+`scirs2-core` no longer ships any CUDA backend.
+
+### Architecture boundary — what decentralization did *not* change
+
+Decentralization removed **CUDA (the `cudarc` backend)** from `scirs2-core`; it did
+**not** remove the portable wgpu layer. Stated plainly:
+
+- **`scirs2-core` owns the wgpu/WebGPU portability layer** — `GpuNdarray`,
+  `GpuContext`, `GpuBackend`, `WebGPUContext` (f32, cross-platform, CPU fallback). This
+  is a **shared foundation** that leaf crates (`scirs2-optimize`, `scirs2-datasets`,
+  `scirs2-vision`, `scirs2-linalg`, …) MAY and DO depend on. That dependency is **by
+  design and is NOT "core aggregating GPU"** — it is leaf crates building on a common
+  portability primitive, exactly as they build on core's `ndarray`/`numeric` re-exports.
+- **`oxicuda-*` owns the per-crate CUDA performance path** — NVIDIA-only, f64, real
+  CUDA, no fallback, behind each crate's OFF-by-default `cuda` feature, wired as a direct
+  path dep in that crate's `gpu_cuda.rs`. This path is **never** routed through core.
+- Therefore "GPU decentralization" means **CUDA left core**, not wgpu. Leaf crates
+  keeping their dependency on core's wgpu portability layer is expected and correct.
 
 ### Usage Pattern
 
 ```rust
-use scirs2_core::gpu::{GpuDevice, GpuKernel};
+// PERFORMANCE path — NVIDIA-only, direct oxicuda-* dep, f32 + f64.
+// In the crate's own Cargo.toml (NOT via scirs2-core):
+//   [dependencies]
+//   oxicuda = { workspace = true, optional = true }
+//   [features]
+//   cuda = ["dep:oxicuda"]   # OFF by default; NVIDIA-only; runtime-probed
+#[cfg(feature = "cuda")]
+fn run_cuda(data: &[f64]) -> Result<Vec<f64>, Error> {
+    // Probe for a real device first; fall back to CPU when absent.
+    if !oxicuda::device_available() {
+        return cpu_impl(data); // honest fallback — never fabricate
+    }
+    oxicuda_impl(data)
+}
 
-// CORRECT - Uses core GPU abstractions
-let device = GpuDevice::default()?;
-let kernel = device.compile_kernel(KERNEL_SOURCE)?;
+// PORTABILITY path — optional wgpu via core's GpuNdarray (f32 only).
+#[cfg(feature = "wgpu")]
+use scirs2_core::gpu::GpuNdarray;
 
-// INCORRECT - Direct CUDA usage
-// use cuda_sys::*;  // FORBIDDEN in modules
+// CPU remains the source of truth and is always present.
+fn cpu_impl(data: &[f64]) -> Result<Vec<f64>, Error> { /* ... */ }
 ```
 
 ## Parallel Processing Policy
@@ -459,7 +598,7 @@ let optimizer = AutoOptimizer::new();
 
 // Automatically selects best implementation based on problem size
 if optimizer.should_use_gpu(problem_size) {
-    // Use GPU implementation from core
+    // Use a GPU implementation — core's portable wgpu backend, or a per-crate `cuda`/`wgpu` path
 } else if optimizer.should_use_simd(problem_size) {
     // Use SIMD implementation from core
 } else {
@@ -541,7 +680,7 @@ let cache = CacheBuilder::new()
 When encountering code that violates these policies, follow this priority order:
 
 1. **SIMD implementations** - Replace all custom SIMD with `scirs2-core::simd_ops`
-2. **GPU implementations** - Centralize all GPU kernels in `scirs2-core::gpu`
+2. **GPU implementations** - Decentralized (0.6.x): keep a CPU source of truth per crate; use direct per-crate `oxicuda-*` for the NVIDIA `cuda` path and the optional portable wgpu backend (`scirs2-core::gpu`/`GpuNdarray` or own kernels) for `wgpu` — do NOT force everything through core. See *GPU Operations Policy*.
 3. **Parallel operations** - Replace direct Rayon usage with `scirs2-core::parallel_ops`
 4. **Platform detection** - Replace with `PlatformCapabilities::detect()`
 5. **BLAS operations** - Ensure all go through core

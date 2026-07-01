@@ -1,6 +1,6 @@
 //! WGSL compute shader sources for GPU graph algorithms.
 //!
-//! This module is compiled only when the `gpu` feature is enabled.
+//! This module is compiled only when the `wgpu` feature is enabled.
 //! Each shader constant contains a self-contained WGSL compute program.
 
 /// Level-synchronous BFS frontier expansion shader.

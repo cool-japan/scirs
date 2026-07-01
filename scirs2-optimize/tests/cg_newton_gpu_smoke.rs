@@ -12,7 +12,7 @@
 //! Test 3 (`cg_gpu_disabled_fallsback_to_cpu`): Set `use_gpu = false`, run a
 //! 1000-D separable quadratic and assert correctness — no GPU adapter needed.
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 mod gpu_tests {
     use scirs2_core::ndarray::{Array1, ArrayView1};
     use scirs2_optimize::unconstrained::{
@@ -211,7 +211,7 @@ mod gpu_tests {
 }
 
 // When the `gpu` feature is not enabled, define a placeholder test so the file is not empty.
-#[cfg(not(feature = "gpu"))]
+#[cfg(not(feature = "wgpu"))]
 #[test]
 fn cg_newton_gpu_feature_not_enabled() {
     println!("gpu feature not enabled; CG and Newton GPU tests are skipped at compile time.");

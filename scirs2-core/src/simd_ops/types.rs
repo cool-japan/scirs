@@ -29,7 +29,7 @@ impl PlatformCapabilities {
         Self {
             simd_available: cfg!(feature = "simd"),
             gpu_available: cfg!(feature = "gpu"),
-            cuda_available: cfg!(all(feature = "gpu", feature = "cuda")),
+            cuda_available: false, // CUDA retired from scirs2-core in 0.6.x (moved to oxicuda-*)
             opencl_available: cfg!(all(feature = "gpu", feature = "opencl")),
             metal_available: cfg!(all(feature = "gpu", feature = "metal", target_os = "macos")),
             avx2_available: cfg!(target_feature = "avx2"),

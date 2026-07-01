@@ -43,10 +43,9 @@ impl PyVariableEnvironment {
     /// Args:
     ///     name (str): Variable name
     ///     array (np.ndarray): Variable value (1D or 2D float64 array)
-    #[allow(deprecated)]
     fn set_variable(&mut self, name: &str, array: &Bound<'_, PyAny>) -> PyResult<()> {
         // Try 1D array first
-        if let Ok(arr1d) = array.downcast::<PyArray1<f64>>() {
+        if let Ok(arr1d) = array.cast::<PyArray1<f64>>() {
             let binding = arr1d.readonly();
             let data = binding.as_array().to_owned();
             self.inner.name(name).set(data);
@@ -54,7 +53,7 @@ impl PyVariableEnvironment {
         }
 
         // Try 2D array
-        if let Ok(arr2d) = array.downcast::<PyArray2<f64>>() {
+        if let Ok(arr2d) = array.cast::<PyArray2<f64>>() {
             let binding = arr2d.readonly();
             let data = binding.as_array().to_owned();
             self.inner.name(name).set(data);
@@ -73,7 +72,6 @@ impl PyVariableEnvironment {
     ///
     /// Returns:
     ///     np.ndarray: Variable value
-    #[allow(deprecated)]
     fn get_variable(&self, py: Python, name: &str) -> PyResult<Py<PyAny>> {
         let namespace = self.inner.default_namespace();
         let array_ref = namespace.get_array_by_name(name).ok_or_else(|| {

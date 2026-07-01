@@ -1,6 +1,6 @@
 //! wgpu GPU FFT backend.
 //!
-//! This module is compiled only when the `wgpu_fft` feature is enabled.
+//! This module is compiled only when the `wgpu` feature is enabled.
 //! It exposes `fft_wgpu`, which attempts to:
 //!
 //! 1. Acquire a wgpu adapter and device (GPU).
@@ -16,9 +16,9 @@
 //!
 //! # Feature gate
 //!
-//! This entire module is behind `#[cfg(feature = "wgpu_fft")]`.
+//! This entire module is behind `#[cfg(feature = "wgpu")]`.
 
-#[cfg(feature = "wgpu_fft")]
+#[cfg(feature = "wgpu")]
 mod inner {
     use crate::error::FFTError;
     use scirs2_core::numeric::Complex64;
@@ -396,10 +396,10 @@ mod inner {
 }
 
 // Re-export the public items when the feature is active.
-#[cfg(feature = "wgpu_fft")]
+#[cfg(feature = "wgpu")]
 pub use inner::{fft_wgpu, gpu_available, FftBackendError};
 
-#[cfg(all(test, feature = "wgpu_fft"))]
+#[cfg(all(test, feature = "wgpu"))]
 mod tests {
     use super::{fft_wgpu, gpu_available};
     use scirs2_core::numeric::Complex64;

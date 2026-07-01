@@ -35,7 +35,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-interpolate = "0.5.1"
+//! scirs2-interpolate = "0.6.0"
 //! ```
 //!
 //! ### 1D Interpolation
@@ -184,7 +184,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.5.1
+//! - **Version**: 0.6.0
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-interpolate](https://docs.rs/scirs2-interpolate)
@@ -377,6 +377,12 @@ pub mod extrapolation_modules;
 pub mod fast_bspline;
 pub mod geospatial;
 pub mod gpu_accelerated;
+/// Optional NVIDIA-only CUDA acceleration for RBF dense linear algebra
+/// (kernel-system solve + eval GEMM) via the pure-Rust oxicuda crates.
+/// Off by default; enable with the `cuda` feature. The runtime probe returns
+/// false when no NVIDIA device is present (e.g. macOS).
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
 pub mod gpu_production;
 pub mod grid;
 pub mod griddata;
@@ -673,6 +679,10 @@ pub use gpu_production::{
     DeviceMetrics, GpuDevice, GpuMemoryPool, ProductionGpuAccelerator, ProductionGpuConfig,
     ProductionPerformanceReport, SystemMetrics, WorkloadDistribution,
 };
+
+// Optional CUDA acceleration (off by default; enable with the `cuda` feature)
+#[cfg(feature = "cuda")]
+pub use gpu_cuda::{cuda_eval_gemm, cuda_is_available, cuda_rbf_solve};
 pub use grid::{
     create_regular_grid, map_grid_to_points, resample_grid_to_grid, resample_to_grid,
     GridTransformMethod,

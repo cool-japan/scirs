@@ -71,11 +71,8 @@ simd = ["scirs2-core/simd"]
 # GPU acceleration features
 gpu = []
 cuda = ["gpu"]
-opencl = ["gpu"]
 rocm = ["gpu"]
-metal = ["gpu"]
-oneapi = ["gpu"]
-gpu_all = ["cuda", "opencl", "rocm", "metal", "oneapi"]
+gpu_all = ["cuda", "rocm"]
 
 # Python interoperability via scirs2-core conversion utilities
 python = ["scirs2-core/python"]

@@ -8,7 +8,7 @@
 //! # GPU Acceleration Features
 //!
 //! - **GPU-accelerated RBF interpolation**: Real wgpu RBF kernel-matrix + evaluation
-//!   dispatch when the `wgpu_rbf` feature is enabled and `n_centers * n_queries >= 4096`.
+//!   dispatch when the `wgpu` feature is enabled and `n_centers * n_queries >= 4096`.
 //! - **Batch spline evaluation**: Efficient evaluation of splines at many points
 //! - **Parallel scattered data interpolation**: GPU-accelerated scattered data methods
 //! - **Mixed CPU/GPU workloads**: Optimal distribution of computation between CPU and GPU
@@ -25,7 +25,7 @@
 //! # Examples
 //!
 //! ```rust
-//! # #[cfg(feature = "wgpu_rbf")]
+//! # #[cfg(feature = "wgpu")]
 //! # {
 //! use scirs2_core::ndarray::Array1;
 //! use scirs2_interpolate::gpu_accelerated::{
@@ -54,7 +54,7 @@
 //! # }
 //! ```
 
-#[cfg(feature = "wgpu_rbf")]
+#[cfg(feature = "wgpu")]
 pub mod wgpu_rbf;
 
 use crate::advanced::rbf::{RBFInterpolator, RBFKernel};
@@ -220,7 +220,7 @@ impl GpuStats {
 
 /// GPU-accelerated RBF interpolator.
 ///
-/// When the `wgpu_rbf` feature is enabled and an adapter is available, the
+/// When the `wgpu` feature is enabled and an adapter is available, the
 /// `evaluate` method dispatches to the GPU for problem sizes above
 /// `n_centers * n_queries >= 4096`.  All other cases fall back to the CPU.
 #[derive(Debug)]
@@ -350,14 +350,14 @@ where
 
     /// Check if GPU acceleration is available.
     ///
-    /// When the `wgpu_rbf` feature is enabled, performs a real wgpu adapter
+    /// When the `wgpu` feature is enabled, performs a real wgpu adapter
     /// probe (cached after the first call).  Otherwise always returns `false`.
     pub fn is_gpu_available() -> bool {
-        #[cfg(feature = "wgpu_rbf")]
+        #[cfg(feature = "wgpu")]
         {
             wgpu_rbf::is_gpu_available()
         }
-        #[cfg(not(feature = "wgpu_rbf"))]
+        #[cfg(not(feature = "wgpu"))]
         {
             false
         }
@@ -408,7 +408,7 @@ where
 
     /// Evaluate the interpolator at new points.
     ///
-    /// When `wgpu_rbf` is enabled and an adapter is present, dispatches to the
+    /// When `wgpu` is enabled and an adapter is present, dispatches to the
     /// GPU for problem sizes `n_centers * n_queries >= 4096`.  Otherwise uses
     /// the CPU path.
     ///
@@ -426,7 +426,7 @@ where
         let n_queries = xeval.len();
 
         // Check GPU threshold and availability
-        #[cfg(feature = "wgpu_rbf")]
+        #[cfg(feature = "wgpu")]
         {
             let above_threshold = n_centers * n_queries >= wgpu_rbf::GPU_THRESHOLD;
             if above_threshold && self.gpu_config.prefer_gpu && Self::is_gpu_available() {
@@ -457,7 +457,7 @@ where
     // Internal: GPU path
     // ─────────────────────────────────────────────────────────────────────────
 
-    #[cfg(feature = "wgpu_rbf")]
+    #[cfg(feature = "wgpu")]
     fn evaluate_gpu(&mut self, xeval: &ArrayView1<T>) -> InterpolateResult<Array1<T>> {
         use wgpu_rbf::gpu_rbf_evaluate;
 
@@ -529,7 +529,7 @@ where
     /// The `RBFInterpolator` doesn't expose its weights directly, so we
     /// reconstruct them by solving the system ourselves using the stored data.
     /// This is a one-time cost that amortises over multiple `evaluate` calls.
-    #[cfg(feature = "wgpu_rbf")]
+    #[cfg(feature = "wgpu")]
     fn extract_coefficients(&self) -> InterpolateResult<Vec<f64>> {
         // Build the n×n kernel matrix on CPU and solve for weights
         let n = self.x_data.len();

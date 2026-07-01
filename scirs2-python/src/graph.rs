@@ -67,7 +67,7 @@ fn graph_from_edges_py(
 
     // Add edges
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         let weight: f64 = if tuple.len() > 2 {
@@ -112,7 +112,7 @@ fn digraph_from_edges_py(
     let mut max_node = 0usize;
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         let weight: f64 = if tuple.len() > 2 {
@@ -315,7 +315,7 @@ fn bfs_py(
     let mut max_node = 0usize;
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         max_node = max_node.max(u).max(v);
@@ -345,7 +345,7 @@ fn dfs_py(
     let mut max_node = 0usize;
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         max_node = max_node.max(u).max(v);
@@ -378,7 +378,7 @@ fn dijkstra_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple: &Bound<'_, PyTuple> = edge.downcast()?;
+        let tuple: &Bound<'_, PyTuple> = edge.cast()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         let weight: f64 = if tuple.len() > 2 {
@@ -414,7 +414,7 @@ fn floyd_warshall_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple: &Bound<'_, PyTuple> = edge.downcast()?;
+        let tuple: &Bound<'_, PyTuple> = edge.cast()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         let weight: f64 = if tuple.len() > 2 {
@@ -446,7 +446,7 @@ fn connected_components_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple: &Bound<'_, PyTuple> = edge.downcast()?;
+        let tuple: &Bound<'_, PyTuple> = edge.cast()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -478,7 +478,7 @@ fn strongly_connected_components_py(
     let mut graph = DiGraph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple: &Bound<'_, PyTuple> = edge.downcast()?;
+        let tuple: &Bound<'_, PyTuple> = edge.cast()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -509,7 +509,7 @@ fn articulation_points_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -532,7 +532,7 @@ fn bridges_py(py: Python, edges: &Bound<'_, PyList>, num_nodes: usize) -> PyResu
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -555,7 +555,7 @@ fn is_bipartite_py(py: Python, edges: &Bound<'_, PyList>, num_nodes: usize) -> P
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -604,7 +604,7 @@ fn betweenness_centrality_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -634,7 +634,7 @@ fn closeness_centrality_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -667,7 +667,7 @@ fn pagerank_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -701,7 +701,7 @@ fn louvain_communities_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         let weight: f64 = if tuple.len() > 2 {
@@ -744,7 +744,7 @@ fn label_propagation_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -777,7 +777,7 @@ fn modularity_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         let weight: f64 = if tuple.len() > 2 {
@@ -812,7 +812,7 @@ fn diameter_py(edges: &Bound<'_, PyList>, num_nodes: usize) -> PyResult<f64> {
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -832,7 +832,7 @@ fn clustering_coefficient_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         graph.add_edge(u, v, 1.0);
@@ -884,7 +884,7 @@ fn minimum_spanning_tree_py(
     let mut graph = Graph::<usize, f64, u32>::new();
 
     for edge in edges.iter() {
-        let tuple = edge.downcast::<PyTuple>()?;
+        let tuple = edge.cast::<PyTuple>()?;
         let u: usize = tuple.get_item(0)?.extract()?;
         let v: usize = tuple.get_item(1)?.extract()?;
         let weight: f64 = if tuple.len() > 2 {

@@ -1,6 +1,6 @@
 //! Smoke tests for the real wgpu BFS and SSSP dispatch path.
 //!
-//! All tests in this module are gated on `#[cfg(feature = "gpu")]`.
+//! All tests in this module are gated on `#[cfg(feature = "wgpu")]`.
 //! On hosts without a GPU adapter (headless CI) every test that requires
 //! GPU access detects the absence of an adapter at runtime and skips
 //! gracefully — the test passes, not fails.
@@ -13,7 +13,7 @@
 //! - BF   : 70-vertex complete digraph            → 4830 directed edges
 //! - delta: same 70-vertex digraph as adjacency list
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 mod wgpu_graph_smoke {
     use scirs2_graph::gpu::algorithms::{
         gpu_bfs, gpu_sssp_bellman_ford, gpu_sssp_delta_stepping, GpuBfsConfig, GpuGraphBackend,

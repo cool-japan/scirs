@@ -6,7 +6,7 @@
 //!
 //! The host-side dispatch functions (`gamma_batch_wgpu`, `erf_batch_wgpu`,
 //! `bessel_j0_batch_wgpu`, `lgamma_batch_wgpu`) perform real GPU dispatch when the
-//! `wgpu_kernels` feature is enabled and a wgpu adapter is found.  When the feature
+//! `wgpu` feature is enabled and a wgpu adapter is found.  When the feature
 //! is disabled, or no adapter is available at runtime, they return
 //! [`WgslDispatchError::GpuNotAvailable`] so the caller can fall back to CPU.
 //!
@@ -14,7 +14,7 @@
 //!
 //! The WGSL shader source constants are always compiled (useful for documentation and
 //! validation tooling).  The GPU dispatch paths are gated behind
-//! `#[cfg(feature = "wgpu_kernels")]`.
+//! `#[cfg(feature = "wgpu")]`.
 
 // ---------------------------------------------------------------------------
 // WGSL shader sources
@@ -305,7 +305,7 @@ impl std::fmt::Display for WgslDispatchError {
 }
 
 // ---------------------------------------------------------------------------
-// Real GPU dispatch (wgpu_kernels feature)
+// Real GPU dispatch (wgpu feature)
 // ---------------------------------------------------------------------------
 
 /// Upload `xs_f32` to a read-only storage buffer, dispatch `shader_src` over it,
@@ -315,7 +315,7 @@ impl std::fmt::Display for WgslDispatchError {
 /// The shader is expected to have exactly two bindings:
 ///   - `@group(0) @binding(0)` — read-only input `array<f32>`
 ///   - `@group(0) @binding(1)` — read-write output `array<f32>`
-#[cfg(feature = "wgpu_kernels")]
+#[cfg(feature = "wgpu")]
 fn dispatch_unary_f32(shader_src: &str, xs_f32: &[f32]) -> Result<Vec<f32>, WgslDispatchError> {
     use wgpu::{
         util::BufferInitDescriptor, util::DeviceExt as _, Backends, BindGroupDescriptor,
@@ -491,15 +491,15 @@ fn dispatch_unary_f32(shader_src: &str, xs_f32: &[f32]) -> Result<Vec<f32>, Wgsl
 }
 
 // ---------------------------------------------------------------------------
-// Host-side dispatch functions — real (wgpu_kernels) path
+// Host-side dispatch functions — real (wgpu) path
 // ---------------------------------------------------------------------------
 
 /// Attempt batch Gamma evaluation on a WebGPU device.
 ///
-/// When `wgpu_kernels` is enabled and a wgpu adapter is found, uploads `xs` as
+/// When `wgpu` is enabled and a wgpu adapter is found, uploads `xs` as
 /// `f32`, dispatches the Lanczos WGSL shader, and returns `f64` results.
 /// Falls back to [`WgslDispatchError::GpuNotAvailable`] otherwise.
-#[cfg(feature = "wgpu_kernels")]
+#[cfg(feature = "wgpu")]
 pub fn gamma_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&x| x as f32).collect();
     let result_f32 = dispatch_unary_f32(GAMMA_WGSL, &xs_f32)?;
@@ -508,9 +508,9 @@ pub fn gamma_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
 
 /// Attempt batch `erf` evaluation on a WebGPU device.
 ///
-/// When `wgpu_kernels` is enabled and a wgpu adapter is found, uploads `xs` as
+/// When `wgpu` is enabled and a wgpu adapter is found, uploads `xs` as
 /// `f32`, dispatches the A&S WGSL erf shader, and returns `f64` results.
-#[cfg(feature = "wgpu_kernels")]
+#[cfg(feature = "wgpu")]
 pub fn erf_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&x| x as f32).collect();
     let result_f32 = dispatch_unary_f32(ERF_WGSL, &xs_f32)?;
@@ -519,9 +519,9 @@ pub fn erf_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
 
 /// Attempt batch Bessel J₀ evaluation on a WebGPU device.
 ///
-/// When `wgpu_kernels` is enabled and a wgpu adapter is found, uploads `xs` as
+/// When `wgpu` is enabled and a wgpu adapter is found, uploads `xs` as
 /// `f32`, dispatches the A&S polynomial WGSL shader, and returns `f64` results.
-#[cfg(feature = "wgpu_kernels")]
+#[cfg(feature = "wgpu")]
 pub fn bessel_j0_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&x| x as f32).collect();
     let result_f32 = dispatch_unary_f32(BESSEL_J0_WGSL, &xs_f32)?;
@@ -530,9 +530,9 @@ pub fn bessel_j0_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
 
 /// Attempt batch log-Gamma evaluation on a WebGPU device.
 ///
-/// When `wgpu_kernels` is enabled and a wgpu adapter is found, uploads `xs` as
+/// When `wgpu` is enabled and a wgpu adapter is found, uploads `xs` as
 /// `f32`, dispatches the Lanczos log-gamma WGSL shader, and returns `f64` results.
-#[cfg(feature = "wgpu_kernels")]
+#[cfg(feature = "wgpu")]
 pub fn lgamma_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&x| x as f32).collect();
     let result_f32 = dispatch_unary_f32(LGAMMA_WGSL, &xs_f32)?;
@@ -541,10 +541,10 @@ pub fn lgamma_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
 
 /// Attempt batch `erfc` evaluation on a WebGPU device.
 ///
-/// When `wgpu_kernels` is enabled and a wgpu adapter is found, uploads `xs` as
+/// When `wgpu` is enabled and a wgpu adapter is found, uploads `xs` as
 /// `f32`, dispatches the A&S erfc WGSL shader, and returns `f64` results.
 /// Falls back to [`WgslDispatchError::GpuNotAvailable`] otherwise.
-#[cfg(feature = "wgpu_kernels")]
+#[cfg(feature = "wgpu")]
 pub fn erfc_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&x| x as f32).collect();
     let result_f32 = dispatch_unary_f32(ERFC_WGSL, &xs_f32)?;
@@ -553,10 +553,10 @@ pub fn erfc_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
 
 /// Attempt batch `erfinv` evaluation on a WebGPU device.
 ///
-/// When `wgpu_kernels` is enabled and a wgpu adapter is found, uploads `xs` as
+/// When `wgpu` is enabled and a wgpu adapter is found, uploads `xs` as
 /// `f32`, dispatches the Winitzki erfinv WGSL shader, and returns `f64` results.
 /// Falls back to [`WgslDispatchError::GpuNotAvailable`] otherwise.
-#[cfg(feature = "wgpu_kernels")]
+#[cfg(feature = "wgpu")]
 pub fn erfinv_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     let xs_f32: Vec<f32> = xs.iter().map(|&x| x as f32).collect();
     let result_f32 = dispatch_unary_f32(ERFINV_WGSL, &xs_f32)?;
@@ -564,41 +564,41 @@ pub fn erfinv_batch_wgpu(xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
 }
 
 // ---------------------------------------------------------------------------
-// Host-side dispatch functions — stub (no wgpu_kernels) path
+// Host-side dispatch functions — stub (no wgpu) path
 // ---------------------------------------------------------------------------
 
-/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu_kernels` is off.
-#[cfg(not(feature = "wgpu_kernels"))]
+/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu` is off.
+#[cfg(not(feature = "wgpu"))]
 pub fn gamma_batch_wgpu(_xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     Err(WgslDispatchError::GpuNotAvailable)
 }
 
-/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu_kernels` is off.
-#[cfg(not(feature = "wgpu_kernels"))]
+/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu` is off.
+#[cfg(not(feature = "wgpu"))]
 pub fn erf_batch_wgpu(_xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     Err(WgslDispatchError::GpuNotAvailable)
 }
 
-/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu_kernels` is off.
-#[cfg(not(feature = "wgpu_kernels"))]
+/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu` is off.
+#[cfg(not(feature = "wgpu"))]
 pub fn bessel_j0_batch_wgpu(_xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     Err(WgslDispatchError::GpuNotAvailable)
 }
 
-/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu_kernels` is off.
-#[cfg(not(feature = "wgpu_kernels"))]
+/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu` is off.
+#[cfg(not(feature = "wgpu"))]
 pub fn lgamma_batch_wgpu(_xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     Err(WgslDispatchError::GpuNotAvailable)
 }
 
-/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu_kernels` is off.
-#[cfg(not(feature = "wgpu_kernels"))]
+/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu` is off.
+#[cfg(not(feature = "wgpu"))]
 pub fn erfc_batch_wgpu(_xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     Err(WgslDispatchError::GpuNotAvailable)
 }
 
-/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu_kernels` is off.
-#[cfg(not(feature = "wgpu_kernels"))]
+/// Stub: returns [`WgslDispatchError::GpuNotAvailable`] when `wgpu` is off.
+#[cfg(not(feature = "wgpu"))]
 pub fn erfinv_batch_wgpu(_xs: &[f64]) -> Result<Vec<f64>, WgslDispatchError> {
     Err(WgslDispatchError::GpuNotAvailable)
 }
@@ -658,8 +658,8 @@ mod tests {
 
     #[test]
     fn test_gamma_batch_wgpu_returns_not_available() {
-        // Without wgpu_kernels feature, always returns GpuNotAvailable.
-        // With wgpu_kernels feature on headless CI, also returns GpuNotAvailable.
+        // Without wgpu feature, always returns GpuNotAvailable.
+        // With wgpu feature on headless CI, also returns GpuNotAvailable.
         let xs = vec![1.0_f64, 2.0, 3.0];
         let result = gamma_batch_wgpu(&xs);
         // Either Ok (GPU present) or GpuNotAvailable (no GPU)

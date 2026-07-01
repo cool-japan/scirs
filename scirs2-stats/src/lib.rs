@@ -46,7 +46,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-stats = "0.5.1"
+//! scirs2-stats = "0.6.0"
 //! ```
 //!
 //! ```rust
@@ -204,7 +204,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.5.1
+//! - **Version**: 0.6.0
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-stats](https://docs.rs/scirs2-stats)
@@ -417,6 +417,10 @@
 // GPU-accelerated batch distribution evaluation (wgpu backend)
 pub mod gpu;
 
+// Direct oxicuda CUDA path for batched standard-normal PDF/CDF (NVIDIA-only, runtime-probed, default off)
+#[cfg(feature = "cuda")]
+pub mod gpu_cuda;
+
 // Python API wrappers
 // Note: python_api module not yet implemented
 // #[cfg(feature = "python")]
@@ -468,6 +472,8 @@ pub use benchmark_suite_enhanced::{
     SimdCapabilities, TrendDirection,
 };
 pub use error::{StatsError, StatsResult};
+
+// CUDA normal PDF/CDF path (oxicuda direct, gated on the `cuda` feature)
 pub use error_diagnostics::{
     generate_global_health_report, get_global_statistics, global_monitor, record_global_error,
     CriticalIssue, ErrorMonitor, ErrorOccurrence, ErrorPattern, ErrorStatistics, ErrorTrend,
@@ -499,6 +505,8 @@ pub use error_suggestions::{
     diagnose_error, DiagnosisReport, ErrorFormatter, ErrorType, Severity, Suggestion,
     SuggestionEngine,
 };
+#[cfg(feature = "cuda")]
+pub use gpu_cuda::{cuda_is_available, cuda_normal_cdf_batch, cuda_normal_pdf_batch};
 pub use intelligent_error_recovery::{
     create_intelligent_recovery, get_intelligent_suggestions, IntelligentErrorRecovery,
     IntelligentRecoveryStrategy, RecoveryConfig, ResourceRequirements, RiskLevel,

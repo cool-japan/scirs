@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0] - Unreleased
+
+The 0.6.x series introduces the pure-Rust `oxicuda-*` CUDA stack as a **direct, per-crate** NVIDIA performance backend and **decentralizes GPU** out of `scirs2-core`. Two GPU stories now stand side by side: **portability** via wgpu/WebGPU (f32, cross-platform, retained in core as `GpuNdarray`/`WebGPUContext`) and **performance** via `oxicuda-*` (NVIDIA-only, f64-capable, real CUDA PTX→driver JIT — not a CPU/wgpu simulation). `oxicuda-*` is additive — it does not replace wgpu, and every `cuda` path keeps a CPU source of truth behind a runtime device probe.
+
+### Added
+- **oxicuda CUDA backends** (`oxicuda-*`): introduced the pure-Rust `oxicuda-*` stack as a direct per-crate CUDA path. Ten crates gained an off-by-default, NVIDIA-only, runtime-probed `cuda` feature with a new `gpu_cuda` module; every path is f64-native and a default build compiles zero oxicuda (the PTX custom-kernel crates are enabled by oxicuda-ptx f64 kernel-builder additions):
+  - **scirs2-fft** (oxicuda-fft) — 1D C2C forward/inverse FFT with 1/N inverse normalization
+  - **scirs2-symbolic** (oxicuda-ptx) — `LoweredOp`-to-PTX custom-kernel f64 batch evaluation
+  - **scirs2-interpolate** (oxicuda-blas + oxicuda-solver) — RBF GEMM plus Cholesky solve
+  - **scirs2-special** (oxicuda-ptx) — custom `erf` PTX kernel
+  - **scirs2-stats** (oxicuda-ptx) — custom normal PDF/CDF PTX kernels
+  - **scirs2-graph** (oxicuda-sparse) — CSR sparse matrix-vector multiply (SpMV)
+  - **scirs2-linalg** (oxicuda-blas + oxicuda-solver) — `cuda_gemm` and `cuda_solve_spd`
+  - **scirs2-optimize** (oxicuda-blas) — `cuda_hessian_vector_product` via GEMV
+  - **scirs2-datasets** (oxicuda-blas) — `cuda_regression_target` via GEMV
+  - **scirs2-vision** (oxicuda-dnn) — `cuda_convolve_2d` 2D convolution
+- **Workspace**: added `oxicuda-dnn` to `[workspace.dependencies]`, joining the existing `oxicuda-driver`/`-memory`/`-fft`/`-ptx`/`-launch`/`-blas`/`-solver`/`-sparse` path dependencies
+
+### Changed
+- **BREAKING (GPU features)**: standardized every real (`dep:wgpu`) wgpu/WebGPU portability feature across the ecosystem under a single `wgpu` name — `scirs2-core`'s `wgpu_backend` → `wgpu`, and the per-crate wgpu features in vision/graph/optimize (`gpu`), datasets/stats (`gpu_wgpu`), fft (`wgpu_fft`), special (`wgpu_kernels`), and interpolate (`wgpu_rbf`) all → `wgpu`, so each of these crates now exposes a consistent `cuda` (oxicuda) + `wgpu` (portable) pair; downstream builds enabling wgpu via `--features wgpu_backend`/`gpu_wgpu`/`wgpu_fft`/`wgpu_kernels`/`wgpu_rbf` (or `--features gpu` in vision/graph/optimize) must update to `--features wgpu`; core's `gpu` umbrella, `array_protocol_wgpu`, and stats' `gpu` core-abstraction passthrough keep their names, as do the empty placeholder flags `scirs2-integrate/gpu_fem` and `scirs2-interpolate/gpu_kdtree`
+- **GPU decentralized**: `scirs2-core` is no longer the GPU aggregation hub — each crate now owns its CUDA story through a direct `oxicuda-*` dependency instead of routing through core
+- **GPU policy**: rewrote `SCIRS2_POLICY.md`'s GPU Operations Policy to the two-stories model — wgpu/WebGPU for portability (retained in core) and `oxicuda-*` for NVIDIA performance (per-crate, never through core)
+
+### Removed
+- **scirs2-core**: retired core's own cudarc-based CUDA backend — deleted `gpu/backends/cuda.rs` and **dropped the `cudarc` dependency** (a Pure-Rust win); `GpuBackend::Cuda` now survives only as an enum tag whose context constructor returns an honest error directing users to the per-crate `oxicuda-*` `cuda` features, while the portable wgpu `GpuNdarray`/`WebGPUContext` is retained
+- **scirs2-core**: removed the now-unused `cuda` and dead `array_protocol_cuda` features
+- **scirs2-cluster**: removed dead GPU feature aliases (`opencl`/`metal`/`oneapi`)
+
+### Docs
+- **scirs2-spatial**: corrected GPU documentation to reflect reality — its `gpu_accel` path is a CPU-SIMD fallback, not a GPU backend
+
+---
+
 ## [0.5.1] - 2026-06-25
 
 This is a correctness, API-stability, and Pure Rust hardening release.

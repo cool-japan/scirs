@@ -213,14 +213,13 @@ impl PySoftmax {
 // ============================================================================
 
 /// Apply activation function to NumPy array
-#[allow(deprecated)]
 fn apply_activation<A: Activation<f64>>(
     activation: &A,
     py: Python,
     input: &Bound<'_, PyAny>,
 ) -> PyResult<Py<PyAny>> {
     // Try 1D array
-    if let Ok(arr1d) = input.downcast::<PyArray1<f64>>() {
+    if let Ok(arr1d) = input.cast::<PyArray1<f64>>() {
         let binding = arr1d.readonly();
         let data = binding.as_array().to_owned();
         let dyn_input = data.into_dyn();
@@ -239,7 +238,7 @@ fn apply_activation<A: Activation<f64>>(
     }
 
     // Try 2D array
-    if let Ok(arr2d) = input.downcast::<PyArray2<f64>>() {
+    if let Ok(arr2d) = input.cast::<PyArray2<f64>>() {
         let binding = arr2d.readonly();
         let data = binding.as_array().to_owned();
         let dyn_input = data.into_dyn();
@@ -263,7 +262,6 @@ fn apply_activation<A: Activation<f64>>(
 }
 
 /// Apply activation backward pass
-#[allow(deprecated)]
 fn apply_activation_backward<A: Activation<f64>>(
     activation: &A,
     py: Python,
@@ -272,8 +270,8 @@ fn apply_activation_backward<A: Activation<f64>>(
 ) -> PyResult<Py<PyAny>> {
     // Try 1D arrays
     if let (Ok(grad1d), Ok(inp1d)) = (
-        grad_output.downcast::<PyArray1<f64>>(),
-        input.downcast::<PyArray1<f64>>(),
+        grad_output.cast::<PyArray1<f64>>(),
+        input.cast::<PyArray1<f64>>(),
     ) {
         let grad_binding = grad1d.readonly();
         let grad_data = grad_binding.as_array().to_owned().into_dyn();
@@ -299,8 +297,8 @@ fn apply_activation_backward<A: Activation<f64>>(
 
     // Try 2D arrays
     if let (Ok(grad2d), Ok(inp2d)) = (
-        grad_output.downcast::<PyArray2<f64>>(),
-        input.downcast::<PyArray2<f64>>(),
+        grad_output.cast::<PyArray2<f64>>(),
+        input.cast::<PyArray2<f64>>(),
     ) {
         let grad_binding = grad2d.readonly();
         let grad_data = grad_binding.as_array().to_owned().into_dyn();

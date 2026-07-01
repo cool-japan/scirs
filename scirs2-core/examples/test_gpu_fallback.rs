@@ -16,8 +16,13 @@ fn main() {
         let preferred = GpuBackend::preferred();
         println!("Preferred backend: {:?}", preferred);
 
-        // Test 2: Check if CUDA is available (compile-time)
-        println!("\nCUDA feature enabled: {}", cfg!(feature = "cuda"));
+        // Test 2: Check compile-time wgpu support and CUDA runtime availability.
+        // NOTE: scirs2-core dropped its bundled CUDA backend in 0.6.x -- CUDA
+        // acceleration now lives in the separate oxicuda-* crates. The `Cuda`
+        // variant stays in `GpuBackend` for API compatibility, but
+        // `is_available()` always reports `false` here; scirs2-core's own GPU
+        // story is the portable `wgpu` backend plus a CPU fallback.
+        println!("\nwgpu feature enabled: {}", cfg!(feature = "wgpu"));
         println!("CUDA is_available(): {}", GpuBackend::Cuda.is_available());
 
         // Test 3: Try to create context with default backend
@@ -34,7 +39,9 @@ fn main() {
             }
         }
 
-        // Test 4: Try to create context with CUDA explicitly
+        // Test 4: Try to create a context with CUDA explicitly. CUDA support was
+        // retired from scirs2-core in 0.6.x, so this is expected to fail with a
+        // migration hint pointing at the oxicuda-* crates (see Test 2 above).
         println!("\nTrying to create GPU context with CUDA backend...");
         match GpuContext::new(GpuBackend::Cuda) {
             Ok(ctx) => {

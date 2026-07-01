@@ -3,6 +3,18 @@
 //! This module provides the foundation for GPU-accelerated linear algebra operations
 //! including CUDA, OpenCL, and ROCm support. It defines traits and abstractions
 //! for different GPU backends while maintaining a unified interface.
+//!
+//! # Relationship to the other GPU modules (do not conflate)
+//!
+//! This is the **self-contained, local** GPU abstraction. It defines its **own**
+//! `GpuContext` trait (see `GpuContext` in this module) and backend types, and does
+//! **not** use `scirs2_core::gpu`. Do not confuse this local `GpuContext` with core's
+//! `scirs2_core::gpu::GpuContext`. Gated on any of `cuda`/`opencl`/`rocm`/`metal`.
+//!
+//! - PORTABILITY path (scirs2-core's wgpu/WebGPU layer; f32; cross-platform; CPU
+//!   fallback): see `crate::gpu_linalg` (feature `gpu`).
+//! - PERFORMANCE path (NVIDIA-only; f64; real CUDA via `oxicuda-*`; no fallback):
+//!   see `crate::gpu_cuda` (feature `cuda`).
 
 use crate::error::{LinalgError, LinalgResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};

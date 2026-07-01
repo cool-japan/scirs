@@ -822,9 +822,9 @@ pub fn benchmark_gpu_vs_cpu(
 ///   tolerance (when a wgpu adapter is present), or
 /// - skips gracefully when the dispatch falls back to CPU (no adapter).
 ///
-/// They only run with the `gpu_wgpu` feature enabled so the default build is
+/// They only run with the `wgpu` feature enabled so the default build is
 /// unaffected.
-#[cfg(all(test, feature = "gpu_wgpu"))]
+#[cfg(all(test, feature = "wgpu"))]
 mod gpu_smoke_tests {
     use super::gpu_dispatch::{
         try_blobs_center_gpu, try_classification_informative_gpu, try_regression_targets_gpu,

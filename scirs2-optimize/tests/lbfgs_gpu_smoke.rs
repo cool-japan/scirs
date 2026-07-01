@@ -10,7 +10,7 @@
 //! run with n=5000 parameters; asserts correctness of the CPU path (no adapter
 //! needed).
 
-#[cfg(feature = "gpu")]
+#[cfg(feature = "wgpu")]
 mod gpu_tests {
     use scirs2_core::ndarray::Array1;
     use scirs2_optimize::unconstrained::{minimize_lbfgs, Options};
@@ -155,7 +155,7 @@ mod gpu_tests {
 }
 
 // When the `gpu` feature is not enabled, define a placeholder test so the file is not empty.
-#[cfg(not(feature = "gpu"))]
+#[cfg(not(feature = "wgpu"))]
 #[test]
 fn lbfgs_gpu_feature_not_enabled() {
     // This test just verifies that the file compiles cleanly without the gpu feature.

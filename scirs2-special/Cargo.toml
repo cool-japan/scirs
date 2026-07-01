@@ -33,6 +33,12 @@ serde = { workspace = true, features = ["derive"] }
 log = { workspace = true }
 statrs = { workspace = true }
 
+# CUDA backend (oxicuda-*, optional, off by default)
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-launch = { workspace = true, optional = true }
+oxicuda-ptx = { workspace = true, optional = true }
+
 [features]
 default = ["python-interop"]
 parallel = ["scirs2-core/parallel"]
@@ -40,7 +46,8 @@ simd = ["scirs2-core/simd"]
 lazy = ["futures"]
 gpu = ["scirs2-core/gpu"]  # GPU accessed through core
 cuda_kernels = []          # CUDA/ROCm kernel dispatch (default off — requires C libs, feature-gated per Pure Rust Policy)
-wgpu_kernels = ["dep:wgpu", "dep:pollster"]  # Pure-Rust wgpu compute kernels for special functions
+wgpu = ["dep:wgpu", "dep:pollster"]  # Pure-Rust wgpu compute kernels for special functions
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-launch", "dep:oxicuda-ptx"]  # Pure-Rust direct oxicuda CUDA path (NVIDIA-only, runtime-probed; default off)
 # array-api = ["arrayfire", "candle"]  # Disabled - placeholder for future implementation
 high-precision = ["dep:oxinum-float"]   # Arbitrary precision computations (Pure Rust, no C/Fortran FFI)
 arbitrary_precision = ["high-precision"] # Alias: gamma_mpfr, erf_mpfr, bessel_j0_mpfr, bessel_k0_mpfr via oxinum-float

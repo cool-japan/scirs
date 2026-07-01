@@ -143,6 +143,17 @@ pub fn make_classification(
     Ok(dataset)
 }
 
+/// Minimum number of design-matrix elements (`n_samples * n_features`) before
+/// [`make_regression`] is allowed to offload its `y = X · coef` target product
+/// to the optional CUDA GPU path (`crate::gpu_cuda`).
+///
+/// Deliberately set high (1,000,000) so that every small / test-sized problem
+/// always uses the deterministic CPU path, keeping `make_regression`'s seeded
+/// output bit-for-bit stable even on NVIDIA hosts. Only genuinely large
+/// generations are eligible for GPU offload.
+#[cfg(feature = "cuda")]
+const CUDA_REGRESSION_MIN_ELEMS: usize = 1_000_000;
+
 /// Generate a random regression dataset
 #[allow(dead_code)]
 pub fn make_regression(
@@ -208,21 +219,54 @@ pub fn make_regression(
         }
     }
 
-    // Generate the target
-    let mut target = Array1::zeros(n_samples);
-
+    // Generate the target.
+    //
+    // The original single loop is split into two byte-for-byte-equivalent
+    // phases so the optional CUDA fast path has a clean seam:
+    //   1. compute the noise-free linear target `linear = X · coef`,
+    //   2. add the per-sample Gaussian noise.
+    // The dot-product accumulation order is unchanged and the noise RNG is still
+    // drawn exactly once per sample in ascending index order, so the default
+    // (CPU / no-`cuda`-feature) output is identical to before.
+    let mut linear = Array1::zeros(n_samples);
     for i in 0..n_samples {
         let mut y = 0.0;
         for j in 0..n_features {
             y += data[[i, j]] * coef[j];
         }
+        linear[i] = y;
+    }
 
-        // Add noise
+    // Optional, additive CUDA fast path for the linear target `X · coef`
+    // (off by default; present only when the `cuda` feature is enabled).
+    //
+    // The product is offloaded to the NVIDIA GPU ONLY for large problems and
+    // ONLY when a real CUDA device is present. `CUDA_REGRESSION_MIN_ELEMS` is
+    // deliberately high so every small / test-sized generation always keeps the
+    // deterministic CPU result above — make_regression's seeded output stays
+    // bit-stable even on NVIDIA hosts. On any GPU error the CPU result (the
+    // source of truth already in `linear`) is silently retained.
+    #[cfg(feature = "cuda")]
+    {
+        if crate::gpu_cuda::cuda_is_available()
+            && n_samples.saturating_mul(n_features) >= CUDA_REGRESSION_MIN_ELEMS
+        {
+            if let Ok(gpu_y) = crate::gpu_cuda::cuda_regression_target(&data.view(), &coef.view()) {
+                linear = gpu_y;
+            }
+        }
+    }
+
+    // Add per-sample Gaussian noise. Drawn in ascending sample order via a
+    // paired iterator so the RNG sequence is identical to the original loop
+    // (and `needless_range_loop`-clean).
+    let mut target = Array1::zeros(n_samples);
+    for (slot, &lin) in target.iter_mut().zip(linear.iter()) {
+        let mut y = lin;
         if noise > 0.0 {
             y += normal.sample(&mut rng) * noise;
         }
-
-        target[i] = y;
+        *slot = y;
     }
 
     // Create dataset
@@ -980,4 +1024,241 @@ pub fn make_hierarchical_clusters(
     dataset = dataset.with_metadata("sub_cluster_labels", &format!("{sub_target_vec:?}"));
 
     Ok(dataset)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `make_regression` is deterministic for a fixed seed: two calls with the
+    /// same arguments produce bit-identical data and targets. Regression guard
+    /// for the two-phase target split.
+    #[test]
+    fn make_regression_deterministic_for_fixed_seed() {
+        let a = make_regression(50, 4, 3, 0.1, Some(42)).expect("first make_regression");
+        let b = make_regression(50, 4, 3, 0.1, Some(42)).expect("second make_regression");
+        assert_eq!(a.data, b.data, "data must be reproducible for a fixed seed");
+        assert_eq!(
+            a.target, b.target,
+            "target must be reproducible for a fixed seed"
+        );
+    }
+
+    /// With zero noise the target is the pure linear combination `X · coef`; it
+    /// must be finite and length-consistent, and a non-zero noise must perturb
+    /// it (while the seed-determined design matrix stays identical).
+    #[test]
+    fn make_regression_noise_free_is_linear_and_noise_perturbs() {
+        let clean = make_regression(60, 5, 5, 0.0, Some(7)).expect("clean make_regression");
+        let clean_t = clean.target.as_ref().expect("clean target present");
+        assert_eq!(clean_t.len(), 60);
+        assert!(
+            clean_t.iter().all(|v| v.is_finite()),
+            "targets must be finite"
+        );
+
+        let noisy = make_regression(60, 5, 5, 50.0, Some(7)).expect("noisy make_regression");
+        let noisy_t = noisy.target.as_ref().expect("noisy target present");
+        assert_eq!(clean.data, noisy.data, "design matrix is seed-determined");
+        assert!(
+            clean_t
+                .iter()
+                .zip(noisy_t.iter())
+                .any(|(c, n)| (c - n).abs() > 1e-9),
+            "non-zero noise must perturb the target"
+        );
+    }
+
+    /// §4b SUB-THRESHOLD CPU PATH.
+    /// Builds and runs only under the `cuda` feature. 64 × 8 = 512 elements —
+    /// well below CUDA_REGRESSION_MIN_ELEMS (1 000 000) — so `make_regression`
+    /// always takes the deterministic CPU path even on a CUDA-capable host. This
+    /// proves the `cuda`-feature build compiles, the CPU path is unaffected, and
+    /// the seeded output is byte-identical across two calls.
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn make_regression_cuda_feature_build_matches_cpu() {
+        let ds = make_regression(64, 8, 5, 0.0, Some(11)).expect("cuda-feature make_regression");
+        let target = ds.target.as_ref().expect("target present");
+        assert_eq!(ds.data.nrows(), 64);
+        assert_eq!(ds.data.ncols(), 8);
+        assert_eq!(target.len(), 64);
+        assert!(target.iter().all(|v| v.is_finite()));
+
+        let ds2 = make_regression(64, 8, 5, 0.0, Some(11)).expect("repeat make_regression");
+        assert_eq!(
+            ds.target, ds2.target,
+            "cuda-feature build must stay deterministic on the CPU path"
+        );
+    }
+
+    /// §4b DISPATCH ENGAGES + CORRECTNESS.
+    ///
+    /// n_samples × n_features = 2 000 × 600 = 1 200 000 >= CUDA_REGRESSION_MIN_ELEMS
+    /// (1 000 000). On this host (RTX A4000, sm_86, CUDA 12.4) `cuda_is_available()`
+    /// returns `true`, so the GPU branch IS taken. The test asserts:
+    ///   — the function returns `Ok` (no error from the GPU path),
+    ///   — the targets are finite (no NaN / Inf from a corrupt GEMM),
+    ///   — the targets have non-trivial variance (sanity check against an
+    ///     all-zeros degenerate result).
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn make_regression_cuda_dispatch_large_size_targets_finite() {
+        const N_SAMPLES: usize = 2000;
+        const N_FEATURES: usize = 600;
+        const N_INFORMATIVE: usize = 200;
+        // 2 000 × 600 = 1 200 000 >= CUDA_REGRESSION_MIN_ELEMS → GPU-eligible.
+        let ds = make_regression(
+            N_SAMPLES,
+            N_FEATURES,
+            N_INFORMATIVE,
+            0.0,
+            Some(0xc0_ffee_u64),
+        )
+        .expect("large make_regression must succeed on CUDA host");
+        let target = ds.target.as_ref().expect("target present");
+        assert_eq!(ds.data.nrows(), N_SAMPLES, "n_samples mismatch");
+        assert_eq!(ds.data.ncols(), N_FEATURES, "n_features mismatch");
+        assert_eq!(target.len(), N_SAMPLES, "target length mismatch");
+        assert!(
+            target.iter().all(|v| v.is_finite()),
+            "all targets must be finite after GPU GEMM"
+        );
+        // With N_INFORMATIVE=200 real coefficients drawn from 100·N(0,1) and features
+        // from N(0,1), the expected target std dev is ~100·sqrt(200)≈1414; variance >> 1.
+        let n = target.len() as f64;
+        let mean = target.iter().sum::<f64>() / n;
+        let variance = target.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
+        assert!(
+            variance > 1.0,
+            "target variance {variance:.2} must be >> 1 for non-trivial informative coefficients"
+        );
+    }
+
+    /// §4b FIXED-SEED BYTE-STABILITY — double-run determinism (THE KEY TEST).
+    ///
+    /// Two calls with the same large fixed seed must produce **bit-identical**
+    /// targets even when the GPU branch is taken. What is verified:
+    ///   (a) The GPU-computed `linear = X·coef` is bit-stable across calls;
+    ///       cuBLAS GEMM is deterministic for identical inputs on the same device.
+    ///   (b) The per-sample noise RNG draws happen entirely on the CPU, around
+    ///       the GPU seam, so their sequence is preserved — the full target
+    ///       vector is therefore byte-identical across both runs.
+    ///
+    /// Sizes: 2 000 × 600 = 1 200 000 >= CUDA_REGRESSION_MIN_ELEMS.
+    /// Noise is non-zero (10.0) to confirm that the noise RNG order too is
+    /// unaffected by the GPU offload.
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn make_regression_cuda_gpu_path_double_run_byte_identical() {
+        const SEED: u64 = 0x1234_5678_abcd_ef01_u64;
+        const N_SAMPLES: usize = 2000;
+        const N_FEATURES: usize = 600;
+        let run1 = make_regression(N_SAMPLES, N_FEATURES, 200, 10.0, Some(SEED))
+            .expect("first large make_regression");
+        let run2 = make_regression(N_SAMPLES, N_FEATURES, 200, 10.0, Some(SEED))
+            .expect("second large make_regression");
+        assert_eq!(
+            run1.data, run2.data,
+            "design matrix must be byte-identical for the same seed"
+        );
+        // THE KEY ASSERTION: targets must be bit-identical across both GPU offloads.
+        // Any deviation here means either cuBLAS is non-deterministic for these
+        // inputs on this device, or the noise RNG order shifted around the GPU seam.
+        let t1 = run1.target.as_ref().expect("run1 target present");
+        let t2 = run2.target.as_ref().expect("run2 target present");
+        assert_eq!(
+            t1, t2,
+            "target must be byte-identical for the same seed (GPU-path double run)"
+        );
+    }
+
+    /// §4b CPU RECONSTRUCTION — GPU replaced only the noise-free matmul.
+    ///
+    /// With `noise = 0.0`, `target[i] = Σ_j X[i,j] · coef[j]`. We replay the
+    /// same `StdRng` sequence used internally by `make_regression` to reconstruct
+    /// the coefficient vector, then compute `X·coef` on the CPU (sequential
+    /// accumulation) and compare against the GPU-produced target.
+    ///
+    /// What is verified: the GPU offload produced `X·coef` (not some other value)
+    /// and did NOT alter the coefficient vector, the design matrix, or the RNG
+    /// sequence for noise draws.
+    ///
+    /// Tolerance 1e-6 absolute accounts for floating-point non-associativity
+    /// between GPU parallel tree-reduction and CPU sequential dot-product. With
+    /// N_INFORMATIVE=200, coef ~ O(100), features ~ N(0,1), row sums have
+    /// magnitude ~ O(100·√200) ≈ 1 414; typical observed discrepancy is a few
+    /// ULPs (< 1e-11 absolute) — the 1e-6 bound is intentionally generous.
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn make_regression_cuda_gpu_output_matches_cpu_matmul() {
+        const SEED: u64 = 0xdead_beef_cafe_babe_u64;
+        const N_SAMPLES: usize = 2000;
+        const N_FEATURES: usize = 600;
+        const N_INFORMATIVE: usize = 200;
+
+        let ds = make_regression(N_SAMPLES, N_FEATURES, N_INFORMATIVE, 0.0, Some(SEED))
+            .expect("large make_regression for CPU reconstruction");
+        let y_gpu = ds.target.as_ref().expect("target present");
+
+        // Replay the internal RNG sequence.  `make_regression` calls
+        // `StdRng::seed_from_u64(SEED)` then draws N_INFORMATIVE values via
+        // `100.0 * normal.sample(&mut rng)` for coef, followed by
+        // N_SAMPLES * N_FEATURES values for the data.  By seeding an identical
+        // `StdRng` with the same seed we get the same coef draws.
+        let mut rng_replay = StdRng::seed_from_u64(SEED);
+        let normal_replay = scirs2_core::random::Normal::new(0.0, 1.0)
+            .expect("Normal distribution init for replay");
+        let mut coef_replay = Array1::<f64>::zeros(N_FEATURES);
+        for i in 0..N_INFORMATIVE {
+            coef_replay[i] = 100.0 * normal_replay.sample(&mut rng_replay);
+        }
+
+        // CPU sequential dot-product on the design matrix returned by
+        // make_regression (generated by the same RNG from the same seed).
+        let cpu_linear = ds.data.dot(&coef_replay);
+
+        let max_abs_diff = y_gpu
+            .iter()
+            .zip(cpu_linear.iter())
+            .map(|(g, c)| (g - c).abs())
+            .fold(0.0_f64, f64::max);
+
+        assert!(
+            max_abs_diff < 1e-6,
+            "GPU matmul vs CPU reconstruction: max absolute diff = {max_abs_diff:.3e} (expected < 1e-6)"
+        );
+    }
+
+    /// §7 FALLBACK — `make_regression` never panics for GPU-eligible sizes.
+    ///
+    /// The implementation wraps the GPU call as:
+    /// ```text
+    /// if let Ok(gpu_y) = cuda_regression_target(...) { linear = gpu_y; }
+    /// ```
+    /// so any `Err` from the GPU path silently retains the already-computed
+    /// CPU `linear`. This test asserts the public function always returns `Ok`
+    /// and never panics, regardless of whether the GPU branch succeeds or
+    /// falls back. On this host the GPU path succeeds; on a host without CUDA
+    /// it falls back silently — both are acceptable outcomes.
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn make_regression_cuda_never_panics_on_large_size() {
+        // 2 000 × 600 = 1 200 000 >= CUDA_REGRESSION_MIN_ELEMS → GPU-eligible.
+        let result = make_regression(2000, 600, 200, 1.0, Some(0xface_b00c_u64));
+        assert!(
+            result.is_ok(),
+            "make_regression must return Ok for a GPU-eligible size (got {:?})",
+            result.as_ref().err()
+        );
+        let ds = result.expect("make_regression Ok");
+        assert_eq!(ds.data.nrows(), 2000, "n_samples");
+        assert_eq!(ds.data.ncols(), 600, "n_features");
+        let target = ds.target.as_ref().expect("target present");
+        assert_eq!(target.len(), 2000, "target length");
+        assert!(
+            target.iter().all(|v| v.is_finite()),
+            "targets must be finite regardless of GPU/CPU path taken"
+        );
+    }
 }

@@ -1,42 +1,48 @@
-//! GPU acceleration for spatial algorithms
+//! CPU-backed scaffold for future GPU acceleration of spatial algorithms
 //!
-//! This module provides GPU-accelerated implementations of spatial algorithms
-//! for massive datasets that benefit from parallel computation on graphics cards.
-//! It integrates with the existing SIMD and memory pool optimizations to provide
-//! the highest possible performance.
+//! This module is a placeholder/scaffold for GPU-accelerated spatial
+//! algorithms. GPU compute is **not yet implemented**: every compute method in
+//! this module currently runs on the crate's optimized CPU SIMD fallback and
+//! returns correct results — none of them dispatch any work to a graphics card.
 //!
-//! # Features
+//! The `cuda`, `rocm`, and `vulkan` Cargo features, when enabled, currently
+//! gate only GPU *capability detection* (probing `nvidia-smi`, `rocm-smi`, and
+//! `vulkaninfo`). They do **not** unlock any GPU compute path; the methods
+//! below always delegate to the CPU SIMD implementations regardless.
 //!
-//! - **GPU distance matrix computation**: Massive parallel distance calculations
-//! - **GPU clustering algorithms**: K-means and DBSCAN on GPU
-//! - **GPU nearest neighbor search**: Optimized spatial queries
-//! - **Hybrid CPU-GPU algorithms**: Automatic workload distribution
-//! - **Memory-mapped GPU transfers**: Minimize data movement overhead
-//! - **Multi-GPU support**: Scale across multiple graphics cards
+//! A future release may add a real GPU backend (for example via the COOLJAPAN
+//! `oxicuda-*` ecosystem). Until then, for production GPU-free work the CPU
+//! equivalents in this crate are what actually run — see the `simd_distance`
+//! module and the `AdvancedSimdKMeans` / `AdvancedSimdNearestNeighbors` types.
 //!
-//! # Architecture Support
+//! # Planned backends (scaffold — not yet functional)
 //!
-//! The GPU acceleration is designed to work with:
-//! - NVIDIA GPUs (CUDA backend via cupy/rust-cuda)
-//! - AMD GPUs (ROCm backend)
+//! These are the intended targets once a real GPU path lands; none of them
+//! perform GPU compute today:
+//!
+//! - NVIDIA GPUs (CUDA backend)
+//! - AMD GPUs (ROCm/HIP backend)
 //! - Intel GPUs (Level Zero backend)
 //! - Vulkan compute for cross-platform support
 //!
 //! # Examples
+//!
+//! The example uses the GPU-named API, but the computation transparently runs
+//! on the CPU SIMD fallback today — no GPU is required or used.
 //!
 //! ```
 //! use scirs2_spatial::gpu_accel::{GpuDistanceMatrix, GpuKMeans};
 //! use scirs2_core::ndarray::array;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // GPU distance matrix computation
+//! // Distance matrix computation (runs on the CPU SIMD fallback)
 //! let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 //!
 //! let gpu_matrix = GpuDistanceMatrix::new()?;
 //! let distances = gpu_matrix.compute_parallel(&points.view()).await?;
 //! println!("GPU distance matrix: {:?}", distances);
 //!
-//! // GPU K-means clustering
+//! // K-means clustering (runs on the CPU SIMD fallback)
 //! let gpu_kmeans = GpuKMeans::new(2)?;
 //! let (centroids, assignments) = gpu_kmeans.fit(&points.view()).await?;
 //! println!("GPU centroids: {:?}", centroids);
@@ -663,7 +669,8 @@ impl GpuDistanceMatrix {
         self
     }
 
-    /// Compute distance matrix on GPU (async)
+    /// Compute the full distance matrix (async). Currently runs on the
+    /// optimized CPU SIMD fallback; GPU acceleration is not yet implemented.
     pub async fn compute_parallel(
         &self,
         points: &ArrayView2<'_, f64>,
@@ -683,7 +690,7 @@ impl GpuDistanceMatrix {
         }
     }
 
-    /// GPU distance matrix computation using CUDA
+    /// Placeholder for a future CUDA distance-matrix path; currently delegates to the CPU SIMD fallback.
     async fn compute_cuda(&self, points: &ArrayView2<'_, f64>) -> SpatialResult<Array2<f64>> {
         // In a real implementation, this would:
         // 1. Allocate GPU memory for input points and output matrix
@@ -695,13 +702,13 @@ impl GpuDistanceMatrix {
         self.compute_cpu_fallback(points).await
     }
 
-    /// GPU distance matrix computation using ROCm
+    /// Placeholder for a future ROCm distance-matrix path; currently delegates to the CPU SIMD fallback.
     async fn compute_rocm(&self, points: &ArrayView2<'_, f64>) -> SpatialResult<Array2<f64>> {
         // Similar to CUDA but using ROCm/HIP APIs
         self.compute_cpu_fallback(points).await
     }
 
-    /// GPU distance matrix computation using Vulkan
+    /// Placeholder for a future Vulkan distance-matrix path; currently delegates to the CPU SIMD fallback.
     async fn compute_vulkan(&self, points: &ArrayView2<'_, f64>) -> SpatialResult<Array2<f64>> {
         // Use Vulkan compute shaders for cross-platform GPU acceleration
         self.compute_cpu_fallback(points).await
@@ -774,7 +781,8 @@ impl GpuKMeans {
         self
     }
 
-    /// Perform K-means clustering on GPU (async)
+    /// Perform K-means clustering (async). Currently runs on the optimized
+    /// CPU SIMD fallback; GPU acceleration is not yet implemented.
     pub async fn fit(
         &self,
         points: &ArrayView2<'_, f64>,
@@ -792,7 +800,7 @@ impl GpuKMeans {
         }
     }
 
-    /// GPU K-means using CUDA
+    /// Placeholder for a future CUDA K-means path; currently delegates to the CPU SIMD fallback.
     async fn fit_cuda(
         &self,
         points: &ArrayView2<'_, f64>,
@@ -806,7 +814,7 @@ impl GpuKMeans {
         self.fit_cpu_fallback(points).await
     }
 
-    /// GPU K-means using ROCm
+    /// Placeholder for a future ROCm K-means path; currently delegates to the CPU SIMD fallback.
     async fn fit_rocm(
         &self,
         points: &ArrayView2<'_, f64>,
@@ -815,7 +823,7 @@ impl GpuKMeans {
         self.fit_cpu_fallback(points).await
     }
 
-    /// GPU K-means using Vulkan
+    /// Placeholder for a future Vulkan K-means path; currently delegates to the CPU SIMD fallback.
     async fn fit_vulkan(
         &self,
         points: &ArrayView2<'_, f64>,
@@ -860,7 +868,8 @@ impl GpuNearestNeighbors {
         })
     }
 
-    /// GPU k-nearest neighbors search (async)
+    /// k-nearest neighbors search (async). Currently runs on the optimized
+    /// CPU SIMD fallback; GPU acceleration is not yet implemented.
     pub async fn knn_search(
         &self,
         query_points: &ArrayView2<'_, f64>,
@@ -888,7 +897,7 @@ impl GpuNearestNeighbors {
         }
     }
 
-    /// GPU k-NN using CUDA
+    /// Placeholder for a future CUDA k-NN path; currently delegates to the CPU SIMD fallback.
     async fn knn_search_cuda(
         &self,
         query_points: &ArrayView2<'_, f64>,
@@ -904,7 +913,7 @@ impl GpuNearestNeighbors {
             .await
     }
 
-    /// GPU k-NN using ROCm
+    /// Placeholder for a future ROCm k-NN path; currently delegates to the CPU SIMD fallback.
     async fn knn_search_rocm(
         &self,
         query_points: &ArrayView2<'_, f64>,
@@ -915,7 +924,7 @@ impl GpuNearestNeighbors {
             .await
     }
 
-    /// GPU k-NN using Vulkan
+    /// Placeholder for a future Vulkan k-NN path; currently delegates to the CPU SIMD fallback.
     async fn knn_search_vulkan(
         &self,
         query_points: &ArrayView2<'_, f64>,

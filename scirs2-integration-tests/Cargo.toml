@@ -50,5 +50,5 @@ path = "tests/integration/mod.rs"
 [features]
 default = []
 # Feature flags for optional GPU/CUDA tests
-cuda = ["scirs2-core/cuda", "scirs2-linalg/cuda"]
+cuda = ["scirs2-linalg/cuda"]
 simd = ["scirs2-core/simd", "scirs2-linalg/simd"]

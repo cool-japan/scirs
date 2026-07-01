@@ -35,13 +35,19 @@ tokio = { workspace = true, optional = true }
 # Symbolic-gradient dependencies (optional)
 scirs2-symbolic = { workspace = true, optional = true }
 
+# Optional NVIDIA-only CUDA acceleration via the pure-Rust oxicuda-* library crates (off by default)
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-blas = { workspace = true, optional = true }
+
 [features]
 default = ["parallel"]
 parallel = ["scirs2-core/parallel"]
 async = ["tokio"]
 python = ["scirs2-core/python"] # Python bindings support
 symbolic = ["dep:scirs2-symbolic"] # Symbolic-gradient Newton solver
-gpu = ["scirs2-core/array_protocol_wgpu"] # GPU-accelerated L-BFGS 2-loop recursion via wgpu
+wgpu = ["scirs2-core/array_protocol_wgpu"] # GPU-accelerated L-BFGS 2-loop recursion via wgpu
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-blas"] # Optional NVIDIA-only CUDA Hessian-vector products
 
 [dev-dependencies]
 approx = { workspace = true }

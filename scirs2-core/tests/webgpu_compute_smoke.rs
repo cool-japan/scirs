@@ -1,10 +1,10 @@
 //! Smoke tests for the real WebGPU compute shader dispatch path.
 //!
-//! These tests are only compiled and run when the `wgpu_backend` feature is enabled.
+//! These tests are only compiled and run when the `wgpu` feature is enabled.
 //! On hosts without a GPU adapter (headless CI), all tests that require GPU access
 //! detect the absence of an adapter at runtime and skip gracefully (they pass, not fail).
 
-#[cfg(feature = "wgpu_backend")]
+#[cfg(feature = "wgpu")]
 mod webgpu_compute_smoke {
     use scirs2_core::gpu::backends::{run_vector_add_wgsl, try_compile_wgsl, WgpuComputePipeline};
 

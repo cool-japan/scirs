@@ -3,9 +3,9 @@
 //! This module provides caching and memoization utilities to improve performance
 //! by avoiding redundant computations.
 
-use cached::{proc_macro::cached, Cached, SizedCache};
+use cached::{cached, Cached, LruTtlCache};
 use std::hash::Hash;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 /// Cache configuration for the library
 #[derive(Debug, Clone, Copy)]
@@ -29,11 +29,19 @@ impl Default for CacheConfig {
 }
 
 /// A sized cache with time-to-live (TTL) functionality
-pub struct TTLSizedCache<K, V> {
-    /// Internal cache
-    cache: SizedCache<K, (V, Instant)>,
-    /// Time-to-live for cache entries
-    ttl: Duration,
+///
+/// Internally backed by [`cached::LruTtlCache`]: entries are evicted once the
+/// configured size is exceeded (least-recently-used first), and any entry
+/// older than the configured TTL is treated as absent. An expired entry is
+/// physically removed from the store the next time it is looked up via
+/// [`Self::get`].
+pub struct TTLSizedCache<K, V>
+where
+    K: Hash + Eq + Clone,
+    V: Clone,
+{
+    /// Internal cache (LRU size bound + global TTL, both enforced by `cached`)
+    cache: LruTtlCache<K, V>,
 }
 
 impl<K, V> TTLSizedCache<K, V>
@@ -42,32 +50,35 @@ where
     V: Clone,
 {
     /// Create a new TTL cache with specified size and TTL
+    ///
+    /// `size` and `ttlseconds` are clamped to a minimum of `1`: the
+    /// underlying store requires both bounds to be non-zero, so this keeps
+    /// construction infallible while staying as close as possible to the
+    /// caller's request.
     #[must_use]
     pub fn new(size: usize, ttlseconds: u64) -> Self {
-        Self {
-            cache: SizedCache::with_size(size),
-            ttl: Duration::from_secs(ttlseconds),
-        }
+        let size = size.max(1);
+        let ttl = Duration::from_secs(ttlseconds.max(1));
+        let cache = LruTtlCache::builder()
+            .max_size(size)
+            .ttl(ttl)
+            .build()
+            .expect(
+                "`size`/`ttlseconds` are clamped to be non-zero above, so \
+                 `LruTtlCache::builder().build()` can only fail here on allocator exhaustion",
+            );
+        Self { cache }
     }
 
     /// Insert a key-value pair into the cache
     pub fn insert(&mut self, key: K, value: V) {
-        let now = Instant::now();
-        self.cache.cache_set(key, (value, now));
+        self.cache.cache_set(key, value);
     }
 
     /// Get a value from the cache if it exists and hasn't expired
     #[must_use]
     pub fn get(&mut self, key: &K) -> Option<V> {
-        match self.cache.cache_get(key) {
-            Some((value, timestamp)) if timestamp.elapsed() < self.ttl => Some(value.clone()),
-            Some(_) => {
-                // Value has expired, remove it from cache
-                self.cache.cache_remove(key);
-                None
-            }
-            None => None,
-        }
+        self.cache.cache_get(key).cloned()
     }
 
     /// Remove a key-value pair from the cache
@@ -83,7 +94,7 @@ where
     /// Get the number of items in the cache
     #[must_use]
     pub fn len(&self) -> usize {
-        (self.cache.cache_misses().unwrap_or(0) + self.cache.cache_hits().unwrap_or(0)) as usize
+        self.cache.cache_size()
     }
 
     /// Check if the cache is empty
@@ -163,7 +174,7 @@ impl CacheBuilder {
 ///
 /// ```ignore
 /// // Example disabled due to missing cached dependency
-/// use cached::proc_macro::cached;
+/// use cached::cached;
 ///
 /// #[cached(size = 100)]
 /// pub fn expensive_calculation(x: u64) -> u64 {
@@ -198,7 +209,7 @@ impl CacheBuilder {
 /// # Example
 ///
 /// ```ignore
-/// use cached::proc_macro::cached;
+/// use cached::cached;
 ///
 /// #[cached(size = 100)]
 /// pub fn fibonacci_prime_cache(n: u64) -> u64 {
@@ -232,6 +243,7 @@ pub fn fibonacci(n: u64) -> u64 {
 mod tests {
     use super::*;
     use std::thread;
+    use std::time::Instant;
 
     #[test]
     fn test_ttl_sized_cache() {

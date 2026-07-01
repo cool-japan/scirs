@@ -261,6 +261,13 @@ where
 /// assert!((c[[1, 0]] - 43.0).abs() < 1e-10); // 3*5 + 4*7 = 43
 /// assert!((c[[1, 1]] - 50.0).abs() < 1e-10); // 3*6 + 4*8 = 50
 /// ```
+/// Minimum GEMM work (`m * k * n`) before the optional CUDA `matmul` fast path is
+/// considered. Set deliberately high so that (a) small test/doctest matrices always
+/// stay on the bit-stable CPU path and (b) the GPU is engaged only once the host
+/// transfer and kernel-launch overhead is amortized. Only referenced under `cuda`.
+#[cfg(feature = "cuda")]
+const CUDA_MATMUL_MIN_FLOPS: usize = 1 << 21; // 2,097,152 (a 128x128x128 GEMM)
+
 #[allow(dead_code)]
 pub fn matmul<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
@@ -272,6 +279,41 @@ where
             a.ncols(),
             b.nrows()
         )));
+    }
+
+    // Optional, transparent NVIDIA-CUDA fast path (off-by-default `cuda` feature).
+    // ADDITIVE and SAFE: this entire block vanishes when `cuda` is disabled, so the
+    // default build is byte-identical to the pure CPU path below. It engages only for
+    // large f64 problems on a real CUDA device; on any miss or error it falls through
+    // to the CPU `a.dot(b)`, which stays the source of truth. GPU GEMM accumulates in
+    // a different associative order than the CPU triple-loop, so results may differ in
+    // the last ULP -- acceptable precisely because CUDA_MATMUL_MIN_FLOPS is high enough
+    // that no (small) test matrix ever reaches the GPU path.
+    #[cfg(feature = "cuda")]
+    {
+        use std::any::TypeId;
+        if TypeId::of::<F>() == TypeId::of::<f64>()
+            && crate::gpu_cuda::cuda_is_available()
+            && a.nrows()
+                .saturating_mul(a.ncols())
+                .saturating_mul(b.ncols())
+                >= CUDA_MATMUL_MIN_FLOPS
+        {
+            // SAFETY: F == f64 is verified by the TypeId guard above, so reinterpreting
+            // these references is layout-identical (mirrors the existing `det_impl`
+            // idiom in basic.rs). Transmuting the *references* keeps the cast
+            // pointer-sized and avoids any owned-value / generic-size reinterpret.
+            let a_f64: &ArrayView2<f64> = unsafe { std::mem::transmute(a) };
+            let b_f64: &ArrayView2<f64> = unsafe { std::mem::transmute(b) };
+            if let Ok(c_f64) = crate::gpu_cuda::cuda_gemm(a_f64, b_f64) {
+                let c_view = c_f64.view();
+                // SAFETY: F == f64 (same TypeId guard); reinterpret the f64 result
+                // view as the F-typed view, then own a copy as Array2<F>.
+                let c_view_f: &ArrayView2<F> = unsafe { std::mem::transmute(&c_view) };
+                return Ok(c_view_f.to_owned());
+            }
+            // On Err: silently fall through to the CPU result (CPU = source of truth).
+        }
     }
 
     // Use ndarray-linalg's dot implementation for optimal performance
@@ -561,6 +603,134 @@ mod tests {
         let b_check = a.dot(&x);
         assert_relative_eq!(b_check[0], b[0], epsilon = 1e-10);
         assert_relative_eq!(b_check[1], b[1], epsilon = 1e-10);
+    }
+
+    /// §4a: when cuda feature is active and `m*k*n >= CUDA_MATMUL_MIN_FLOPS` and
+    /// `F == f64`, `matmul` routes to `cuda_gemm`.  On a host where
+    /// `cuda_is_available()` is `true` (e.g. this RTX A4000 box), the 130×130×130
+    /// problem is above the 2,097,152-flop threshold so the GPU branch is taken;
+    /// correctness is the observable invariant.
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn matmul_cuda_dispatch_f64_or_skip() {
+        if !crate::gpu_cuda::cuda_is_available() {
+            eprintln!("skipping: no NVIDIA CUDA device — GPU branch not engaged");
+            return;
+        }
+        // 130 * 130 * 130 = 2,197,000 > CUDA_MATMUL_MIN_FLOPS (2,097,152).
+        let m = 130usize;
+        let k = 130usize;
+        let n = 130usize;
+        let a_data: Vec<f64> = (0..m * k)
+            .map(|idx| (idx as f64 + 1.0) / (m * k) as f64)
+            .collect();
+        let b_data: Vec<f64> = (0..k * n)
+            .map(|idx| (idx as f64 * 1.3 + 0.7) / (k * n) as f64)
+            .collect();
+        let a = Array2::from_shape_vec((m, k), a_data).expect("a shape ok");
+        let b = Array2::from_shape_vec((k, n), b_data).expect("b shape ok");
+        let c_matmul = matmul(&a.view(), &b.view()).expect("matmul f64 130x130 failed");
+        let c_cpu = a.dot(&b);
+        assert_eq!(c_matmul.shape(), &[m, n]);
+        // GPU GEMM accumulates in a different associative order; allow ~1e-6 relative.
+        // On the A4000 with values in [0,1] the actual difference is typically < 1e-12.
+        let max_rel = c_matmul
+            .iter()
+            .zip(c_cpu.iter())
+            .map(|(g, e)| (g - e).abs() / e.abs().max(1e-30))
+            .fold(0.0f64, f64::max);
+        assert!(
+            max_rel < 1e-6,
+            "130x130 f64 GPU dispatch: max relative diff {max_rel} exceeds 1e-6"
+        );
+    }
+
+    /// §4a: f32 inputs of any size stay on the CPU path (the `TypeId == f64` guard
+    /// in `matmul` excludes them from the CUDA branch).
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn matmul_f32_stays_cpu() {
+        // Same 130x130 footprint as the f64 test; TypeId != f64 so always CPU.
+        let m = 130usize;
+        let k = 130usize;
+        let n = 130usize;
+        let a_data: Vec<f32> = (0..m * k)
+            .map(|idx| (idx as f32 + 1.0) / (m * k) as f32)
+            .collect();
+        let b_data: Vec<f32> = (0..k * n)
+            .map(|idx| (idx as f32 * 1.3 + 0.7) / (k * n) as f32)
+            .collect();
+        let a = Array2::<f32>::from_shape_vec((m, k), a_data).expect("a shape ok");
+        let b = Array2::<f32>::from_shape_vec((k, n), b_data).expect("b shape ok");
+        let c_matmul = matmul(&a.view(), &b.view()).expect("matmul f32 130x130 failed");
+        let c_cpu = a.dot(&b);
+        assert_eq!(c_matmul.shape(), &[m, n]);
+        // Both go through a.dot(b) — must match within f32 precision.
+        let max_diff = c_matmul
+            .iter()
+            .zip(c_cpu.iter())
+            .map(|(g, e)| (g - e).abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            max_diff < 1e-5,
+            "f32 130x130 (CPU path): max abs diff {max_diff} exceeds 1e-5"
+        );
+    }
+
+    /// §4a: sub-threshold f64 inputs (m*k*n < CUDA_MATMUL_MIN_FLOPS) always stay
+    /// on the CPU path and must be bit-identical to `a.dot(&b)`.
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn matmul_subthreshold_f64_stays_cpu() {
+        // 4 * 4 * 4 = 64, well below the 2,097,152 threshold.
+        let a = array![
+            [1.0_f64, 2.0, 3.0, 4.0],
+            [5.0, 6.0, 7.0, 8.0],
+            [9.0, 10.0, 11.0, 12.0],
+            [13.0, 14.0, 15.0, 16.0]
+        ];
+        let b = array![
+            [0.1_f64, 0.2, 0.3, 0.4],
+            [0.5, 0.6, 0.7, 0.8],
+            [0.9, 1.0, 1.1, 1.2],
+            [1.3, 1.4, 1.5, 1.6]
+        ];
+        let c_matmul = matmul(&a.view(), &b.view()).expect("sub-threshold matmul failed");
+        let c_dot = a.dot(&b);
+        // Both code paths are a.dot(b) — must be bit-identical for finite values.
+        c_matmul
+            .iter()
+            .zip(c_dot.iter())
+            .enumerate()
+            .for_each(|(i, (m_val, d_val))| {
+                assert_eq!(
+                    *m_val, *d_val,
+                    "sub-threshold matmul element {i} not bit-identical to a.dot(&b)"
+                );
+            });
+    }
+
+    /// §7: shape-mismatch must return `Err` (no panic), and valid inputs produce
+    /// correct results regardless of which branch fires.  Any `cuda_gemm` `Err`
+    /// inside `matmul` falls through silently to `a.dot(b)` via the
+    /// `if let Ok(...) = cuda_gemm(...)` guard — there is no panic path.
+    #[test]
+    fn matmul_fallback_safety() {
+        // Dimension mismatch: rejected before any device call.
+        let a_bad = Array2::<f64>::zeros((3, 4));
+        let b_bad = Array2::<f64>::zeros((5, 2)); // 4 != 5
+        assert!(
+            matmul(&a_bad.view(), &b_bad.view()).is_err(),
+            "shape mismatch must return Err, not panic"
+        );
+        // Valid small f64 (always CPU): must give the correct product.
+        let a = array![[1.0_f64, 0.0], [0.0, 1.0]];
+        let b = array![[3.0_f64, 1.0], [2.0, 4.0]];
+        let c = matmul(&a.view(), &b.view()).expect("identity x B failed");
+        assert_relative_eq!(c[[0, 0]], 3.0, epsilon = 1e-13);
+        assert_relative_eq!(c[[0, 1]], 1.0, epsilon = 1e-13);
+        assert_relative_eq!(c[[1, 0]], 2.0, epsilon = 1e-13);
+        assert_relative_eq!(c[[1, 1]], 4.0, epsilon = 1e-13);
     }
 
     #[test]

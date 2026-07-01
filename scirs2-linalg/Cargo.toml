@@ -32,6 +32,11 @@ scirs2-symbolic = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 oxicode = { workspace = true }  # Binary serialization (SIMD-optimized)
 num_cpus = { workspace = true }
+# oxicuda - optional NVIDIA-only CUDA acceleration (pure Rust, off by default)
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-blas = { workspace = true, optional = true }
+oxicuda-solver = { workspace = true, optional = true }
 
 [[example]]
 name = "test_precision"
@@ -66,7 +71,7 @@ extended-test = [] # For extended precision tests
 python = ["scirs2-core/python"] # Python bindings support
 
 # GPU acceleration features (experimental)
-cuda = [] # NVIDIA CUDA support
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-blas", "dep:oxicuda-solver"] # NVIDIA CUDA support
 opencl = [] # OpenCL support
 cpu-fallback = [] # CPU fallback when no GPU backend available
 rocm = [] # AMD ROCm support
