@@ -54,8 +54,7 @@ monitoring = ["dep:prometheus"]
 # pandrs = ["dep:pandrs_wrapper"]
 
 [dev-dependencies]
-scirs2-datasets = { workspace = true }
+scirs2-datasets = { path = "../scirs2-datasets" }
 plotters = { workspace = true, default-features = false }
 criterion = { workspace = true }
-rand = { workspace = true }
 ndarray-rand = { workspace = true }

@@ -51,7 +51,7 @@ thiserror = { workspace = true }
 # Different versions are pulled in by different dependencies, each needs their WASM features enabled
 # Version 0.2 uses "js" feature, while 0.3+ use "wasm_js" feature
 getrandom_v2 = { workspace = true, features = ["js"] }
-getrandom_v3 = { package = "getrandom", version = "0.3", default-features = false, features = ["wasm_js"] }
+getrandom_v3 = { workspace = true }
 getrandom = { workspace = true }
 # UUID needs js feature for WASM
 uuid = { workspace = true, features = ["js"] }

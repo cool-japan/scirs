@@ -3114,9 +3114,9 @@ class poisson:
 
     def ppf(self, q: float) -> float:
         """
-        Percent point function (inverse CDF).
+        Percent point function (inverse CDF / quantile function).
 
-        Note: Not yet implemented in underlying library.
+        Returns the smallest integer k such that CDF(k) >= q.
 
         Parameters:
             q: Probability value in [0, 1]
@@ -3125,7 +3125,8 @@ class poisson:
             Smallest k such that CDF(k) >= q
 
         Raises:
-            RuntimeError: Currently raises "Not implemented"
+            RuntimeError: If q is outside [0, 1] or the computation
+                otherwise fails.
         """
         ...
 
@@ -3757,11 +3758,21 @@ class f:
         """
         ...
 
+    def ppf(self, q: float) -> float:
+        """
+        Percent point function (inverse CDF).
+
+        Parameters:
+            q: Probability value in [0, 1]
+
+        Returns:
+            x such that CDF(x) = q
+        """
+        ...
+
     def rvs(self, size: int) -> List[float]:
         """
         Random variates.
-
-        Note: PPF (inverse CDF) is not yet implemented for the F distribution.
 
         Parameters:
             size: Number of random samples
@@ -5362,6 +5373,20 @@ def cosine_py(
     """Cosine distance between two points (1 - cosine similarity)."""
     ...
 
+def spatial_hamming_distance_py(
+    u: NDArray[np.float64],
+    v: NDArray[np.float64]
+) -> float:
+    """
+    Hamming distance between two points (proportion of differing coordinates).
+
+    Matches scipy.spatial.distance.hamming. Named distinctly from hamming_py
+    (the signal-processing Hamming *window* function) and from
+    hamming_distance_py (reserved for the text module's string/character
+    Hamming distance) to avoid naming confusion between the three.
+    """
+    ...
+
 def pdist_py(
     x: NDArray[np.float64],
     metric: str = "euclidean"
@@ -5371,7 +5396,7 @@ def pdist_py(
 
     Parameters:
         x: Input array of shape (n, m)
-        metric: 'euclidean', 'cityblock', 'manhattan', or 'chebyshev'
+        metric: 'euclidean', 'cityblock', 'manhattan', 'chebyshev', or 'hamming'
 
     Returns:
         Condensed distance matrix (n*(n-1)/2,)
@@ -5389,7 +5414,7 @@ def cdist_py(
     Parameters:
         xa: Input array of shape (na, m)
         xb: Input array of shape (nb, m)
-        metric: 'euclidean', 'cityblock', 'manhattan', or 'chebyshev'
+        metric: 'euclidean', 'cityblock', 'manhattan', 'chebyshev', or 'hamming'
 
     Returns:
         Distance matrix of shape (na, nb)

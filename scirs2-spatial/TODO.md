@@ -1,6 +1,6 @@
 # scirs2-spatial TODO
 
-## Status: v0.4.3 Released (May 3, 2026)
+## Status: v0.6.1 (released, 2026-07-15)
 
 ## v0.3.3 Completed
 
@@ -89,6 +89,8 @@
 - GPU distance matrix computation via OxiBLAS
 - CUDA/Metal backend selection through scirs2-core GPU abstractions
 
+Status (verified 2026-07-15): `src/gpu_accel.rs` provides `GpuDevice`/`GpuDistanceMatrix`/`GpuNearestNeighbors`/`GpuKMeans` types and the `cuda`/`rocm`/`vulkan` Cargo features, but per the honest documentation in `Cargo.toml` and the doc comments in `gpu_accel.rs`, these features currently gate only GPU *capability detection* (nvidia-smi/rocm-smi/vulkaninfo probes) — actual compute (`compute_cuda`/`compute_rocm`/`compute_vulkan`) delegates straight to the CPU SIMD fallback (`compute_cpu_fallback`). None of the four items above are implemented yet; still open.
+
 ### Real-Time Streaming Spatial Queries
 - Incremental insertion and deletion in KD-Tree and R*-Tree (kinetic data structures)
 - Sliding window spatial queries for streaming point clouds
@@ -98,7 +100,7 @@
 ### Advanced Spatial Statistics — Implemented in v0.4.0
 - [x] Local Indicators of Spatial Association (LISA)
 - [x] Kernel density estimation (KDE) with spatial bandwidth selection
-- Spatial regression models (spatial lag, spatial error)
+- [x] Spatial regression models (spatial lag, spatial error) — see `spatial_lag_model` / `spatial_error_model` in `src/geo/spatial_stats.rs` (2SLS/GMM for SLM, iterative GLS for SEM), tested by `test_spatial_lag_model_basic` / `test_spatial_error_model_basic`
 - [x] Spatial scan statistics for cluster detection
 - [x] Getis-Ord Gi* statistic
 
@@ -113,3 +115,9 @@
 - Ball Tree does not yet support user-defined distance functions with non-Euclidean metrics in all cases
 - [x] R*-Tree deletion is implemented — see `src/rtree/deletion.rs` (lines 17-400) and `src/rect_rtree.rs:747`
 - Kriging variogram fitting may diverge without good initial parameter estimates for poorly sampled data
+
+## v0.6.1 Additions (2026-07-07)
+
+- [x] **`distance::hamming()`** — new standalone convenience function computing the proportion of differing coordinates between two equal-length points (tolerance-based float comparison via `T::epsilon()`), matching `scipy.spatial.distance.hamming` semantics; re-exported at the crate root alongside `euclidean`/`jaccard`/etc. This is the first time a `hamming` symbol has existed anywhere in this crate — the "Hamming" entry already listed under Distance Metrics above (and in the `v0.3.3 Completed` section) had no backing implementation until now.
+  - Files: `src/distance/functions_2.rs`, `src/distance_tests.rs`, `src/lib.rs`.
+  - Workspace: 890 / 854 tests pass (all-features / default-features).

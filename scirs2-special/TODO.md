@@ -74,12 +74,10 @@
 - [x] Connection formula generator: transformations between solution bases — Implemented in v0.4.2 (`connection_formulas.rs`: Bessel J/Y/Hankel/modified, hypergeometric Gauss, Legendre P/Q, Kummer M/U)
 
 ### Extended Precision
-- [x] Arbitrary-precision gamma, erf, Bessel via the `rug` MPFR backend (feature-gated) (planned 2026-04-17)
-  - **Goal:** Feature-gated `arbitrary_precision` module: `gamma_mpfr`, `erf_mpfr`, `bessel_j0_mpfr`, `bessel_k0_mpfr` with configurable precision bits. Pure-Rust defaults unchanged.
-  - **Design:** `arbitrary_precision/mod.rs` behind `#[cfg(feature = "arbitrary_precision")]`. Wraps `rug::Float`. Bessel via power-series with rug arithmetic or MPFR FFI. `rug = { version = "...", optional = true }` in Cargo.toml; feature `arbitrary_precision = ["dep:rug"]`.
-  - **Files:** `scirs2-special/src/arbitrary_precision/{mod.rs,gamma.rs,erf.rs,bessel.rs}` (new), `scirs2-special/src/lib.rs`, `scirs2-special/Cargo.toml`, `scirs2-special/tests/mpfr_tests.rs` (new, feature-gated).
-  - **Tests:** `mpfr_gamma_matches_f64_on_small_args`, `mpfr_gamma_at_half_equals_sqrt_pi`, `mpfr_erf_of_zero_is_zero`, `mpfr_bessel_j0_first_zero_matches_published`, `mpfr_precision_scaling_monotone_error_decrease`.
-  - **Risk:** `rug` pulls GMP/MPFR C libs — feature-gated, off by default. Pure-Rust policy satisfied.
+- [x] Arbitrary-precision gamma, erf, Bessel via `oxinum-float` (feature-gated) (originally planned 2026-04-17 against a `rug`/MPFR backend; migrated to the Pure-Rust `oxinum-float` backend by 0.5.1)
+  - **Current implementation:** `src/arbitrary_precision.rs` behind `#[cfg(feature = "high-precision")]` (aliased by `arbitrary_precision`). Wraps `oxinum_float::mp_float::{MpFloat, MpComplex}` (dashu-based). `PrecisionContext` stores precision in bits (same convention the original `rug`-based design used). Public API (`gamma_mpfr`, `erf_mpfr`, `digamma_mpfr`, `bessel_j0_mpfr`, `bessel_k0_mpfr`, plus `_ap`/`_mp` variants for gamma/beta/hypergeometric/incomplete-gamma/incomplete-beta) is source-compatible with the earlier `rug`-based sketch, but there is **no `rug` dependency and no MPFR/GMP C library** anywhere in the dependency tree — `oxinum-float` is Pure Rust end to end.
+  - **Files:** `scirs2-special/src/arbitrary_precision.rs`, `scirs2-special/Cargo.toml` (`high-precision = ["dep:oxinum-float"]`, `arbitrary_precision = ["high-precision"]`).
+  - **Deviation from original design note:** the original entry here described wrapping `rug::Float` with `rug` pulling in GMP/MPFR C libs (feature-gated to satisfy Pure Rust policy). That design was superseded before 0.5.1 by the `oxinum-float` backend, which needs no C/Fortran dependency at any precision — a strictly better outcome than the original plan (corrected 2026-07-15; this doc had not been updated to match the shipped implementation).
 - [x] Ball arithmetic for certified enclosure of function values — Implemented in v0.4.2 (`validated.rs`: `Ball` type, interval arithmetic, ball_sin/cos/exp/ln/gamma)
 - [x] Validated numerics interface: output intervals guaranteed to contain the true value — Implemented in v0.4.2 (`validated.rs`: `validate()`, rigorous enclosure propagation)
 - [x] Double-double (quad-double) precision for 30-60 decimal digits without MPFR overhead — Implemented in v0.4.0 (`double_double/` module)
@@ -172,7 +170,7 @@
 - Heun functions (general) use local power series and may fail to converge for large |z| or near Stokes lines; connection formula-based global evaluation is planned.
 - Fox H-function series representation is conditional on absolute convergence; the integral representation needed for the divergent-series regime is not yet implemented.
 - Q-Bessel functions for |q| close to 1 may exhibit numerical instability due to cancellation in the q-Pochhammer product; regularized representations are planned.
-- Wigner 9-j symbols for j > 30 may accumulate rounding errors; arbitrary-precision evaluation via the `rug` feature is recommended for high-j coupling.
+- Wigner 9-j symbols for j > 30 may accumulate rounding errors; arbitrary-precision evaluation via the `high-precision`/`arbitrary_precision` feature (`oxinum-float`-backed) is recommended for high-j coupling.
 - Ramanujan tau function is computed via convolution of Fourier coefficients and is O(n log n); values up to n ~ 10^6 are practical on current hardware.
 
 ## Wave 74 — Spheroidal CF convergence (2026-05-08)
@@ -192,3 +190,18 @@
     1. `obl_ang1_c_eq_50_asymptotic_path` is `#[ignore]` — Watson asymptotic for `|c| > 30` deferred. Flammer-CF still converges out to `c = 30` per spec target; precision degrades beyond as Meixner–Schäfke anchor at η=0 loses digits to cancellation.
     2. `obl_ang1` at `c = 30` accepts ~3-digit precision (was 6+ at `c ≤ 10`) due to η=0 cancellation; the Hodge / Zhang–Jin alternative normalisation that avoids this is documented but not yet implemented.
     3. Radial-2 (`pro_rad2`, `obl_rad2`) for odd `m` and odd parity (e.g. `(m=1, n=2)`) returns wrong sign / magnitude due to the simple `y_l` series being numerically unstable in that regime. The Wronskian-based representation (Flammer §4.5) is the proper fix — deferred. `m = 0` cases work to ≥ 1e-4.
+
+## GPU-kernel CPU fallback + Miri alignment fix (2026-07-07)
+
+- [x] **`array_ops::gpu::GpuPipeline::execute_kernel` real CPU fallback** — previously `execute_kernel` unconditionally returned `SpecialError::ComputationError("GPU kernel execution not yet implemented")` for every call (no kernel was ever registered in `self.pipelines`), and `GpuPipeline::new()` additionally hard-failed if no GPU context could be discovered at all (e.g. headless CI). Now `GpuPipeline::new()` treats the GPU context as opportunistic (`.ok()` instead of `?`), and `execute_kernel` computes a real, numerically-correct element-wise CPU fallback for the `"gamma"`, `"bessel_j0"`, and `"erf"` kernel names (still errors on an unrecognized kernel name). This makes `gamma_gpu`/`bessel_j0_gpu`/`erf_gpu` work correctly on every platform, GPU or not; true GPU compute-shader dispatch remains a separate follow-on (matching this workspace's established "compile-only, real-hardware validation deferred" GPU pattern).
+  - Files: `src/array_ops.rs`. 7 new `gpu`-feature-gated tests.
+- [x] **Miri-detected alignment UB fix in `cast_bytes_to_slice`** — `slice::from_raw_parts` requires a properly aligned pointer; the function only asserted the byte length was a multiple of `size_of::<T>()` and never checked alignment, so Miri flagged "constructing invalid value of type &[T]: encountered an unaligned reference." Added an explicit `align_of::<T>()` assertion (panics with a clear message instead of triggering UB).
+  - Files: `src/array_ops.rs`, `src/gpu_ops.rs` (same fix duplicated in both copies of the function). 3 new tests per file (round-trip, rejects non-multiple length, rejects misaligned pointer).
+  - Workspace: 1,351 / 1,202 tests pass (all-features / default-features).
+
+## v0.6.1 Dependency Hygiene (2026-07-15)
+
+- [x] **`printpdf` 0.9.1 → 0.11.1** — fixes two CVEs (a stack-overflow bug and an unmaintained-crate advisory in a transitive dependency). Zero source changes required: the `printpdf::Op`-code-based line/text rendering this crate's `pdf` feature uses was stable across the jump. `printpdf` stays `default-features = false` and optional (gated behind the `pdf` feature, off by default).
+  - Files: root `Cargo.toml` (`printpdf = { version = "0.11.1", ... }`).
+- [x] **Documentation correction: arbitrary-precision backend** — the "Extended Precision" entry above previously still described the original `rug`/MPFR design; corrected to match the shipped `oxinum-float` (Pure Rust, dashu-based) implementation. See updated entry under "Extended Precision".
+- Freshly re-run test counts (2026-07-15, `cargo nextest run -p scirs2-special` / `--all-features`): **1,202 passed, 1 skipped** (default features) / **1,351 passed, 1 skipped** (all-features) — consistent with the 2026-07-07 figures above; no regressions.

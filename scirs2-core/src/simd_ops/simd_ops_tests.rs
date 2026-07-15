@@ -103,6 +103,52 @@ fn test_simd_unified_ops_distances() {
 }
 
 #[test]
+fn test_simd_unified_ops_squared_euclidean_distance() {
+    // f64: squared Euclidean distance: 3^2 + 4^2 = 25 (no sqrt, unlike simd_distance_euclidean)
+    let a = arr1(&[0.0f64, 0.0, 0.0]);
+    let b = arr1(&[3.0f64, 4.0, 0.0]);
+    let squared = f64::simd_distance_squared_euclidean(&a.view(), &b.view());
+    assert!((squared - 25.0).abs() < 1e-10);
+    // sqrt of the squared distance must agree with the direct Euclidean distance
+    let euclidean = f64::simd_distance_euclidean(&a.view(), &b.view());
+    assert!((squared.sqrt() - euclidean).abs() < 1e-10);
+
+    // Identical vectors -> zero distance
+    let same = arr1(&[1.0f64, 2.0, 3.0, 4.0, 5.0]);
+    assert!(f64::simd_distance_squared_euclidean(&same.view(), &same.view()).abs() < 1e-12);
+
+    // f64, odd (non-SIMD-aligned) length: cross-check against an independent scalar reference
+    let a_odd: Array1<f64> = (0..13).map(|i| (i as f64) * 0.37 - 1.1).collect();
+    let b_odd: Array1<f64> = (0..13).map(|i| (i as f64) * 0.19 + 1.5).collect();
+    let scalar_ref_f64: f64 = a_odd
+        .iter()
+        .zip(b_odd.iter())
+        .map(|(&x, &y)| (x - y) * (x - y))
+        .sum();
+    let simd_f64 = f64::simd_distance_squared_euclidean(&a_odd.view(), &b_odd.view());
+    assert!(
+        (simd_f64 - scalar_ref_f64).abs() < 1e-12,
+        "f64 mismatch: simd={simd_f64}, scalar={scalar_ref_f64}"
+    );
+
+    // f32, odd (non-SIMD-aligned) length: cross-check against an independent scalar reference.
+    // Note: f32 has ~7 significant decimal digits, so a 1e-12 *absolute* bound is unreachable
+    // for these magnitudes — 1e-4 is the tight bound consistent with f32 precision.
+    let a_odd_f32: Array1<f32> = (0..17).map(|i| (i as f32) * 0.37 - 1.1).collect();
+    let b_odd_f32: Array1<f32> = (0..17).map(|i| (i as f32) * 0.19 + 1.5).collect();
+    let scalar_ref_f32: f32 = a_odd_f32
+        .iter()
+        .zip(b_odd_f32.iter())
+        .map(|(&x, &y)| (x - y) * (x - y))
+        .sum();
+    let simd_f32 = f32::simd_distance_squared_euclidean(&a_odd_f32.view(), &b_odd_f32.view());
+    assert!(
+        (simd_f32 - scalar_ref_f32).abs() < 1e-4,
+        "f32 mismatch: simd={simd_f32}, scalar={scalar_ref_f32}"
+    );
+}
+
+#[test]
 fn test_simd_unified_ops_weighted() {
     let values = arr1(&[1.0f64, 2.0, 3.0, 4.0]);
     let weights = arr1(&[0.1f64, 0.2, 0.3, 0.4]);

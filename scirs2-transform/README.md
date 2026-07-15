@@ -3,13 +3,14 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-transform.svg)](https://crates.io/crates/scirs2-transform)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-transform)](https://docs.rs/scirs2-transform)
-[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
 Data transformation, dimensionality reduction, and feature engineering library for machine learning in Rust, part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
 ## Overview
 
-`scirs2-transform` provides comprehensive data preprocessing and transformation utilities following scikit-learn's `fit` / `transform` / `fit_transform` API pattern. v0.5.0 carries forward the full suite of UMAP, Barnes-Hut t-SNE, persistent homology / TDA, metric learning, kernel methods, optimal transport, and advanced NMF variants introduced earlier in the v0.4.x line.
+`scirs2-transform` provides comprehensive data preprocessing and transformation utilities following scikit-learn's `fit` / `transform` / `fit_transform` API pattern. Past releases carried forward the full suite of UMAP, Barnes-Hut t-SNE, persistent homology / TDA, metric learning, kernel methods, optimal transport, and advanced NMF variants introduced earlier in the v0.4.x line.
 
 ## Features
 
@@ -150,14 +151,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-transform = "0.5.1"
+scirs2-transform = "0.6.1"
 ```
 
-With SIMD and parallel features:
+Parallel (Rayon-based) processing is provided unconditionally via `scirs2-core` — there is no separate `parallel` feature to enable. With SIMD and GPU-dispatch features:
 
 ```toml
 [dependencies]
-scirs2-transform = { version = "0.5.1", features = ["parallel", "simd"] }
+scirs2-transform = { version = "0.6.1", features = ["simd", "gpu"] }
 ```
 
 ### Normalization
@@ -272,8 +273,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Flag | Description |
 |------|-------------|
-| `parallel` | Enable Rayon-based multi-threaded transforms |
 | `simd` | SIMD-accelerated normalization and distance operations |
+| `gpu` | GPU dispatch through the `scirs2-core` GPU abstraction (dimensionality-reduction kernels still fall back to CPU — see Known Issues in `TODO.md`) |
+| `distributed` | Distributed/serialized transform state via `tokio` + `serde` + `oxicode`; node health checks are currently simulated with random values rather than real network probes — see Known Issues in `TODO.md` |
+| `auto-feature-engineering` | Automatic feature engineering pipeline search |
+| `monitoring` | Prometheus metrics export for drift/quality monitoring |
+
+Rayon-based parallel processing is always compiled in via `scirs2-core` and is not a separate opt-in feature.
+
+## Testing
+
+493 tests passing (default features) / 532 tests passing (all-features, `cargo nextest run -p scirs2-transform --all-features`), plus doctests. 0 `todo!()`/`unimplemented!()` markers in `src/` — see Known Issues in `TODO.md` for the silent-stub finding (`distributed::check_node_health`) that keeps this crate at "Partial" status despite the clean test run.
 
 ## Related Crates
 

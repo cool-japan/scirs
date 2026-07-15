@@ -12,26 +12,73 @@ pub const SIMD_BATCH_L2_F64: usize = 65_536;
 pub const SIMD_BATCH_L3_F64: usize = 1_048_576;
 
 /// Platform capability detection
+///
+/// Mixes two kinds of information: *compiled-in* capabilities
+/// (`simd_available`, `gpu_available`, `opencl_available`, and the CPU
+/// instruction-set fields) reflect the crate/target features this build was
+/// produced with, while the *hardware* capabilities `cuda_available` and
+/// `metal_available` are detected at runtime so they stay truthful on GPU
+/// machines regardless of enabled features.
 #[derive(Debug, Clone, Copy)]
 pub struct PlatformCapabilities {
+    /// `true` when this build was compiled with the `simd` feature.
     pub simd_available: bool,
+    /// `true` when this build was compiled with the `gpu` feature
+    /// (compiled-in GPU abstractions such as the wgpu backend).
     pub gpu_available: bool,
+    /// `true` when a working NVIDIA CUDA driver with at least one device is
+    /// present at runtime.
+    ///
+    /// Detected by dynamically loading the driver library
+    /// (`libcuda.so.1`/`libcuda.so` on Linux, `nvcuda.dll` on Windows) and
+    /// querying the device count — no crate feature is required. Always
+    /// `false` on platforms without a CUDA driver (including macOS). Note
+    /// that CUDA *compute* lives in the per-crate `oxicuda-*` backends, not
+    /// in `scirs2-core`.
     pub cuda_available: bool,
+    /// `true` when this build was compiled with the `gpu` + `opencl`
+    /// features.
     pub opencl_available: bool,
+    /// `true` when a Metal-capable GPU is present at runtime (macOS only).
+    ///
+    /// With the `metal` feature enabled this queries the Metal framework;
+    /// without it, macOS itself implies Metal availability (all Apple
+    /// Silicon Macs and all Intel Macs running macOS 10.14+ have
+    /// Metal-capable GPUs). Always `false` on non-macOS targets.
     pub metal_available: bool,
+    /// `true` when this build targets a CPU with AVX2 enabled.
     pub avx2_available: bool,
+    /// `true` when this build targets a CPU with AVX-512F enabled.
     pub avx512_available: bool,
+    /// `true` when this build targets AArch64 (NEON is baseline there).
     pub neon_available: bool,
 }
 impl PlatformCapabilities {
     /// Detect current platform capabilities
+    ///
+    /// SIMD/OpenCL fields report compile-time crate/target features, while
+    /// the GPU hardware fields are real *runtime* probes:
+    ///
+    /// * `cuda_available` — dynamically loads the NVIDIA driver
+    ///   (`libcuda.so.1`/`libcuda.so` on Linux, `nvcuda.dll` on Windows) and
+    ///   reports `true` only when `cuInit(0)` succeeds and at least one CUDA
+    ///   device is enumerated; `false` (never a panic) when no driver
+    ///   exists. CUDA *compute* is provided by the per-crate `oxicuda-*`
+    ///   backends, not by `scirs2-core`.
+    /// * `metal_available` — on macOS reports whether a Metal GPU is present
+    ///   (via the Metal framework when the `metal` feature is enabled,
+    ///   otherwise via a documented platform heuristic); always `false`
+    ///   elsewhere.
+    ///
+    /// The runtime probes are cached process-wide, so repeated `detect()`
+    /// calls are cheap.
     pub fn detect() -> Self {
         Self {
             simd_available: cfg!(feature = "simd"),
             gpu_available: cfg!(feature = "gpu"),
-            cuda_available: false, // CUDA retired from scirs2-core in 0.6.x (moved to oxicuda-*)
+            cuda_available: super::gpu_detection::detect_cuda_runtime(),
             opencl_available: cfg!(all(feature = "gpu", feature = "opencl")),
-            metal_available: cfg!(all(feature = "gpu", feature = "metal", target_os = "macos")),
+            metal_available: super::gpu_detection::detect_metal_runtime(),
             avx2_available: cfg!(target_feature = "avx2"),
             avx512_available: cfg!(target_feature = "avx512f"),
             neon_available: cfg!(target_arch = "aarch64"),

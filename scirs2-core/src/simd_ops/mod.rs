@@ -8,6 +8,7 @@ pub mod functions_3;
 pub mod functions_4;
 pub mod functions_5;
 pub mod functions_6;
+pub mod gpu_detection;
 pub mod matmul;
 pub mod types;
 
@@ -19,6 +20,7 @@ pub use functions_3::*;
 pub use functions_4::*;
 pub use functions_5::*;
 pub use functions_6::*;
+pub use gpu_detection::*;
 pub use matmul::*;
 pub use types::*;
 

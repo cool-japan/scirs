@@ -19,14 +19,41 @@ fn cast_slice_to_bytes<T>(slice: &[T]) -> &[u8] {
 }
 
 /// Safe slice casting replacement for bytemuck::cast_slice (reverse)
+///
+/// # Panics
+///
+/// Panics if `bytes.len()` is not a multiple of `size_of::<T>()`, or if
+/// `bytes` is not aligned to `align_of::<T>()`. The alignment check is not
+/// optional: `slice::from_raw_parts` requires a properly aligned pointer as
+/// a precondition, and constructing the slice with a misaligned pointer is
+/// immediate undefined behavior (confirmed via Miri: "constructing invalid
+/// value of type &[T]: encountered an unaligned reference") rather than
+/// something that merely risks a slow/unaligned read.
 #[allow(dead_code)]
 fn cast_bytes_to_slice<T>(bytes: &[u8]) -> &[T] {
-    assert_eq!(bytes.len() % std::mem::size_of::<T>(), 0);
+    assert_eq!(
+        bytes.len() % std::mem::size_of::<T>(),
+        0,
+        "byte slice length ({}) is not a multiple of size_of::<T>() ({})",
+        bytes.len(),
+        std::mem::size_of::<T>()
+    );
+    assert_eq!(
+        (bytes.as_ptr() as usize) % std::mem::align_of::<T>(),
+        0,
+        "byte slice at {:p} is not aligned to align_of::<T>() ({}); \
+         constructing &[T] from it would be undefined behavior",
+        bytes.as_ptr(),
+        std::mem::align_of::<T>()
+    );
     // SAFETY: This is safe because:
     // 1. We assert that the byte length is a multiple of T's size
-    // 2. The pointer is derived from a valid slice
-    // 3. The length calculation ensures we don't exceed bounds
-    // 4. The lifetime is bounded by the input slice
+    // 2. We assert that the pointer is properly aligned for T (required by
+    //    `slice::from_raw_parts`; skipping this check is what made the
+    //    previous version of this function unsound)
+    // 3. The pointer is derived from a valid slice
+    // 4. The length calculation ensures we don't exceed bounds
+    // 5. The lifetime is bounded by the input slice
     unsafe {
         std::slice::from_raw_parts(
             bytes.as_ptr() as *const T,
@@ -369,24 +396,40 @@ pub mod gpu {
         pub fn new() -> SpecialResult<Self> {
             use crate::gpu_context_manager::get_best_gpu_context;
 
-            let context = get_best_gpu_context().map_err(|e| {
-                SpecialError::ComputationError(format!("Failed to create GPU context: {}", e))
-            })?;
+            // A GPU context is opportunistic, not mandatory: `execute_kernel` always
+            // falls back to correct CPU computation (no compiled kernels are ever
+            // registered in `pipelines` below), so failing to discover a healthy GPU
+            // context here -- the common case on headless CI or machines without a
+            // supported backend -- must not prevent constructing a usable pipeline.
+            let context = get_best_gpu_context().ok();
 
-            let mut pipelines = std::collections::HashMap::new();
+            let pipelines = std::collections::HashMap::new();
 
             // Note: GPU pipelines not currently supported in scirs2-core
             // Pre-compiled kernels would be loaded here when available
 
             Ok(Self {
-                context: Some(context),
+                context,
                 pipelines,
                 cache_enabled: true,
                 performance_stats: std::sync::Mutex::new(std::collections::HashMap::new()),
             })
         }
 
-        /// Execute a kernel on GPU with performance monitoring
+        /// Execute a special-function kernel with performance monitoring.
+        ///
+        /// scirs2-core does not currently expose a compiled-kernel dispatch API for
+        /// these WGSL/compute-shader kernels (`self.pipelines` is intentionally never
+        /// populated -- see [`GpuPipeline::new`]), so true GPU dispatch is not yet
+        /// wired up. Rather than permanently failing -- or requiring a healthy GPU
+        /// context that may not exist (e.g. headless CI, or a machine with no
+        /// supported backend) -- this falls back to the crate's own correct,
+        /// pure-Rust scalar implementations applied element-wise on the CPU. This
+        /// keeps every caller (`gamma_gpu`, `bessel_j0_gpu`, `erf_gpu`) numerically
+        /// correct on every platform, GPU or not, while a true GPU compute-shader
+        /// dispatch path is implemented as separate follow-on work (matching this
+        /// workspace's established "compile-only, real-hardware validation
+        /// deferred" GPU pattern).
         #[cfg(feature = "gpu")]
         pub fn execute_kernel<T>(
             &self,
@@ -395,45 +438,64 @@ pub mod gpu {
             output: &mut [T],
         ) -> SpecialResult<std::time::Duration>
         where
-            T: Clone + Copy + scirs2_core::gpu::GpuDataType,
+            T: Clone
+                + Copy
+                + scirs2_core::gpu::GpuDataType
+                + scirs2_core::numeric::Float
+                + scirs2_core::numeric::FromPrimitive
+                + std::fmt::Debug
+                + std::ops::AddAssign,
         {
             let start_time = std::time::Instant::now();
 
-            let context = self.context.as_ref().ok_or_else(|| {
-                SpecialError::ComputationError("No GPU context available".to_string())
-            })?;
-
-            let pipeline = self.pipelines.get(kernel_name).ok_or_else(|| {
-                SpecialError::ComputationError(format!("Kernel '{}' not found", kernel_name))
-            })?;
-
-            // Create GPU buffers
-            let input_buffer = context.create_buffer_from_slice(input);
-
-            let output_buffer = context.create_buffer::<T>(output.len());
-
-            // Note: Direct kernel execution not currently supported in scirs2-core
-            // Fall back to CPU computation for now
-            return Err(SpecialError::ComputationError(
-                "GPU kernel execution not yet implemented".to_string(),
-            ));
-
-            // TODO: Implement GPU kernel execution and re-enable performance tracking
-            #[allow(unreachable_code)]
-            {
-                let elapsed = start_time.elapsed();
-
-                // Update performance statistics
-                if let Ok(mut stats) = self.performance_stats.lock() {
-                    let entry = stats
-                        .entry(kernel_name.to_string())
-                        .or_insert((0, std::time::Duration::ZERO));
-                    entry.0 += 1;
-                    entry.1 += elapsed;
-                }
-
-                Ok(elapsed)
+            if input.len() != output.len() {
+                return Err(SpecialError::ComputationError(format!(
+                    "Input/output length mismatch for kernel '{}': input has {} element(s), output has {}",
+                    kernel_name,
+                    input.len(),
+                    output.len()
+                )));
             }
+
+            // CPU fallback: apply the equivalent scalar special function
+            // element-wise. See the doc comment above for why this replaces actual
+            // GPU dispatch for now.
+            match kernel_name {
+                "gamma" => {
+                    for (dst, &src) in output.iter_mut().zip(input.iter()) {
+                        *dst = crate::gamma::gamma(src);
+                    }
+                }
+                "bessel_j0" => {
+                    for (dst, &src) in output.iter_mut().zip(input.iter()) {
+                        *dst = crate::bessel::j0(src);
+                    }
+                }
+                "erf" => {
+                    for (dst, &src) in output.iter_mut().zip(input.iter()) {
+                        *dst = crate::erf::erf(src);
+                    }
+                }
+                other => {
+                    return Err(SpecialError::ComputationError(format!(
+                        "Kernel '{}' not found",
+                        other
+                    )));
+                }
+            }
+
+            let elapsed = start_time.elapsed();
+
+            // Update performance statistics
+            if let Ok(mut stats) = self.performance_stats.lock() {
+                let entry = stats
+                    .entry(kernel_name.to_string())
+                    .or_insert((0, std::time::Duration::ZERO));
+                entry.0 += 1;
+                entry.1 += elapsed;
+            }
+
+            Ok(elapsed)
         }
 
         /// Get performance statistics for a kernel
@@ -1528,6 +1590,113 @@ mod tests {
         }
     }
 
+    // The following tests exercise `gpu::GpuPipeline::execute_kernel`'s CPU
+    // fallback directly. Since a GPU context is opportunistic (see
+    // `GpuPipeline::new`), construction must always succeed -- even on a
+    // headless CI runner with no discoverable GPU backend -- and `execute_kernel`
+    // must always compute a numerically correct result via the CPU fallback,
+    // instead of the old hardcoded "GPU kernel execution not yet implemented"
+    // error that fired unconditionally at the (always-empty) pipeline lookup.
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pipeline_new_succeeds_without_gpu_hardware() {
+        // `GpuPipeline::new()` must not require a healthy GPU context: it should
+        // construct successfully regardless of what (if any) GPU backend this
+        // machine exposes, since `execute_kernel` only ever uses the CPU fallback.
+        gpu::GpuPipeline::new().expect("GpuPipeline::new() must not require GPU hardware");
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pipeline_gamma_matches_scalar() {
+        let pipeline = gpu::GpuPipeline::new().expect("GpuPipeline::new() must not fail");
+        let inputs = [1.0f64, 2.0, 3.0, 4.5, 0.5];
+        let input_array = arr1(&inputs);
+        let result = pipeline
+            .gamma_gpu(&input_array)
+            .expect("execute_kernel CPU fallback must succeed for 'gamma'");
+        for (i, &x) in inputs.iter().enumerate() {
+            assert_relative_eq!(result[i], crate::gamma::gamma(x), epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pipeline_gamma_2d_matches_scalar() {
+        // Exercises the non-1D (flatten/reshape) branch of `gamma_gpu`, which is a
+        // separate code path from the 1D direct-execution branch.
+        let pipeline = gpu::GpuPipeline::new().expect("GpuPipeline::new() must not fail");
+        let input_array = arr2(&[[1.0, 2.0], [3.0, 4.5]]);
+        let result = pipeline
+            .gamma_gpu(&input_array)
+            .expect("execute_kernel CPU fallback must succeed for 'gamma' (2D)");
+        for i in 0..2 {
+            for j in 0..2 {
+                assert_relative_eq!(
+                    result[[i, j]],
+                    crate::gamma::gamma(input_array[[i, j]]),
+                    epsilon = 1e-10
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pipeline_bessel_j0_matches_scalar() {
+        let pipeline = gpu::GpuPipeline::new().expect("GpuPipeline::new() must not fail");
+        let inputs = [0.0f64, 1.0, 2.0, 5.0, 10.5];
+        let input_array = arr1(&inputs);
+        let result = pipeline
+            .bessel_j0_gpu(&input_array)
+            .expect("execute_kernel CPU fallback must succeed for 'bessel_j0'");
+        for (i, &x) in inputs.iter().enumerate() {
+            assert_relative_eq!(result[i], crate::bessel::j0(x), epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pipeline_erf_matches_scalar() {
+        let pipeline = gpu::GpuPipeline::new().expect("GpuPipeline::new() must not fail");
+        let inputs = [-2.0f64, -0.5, 0.0, 0.5, 2.0];
+        let input_array = arr1(&inputs);
+        let result = pipeline
+            .erf_gpu(&input_array)
+            .expect("execute_kernel CPU fallback must succeed for 'erf'");
+        for (i, &x) in inputs.iter().enumerate() {
+            assert_relative_eq!(result[i], crate::erf::erf(x), epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_execute_kernel_unknown_name_still_errors() {
+        let pipeline = gpu::GpuPipeline::new().expect("GpuPipeline::new() must not fail");
+        let input = [1.0f64, 2.0, 3.0];
+        let mut output = [0.0f64; 3];
+        assert!(pipeline
+            .execute_kernel("not_a_real_kernel", &input, &mut output)
+            .is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_execute_kernel_tracks_performance_stats() {
+        let pipeline = gpu::GpuPipeline::new().expect("GpuPipeline::new() must not fail");
+        let input = [1.0f64, 2.0, 3.0];
+        let mut output = [0.0f64; 3];
+        pipeline
+            .execute_kernel("erf", &input, &mut output)
+            .expect("execute_kernel CPU fallback must succeed for 'erf'");
+
+        match pipeline.get_kernel_stats("erf") {
+            Some((count, _duration)) => assert_eq!(count, 1),
+            None => panic!("expected performance stats to be recorded for 'erf' kernel"),
+        }
+    }
+
     #[test]
     fn test_complex_array_operations() {
         use scirs2_core::numeric::Complex64;
@@ -1547,5 +1716,39 @@ mod tests {
             assert!(val.re.is_finite());
             assert!(val.im.is_finite());
         }
+    }
+
+    #[test]
+    fn test_cast_slice_bytes_round_trip_f32() {
+        let values: [f32; 4] = [1.0, -2.5, 3.25, 0.0];
+        let bytes = cast_slice_to_bytes(&values);
+        assert_eq!(bytes.len(), values.len() * std::mem::size_of::<f32>());
+        let round_tripped: &[f32] = cast_bytes_to_slice(bytes);
+        assert_eq!(round_tripped, &values);
+    }
+
+    #[test]
+    #[should_panic(expected = "is not a multiple of size_of")]
+    fn test_cast_bytes_to_slice_rejects_non_multiple_length() {
+        // 5 bytes is not a multiple of size_of::<f32>() == 4.
+        let bytes: [u8; 5] = [0; 5];
+        let _: &[f32] = cast_bytes_to_slice(&bytes);
+    }
+
+    #[test]
+    #[should_panic(expected = "is not aligned to align_of")]
+    fn test_cast_bytes_to_slice_rejects_misaligned_pointer() {
+        // Force a 16-byte aligned buffer, then slice starting 1 byte in so the
+        // resulting pointer is guaranteed misaligned for any T with
+        // align_of::<T>() > 1 (e.g. f32's align_of() == 4). This exercises
+        // exactly the Miri-caught UB ("constructing invalid value of type
+        // &[T]: encountered an unaligned reference") that the added
+        // assertion in `cast_bytes_to_slice` now guards against with a clean
+        // panic instead of undefined behavior.
+        #[repr(align(16))]
+        struct AlignedBuf([u8; 32]);
+        let buf = AlignedBuf([0u8; 32]);
+        let misaligned = &buf.0[1..17];
+        let _: &[f32] = cast_bytes_to_slice(misaligned);
     }
 }

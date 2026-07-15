@@ -333,7 +333,7 @@ fn dispatch_unary_f32(shader_src: &str, xs_f32: &[f32]) -> Result<Vec<f32>, Wgsl
 
     // ── Adapter / device acquisition ──────────────────────────────────────────
     let instance = Instance::new(InstanceDescriptor {
-        backends: Backends::all(),
+        backends: Backends::PRIMARY,
         flags: wgpu::InstanceFlags::default(),
         memory_budget_thresholds: Default::default(),
         backend_options: Default::default(),

@@ -3,11 +3,14 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-signal.svg)](https://crates.io/crates/scirs2-signal)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-signal)](https://docs.rs/scirs2-signal)
-[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
 
 **Production-ready signal processing for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
 `scirs2-signal` provides a comprehensive signal processing toolkit modelled after SciPy's `signal` module while going considerably further in v0.5.0: matched filtering, CFAR detection, Kalman/EKF/UKF state estimation, MFCC and cepstral analysis, EMD/HHT, compressed sensing (OMP/ISTA), blind source separation (ICA, NMF audio), system identification (ARX, N4SID), radar processing, and music information retrieval. The Savitzky-Golay polynomial smoother (`savgol`) was re-enabled and validated in the v0.5.0 stub-check sweep.
+
+Tested: 1489/1489 tests passing with default features, 1489/1489 with `--all-features` (verified 2026-07-15).
 
 ---
 
@@ -17,7 +20,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ---
 
-## Feature List (v0.5.1)
+## Feature List (v0.6.1)
 
 ### Filter Design & Application
 - **IIR filters**: Butterworth, Chebyshev I/II, Elliptic, Bessel — analog prototype design and digital transformation
@@ -182,7 +185,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ```toml
 [dependencies]
-scirs2-signal = "0.5.1"
+scirs2-signal = "0.6.1"
 ```
 
 ### Butterworth Low-Pass Filter
@@ -344,11 +347,10 @@ let (freqs, psd) = ar_spectrum(&ar_coeffs, variance, 1.0, 1024).unwrap();
 
 | Flag | Description |
 |---|---|
-| `parallel` | Rayon parallel computation |
-| `simd` | SIMD-accelerated operations via `scirs2-core` |
-| `serde` | Serialization support |
+| `parallel` | Rayon parallel computation (`scirs2-core/parallel`) — in `default` |
+| `unstable_avx512` | Experimental AVX-512 support |
 
-Default features: none (pure Rust, no C/Fortran dependencies).
+Corrected 2026-07-15: `default = ["parallel"]` (not "none" as previously stated). SIMD acceleration (via `scirs2-core`'s `simd` feature) and Serde support are unconditional dependencies of this crate — always compiled in, not optional feature flags that can be toggled off. Pure Rust throughout, no C/Fortran dependencies.
 
 ---
 

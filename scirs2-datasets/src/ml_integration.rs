@@ -484,7 +484,7 @@ impl MLPipeline {
         // Collect all indices for the oversampled dataset
         let mut all_indices = Vec::new();
 
-        for (_class, indices) in class_indices.iter() {
+        for indices in class_indices.values() {
             let current_count = indices.len();
 
             // Add all original samples

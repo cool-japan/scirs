@@ -3,7 +3,9 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-ndimage.svg)](https://crates.io/crates/scirs2-ndimage)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-ndimage)](https://docs.rs/scirs2-ndimage)
-[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Status](https://img.shields.io/badge/status-partial-yellow)]()
+[![Tests](https://img.shields.io/badge/tests-1199%20passing-brightgreen)]()
 
 **scirs2-ndimage** is the N-dimensional image processing crate for the [SciRS2](https://github.com/cool-japan/scirs) scientific computing library. It provides a comprehensive toolkit for filtering, morphology, interpolation, measurements, segmentation, and feature detection on arrays of arbitrary dimensionality, modeled after SciPy's `ndimage` module.
 
@@ -22,7 +24,7 @@ Use scirs2-ndimage when you need to:
 - Detect features (corners, edges, SIFT descriptors, HOG)
 - Perform atlas-based segmentation
 
-## Features (v0.5.1)
+## Features (v0.6.1)
 
 ### Image Filtering
 - **Gaussian Filters**: `gaussian_filter`, `gaussian_filter1d`, `gaussian_gradient_magnitude`, `gaussian_laplace`
@@ -37,11 +39,12 @@ Use scirs2-ndimage when you need to:
 - **Fourier Filters**: Fourier Gaussian, uniform, ellipsoid, shift operations
 
 ### Morphological Operations
-- **Binary Morphology**: Erosion, dilation, opening, closing, hit-or-miss transform, propagation, hole filling
+- **Binary Morphology**: Erosion, dilation, opening, closing, hit-or-miss transform, propagation
+- **Hole Filling**: `fill_holes_2d` (2D, via morphological reconstruction) is real and working; the general N-D `binary_fill_holes` is currently a no-op stub (returns its input unchanged — see Known Issues)
 - **Grayscale Morphology**: Erosion, dilation, opening, closing, top-hat (white/black), morphological gradient, Laplace
 - **Distance Transforms**: Euclidean (EDT via Felzenszwalb-Huttenlocher O(n) algorithm), city-block, chessboard
 - **Connected Components**: Labeling, find objects, remove small objects
-- **Structuring Elements**: Generate disk, square, diamond, and arbitrary structuring elements
+- **Structuring Elements**: Generate disk (exact Euclidean disk in 2D; N > 2 dimensions fall back to a box shape), square, diamond, and arbitrary structuring elements (`iterate_structure`, which is meant to grow a structuring element over N iterations, is currently a no-op stub — see Known Issues)
 - **Skeletonization**: Topological thinning to medial axis
 
 ### Image Measurements
@@ -59,8 +62,8 @@ Use scirs2-ndimage when you need to:
 - **Active Contours**: Snakes with gradient vector flow (GVF)
 - **Level Set Methods**: Chan-Vese segmentation (single and multi-phase)
 - **Graph Cuts**: Max-flow/min-cut segmentation with interactive refinement
-- **SLIC Superpixels**: Simple Linear Iterative Clustering (2D and 3D)
-- **Atlas-Based Segmentation**: Label transfer via registration atlas
+- **SLIC Superpixels**: Simple Linear Iterative Clustering (2D grayscale; `segmentation_advanced::superpixels_slic`)
+- **Atlas-Based Segmentation**: Label fusion (majority voting, STAPLE, joint label fusion) over pre-registered atlas label volumes; no built-in registration
 
 ### Feature Detection
 - **Edge Detection**: Canny edge detector, unified edge detection API
@@ -73,12 +76,17 @@ Use scirs2-ndimage when you need to:
 
 ### Geometric Interpolation
 - **Map Coordinates**: Interpolate array at arbitrary coordinates (0th-5th order splines)
-- **Affine Transform**: Apply an affine transformation matrix
-- **Geometric Transform**: General geometric transformation with custom mapping
+- **Affine Transform**: Apply an affine transformation matrix (exact 2x2 inversion in 2D; N-D beyond 2D uses a simplified diagonal-only approximation)
 - **Shift**: Sub-pixel shift with spline interpolation
-- **Rotate**: Array rotation about any axis
-- **Zoom**: Uniform and anisotropic zooming
+- **Rotate**: Array rotation about any axis (output keeps the input shape; the `reshape` option to grow the canvas is accepted but not yet honored)
+- **Zoom**: Uniform zooming (N-dimensional, `zoom`); anisotropic per-axis zoom for 2D via `interpolation::zoom_optimized`
 - **Spline Filter**: Pre-filter for spline interpolation (`spline_filter`, `spline_filter1d`)
+
+> **Known stub**: `interpolation::geometric_transform` (general transform with a custom
+> coordinate-mapping closure) is currently a no-op — it validates its arguments but its body
+> just returns a copy of the input, ignoring the supplied mapping function entirely
+> (`src/interpolation/transform.rs`). Use `map_coordinates`, `affine_transform`, `shift`,
+> `rotate`, or `zoom` instead, which are genuinely implemented.
 
 ### 3D Volume Analysis
 - **Volumetric Operations**: 3D morphology, filtering, distance transforms
@@ -105,22 +113,23 @@ Use scirs2-ndimage when you need to:
 - **LBP**: Local binary patterns
 - **Gabor Feature Maps**: Multi-scale multi-orientation Gabor responses
 
-### Deep Feature Extraction Interface
-- Interface for forwarding arrays through external feature extractors
-- Hooks for deep learning model integration (via scirs2-neural)
+### CNN-Inspired Feature Extraction (no neural-network training required)
+- Gabor filter bank, HOG (Histogram of Oriented Gradients), simplified SIFT keypoint detection and descriptors (`deep_features` module)
+- Heuristic ML-assisted detection utilities: `SemanticFeatureExtractor`, `ObjectProposalGenerator`, learned edge/keypoint descriptor configs
+- Note: this crate does not depend on scirs2-neural; there is no wired-up hook for external deep-learning model integration today
 
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-ndimage = "0.5.1"
+scirs2-ndimage = "0.6.1"
 ```
 
 For parallel processing and SIMD:
 
 ```toml
 [dependencies]
-scirs2-ndimage = { version = "0.5.1", features = ["parallel", "simd"] }
+scirs2-ndimage = { version = "0.6.1", features = ["parallel", "simd"] }
 ```
 
 ## Feature Flags
@@ -129,6 +138,16 @@ scirs2-ndimage = { version = "0.5.1", features = ["parallel", "simd"] }
 |------|-------------|
 | `parallel` | Enable Rayon-based multi-core parallel processing (recommended for arrays >10K elements) |
 | `simd` | Enable SIMD vectorization for filters and morphological operations |
+| `gpu` | GPU backend abstraction layer (device detection, buffer management). Does not auto-enable a specific backend |
+| `cuda` | CUDA backend scaffolding (`backend/cuda.rs`); experimental, no external CUDA toolkit dependency |
+| `opencl` | OpenCL backend scaffolding; experimental |
+| `metal` | Metal backend scaffolding (macOS only); experimental |
+| `compression` | Pure-Rust compression for streaming/out-of-core I/O via `oxiarc-deflate`/`oxiarc-zstd`/`oxiarc-lz4` |
+
+Note: the `gpu`/`cuda`/`opencl`/`metal` flags expose device-detection and buffer-management
+scaffolding; generic GPU kernel dispatch (`backend::gpu_acceleration_framework`) currently
+returns an explicit "not yet implemented" error rather than executing on real hardware, so
+CPU code paths remain the primary, production-ready path.
 
 ## Quick Start
 
@@ -144,11 +163,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Gaussian smoothing
     let smoothed = filters::gaussian_filter(&image, 2.0, None, None)?;
 
-    // Morphological dilation
-    let struct_elem = morphology::structuring::generate_disk(3)?;
-    let dilated = morphology::binary_dilation(&image, &struct_elem, None, None)?;
+    // Morphological dilation (binary morphology operates on bool arrays)
+    let binary = image.mapv(|v| v > 0.5).into_dyn();
+    let struct_elem = morphology::disk_structure(3.0, None)?;
+    let dilated =
+        morphology::binary_dilation(&binary, Some(&struct_elem), None, None, None, None, None)?;
 
-    println!("Image processed: {:?}", smoothed.shape());
+    println!("Image processed: {:?}, dilated: {:?}", smoothed.shape(), dilated.shape());
     Ok(())
 }
 ```
@@ -182,7 +203,7 @@ fn filtering_example() -> Result<(), Box<dyn std::error::Error>> {
     // Custom generic filter (mean over 5x5 window)
     let mean_filtered = filters::generic_filter(
         &image, |window| window.iter().sum::<f64>() / window.len() as f64,
-        &[5, 5], None,
+        &[5, 5], None, None,
     )?;
 
     println!("All filters applied");
@@ -194,30 +215,36 @@ fn filtering_example() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use scirs2_ndimage::morphology;
-use scirs2_core::ndarray::Array2;
+use scirs2_core::ndarray::{Array, IxDyn};
 
 fn morphology_example() -> Result<(), Box<dyn std::error::Error>> {
-    let binary = Array2::<f64>::from_shape_fn((100, 100), |(i, j)| {
-        if i > 30 && i < 70 && j > 30 && j < 70 { 1.0 } else { 0.0 }
+    // Binary morphology operates on `Array<bool, D>`; build the image directly
+    // in dynamic-dimension (`IxDyn`) form so it matches the structuring element.
+    let binary = Array::from_shape_fn(IxDyn(&[100, 100]), |idx| {
+        idx[0] > 30 && idx[0] < 70 && idx[1] > 30 && idx[1] < 70
     });
 
-    let disk = morphology::structuring::generate_disk(5)?;
+    let disk = morphology::disk_structure(5.0, None)?;
 
-    // Binary erosion and dilation
-    let eroded = morphology::binary_erosion(&binary, &disk, None, None)?;
-    let dilated = morphology::binary_dilation(&binary, &disk, None, None)?;
+    // Binary erosion, dilation, and opening take:
+    // (input, structure, iterations, mask, border_value, origin, brute_force)
+    let eroded = morphology::binary_erosion(&binary, Some(&disk), None, None, None, None, None)?;
+    let dilated = morphology::binary_dilation(&binary, Some(&disk), None, None, None, None, None)?;
 
     // Opening removes small bright regions
-    let opened = morphology::binary_opening(&binary, &disk, None, None)?;
+    let opened = morphology::binary_opening(&binary, Some(&disk), None, None, None, None, None)?;
 
     // Distance transform (Euclidean, O(n) algorithm)
-    use scirs2_core::ndarray::IxDyn;
-    let dyn_img = binary.into_dimensionality::<IxDyn>().unwrap();
-    let (distances, _indices) = morphology::distance_transform_edt(&dyn_img, None, true, false);
+    let (distances, _indices) = morphology::distance_transform_edt(&binary, None, true, false)?;
 
-    // Hit-or-miss for pattern detection
-    let pattern = Array2::from_shape_vec((3, 3), vec![0i32, 1, 0, 1, 1, 1, 0, 1, 0]).unwrap();
-    // let hit_miss = morphology::binary_hit_or_miss(&binary, &pattern, None, None)?;
+    // Hit-or-miss for pattern detection (structure1, structure2, mask, border_value, origin1, origin2)
+    let pattern = Array::from_shape_vec(IxDyn(&[3, 3]), vec![false, true, false, true, true, true, false, true, false])?;
+    let hit_miss = morphology::binary_hit_or_miss(&binary, Some(&pattern), None, None, None, None, None)?;
+
+    println!(
+        "eroded={:?} dilated={:?} opened={:?} distances_present={} hit_miss={:?}",
+        eroded.shape(), dilated.shape(), opened.shape(), distances.is_some(), hit_miss.shape()
+    );
 
     Ok(())
 }
@@ -226,26 +253,28 @@ fn morphology_example() -> Result<(), Box<dyn std::error::Error>> {
 ### Region Measurements
 
 ```rust
-use scirs2_ndimage::{measurements, morphology};
+use scirs2_ndimage::{measurements, moment_invariants, morphology};
 use scirs2_core::ndarray::Array2;
 
 fn measurement_example() -> Result<(), Box<dyn std::error::Error>> {
     let image = Array2::<f64>::from_shape_fn((100, 100), |(i, j)| {
         if (i as f64 - 50.0).hypot(j as f64 - 50.0) < 20.0 { 1.0 } else { 0.0 }
     });
+    let binary = image.mapv(|v| v > 0.5);
 
-    // Label connected components
-    let labels = measurements::label(&image, None)?;
+    // Label connected components (label lives in `morphology`, not `measurements`)
+    let (labels, num_labels) = morphology::label(&binary, None, None, None)?;
+    println!("Found {} labeled region(s)", num_labels);
 
-    // Region properties
-    let props = measurements::regionprops(&labels, Some(&image), None)?;
+    // Region properties (2D: area, centroid, perimeter, eccentricity, orientation, ...)
+    let props = measurements::regionprops_2d(&image, &labels)?;
     for region in &props {
         println!("Region {}: area={}, centroid={:?}",
             region.label, region.area, region.centroid);
     }
 
-    // Hu moments (rotation-invariant descriptors)
-    let hu = measurements::moments_hu(&image)?;
+    // Hu moments (rotation-invariant descriptors) - lives in `moment_invariants`, is infallible
+    let hu = moment_invariants::hu_moments(&image.view());
     println!("Hu moments: {:?}", hu);
 
     Ok(())
@@ -269,8 +298,13 @@ fn watershed_example() -> Result<(), Box<dyn std::error::Error>> {
     let gradient = grad_x.mapv(|v| v * v) + grad_y.mapv(|v| v * v);
     let gradient = gradient.mapv(f64::sqrt);
 
-    // Watershed (seeds placed at local minima of gradient)
-    // let labels = watershed(&gradient, &markers, None)?;
+    // Markers: 0 = unknown region, unique positive integers = seed regions
+    let mut markers = Array2::<i32>::zeros((200, 200));
+    markers[[50, 50]] = 1;
+    markers[[150, 150]] = 2;
+
+    let labels = watershed(&gradient, &markers)?;
+    println!("Watershed labels shape: {:?}", labels.shape());
 
     Ok(())
 }
@@ -302,13 +336,17 @@ fn volume_example() -> Result<(), Box<dyn std::error::Error>> {
 ### SLIC Superpixels
 
 ```rust
-use scirs2_ndimage::segmentation::slic_superpixels;
-use scirs2_core::ndarray::Array3;
+use scirs2_ndimage::segmentation_advanced::superpixels_slic;
+use scirs2_core::ndarray::Array2;
 
 fn slic_example() -> Result<(), Box<dyn std::error::Error>> {
-    // let image: Array3<f64> = ...;  // H x W x C color image
-    // let labels = slic_superpixels(&image, 100, 10.0, None)?;
-    // println!("Superpixel labels shape: {:?}", labels.shape());
+    let image = Array2::<f64>::from_shape_fn((100, 100), |(i, j)| {
+        ((i + j) as f64 / 200.0).sin()
+    });
+
+    // (image, n_segments, compactness) -> label array in [0, n_segments)
+    let labels = superpixels_slic(&image, 100, 10.0)?;
+    println!("Superpixel labels shape: {:?}", labels.shape());
     Ok(())
 }
 ```
@@ -316,13 +354,18 @@ fn slic_example() -> Result<(), Box<dyn std::error::Error>> {
 ### Atlas-Based Segmentation
 
 ```rust
-use scirs2_ndimage::segmentation::atlas::atlas_based_segment;
-use scirs2_core::error::CoreResult;
+use scirs2_ndimage::segmentation::atlas::AtlasSegmentation;
+use scirs2_core::ndarray::Array3;
 
-fn atlas_example() -> CoreResult<()> {
-    // Register atlas to subject, then transfer labels
-    // let result = atlas_based_segment(&subject, &atlas_image, &atlas_labels, None)?;
-    // println!("Segmented regions: {:?}", result.unique_labels());
+fn atlas_example() -> Result<(), Box<dyn std::error::Error>> {
+    // Pre-registered atlas label volumes (registration itself is not performed by this crate)
+    let atlas_label_1 = Array3::<u32>::zeros((32, 32, 32));
+    let atlas_label_2 = Array3::<u32>::zeros((32, 32, 32));
+
+    // Default configuration fuses via majority voting; STAPLE and joint label
+    // fusion are also available through `AtlasSegmentation::with_config`.
+    let result = AtlasSegmentation::new().segment(&[atlas_label_1, atlas_label_2], None, None)?;
+    println!("Fused label volume shape: {:?}", result.label.shape());
     Ok(())
 }
 ```
@@ -335,6 +378,15 @@ fn atlas_example() -> CoreResult<()> {
 - **Memory-efficient**: Chunked processing for images larger than available RAM
 - **N-dimensional**: Consistent API and performance across 1D, 2D, 3D, and higher dimensions
 
+## Test Coverage
+
+Freshly measured via `cargo nextest run -p scirs2-ndimage` (2026-07-15):
+
+| Mode | Result |
+|------|--------|
+| Default features | 1170 tests run: 1170 passed, 1 skipped, 0 failed |
+| `--all-features` | 1199 tests run: 1199 passed, 3 skipped, 0 failed |
+
 ## Compatibility with SciPy ndimage
 
 API is modeled after `scipy.ndimage`. Key equivalents:
@@ -346,12 +398,33 @@ API is modeled after `scipy.ndimage`. Key equivalents:
 | `filters::sobel()` | `scipy.ndimage.sobel()` |
 | `morphology::binary_erosion()` | `scipy.ndimage.binary_erosion()` |
 | `morphology::distance_transform_edt()` | `scipy.ndimage.distance_transform_edt()` |
-| `measurements::label()` | `scipy.ndimage.label()` |
+| `morphology::label()` | `scipy.ndimage.label()` |
 | `measurements::center_of_mass()` | `scipy.ndimage.center_of_mass()` |
 | `interpolation::affine_transform()` | `scipy.ndimage.affine_transform()` |
 | `interpolation::map_coordinates()` | `scipy.ndimage.map_coordinates()` |
 | `interpolation::rotate()` | `scipy.ndimage.rotate()` |
 | `interpolation::zoom()` | `scipy.ndimage.zoom()` |
+
+## Known Issues
+
+A handful of functions validate their arguments correctly but have a body that does not perform
+the documented computation (no `todo!()`/`unimplemented!()` panic — they just silently return an
+unchanged copy of the input or a hardcoded placeholder value), so they will not show up in a
+naive stub scan. Confirmed as of 2026-07-15 (see `TODO.md` for detail and source locations):
+
+- `interpolation::geometric_transform` — ignores its custom coordinate-mapping closure entirely
+- `morphology::iterate_structure` — does not actually grow/iterate the structuring element
+- `morphology::binary_fill_holes` (general N-D) — returns the input unchanged; use `fill_holes_2d` for 2D instead, which is a real, working implementation
+- `peak_prominences` / `peak_widths` — return hardcoded placeholder values, not computed ones
+
+Other known limitations:
+- `interpolation::rotate`'s `reshape` option is accepted but not honored (output always keeps the input's shape)
+- `interpolation::affine_transform` inverts the transformation matrix exactly in 2D; for N > 2 dimensions it falls back to a simplified diagonal-only approximation
+- GPU feature flags (`gpu`/`cuda`/`opencl`/`metal`) provide device-detection/buffer scaffolding only; generic kernel dispatch returns an explicit "not yet implemented" error rather than running on hardware
+- Bilateral filter performance degrades significantly for large kernel sizes (>21x21)
+- Chan-Vese segmentation convergence depends strongly on `mu`/`lambda1`/`lambda2`; automatic initialization is not implemented
+- SLIC superpixels (`segmentation_advanced::superpixels_slic`) are 2D grayscale only
+- Atlas-based segmentation requires pre-registered atlas label volumes; no built-in registration is performed
 
 ## Documentation
 

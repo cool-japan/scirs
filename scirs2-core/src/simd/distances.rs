@@ -283,7 +283,16 @@ pub fn simd_distance_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
 ///
 /// Computes d^2(a, b) = (a_1 - b_1)^2 + (a_2 - b_2)^2 + ... + (a_n - b_n)^2
 /// This is faster than Euclidean distance when you don't need the sqrt (e.g., k-NN)
+///
+/// # Stack-safety note
+///
+/// Deliberately `#[inline(never)]`: this leaf holds several wide `__m256`/`__m128`
+/// (or NEON `float32x4_t`) locals. Callers of this function may sit deep inside
+/// recursive spatial-tree descents (KdTree/BallTree); keeping the wide-register
+/// frame confined to a single, un-inlined leaf call prevents it from being
+/// duplicated into every level of such a recursive call chain.
 #[allow(dead_code)]
+#[inline(never)]
 pub fn simd_distance_squared_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
     let len = a.len();
@@ -413,7 +422,16 @@ pub fn simd_distance_squared_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f
 ///
 /// Computes d^2(a, b) = (a_1 - b_1)^2 + (a_2 - b_2)^2 + ... + (a_n - b_n)^2
 /// This is faster than Euclidean distance when you don't need the sqrt (e.g., k-NN)
+///
+/// # Stack-safety note
+///
+/// Deliberately `#[inline(never)]`: this leaf holds several wide `__m256d`/`__m128d`
+/// (or NEON `float64x2_t`) locals. Callers of this function may sit deep inside
+/// recursive spatial-tree descents (KdTree/BallTree); keeping the wide-register
+/// frame confined to a single, un-inlined leaf call prevents it from being
+/// duplicated into every level of such a recursive call chain.
 #[allow(dead_code)]
+#[inline(never)]
 pub fn simd_distance_squared_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> f64 {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
     let len = a.len();

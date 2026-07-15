@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn test_is_valid_hdf5_nonexistent() {
         assert!(!Hdf5Dataset::is_valid_hdf5(
-            "/tmp/__scirs2_datasets_nonexistent_12345.h5"
+            std::env::temp_dir().join("__scirs2_datasets_nonexistent_12345.h5")
         ));
     }
 
@@ -212,7 +212,8 @@ mod tests {
 
     #[test]
     fn test_from_file_nonexistent_returns_error() {
-        let result = Hdf5Dataset::from_file("/tmp/__scirs2_nonexistent_hdf5_99999.h5");
+        let result =
+            Hdf5Dataset::from_file(std::env::temp_dir().join("__scirs2_nonexistent_hdf5_99999.h5"));
         assert!(result.is_err());
         if let Err(DatasetsError::NotFound(msg)) = result {
             assert!(msg.contains("not found"));

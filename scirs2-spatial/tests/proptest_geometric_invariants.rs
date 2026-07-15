@@ -240,7 +240,7 @@ proptest! {
     #[test]
     fn test_morans_i_bounds(n in 5usize..=50) {
         // Generate random values
-        let values = Array1::from_shape_fn(n, |_| rand::random::<f64>() * 10.0);
+        let values = Array1::from_shape_fn(n, |_| scirs2_core::random::random::<f64>() * 10.0);
 
         // Create simple adjacency matrix
         let mut weights = Array2::zeros((n, n));
@@ -258,7 +258,7 @@ proptest! {
 
     #[test]
     fn test_gearys_c_positivity(n in 5usize..=50) {
-        let values = Array1::from_shape_fn(n, |_| rand::random::<f64>() * 10.0);
+        let values = Array1::from_shape_fn(n, |_| scirs2_core::random::random::<f64>() * 10.0);
 
         let mut weights = Array2::zeros((n, n));
         for i in 0..n-1 {
@@ -278,8 +278,8 @@ proptest! {
 proptest! {
     #[test]
     fn test_variogram_non_negative(n in 10usize..=50) {
-        let coords = Array2::from_shape_fn((n, 2), |_| rand::random::<f64>() * 100.0);
-        let values = Array1::from_shape_fn(n, |_| rand::random::<f64>() * 10.0);
+        let coords = Array2::from_shape_fn((n, 2), |_| scirs2_core::random::random::<f64>() * 100.0);
+        let values = Array1::from_shape_fn(n, |_| scirs2_core::random::random::<f64>() * 10.0);
 
         if let Ok((lags, gamma)) = experimental_variogram(
             &coords.view(),
@@ -308,14 +308,14 @@ proptest! {
         let coords = Array2::from_shape_fn((n, 2), |(i, _j)| {
             // Use deterministic-ish spread based on index to get varied coords
             let base = (i as f64) * 100.0 / (n as f64);
-            base + rand::random::<f64>() * 5.0
+            base + scirs2_core::random::random::<f64>() * 5.0
         });
         // Values are a smooth function of position (+ small noise) to ensure
         // spatial autocorrelation: nearby coords => similar values.
         let values = Array1::from_shape_fn(n, |i| {
             let x = coords[[i, 0]];
             let y = coords[[i, 1]];
-            (x + y) * 0.1 + rand::random::<f64>() * 0.5
+            (x + y) * 0.1 + scirs2_core::random::random::<f64>() * 0.5
         });
 
         if let Ok((_lags, gamma)) = experimental_variogram(

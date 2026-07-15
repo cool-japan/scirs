@@ -1,5 +1,45 @@
 # scirs2-text TODO
 
+## Status: v0.6.1 (current, 2026-07-15) — reassessed Stable → Partial
+
+Untouched by this release's fix work (no text-specific changes shipped in 0.6.1); this is a fresh
+implementation-status survey. 0 `todo!()`/`unimplemented!()` markers in `src/` — but a targeted sweep
+for the *silent*-stub pattern (code that compiles, looks real, and returns a plausible-looking value
+without actually computing it) turned up one confirmed, crate-root-reachable instance, so the status
+badge is downgraded from Stable to Partial pending a fix:
+
+- **`huggingface_compat::FormatConverter`** (`src/huggingface_compat/conversion.rs`, re-exported at
+  the crate root via `pub use huggingface_compat::{..., FormatConverter, ...}` in `lib.rs`) — all four
+  methods are no-ops: `scirs2_to_hf_format()` and `hf_to_scirs2_format()` both return `Ok(vec![])`
+  (an empty byte vector, not an error) regardless of input; `convert_weights()` likewise does not
+  convert anything; **`validate_format_compatibility()` unconditionally returns `Ok(true)`** for any
+  two format strings, which is actively misleading (a compatibility check that always says "yes" is
+  worse than not having the check). Every method's body is commented "Placeholder implementation /
+  In practice, this would perform actual format conversion." Not implemented as part of this
+  documentation pass (out of scope for a README/TODO accuracy sweep); recorded here for the next
+  implementation pass.
+
+By contrast, the Hugging Face Hub network client (`huggingface_compat::hub::HfHub::list_models`/
+`model_info`) intentionally returns an honest `RuntimeError` rather than a fabricated response, since
+this build does not bundle an HTTP client — this is a deliberate, well-documented design choice (see
+doc comments in `src/huggingface_compat/hub.rs`), not a silent stub, and does not count against the
+Partial rating; callers can supply metadata out-of-band via `HfHub::cache_model_info`. Likewise the
+`text_coordinator.rs` "Placeholder implementations for referenced types..." comment guards small
+marker/result structs (e.g. `SimilarityAnalytics`), not fabricated computed values — lower severity,
+not itemized separately here.
+
+This sweep was targeted (grep for "Placeholder implementation" / "simulate" / "for demonstration"
+style comments), not exhaustive — `src/` has 985+ public items across ~100 files. A few more
+"simulate"/"for demonstration" hits exist (e.g. `paraphrasing.rs`'s back-translation artifact
+simulation, `huggingface_compat/pipelines/translation.rs`'s dictionary-based translation) that read
+as intentionally-simplified-but-real rather than fabricated, but were not individually triaged in
+depth; a dedicated follow-up stub-check pass would be worthwhile.
+
+Fresh test counts (2026-07-15, `cargo nextest run -p scirs2-text` / `--all-features`): **1,718
+passed, 0 skipped** (default features) / **1,718 passed, 0 skipped** (all-features) — identical
+counts because this crate's optional features (`serde-support`, `tokenization`, `simd`) gate
+internal dispatch/serialization paths rather than adding new `#[test]` functions.
+
 ## Status: v0.4.3 Released (May 3, 2026)
 
 All v0.4.3 features are complete and production-ready. Highlights since v0.4.2:
@@ -247,3 +287,4 @@ All v0.4.3 features are complete and production-ready. Highlights since v0.4.2:
 - `abstractive_summary.rs` provides primitives only; full abstractive summarization requires a neural sequence-to-sequence model from `scirs2-neural`.
 - Word2Vec training convergence depends heavily on `min_count` and corpus size; add validation warnings for very small corpora.
 - FastText character n-gram support may increase memory significantly for large vocabulary sizes; document memory tradeoffs.
+- `huggingface_compat::FormatConverter` is a no-op placeholder (all four methods; `validate_format_compatibility` always returns `true`) — see "Status" note at the top of this file for full detail. Do not rely on it for real format conversion or compatibility checking today.

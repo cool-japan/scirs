@@ -42,10 +42,10 @@
 
 ### Partial Differential Equations (PDE)
 - [x] Finite Difference: 1D/2D/3D central, upwind, WENO schemes
-- [x] Finite Element: linear/quadratic triangular elements
+- [x] Finite Element: linear/quadratic triangular elements (no tetrahedral elements found — README previously claimed tetrahedral too; corrected 2026-07-15)
 - [x] Spectral methods: Fourier, Chebyshev, Legendre, spectral element
-- [x] Finite Volume: upwind flux, Godunov, Roe
-- [x] Time-stepping FEM (space-time Galerkin)
+- [x] Finite Volume: upwind and Lax-Wendroff flux, MUSCL reconstruction (minmod/superbee/van Leer limiters) — **corrected 2026-07-15**: "Godunov" is not found anywhere in `src/pde/finite_volume.rs`; the only "Roe" reference there is a citation for the Superbee *limiter* ("Roe 1986"), not a Roe approximate-Riemann-solver flux. Wording corrected; underlying finite-volume capability is real.
+- [x] Time-stepping FEM for parabolic/hyperbolic PDEs — **corrected 2026-07-15**: `src/pde/time_fem.rs` implements the θ-method (heat equation) and Newmark-β method (wave equation), not "space-time Galerkin" in the strict technical sense (time as an additional FE dimension within one variational form). The underlying time-stepping-for-FEM capability is real, just was mislabeled.
 - [x] Adaptive mesh refinement and coarsening
 
 ### Stochastic Differential Equations (SDE)
@@ -58,16 +58,16 @@
 ### Lattice Boltzmann Method (LBM)
 - [x] D2Q9 and D3Q19 lattice geometries
 - [x] BGK single-relaxation-time collision operator
-- [x] MRT multi-relaxation-time collision operator
-- [x] Bounce-back, Zou-He, and periodic boundary conditions
-- [x] Smagorinsky subgrid-scale turbulence model
-- [x] Shan-Chen multiphase interaction
+- [ ] MRT multi-relaxation-time collision operator — **discrepancy found 2026-07-15**: no MRT code in `src/lbm.rs` or `src/gpu_lbm.rs`; both solvers (`D2Q9Lbm`, `D3Q19Lbm`, `GpuLbm2D`) implement BGK only. Unmarked from `[x]`.
+- [x] Full bounce-back walls and periodic streaming boundary conditions — **corrected 2026-07-15**: verified real (`BoundaryType::Wall` full bounce-back, modulo-indexed periodic streaming in `stream_and_bc`). The velocity inlet uses direct equilibrium-distribution assignment, not the true Zou-He method the text previously claimed; there is no Zou-He implementation anywhere in `src/`.
+- [ ] Smagorinsky subgrid-scale turbulence model — **discrepancy found 2026-07-15**: not found anywhere tied to the LBM module. A general (non-LBM) LES/RANS turbulence suite exists under `specialized/fluid_dynamics/turbulence/`, unrelated to the lattice-Boltzmann solvers. Unmarked from `[x]`.
+- [ ] Shan-Chen multiphase interaction — **discrepancy found 2026-07-15**: no "Shan", "shan_chen", or multiphase LBM code found anywhere in `src/`. Unmarked from `[x]`.
 
 ### Discontinuous Galerkin (DG)
 - [x] Modal DG on reference elements
 - [x] Nodal DG interpolation-based formulation
-- [x] Numerical fluxes: upwind, Lax-Friedrichs, Roe, HLLC
-- [x] hp-adaptivity: simultaneous mesh and degree refinement
+- [x] Numerical fluxes: upwind, Lax-Friedrichs, Roe, HLLC (spread across `src/dg.rs` [upwind, Lax-Friedrichs], `src/dg_advanced/types.rs` [Roe, HLLC enum variants], and `src/pde/dg_systems/hllc_euler.rs` [HLLC for Euler systems])
+- [ ] hp-adaptivity: simultaneous mesh and degree refinement — **discrepancy found 2026-07-15**: only p-refinement is evidenced (`p_refine_step` + `troubled_cell_indicator` in `src/dg_advanced/high_order_dg.rs`); no h-refinement (element/mesh refinement) for DG was found anywhere, so *combined* hp-adaptivity is not substantiated. Unmarked from `[x]`.
 
 ### Phase Field Models
 - [x] Cahn-Hilliard equation with semi-implicit time stepping
@@ -78,13 +78,13 @@
 ### Boundary Element Method (BEM)
 - [x] Laplace BEM for potential flow and heat conduction
 - [x] Helmholtz BEM for acoustic scattering
-- [x] Fast multipole BEM O(N log N)
-- [x] Galerkin and collocation formulations
+- [ ] Fast multipole BEM O(N log N) — **discrepancy found 2026-07-15**: no multipole/FMM code found anywhere in `src/`. Unmarked from `[x]`.
+- [ ] Galerkin and collocation formulations — **discrepancy found 2026-07-15**: `src/bem/solver.rs` explicitly documents itself as collocation-only ("The solver discretises the BIE using the collocation method: one equation per element..."); no separate Galerkin assembly path was found despite `src/bem/mod.rs`'s doc-comment claiming "full Galerkin/collocation solver". Unmarked from `[x]`.
 
 ### Isogeometric Analysis (IGA)
 - [x] B-spline and NURBS basis functions
-- [x] k-refinement for NURBS patches
-- [x] Structural IGA: shells, beams, solid mechanics
+- [ ] k-refinement for NURBS patches — **discrepancy found 2026-07-15**: no k-refinement code found in `src/iga/`. Unmarked from `[x]`.
+- [ ] Structural IGA: shells, beams, solid mechanics — **discrepancy found 2026-07-15**: no shell/beam/solid-mechanics code found; `src/iga/` provides `IGASolver1D`/`IGASolver2D`, generic 1D/2D boundary-value-problem solvers over B-spline/NURBS geometry, not a structural-mechanics layer. Unmarked from `[x]`.
 
 ### Port-Hamiltonian Discretization
 - [x] Discrete Dirac structures on staggered grids
@@ -178,7 +178,59 @@
 ## Known Issues
 
 - BDF order-5 may exhibit slow convergence near singular Jacobians; automatic order reduction to 3 recommended as workaround.
-- LBM Shan-Chen multiphase currently only supports D2Q9; D3Q19 multiphase is planned for v0.4.0.
-- IGA structural solver does not yet implement trimmed NURBS or multi-patch coupling.
-- Port-Hamiltonian BEM coupling is implemented but not yet verified against the BEM module's matrix assembly.
-- SPDE colored noise requires manual specification of the correlation kernel; automatic estimation is planned.
+- LBM multiphase (Shan-Chen) is not implemented yet, for either D2Q9 or D3Q19 — **corrected 2026-07-15**; the previous text claimed D2Q9 support already existed, which could not be verified anywhere in `src/`.
+- IGA does not yet include a structural-mechanics (shell/beam/solid) solver at all — **corrected 2026-07-15**; the previous text assumed a structural solver existed and was only missing trimmed NURBS / multi-patch support, but no structural-mechanics code was found in `src/iga/` to begin with.
+- No Port-Hamiltonian/BEM coupling code was found anywhere in `src/port_hamiltonian/` or `src/bem/` — **corrected 2026-07-15**; the previous text claimed such coupling was "implemented but not yet verified," but no cross-references between the two modules exist in source.
+- SPDE colored noise requires manual specification of the correlation length (`correlation_length` field in `spde::pathwise`); automatic estimation is planned.
+
+## Finance facade build-out (2026-07-07)
+
+- [x] **`specialized::finance` facade layer** — added `AdvancedMonteCarloEngine` (Sobol-sequence variance reduction via `VarianceReductionSuite`, wraps `mc_european_option` / `mc_asian_option` / `mc_barrier_option` / `mc_lookback_option` / `mc_greeks`), `RealTimeRiskMonitor` / `RiskDashboard` (`RiskAlert`, `RiskAlertType`, `AlertSeverity`, `RiskSnapshot`), `ExoticOptionPricer` (`ExoticOptionType`, `PricingMethod`, `PricingResult` — barrier/Asian/lookback/digital), and `RiskAnalyzer` / `PortfolioRiskMetrics` (historical VaR, Monte Carlo VaR, Greeks). These are facades wiring existing Monte Carlo / risk primitives behind a friendlier API, not new numerical methods; exported from `specialized::mod` and the crate root (`lib.rs`).
+  - Files: `src/specialized/finance/{advanced_monte_carlo_engine,realtime_risk_engine,exotic_options,risk_management}.rs`, `src/specialized/finance/mod.rs`, `src/specialized/mod.rs`, `src/lib.rs`.
+  - See "Proposed follow-ups" below for the three items (`QuantumInspiredRNG`, `RainbowPayoffType`, `StressScenario`) intentionally deferred from this build-out pending a design decision — those remain not-done.
+  - scirs2-integrate: 1,873 / 1,815 tests pass, 0 failed (all-features / default-features); re-verified 2026-07-15 via `cargo nextest run -p scirs2-integrate [--all-features]` — identical figures to the 2026-07-07 measurement. Both modes skip the same 4 tests (`#[ignore]`d PINN training tests in `src/pinn/high_level.rs`, reason "slow: PINN training exceeds test timeout"). The slowest passing tests in both modes are the finance Monte Carlo Greeks/parity tests (`specialized::finance::monte_carlo::tests::test_greeks_{delta_call_positive,delta_put_negative,vega_positive}`, `test_put_call_parity`), each 30-90s — expected, not hangs.
+
+## Proposed follow-ups
+
+Deferred from the `specialized::finance` facade build-out
+(`advanced_monte_carlo_engine`, `realtime_risk_engine`, `exotic_options`,
+`risk_management`) because each needs a concrete numerical-design decision
+before implementation, rather than being pure wiring over existing
+primitives:
+
+- **`QuantumInspiredRNG`** — the name has no clear existing reference to
+  port: there is no established, concrete "quantum-inspired" low-discrepancy
+  or pseudo-random generator algorithm specified anywhere in this codebase
+  or its design docs to wire up. Implementing it would mean inventing a new
+  generator from scratch (as opposed to `Sobol`, which already has a
+  working, tested implementation in `finance::monte_carlo::sobol_sequence`
+  that the new `advanced_monte_carlo_engine::VarianceReductionSuite` facade
+  does wire up). Needs: a decision on which concrete algorithm
+  "quantum-inspired RNG" refers to (e.g. quantum-walk-based low-discrepancy
+  sequences, QRNG-seeded PRNGs, or something else) before any implementation
+  can begin.
+- **`RainbowPayoffType`** — multi-asset, correlated-path Monte Carlo pricing
+  (rainbow/basket options such as best-of/worst-of/spread payoffs on
+  multiple correlated underlyings). This is genuinely new numerical work,
+  not just wiring: it requires simulating jointly correlated GBM paths
+  across N underlyings (Cholesky-correlated multi-asset path generation,
+  analogous to but distinct from the existing single-asset
+  `generate_gbm_paths` and the covariance-based `mc_portfolio_var` scenario
+  generator), plus a payoff-type enum covering the various rainbow
+  conventions (best-of-N call, worst-of-N put, spread, etc.) and their
+  respective discounting/averaging conventions. Needs: a decision on which
+  rainbow payoff conventions to support and the correlation/calibration
+  model (constant correlation matrix vs. time-varying) before
+  implementation.
+- **`StressScenario`** — portfolio-shock revaluation (e.g. "shock all
+  volatilities +20% and spot -10%, reprice the book"). This is genuinely new
+  numerical work: it requires a scenario-definition schema (which risk
+  factors can be shocked, additive vs. multiplicative shocks, correlated vs.
+  independent multi-factor shocks) and a full portfolio revaluation pipeline
+  that reprices every position type (vanilla, barrier, Asian, lookback,
+  digital, …) under the shocked market state and diffs against the base
+  case. `PortfolioRiskMetrics`/`RiskAnalyzer` (implemented in this
+  build-out) aggregate VaR/Greeks under the *current* market state only, and
+  intentionally do not attempt scenario revaluation. Needs: a decision on
+  the scenario schema and which position types must be revaluable under a
+  shock before implementation.

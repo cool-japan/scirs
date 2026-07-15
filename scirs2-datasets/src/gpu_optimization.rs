@@ -1,14 +1,36 @@
 //! Advanced GPU Optimization Engine
 //!
-//! This module provides cutting-edge GPU acceleration capabilities for dataset operations,
-//! featuring adaptive kernels, intelligent memory management, and advanced-high-performance
-//! computation strategies.
+//! This module provides GPU-aware optimization heuristics and *genuinely
+//! measured* execution paths for dataset operations: adaptive kernel
+//! selection, auto-tuning, and benchmarking that report only what was
+//! actually dispatched and timed on this process — never a fabricated
+//! speedup.
+//!
+//! ## Backend model
+//!
+//! [`AdvancedGpuOptimizer`] keeps this crate's own [`crate::gpu::GpuBackend`]
+//! / [`crate::gpu::GpuContext`] as its public backend-selection type: it is
+//! also the type used throughout the rest of this crate's GPU-flavored
+//! dataset generators and is re-exported at the crate root, so replacing it
+//! with `scirs2_core::gpu`'s (differently shaped, unit-variant-only) backend
+//! type would ripple far beyond this module.
+//!
+//! Requesting `GpuBackend::Cuda` or `GpuBackend::OpenCl` here does **not**
+//! dispatch vendor-specific kernels — both route through the same real,
+//! backend-agnostic `wgpu`/`GpuNdarray` compute path used by this crate's
+//! (crate-private) `generators::gpu_dispatch` module — see that module for
+//! the canonical pattern this file follows — with an honest, silent
+//! fallback to the CPU path whenever no adapter is present, the workload is
+//! too small to be worth transferring, or the `wgpu` feature is disabled at
+//! compile time. `GpuBackend::Cpu` never attempts a GPU dispatch, by design.
+//!
+//! For genuine vendor-specific NVIDIA CUDA execution via the pure-Rust
+//! `oxicuda-*` stack, see [`crate::gpu_cuda`] (feature = `"cuda"`) — a
+//! separate, additive path not currently wired into this optimizer.
 
 use crate::error::{DatasetsError, Result};
 use crate::gpu::{GpuBackend, GpuContext};
-use scirs2_core::ndarray::{Array2, Axis};
-// Use local GPU implementation to avoid feature flag issues
-// TODO: Re-enable core GPU integration when features are stabilized
+use scirs2_core::ndarray::Array2;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::{Distribution, Uniform};
@@ -138,6 +160,55 @@ pub enum LoadBalancingMethod {
     Adaptive,
 }
 
+/// Minimum element count to attempt a real GPU round trip; below this the
+/// host↔device transfer overhead dominates and CPU is both faster and
+/// simpler. Mirrors [`crate::generators::gpu_dispatch::GPU_DATASET_THRESHOLD`].
+const GPU_OPT_THRESHOLD: usize = 4096;
+
+/// Attempts one genuine wgpu upload → elementwise-scalar-multiply(×1.0) →
+/// download round trip for `data`, returning the real wall-clock duration of
+/// the attempt when it actually executed on a real adapter.
+///
+/// Mirrors the fallback contract used throughout this crate's real GPU
+/// paths (see [`crate::generators::gpu_dispatch`]): below
+/// [`GPU_OPT_THRESHOLD`], with no adapter present, or on any dispatch error,
+/// this returns `None` and the caller must treat the operation as CPU-only
+/// — it must never fabricate a GPU timing or speedup number from this
+/// result.
+#[cfg(feature = "wgpu")]
+fn attempt_gpu_round_trip(data: &[f64]) -> Option<std::time::Duration> {
+    use scirs2_core::array_protocol::gpu_ndarray::{global_context, is_gpu_available, GpuNdarray};
+    use std::time::Instant;
+
+    if data.len() < GPU_OPT_THRESHOLD || !is_gpu_available() {
+        return None;
+    }
+    let ctx = global_context()?;
+
+    let host: Vec<f32> = data.iter().map(|&v| v as f32).collect();
+    let expected_len = host.len();
+    let start = Instant::now();
+    let run = || -> std::result::Result<usize, scirs2_core::gpu::GpuError> {
+        let gpu =
+            GpuNdarray::<f32>::from_ndarray_data(&host, vec![expected_len], Arc::clone(&ctx))?;
+        let refined = gpu.multiply_by_scalar_f32(1.0)?;
+        let out = refined.to_vec()?;
+        Ok(out.len())
+    };
+    match run() {
+        Ok(len) if len == expected_len => Some(start.elapsed()),
+        _ => None,
+    }
+}
+
+/// CPU-only stub used when the `wgpu` feature is disabled: always reports
+/// "no GPU ran" rather than fabricating a timing.
+#[cfg(not(feature = "wgpu"))]
+fn attempt_gpu_round_trip(data: &[f64]) -> Option<std::time::Duration> {
+    let _ = data;
+    None
+}
+
 impl Default for AdvancedGpuOptimizer {
     fn default() -> Self {
         Self {
@@ -219,6 +290,15 @@ impl AdvancedGpuOptimizer {
     }
 
     /// Auto-tune GPU operation for optimal performance
+    ///
+    /// Block-size/work-group selection remains a pre-dispatch *planning*
+    /// heuristic (see [`Self::tune_cuda_block_size`] /
+    /// [`Self::tune_opencl_work_group_size`]) — `GpuNdarray`'s real kernels
+    /// use fixed internal workgroup sizes, so these values are advisory
+    /// metadata rather than something threaded into the actual dispatch.
+    /// `memory_bandwidth` and `compute_utilization`, however, now come from
+    /// [`Self::calibrate_backend_throughput`], a genuine timed dispatch —
+    /// they are never read from a per-operation-name lookup table.
     fn auto_tune_operation(
         &self,
         gpu_context: &GpuContext,
@@ -231,14 +311,13 @@ impl AdvancedGpuOptimizer {
         let optimal_block_size = match backend {
             GpuBackend::Cuda { .. } => self.tune_cuda_block_size(datashape),
             GpuBackend::OpenCl { .. } => self.tune_opencl_work_group_size(datashape),
-            _ => 256, // Default for other backends
+            GpuBackend::Cpu => 256, // Default for the CPU-only backend
         };
 
-        // Estimate memory bandwidth requirements
-        let memory_bandwidth = self.estimate_memory_bandwidth(operation, datashape);
-
-        // Estimate compute utilization
-        let compute_utilization = self.estimate_compute_utilization(operation, datashape);
+        // Genuinely measure backend throughput (real CPU generation, plus a
+        // real GPU round trip when the backend requests one and an adapter
+        // is present); never a fabricated formula.
+        let (memory_bandwidth, compute_utilization) = self.calibrate_backend_throughput(backend)?;
 
         // Determine optimal data layout
         let optimal_layout = self.determine_optimal_layout(operation, datashape);
@@ -257,6 +336,66 @@ impl AdvancedGpuOptimizer {
             optimal_layout,
             performance_score,
         })
+    }
+
+    /// Fixed calibration problem size (elements) used to genuinely measure
+    /// backend throughput once per (backend, operation, shape) cache entry.
+    ///
+    /// Deliberately shape-independent and bounded: measuring achieved
+    /// GB/s and elements/sec is a hardware-throughput characterization, not
+    /// something that needs to scale with the caller's requested matrix
+    /// size (mirroring how real benchmarking tools report a GB/s constant
+    /// for a device rather than reporting a number proportional to problem
+    /// size). It is comfortably above
+    /// [`crate::generators::gpu_dispatch::GPU_DATASET_THRESHOLD`] so the
+    /// real wgpu path is genuinely exercised whenever an adapter is present.
+    const CALIBRATION_SIDE: usize = 128;
+
+    /// Run one genuine, timed dispatch — real CPU generation, plus (for a
+    /// non-CPU backend) a real GPU upload/kernel/download round trip when an
+    /// adapter is available — and derive `(memory_bandwidth_gb_s,
+    /// compute_utilization)` from the *actual* elapsed time.
+    ///
+    /// Replaces the historical per-operation-name lookup tables entirely.
+    /// On any GPU error, this silently falls back to reporting the CPU-only
+    /// measurement rather than propagating an error or fabricating a number
+    /// — consistent with the "never panic, never invent a metric" contract
+    /// used by [`crate::generators::gpu_dispatch`].
+    fn calibrate_backend_throughput(&self, backend: &GpuBackend) -> Result<(f64, f64)> {
+        use std::time::Instant;
+
+        let side = Self::CALIBRATION_SIDE;
+        let elements = side * side;
+
+        let start = Instant::now();
+        let sample = self.execute_advanced_cpu_generation(side, side, "uniform")?;
+        if !matches!(backend, GpuBackend::Cpu) {
+            // Best-effort: a failed/unavailable GPU round trip simply means
+            // the elapsed time below reflects the CPU-only calibration,
+            // which is still an honest measurement.
+            let _ = attempt_gpu_round_trip(sample.as_slice().unwrap_or(&[]));
+        }
+        let elapsed = start.elapsed();
+
+        let memory_bandwidth = self.calculate_memory_bandwidth(elements, elapsed);
+        let compute_utilization = self.utilization_from_timing(elements, elapsed);
+        Ok((memory_bandwidth, compute_utilization))
+    }
+
+    /// Normalizes a genuinely measured elements/second rate into a `[0, 1]`
+    /// utilization score, using the same 100M-elements/sec reference
+    /// constant that [`Self::calculate_performance_score_from_timing`]
+    /// already applies to cached results (100M elements/sec == fully
+    /// saturated for scoring purposes). This is a documented scoring
+    /// convention derived from a real timing, never a per-operation-name
+    /// lookup disconnected from any measurement.
+    fn utilization_from_timing(&self, elements: usize, duration: std::time::Duration) -> f64 {
+        let elements_per_second = if duration.as_secs_f64() > 0.0 {
+            elements as f64 / duration.as_secs_f64()
+        } else {
+            0.0
+        };
+        (elements_per_second / 100_000_000.0).min(1.0)
     }
 
     /// Tune CUDA block size for optimal performance
@@ -287,25 +426,16 @@ impl AdvancedGpuOptimizer {
         }
     }
 
-    /// Estimate memory bandwidth requirements
-    fn estimate_memory_bandwidth(&self, operation: &str, datashape: (usize, usize)) -> f64 {
-        let total_elements = datashape.0 * datashape.1;
-        let bytes_per_element = 8; // f64
-
-        // Different operations have different memory access patterns
-        let access_factor = match operation {
-            "matrix_multiply" => 3.0, // Read A, read B, write C
-            "element_wise" => 2.0,    // Read input, write output
-            "reduction" => 1.5,       // Read input, partial writes
-            "transpose" => 2.0,       // Read input, write output
-            _ => 2.0,                 // Default
-        };
-
-        let total_bytes = total_elements * bytes_per_element;
-        total_bytes as f64 * access_factor
-    }
-
-    /// Estimate compute utilization
+    /// Heuristic compute-intensity feature for the simplified linear AI
+    /// predictor ([`AIPerformancePredictor`]) used by
+    /// [`AdvancedGpuOptimizer::predict_optimal_config`] below.
+    ///
+    /// This is deliberately **not** used anywhere in the genuinely-measured
+    /// path ([`Self::calibrate_backend_throughput`] /
+    /// [`Self::auto_tune_operation`] / [`Self::benchmark_performance`]) — it
+    /// is a hand-engineered ML *input feature* (same spirit as feature
+    /// engineering for any small predictive model), not a claimed
+    /// measurement of real hardware behavior.
     fn estimate_compute_utilization(&self, operation: &str, datashape: (usize, usize)) -> f64 {
         let total_elements = datashape.0 * datashape.1;
 
@@ -397,7 +527,10 @@ impl AdvancedGpuOptimizer {
             memory_pattern,
             vectorization,
             load_balancing,
-            block_size: 256,
+            // Use the actually-tuned block size (previously this hardcoded
+            // 256 regardless of `profile.optimal_block_size`, silently
+            // discarding the auto-tuner's recommendation).
+            block_size: profile.optimal_block_size,
         }
     }
 
@@ -444,136 +577,42 @@ impl AdvancedGpuOptimizer {
     }
 
     /// Execute optimized matrix generation
+    ///
+    /// Random draws always happen host-side (matching the documented
+    /// convention in [`crate::generators::gpu_dispatch`]: distribution
+    /// semantics require the RNG to run on the CPU). When the configured
+    /// backend is not [`GpuBackend::Cpu`], this additionally performs a
+    /// genuine wgpu upload/kernel/download round trip over the freshly
+    /// generated data — real hardware exercise and real timing, contributing
+    /// to the honest performance cache — and gracefully (silently) continues
+    /// with the CPU-generated values if no adapter is available or the
+    /// dispatch errors. `GpuBackend::Cpu` never attempts this.
     fn execute_optimized_generation(
         &self,
         gpu_context: &GpuContext,
         rows: usize,
         cols: usize,
         distribution: &str,
-        config: &AdvancedKernelConfig,
-    ) -> Result<Array2<f64>> {
-        match gpu_context.backend() {
-            GpuBackend::Cuda { .. } => {
-                self.execute_cuda_generation(rows, cols, distribution, config)
-            }
-            GpuBackend::OpenCl { .. } => {
-                self.execute_opencl_generation(rows, cols, distribution, config)
-            }
-            _ => self.execute_cpu_fallback(rows, cols, distribution),
-        }
-    }
-
-    /// Execute CUDA-optimized generation with real GPU kernels
-    fn execute_cuda_generation(
-        &self,
-        rows: usize,
-        cols: usize,
-        distribution: &str,
-        config: &AdvancedKernelConfig,
+        _config: &AdvancedKernelConfig,
     ) -> Result<Array2<f64>> {
         use std::time::Instant;
 
         let total_elements = rows * cols;
         let start_time = Instant::now();
 
-        // Attempt real GPU implementation
-        match self.execute_real_cuda_kernel(rows, cols, distribution, config) {
-            Ok(result) => {
-                // Cache performance data for future optimizations
-                self.cache_gpu_performance("cuda_generation", total_elements, start_time.elapsed());
-                Ok(result)
-            }
-            Err(_) => {
-                // Fall back to advanced-optimized CPU if GPU fails
-                self.execute_advanced_cpu_generation(rows, cols, distribution)
-            }
-        }
-    }
+        let matrix = self.execute_advanced_cpu_generation(rows, cols, distribution)?;
 
-    /// Real CUDA kernel implementation for matrix generation
-    fn execute_real_cuda_kernel(
-        &self,
-        rows: usize,
-        cols: usize,
-        distribution: &str,
-        config: &AdvancedKernelConfig,
-    ) -> Result<Array2<f64>> {
-        // Simulate GPU memory allocation and kernel execution
-        // In a real implementation, this would use actual CUDA APIs
-        let total_elements = rows * cols;
+        let used_gpu = !matches!(gpu_context.backend(), GpuBackend::Cpu)
+            && attempt_gpu_round_trip(matrix.as_slice().unwrap_or(&[])).is_some();
 
-        // GPU memory allocation (simulated)
-        let gpu_memory_required = total_elements * std::mem::size_of::<f64>();
-        if gpu_memory_required > self.get_available_gpu_memory() {
-            return Err(DatasetsError::ComputationError(
-                "Insufficient GPU memory for operation".to_string(),
-            ));
-        }
-
-        // Kernel parameters optimization
-        let block_size = config.block_size.min(1024); // CUDA max block size
-        let _grid_size = total_elements.div_ceil(block_size);
-
-        // Execute distribution-specific kernel
-        let kernelname = match distribution {
-            "normal" => "curand_normal_kernel",
-            "uniform" => "curand_uniform_kernel",
-            "exponential" => "curand_exponential_kernel",
-            _ => "curand_uniform_kernel", // Default
+        let label = if used_gpu {
+            "gpu_generation"
+        } else {
+            "cpu_generation"
         };
+        self.cache_gpu_performance(label, total_elements, start_time.elapsed());
 
-        // Simulate kernel execution with realistic timing
-        let execution_time = self.estimate_cuda_kernel_time(total_elements, kernelname);
-        std::thread::sleep(std::time::Duration::from_nanos(
-            (execution_time * 1_000_000.0) as u64,
-        ));
-
-        // Generate result using optimized CPU method as GPU simulation
-        let mut result = self.execute_advanced_cpu_generation(rows, cols, distribution)?;
-
-        // Apply GPU-specific optimizations (memory coalescing simulation)
-        self.apply_gpu_memory_coalescing_optimization(&mut result);
-
-        Ok(result)
-    }
-
-    /// Simulate GPU memory coalescing optimization
-    fn apply_gpu_memory_coalescing_optimization(&self, data: &mut Array2<f64>) {
-        // Simulate memory access pattern optimization that would occur on GPU
-        let _rows_cols = data.dim();
-
-        // For GPU efficiency, ensure data access patterns are optimized
-        // This is a simulation of what actual GPU kernels would achieve
-        for row in data.axis_iter_mut(Axis(0)) {
-            // Simulate coalesced memory access by processing contiguous elements
-            let _optimized_access = row.as_slice().unwrap_or(&[]);
-        }
-    }
-
-    /// Get available GPU memory (simulated)
-    fn get_available_gpu_memory(&self) -> usize {
-        // Simulate checking GPU memory availability
-        // In real implementation, this would query actual GPU
-        8 * 1024 * 1024 * 1024 // 8GB simulated
-    }
-
-    /// Estimate CUDA kernel execution time based on operation
-    fn estimate_cuda_kernel_time(&self, elements: usize, kernelname: &str) -> f64 {
-        let base_time_per_element = match kernelname {
-            "curand_normal_kernel" => 0.001, // microseconds per element
-            "curand_uniform_kernel" => 0.0008,
-            "curand_exponential_kernel" => 0.0012,
-            _ => 0.001,
-        };
-
-        // GPU parallel efficiency factor
-        let parallel_efficiency = 0.85; // 85% efficiency
-        let gpu_cores = 2048.0; // Simulate modern GPU
-
-        let serial_time = elements as f64 * base_time_per_element;
-        let parallel_time = serial_time / (gpu_cores * parallel_efficiency);
-
-        parallel_time.max(0.01) // Minimum 0.01ms overhead
+        Ok(matrix)
     }
 
     /// Cache GPU performance data for adaptive optimization
@@ -588,7 +627,7 @@ impl AdvancedGpuOptimizer {
             let profile = GpuPerformanceProfile {
                 optimal_block_size: self.calculate_optimal_block_size(elements),
                 memory_bandwidth: self.calculate_memory_bandwidth(elements, duration),
-                compute_utilization: self.estimate_compute_utilization(operation, (elements, 1)),
+                compute_utilization: self.utilization_from_timing(elements, duration),
                 optimal_layout: DataLayout::RowMajor, // Default for most operations
                 performance_score: self.calculate_performance_score_from_timing(elements, duration),
             };
@@ -635,190 +674,6 @@ impl AdvancedGpuOptimizer {
         (elements_per_second / 1_000_000.0).min(100.0)
     }
 
-    /// Execute OpenCL-optimized generation with real GPU kernels
-    fn execute_opencl_generation(
-        &self,
-        rows: usize,
-        cols: usize,
-        distribution: &str,
-        config: &AdvancedKernelConfig,
-    ) -> Result<Array2<f64>> {
-        use std::time::Instant;
-
-        let total_elements = rows * cols;
-        let start_time = Instant::now();
-
-        // Attempt real OpenCL implementation
-        match self.execute_real_opencl_kernel(rows, cols, distribution, config) {
-            Ok(result) => {
-                // Cache performance data for future optimizations
-                self.cache_gpu_performance(
-                    "opencl_generation",
-                    total_elements,
-                    start_time.elapsed(),
-                );
-                Ok(result)
-            }
-            Err(_) => {
-                // Fall back to advanced-optimized CPU if GPU fails
-                self.execute_advanced_cpu_generation(rows, cols, distribution)
-            }
-        }
-    }
-
-    /// Real OpenCL kernel implementation for matrix generation
-    fn execute_real_opencl_kernel(
-        &self,
-        rows: usize,
-        cols: usize,
-        distribution: &str,
-        config: &AdvancedKernelConfig,
-    ) -> Result<Array2<f64>> {
-        let total_elements = rows * cols;
-
-        // OpenCL memory allocation (simulated)
-        let gpu_memory_required = total_elements * std::mem::size_of::<f64>();
-        if gpu_memory_required > self.get_available_gpu_memory() {
-            return Err(DatasetsError::ComputationError(
-                "Insufficient GPU memory for OpenCL operation".to_string(),
-            ));
-        }
-
-        // OpenCL work group optimization
-        let work_group_size = config.block_size.min(256); // OpenCL typical max
-        let _global_work_size = total_elements.div_ceil(work_group_size) * work_group_size;
-
-        // Distribution-specific OpenCL kernel selection
-        let _kernel_source = self.generate_opencl_kernel_source(distribution);
-
-        // Simulate OpenCL kernel compilation and execution
-        let execution_time = self.estimate_opencl_kernel_time(total_elements, distribution);
-        std::thread::sleep(std::time::Duration::from_nanos(
-            (execution_time * 1_000_000.0) as u64,
-        ));
-
-        // Generate result using optimized CPU method as OpenCL simulation
-        let mut result = self.execute_advanced_cpu_generation(rows, cols, distribution)?;
-
-        // Apply OpenCL-specific optimizations
-        self.apply_opencl_memory_optimizations(&mut result, work_group_size);
-
-        Ok(result)
-    }
-
-    /// Generate OpenCL kernel source code for the given distribution
-    fn generate_opencl_kernel_source(&self, distribution: &str) -> String {
-        match distribution {
-            "normal" => {
-                r#"
-                __kernel void generate_normal(__global float* output, uint seed, uint n) {
-                    int gid = get_global_id(0);
-                    if (gid >= n) return;
-                    
-                    // Box-Muller transform for normal distribution
-                    uint rng_state = seed + gid;
-                    float u1 = uniform_random(&rng_state);
-                    float u2 = uniform_random(&rng_state);
-                    
-                    float normal = sqrt(-2.0f * log(u1)) * cos(2.0f * M_PI * u2);
-                    output[gid] = normal;
-                }
-                "#.to_string()
-            }
-            "uniform" => {
-                r#"
-                __kernel void generate_uniform(__global float* output, uint seed, uint n) {
-                    int gid = get_global_id(0);
-                    if (gid >= n) return;
-                    
-                    uint rng_state = seed + gid;
-                    output[gid] = uniform_random(&rng_state);
-                }
-                "#.to_string()
-            }
-            "exponential" => {
-                r#"
-                __kernel void generate_exponential(__global float* output, uint seed, uint n, float lambda) {
-                    int gid = get_global_id(0);
-                    if (gid >= n) return;
-                    
-                    uint rng_state = seed + gid;
-                    float u = uniform_random(&rng_state);
-                    output[gid] = -log(1.0f - u) / lambda;
-                }
-                "#.to_string()
-            }
-            _ => {
-                // Default to uniform
-                r#"
-                __kernel void generate_uniform(__global float* output, uint seed, uint n) {
-                    int gid = get_global_id(0);
-                    if (gid >= n) return;
-                    
-                    uint rng_state = seed + gid;
-                    output[gid] = uniform_random(&rng_state);
-                }
-                "#.to_string()
-            }
-        }
-    }
-
-    /// Estimate OpenCL kernel execution time
-    fn estimate_opencl_kernel_time(&self, elements: usize, distribution: &str) -> f64 {
-        let base_time_per_element = match distribution {
-            "normal" => 0.0015, // microseconds per element (more complex than CUDA)
-            "uniform" => 0.0012,
-            "exponential" => 0.0018,
-            _ => 0.0012,
-        };
-
-        // OpenCL typically has more overhead than CUDA
-        let parallel_efficiency = 0.75; // 75% efficiency (lower than CUDA)
-        let gpu_compute_units = 32.0; // Typical OpenCL compute units
-        let work_items_per_cu = 64.0;
-
-        let total_work_items = gpu_compute_units * work_items_per_cu;
-        let serial_time = elements as f64 * base_time_per_element;
-        let parallel_time = serial_time / (total_work_items * parallel_efficiency);
-
-        parallel_time.max(0.02) // Minimum 0.02ms overhead (higher than CUDA)
-    }
-
-    /// Apply OpenCL-specific memory optimizations
-    fn apply_opencl_memory_optimizations(&self, data: &mut Array2<f64>, work_groupsize: usize) {
-        let (rows, cols) = data.dim();
-
-        // Simulate OpenCL local memory optimization
-        let optimal_tile_size = work_groupsize.min(16); // Typical tile _size for OpenCL
-
-        // Process in tiles that fit OpenCL work group _size
-        for row_chunk in (0..rows).step_by(optimal_tile_size) {
-            let end_row = (row_chunk + optimal_tile_size).min(rows);
-            for col_chunk in (0..cols).step_by(optimal_tile_size) {
-                let end_col = (col_chunk + optimal_tile_size).min(cols);
-
-                // Simulate tiled processing that would occur in OpenCL local memory
-                for row in row_chunk..end_row {
-                    for col in col_chunk..end_col {
-                        // Memory access pattern optimization simulation
-                        let _value = data[[row, col]];
-                        // In real OpenCL, this would be processed in local memory
-                    }
-                }
-            }
-        }
-    }
-
-    /// Execute CPU fallback
-    fn execute_cpu_fallback(
-        &self,
-        rows: usize,
-        cols: usize,
-        distribution: &str,
-    ) -> Result<Array2<f64>> {
-        self.execute_advanced_cpu_generation(rows, cols, distribution)
-    }
-
     /// Execute advanced-optimized CPU generation with SIMD
     fn execute_advanced_cpu_generation(
         &self,
@@ -862,81 +717,56 @@ impl AdvancedGpuOptimizer {
     }
 
     /// Benchmark GPU vs CPU performance
+    ///
+    /// Every timing in the returned [`BenchmarkResult`] is a genuine
+    /// `Instant`-measured wall-clock duration. `gpu_time_ms` / `speedup` are
+    /// `None` whenever the configured backend is [`GpuBackend::Cpu`] or no
+    /// adapter accepted the workload — this crate never reports a
+    /// fabricated ratio (the historical implementation hardcoded a hard
+    /// 0.1×/0.2× "10x/5x speedup" factor for Cuda/OpenCl regardless of
+    /// whether any GPU work actually happened).
     pub fn benchmark_performance(
         &self,
         gpu_context: &GpuContext,
         operation: &str,
         datashapes: &[(usize, usize)],
     ) -> Result<PerformanceBenchmarkResults> {
+        use std::time::Instant;
+
         let mut results = Vec::new();
 
         for &shape in datashapes {
-            let gpu_config = self.optimize_execution(gpu_context, operation, shape)?;
+            // Keep the auto-tuning cache populated for this shape (existing
+            // contract); the tuned config itself isn't needed further here
+            // since dispatch below is unified across backends.
+            let _config = self.optimize_execution(gpu_context, operation, shape)?;
 
-            // Simulate performance measurement
-            let gpu_time =
-                self.simulate_gpu_execution_time(gpu_context, operation, shape, &gpu_config);
-            let cpu_time = self.simulate_cpu_execution_time(operation, shape);
+            let cpu_start = Instant::now();
+            let cpu_matrix = self.execute_advanced_cpu_generation(shape.0, shape.1, "uniform")?;
+            let cpu_time_ms = cpu_start.elapsed().as_secs_f64() * 1000.0;
+
+            let gpu_time_ms = if matches!(gpu_context.backend(), GpuBackend::Cpu) {
+                None
+            } else {
+                attempt_gpu_round_trip(cpu_matrix.as_slice().unwrap_or(&[]))
+                    .map(|d| d.as_secs_f64() * 1000.0)
+            };
+
+            // Only ever a real ratio of two measured durations, and only
+            // when the GPU genuinely ran (guarding against division by a
+            // measured-zero duration too).
+            let speedup = gpu_time_ms.filter(|&g| g > 0.0).map(|g| cpu_time_ms / g);
 
             results.push(BenchmarkResult {
                 datashape: shape,
-                gpu_time_ms: gpu_time,
-                cpu_time_ms: cpu_time,
-                speedup: cpu_time / gpu_time,
+                cpu_time_ms,
+                gpu_time_ms,
+                speedup,
                 memory_usage_mb: self.estimate_memory_usage(shape),
             });
         }
 
         Ok(PerformanceBenchmarkResults { results })
-    }
-
-    /// Simulate GPU execution time
-    fn simulate_gpu_execution_time(
-        &self,
-        gpu_context: &GpuContext,
-        operation: &str,
-        shape: (usize, usize),
-        config: &AdvancedKernelConfig,
-    ) -> f64 {
-        let base_time = self.base_execution_time(operation, shape);
-
-        // Apply GPU acceleration factors
-        let gpu_factor = match gpu_context.backend() {
-            GpuBackend::Cuda { .. } => 0.1,   // 10x speedup
-            GpuBackend::OpenCl { .. } => 0.2, // 5x speedup
-            _ => 1.0,                         // No speedup for CPU backend
-        };
-
-        // Apply optimization factors
-        let optimization_factor = match config.specialization_level {
-            SpecializationLevel::AdvancedSpecialized => 0.5,
-            SpecializationLevel::HardwareOptimized => 0.7,
-            SpecializationLevel::Basic => 1.0,
-            SpecializationLevel::AIOptimized => 0.3,
-        };
-
-        base_time * gpu_factor * optimization_factor
-    }
-
-    /// Simulate CPU execution time
-    fn simulate_cpu_execution_time(&self, operation: &str, shape: (usize, usize)) -> f64 {
-        self.base_execution_time(operation, shape)
-    }
-
-    /// Calculate base execution time
-    fn base_execution_time(&self, operation: &str, shape: (usize, usize)) -> f64 {
-        let total_elements = shape.0 * shape.1;
-
-        // Rough time estimates in milliseconds
-        let base_time_per_element = match operation {
-            "matrix_multiply" => 0.001,
-            "element_wise" => 0.0001,
-            "reduction" => 0.0005,
-            "trigonometric" => 0.01,
-            _ => 0.001,
-        };
-
-        total_elements as f64 * base_time_per_element
     }
 
     /// Estimate memory usage
@@ -959,33 +789,52 @@ pub struct PerformanceBenchmarkResults {
 pub struct BenchmarkResult {
     /// Data shape (rows, cols)
     pub datashape: (usize, usize),
-    /// GPU execution time in milliseconds
-    pub gpu_time_ms: f64,
-    /// CPU execution time in milliseconds
+    /// CPU execution time in milliseconds — always measured, since the
+    /// baseline generation always genuinely runs on the host.
     pub cpu_time_ms: f64,
-    /// Speedup factor (cpu_time / gpu_time)
-    pub speedup: f64,
+    /// GPU execution time in milliseconds, present only when a real GPU
+    /// dispatch actually executed (the configured backend was not
+    /// [`GpuBackend::Cpu`] *and* a wgpu adapter genuinely accepted the
+    /// workload). `None` — never a fabricated number — otherwise.
+    pub gpu_time_ms: Option<f64>,
+    /// Speedup factor (`cpu_time_ms / gpu_time_ms`), present only alongside
+    /// `gpu_time_ms`. `None` on CPU-only runs or when no adapter was
+    /// available: this crate never reports an invented ratio when no GPU
+    /// dispatch actually happened.
+    pub speedup: Option<f64>,
     /// Memory usage in MB
     pub memory_usage_mb: f64,
 }
 
 impl PerformanceBenchmarkResults {
-    /// Get the best speedup achieved
-    pub fn best_speedup(&self) -> f64 {
+    /// Best speedup actually measured across all benchmarked shapes.
+    ///
+    /// `None` if no shape triggered a real GPU dispatch (CPU-only backend,
+    /// or no adapter was available at run time) — never a fabricated
+    /// fallback value such as `1.0`.
+    pub fn best_speedup(&self) -> Option<f64> {
         self.results
             .iter()
-            .map(|r| r.speedup)
-            .fold(0.0, |a, b| a.max(b))
+            .filter_map(|r| r.speedup)
+            .fold(None, |acc, s| Some(acc.map_or(s, |a: f64| a.max(s))))
     }
 
-    /// Get the average speedup
-    pub fn average_speedup(&self) -> f64 {
-        if self.results.is_empty() {
-            return 0.0;
-        }
+    /// Average of the actually-measured speedups.
+    ///
+    /// `None` if none of the benchmarked shapes triggered a real GPU
+    /// dispatch.
+    pub fn average_speedup(&self) -> Option<f64> {
+        let (total, count) = self
+            .results
+            .iter()
+            .filter_map(|r| r.speedup)
+            .fold((0.0, 0usize), |(total, count), s| (total + s, count + 1));
 
-        let total_speedup: f64 = self.results.iter().map(|r| r.speedup).sum();
-        total_speedup / self.results.len() as f64
+        if count == 0 {
+            None
+        } else {
+            Some(total / count as f64)
+        }
     }
 
     /// Get total memory usage
@@ -1629,6 +1478,7 @@ impl AdvancedGpuOptimizer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gpu::GpuConfig;
 
     #[test]
     fn test_advanced_gpu_optimizer_creation() {
@@ -1651,5 +1501,167 @@ mod tests {
         assert!(result.is_ok());
         let matrix = result.expect("Operation failed");
         assert_eq!(matrix.shape(), &[10, 10]);
+    }
+
+    /// Regression test for a latent bug found while removing the
+    /// simulation: `profile_to_kernel_config` used to hardcode
+    /// `block_size: 256` unconditionally, silently discarding
+    /// `profile.optimal_block_size`. A tuned profile recommending 512 must
+    /// now actually propagate into the returned config.
+    #[test]
+    fn test_profile_to_kernel_config_uses_tuned_block_size_not_hardcoded() {
+        let optimizer = AdvancedGpuOptimizer::new();
+        let profile = GpuPerformanceProfile {
+            optimal_block_size: 512,
+            memory_bandwidth: 1e9,
+            compute_utilization: 0.9,
+            optimal_layout: DataLayout::RowMajor,
+            performance_score: 0.9,
+        };
+        let config = optimizer.profile_to_kernel_config(&profile);
+        assert_eq!(config.block_size, 512);
+
+        let profile_small = GpuPerformanceProfile {
+            optimal_block_size: 32,
+            ..profile
+        };
+        let config_small = optimizer.profile_to_kernel_config(&profile_small);
+        assert_eq!(config_small.block_size, 32);
+        assert_ne!(config_small.block_size, config.block_size);
+    }
+
+    /// Confirms `benchmark_performance` never fabricates a speedup: on an
+    /// explicitly CPU-only backend no GPU dispatch is ever attempted, so
+    /// every result must honestly report `None` — not the historical
+    /// hardcoded 0.1/0.2 CUDA/OpenCL "10x/5x speedup" factors, nor a
+    /// disguised `1.0`. Also confirms reported numbers genuinely scale with
+    /// the workload (memory usage) rather than being fixed constants.
+    #[test]
+    fn test_benchmark_performance_reports_real_measurements_not_fabricated_speedup() {
+        let optimizer = AdvancedGpuOptimizer::new();
+        let gpu_context = GpuContext::new(GpuConfig {
+            backend: GpuBackend::Cpu,
+            threads_per_block: 1,
+            ..Default::default()
+        })
+        .expect("CPU GpuContext should always construct");
+
+        let shapes = [(20, 20), (300, 300)];
+        let results = optimizer
+            .benchmark_performance(&gpu_context, "matrix_generation", &shapes)
+            .expect("benchmark_performance should succeed");
+
+        assert_eq!(results.results.len(), 2);
+        for r in &results.results {
+            assert!(
+                r.gpu_time_ms.is_none(),
+                "CPU-only backend must never report a GPU time"
+            );
+            assert!(
+                r.speedup.is_none(),
+                "CPU-only backend must never report a fabricated speedup"
+            );
+            assert!(r.cpu_time_ms >= 0.0 && r.cpu_time_ms.is_finite());
+        }
+        assert!(results.best_speedup().is_none());
+        assert!(results.average_speedup().is_none());
+
+        // memory_usage_mb is a deterministic function of shape (not
+        // timing), so this is a flake-free way to prove the two results
+        // genuinely differ with the workload rather than being constants.
+        let small_mem = results.results[0].memory_usage_mb;
+        let large_mem = results.results[1].memory_usage_mb;
+        assert!(large_mem > small_mem * 100.0);
+    }
+
+    /// `auto_tune_operation` used to synthesize `memory_bandwidth` and
+    /// `compute_utilization` from static per-operation-name lookup tables
+    /// (e.g. `"trigonometric" => 10.0` compute intensity, regardless of any
+    /// real dispatch). Both now come from a genuinely timed calibration;
+    /// sanity-check the results are real, finite, in-range numbers, and
+    /// that the operation/shape-sensitive planning fields
+    /// (`optimal_layout`) still vary as they did before.
+    #[test]
+    fn test_auto_tuned_profile_is_internally_consistent_real_measurement() {
+        let optimizer = AdvancedGpuOptimizer::new();
+        let gpu_context = GpuContext::new(GpuConfig {
+            backend: GpuBackend::Cpu,
+            threads_per_block: 1,
+            ..Default::default()
+        })
+        .expect("CPU GpuContext should always construct");
+
+        let profile_matmul = optimizer
+            .auto_tune_operation(&gpu_context, "matrix_multiply", (64, 64))
+            .expect("auto_tune_operation should succeed");
+        let profile_trig = optimizer
+            .auto_tune_operation(&gpu_context, "trigonometric", (64, 64))
+            .expect("auto_tune_operation should succeed");
+
+        for profile in [&profile_matmul, &profile_trig] {
+            assert!(profile.memory_bandwidth.is_finite());
+            assert!(profile.memory_bandwidth >= 0.0);
+            assert!((0.0..=1.0).contains(&profile.compute_utilization));
+            assert!((0.0..=1.0).contains(&profile.performance_score));
+        }
+
+        // Planning (not measurement) still legitimately varies by
+        // operation name: "matrix_multiply" at this shape recommends
+        // RowMajor, while an unrecognized operation like "trigonometric"
+        // falls back to Adaptive.
+        assert!(matches!(
+            profile_matmul.optimal_layout,
+            DataLayout::RowMajor
+        ));
+        assert!(matches!(profile_trig.optimal_layout, DataLayout::Adaptive));
+    }
+
+    /// When a real wgpu adapter is present (verified via the same probe the
+    /// production path uses), requesting a non-CPU backend for a
+    /// large-enough workload must produce a genuinely measured speedup —
+    /// never one of the historical hardcoded 0.1×/0.2× factors (whose
+    /// exact reciprocals are 10.0/5.0). When no adapter is available this
+    /// degrades gracefully to `None`, per the crate-wide fallback contract.
+    #[test]
+    fn test_gpu_backend_speedup_reflects_real_dispatch_when_available() {
+        #[cfg(feature = "wgpu")]
+        {
+            use scirs2_core::array_protocol::gpu_ndarray::is_gpu_available;
+            if !is_gpu_available() {
+                eprintln!("skipping: no wgpu adapter available in this environment");
+                return;
+            }
+
+            let optimizer = AdvancedGpuOptimizer::new();
+            let gpu_context = GpuContext::new(GpuConfig {
+                backend: GpuBackend::Cuda { device_id: 0 },
+                ..Default::default()
+            })
+            .expect("Cuda-flavored GpuContext should construct (query is simulated device info, no real NVIDIA driver required)");
+
+            // 128 x 128 = 16,384 elements: above GPU_OPT_THRESHOLD (4096).
+            let shapes = [(128, 128)];
+            let results = optimizer
+                .benchmark_performance(&gpu_context, "matrix_generation", &shapes)
+                .expect("benchmark_performance should succeed");
+
+            let r = &results.results[0];
+            assert!(
+                r.gpu_time_ms.is_some(),
+                "expected a real GPU dispatch to have run"
+            );
+            assert!(r.gpu_time_ms.expect("checked above") > 0.0);
+            if let Some(speedup) = r.speedup {
+                assert!(speedup > 0.0 && speedup.is_finite());
+                assert!(
+                    (speedup - 10.0).abs() > 1e-9,
+                    "matches old hardcoded CUDA factor"
+                );
+                assert!(
+                    (speedup - 5.0).abs() > 1e-9,
+                    "matches old hardcoded OpenCL factor"
+                );
+            }
+        }
     }
 }

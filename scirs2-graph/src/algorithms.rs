@@ -66,31 +66,40 @@ pub use community::{
 };
 
 // Legacy community detection APIs - deprecated
-#[deprecated(note = "Use `louvain_communities_result` instead")]
+#[deprecated(since = "0.1.0", note = "Use `louvain_communities_result` instead")]
 #[allow(deprecated)]
 pub use community::louvain_communities;
 
-#[deprecated(note = "Use `label_propagation_result` instead")]
+#[deprecated(since = "0.1.0", note = "Use `label_propagation_result` instead")]
 #[allow(deprecated)]
 pub use community::label_propagation;
 
-#[deprecated(note = "Use `fluid_communities_result` instead")]
+#[deprecated(since = "0.1.0", note = "Use `fluid_communities_result` instead")]
 #[allow(deprecated)]
 pub use community::fluid_communities;
 
-#[deprecated(note = "Use `hierarchical_communities_result` instead")]
+#[deprecated(
+    since = "0.1.0",
+    note = "Use `hierarchical_communities_result` instead"
+)]
 #[allow(deprecated)]
 pub use community::hierarchical_communities;
 
-#[deprecated(note = "Use `modularity_optimization_result` instead")]
+#[deprecated(since = "0.1.0", note = "Use `modularity_optimization_result` instead")]
 #[allow(deprecated)]
 pub use community::modularity_optimization;
 
-#[deprecated(note = "Use `greedy_modularity_optimization_result` instead")]
+#[deprecated(
+    since = "0.1.0",
+    note = "Use `greedy_modularity_optimization_result` instead"
+)]
 #[allow(deprecated)]
 pub use community::greedy_modularity_optimization;
 
-#[deprecated(note = "Use `parallel_louvain_communities_result` instead")]
+#[deprecated(
+    since = "0.1.0",
+    note = "Use `parallel_louvain_communities_result` instead"
+)]
 #[allow(deprecated)]
 pub use community::parallel_louvain_communities;
 pub use connectivity::*;

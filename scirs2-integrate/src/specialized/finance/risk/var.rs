@@ -231,7 +231,7 @@ impl MonteCarloVaR {
 }
 
 /// Approximate inverse normal CDF (for parametric VaR)
-fn inverse_normal_cdf(p: f64) -> f64 {
+pub(crate) fn inverse_normal_cdf(p: f64) -> f64 {
     // Beasley-Springer-Moro algorithm approximation
     let a = [
         -3.969683028665376e+01,

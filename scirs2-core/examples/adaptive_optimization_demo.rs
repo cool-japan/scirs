@@ -397,21 +397,20 @@ fn demo_basic_adaptive_optimization() -> CoreResult<()> {
 
     // Get workload-specific hints
     println!("\n🎯 Workload-Specific Optimization Hints:");
-    // TODO: Re-enable when get_workload_hints method is available
-    // for workload_name in ["data_processing", "image_processing", "database_queries"] {
-    //     if let Ok(hints) = optimizer.get_workload_hints(workload_name) {
-    //         println!("  📊 {}:", workload_name);
-    //         println!(
-    //             "    - Preferred Threads: {:?}",
-    //             hints.preferred_thread_count
-    //         );
-    //         println!(
-    //             "    - Memory Strategy: {:?}",
-    //             hints.memory_allocation_strategy
-    //         );
-    //         println!("    - Algorithm Prefs: {:?}", hints.algorithm_preferences);
-    //     }
-    // }
+    for workload_name in ["data_processing", "image_processing", "database_queries"] {
+        if let Ok(hints) = optimizer.get_optimization_hints(workload_name) {
+            println!("  📊 {}:", workload_name);
+            println!(
+                "    - Preferred Threads: {:?}",
+                hints.preferred_thread_count
+            );
+            println!(
+                "    - Memory Strategy: {:?}",
+                hints.memory_allocation_strategy
+            );
+            println!("    - Algorithm Prefs: {:?}", hints.algorithm_preferences);
+        }
+    }
 
     optimizer.stop_optimization()?;
     println!("\n🛑 Optimization stopped");

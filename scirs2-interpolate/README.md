@@ -3,12 +3,15 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-interpolate.svg)](https://crates.io/crates/scirs2-interpolate)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-interpolate)](https://docs.rs/scirs2-interpolate)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
-**Advanced interpolation and approximation for the SciRS2 scientific computing library (v0.5.1).**
+**Advanced interpolation and approximation for the SciRS2 scientific computing library (v0.6.1).**
 
 `scirs2-interpolate` provides comprehensive interpolation methods for 1D, 2D, and N-dimensional data. It covers standard spline families (cubic, Akima, PCHIP, B-splines, NURBS), scattered-data methods (RBF, Kriging, Moving Least Squares, Natural Neighbor, Barycentric Rational, Thin-Plate Splines, Shepard's method), and advanced features including adaptive error-controlled refinement, meshless methods, spherical harmonic interpolation, and B-spline surface fitting — all as pure Rust.
 
-## Features (v0.5.1)
+Tested: 1143/1143 tests passing with default features (13 skipped), 1173/1173 with `--all-features` (13 skipped) (verified 2026-07-15).
+
+## Features (v0.6.1)
 
 ### 1D Interpolation
 - **Linear / nearest-neighbor**: Basic 1D interpolation with boundary handling
@@ -62,14 +65,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-interpolate = "0.5.1"
+scirs2-interpolate = "0.6.1"
 ```
 
 With optional performance features:
 
 ```toml
 [dependencies]
-scirs2-interpolate = { version = "0.5.1", features = ["simd", "linalg"] }
+scirs2-interpolate = { version = "0.6.1", features = ["simd", "linalg"] }
 ```
 
 ### Cubic spline interpolation
@@ -226,9 +229,12 @@ println!("adaptive sin(pi) = {}", interp.evaluate(std::f64::consts::PI)?);
 
 | Feature | Description |
 |---------|-------------|
-| `default` | Core interpolation methods |
-| `simd` | SIMD-accelerated B-spline and distance computations |
+| `simd` | SIMD-accelerated B-spline and distance computations (`scirs2-core/simd`) |
 | `linalg` | Advanced linear algebra via OxiBLAS (pure Rust) |
+| `parallel` | Multi-threaded batch evaluation via Rayon (`scirs2-core/parallel`) |
+| `scipy-comparison` | SciPy comparison benchmarks, requires Python with scipy/numpy (`pyo3`) |
+
+`default = []` — no features are enabled by default; core interpolation methods are always available regardless.
 
 ## Documentation
 

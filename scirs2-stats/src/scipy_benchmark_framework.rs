@@ -116,13 +116,23 @@ pub struct TimingStatistics {
 }
 
 /// Memory usage comparison
+///
+/// Populated from real resident-memory (RSS) samples taken immediately before and
+/// after each timed iteration when the crate's `memory_tracking` feature is enabled
+/// (see the internal `ScipyBenchmarkFramework::measure_timing` helper). Without that
+/// feature, both fields are honest zeros rather than fabricated numbers.
+///
+/// RSS deltas are inherently approximate: the OS does not always reclaim freed pages
+/// immediately, and other allocator/thread activity in the process can perturb an
+/// individual sample. Treat these figures as directional evidence of memory pressure
+/// rather than exact byte counts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryComparison {
-    /// Peak memory usage (bytes)
+    /// Peak memory usage (bytes) — the largest single-iteration RSS delta observed
     pub peak_memory: usize,
-    /// Average memory usage during execution
+    /// Average memory usage during execution (bytes) — mean RSS delta across iterations
     pub average_memory: usize,
-    /// Memory efficiency ratio vs SciPy
+    /// Memory efficiency ratio vs SciPy (SciRS2 average memory / SciPy average memory)
     pub efficiency_ratio: Option<f64>,
 }
 
@@ -332,16 +342,18 @@ impl ScipyBenchmarkFramework {
         F: Fn(&ArrayView1<f64>) -> StatsResult<f64>,
         G: Fn(&ArrayView1<f64>) -> f64,
     {
-        // Benchmark SciRS2 implementation
-        let scirs2_timing = self.measure_timing(|| scirs2_impl(testdata).map(|_| ()))?;
+        // Benchmark SciRS2 implementation (timing + resident-memory sampling)
+        let (scirs2_timing, scirs2_memory) =
+            self.measure_timing(|| scirs2_impl(testdata).map(|_| ()))?;
 
-        // Benchmark SciPy implementation if available
-        let scipy_timing = if let Some(scipy_func) = scipy_reference {
-            Some(self.measure_timing_scipy(|| {
+        // Benchmark SciPy implementation if available (timing + resident-memory sampling)
+        let (scipy_timing, scipy_memory) = if let Some(scipy_func) = scipy_reference {
+            let (timing, memory) = self.measure_timing_scipy(|| {
                 scipy_func(testdata);
-            })?)
+            })?;
+            (Some(timing), Some(memory))
         } else {
-            None
+            (None, None)
         };
 
         // Calculate performance ratio
@@ -351,21 +363,91 @@ impl ScipyBenchmarkFramework {
 
         let performance_grade = self.grade_performance(performance_ratio);
 
+        // Memory efficiency ratio (SciRS2 / SciPy average memory), mirroring how
+        // `performance_ratio` compares SciRS2 vs SciPy timing above. Only meaningful
+        // when a SciPy baseline measurement with nonzero average memory is available.
+        let efficiency_ratio = scipy_memory.as_ref().and_then(|scipy_mem| {
+            if scipy_mem.average_memory > 0 {
+                Some(scirs2_memory.average_memory as f64 / scipy_mem.average_memory as f64)
+            } else {
+                None
+            }
+        });
+
         Ok(PerformanceComparison {
             scirs2_timing,
             scipy_timing,
             performance_ratio,
             performance_grade,
             memory_usage: MemoryComparison {
-                peak_memory: 0, // TODO: Implement memory tracking
-                average_memory: 0,
-                efficiency_ratio: None,
+                peak_memory: scirs2_memory.peak_memory,
+                average_memory: scirs2_memory.average_memory,
+                efficiency_ratio,
             },
         })
     }
 
-    /// Measure timing statistics for a function
-    fn measure_timing<F, R>(&self, mut func: F) -> StatsResult<TimingStatistics>
+    /// Measure timing statistics for a function, together with resident-memory (RSS)
+    /// statistics sampled around each timed iteration.
+    ///
+    /// When the `memory_tracking` feature is enabled, [`scirs2_core::profiling::MemoryStats::current`]
+    /// (a Pure-Rust RSS profiler — Mach `task_info` on macOS, `/proc/self/statm` on Linux)
+    /// is sampled immediately before and after every timed call to `func`, and the
+    /// (saturating) per-iteration delta feeds the returned [`MemoryComparison`]. RSS
+    /// deltas are inherently approximate — the OS does not always reclaim freed pages
+    /// immediately, and other allocator/thread activity in the process can perturb a
+    /// given sample — so treat the reported figures as directional rather than exact.
+    ///
+    /// Without the `memory_tracking` feature, the memory component is an honest zero
+    /// (documented as such) rather than a fabricated measurement.
+    #[cfg(feature = "memory_tracking")]
+    fn measure_timing<F, R>(&self, mut func: F) -> StatsResult<(TimingStatistics, MemoryComparison)>
+    where
+        F: FnMut() -> StatsResult<R>,
+    {
+        use scirs2_core::profiling::MemoryStats;
+
+        let mut times = Vec::with_capacity(self.config.performance_iterations);
+        let mut memory_deltas = Vec::with_capacity(self.config.performance_iterations);
+
+        // Warmup iterations
+        for _ in 0..self.config.warmup_iterations {
+            func()?;
+        }
+
+        // Timed iterations, sampling RSS immediately before/after each call. The
+        // call's return value is deliberately kept alive (bound to `result`) until
+        // after the "after" sample, then dropped — so memory owned by the return
+        // value itself (e.g. a freshly allocated buffer) is captured in the delta
+        // instead of being silently freed before we get a chance to observe it.
+        for _ in 0..self.config.performance_iterations {
+            let before_resident = MemoryStats::current()?.resident;
+            let start = Instant::now();
+            let result = func()?;
+            let elapsed = start.elapsed();
+            let after_resident = MemoryStats::current()?.resident;
+            drop(result);
+
+            times.push(elapsed);
+            // Memory can also decrease between samples (deallocation, OS page
+            // reclamation); clamp negative deltas to 0 instead of treating them as
+            // meaningful growth (or wrapping, since these are unsigned byte counts).
+            memory_deltas.push(after_resident.saturating_sub(before_resident));
+        }
+
+        let timing_stats = self.calculate_timing_statistics(&times)?;
+        let memory_stats = Self::summarize_memory_deltas(&memory_deltas);
+
+        Ok((timing_stats, memory_stats))
+    }
+
+    /// Measure timing statistics for a function (memory-tracking disabled build).
+    ///
+    /// Real RSS-based memory tracking requires the `memory_tracking` feature (which
+    /// enables scirs2-core's Pure-Rust `profiling_memory` RSS profiler). Without it we
+    /// report honest zeros for memory rather than fabricating a measurement.
+    #[cfg(not(feature = "memory_tracking"))]
+    fn measure_timing<F, R>(&self, mut func: F) -> StatsResult<(TimingStatistics, MemoryComparison)>
     where
         F: FnMut() -> StatsResult<R>,
     {
@@ -384,11 +466,64 @@ impl ScipyBenchmarkFramework {
             times.push(elapsed);
         }
 
-        self.calculate_timing_statistics(&times)
+        let timing_stats = self.calculate_timing_statistics(&times)?;
+        // `memory_tracking` feature not enabled: report honest zeros rather than a
+        // fabricated measurement (see struct docs on `MemoryComparison`).
+        let memory_stats = MemoryComparison {
+            peak_memory: 0,
+            average_memory: 0,
+            efficiency_ratio: None,
+        };
+
+        Ok((timing_stats, memory_stats))
     }
 
-    /// Measure timing for SciPy functions (no Result handling)
-    fn measure_timing_scipy<F>(&self, mut func: F) -> StatsResult<TimingStatistics>
+    /// Measure timing (and RSS memory, when `memory_tracking` is enabled) for SciPy
+    /// functions (no `Result` handling). Mirrors [`Self::measure_timing`]'s loop
+    /// structure and sampling strategy.
+    #[cfg(feature = "memory_tracking")]
+    fn measure_timing_scipy<F>(
+        &self,
+        mut func: F,
+    ) -> StatsResult<(TimingStatistics, MemoryComparison)>
+    where
+        F: FnMut(),
+    {
+        use scirs2_core::profiling::MemoryStats;
+
+        let mut times = Vec::with_capacity(self.config.performance_iterations);
+        let mut memory_deltas = Vec::with_capacity(self.config.performance_iterations);
+
+        // Warmup iterations
+        for _ in 0..self.config.warmup_iterations {
+            func();
+        }
+
+        // Timed iterations, sampling RSS immediately before/after each call
+        for _ in 0..self.config.performance_iterations {
+            let before_resident = MemoryStats::current()?.resident;
+            let start = Instant::now();
+            func();
+            let elapsed = start.elapsed();
+            let after_resident = MemoryStats::current()?.resident;
+
+            times.push(elapsed);
+            memory_deltas.push(after_resident.saturating_sub(before_resident));
+        }
+
+        let timing_stats = self.calculate_timing_statistics(&times)?;
+        let memory_stats = Self::summarize_memory_deltas(&memory_deltas);
+
+        Ok((timing_stats, memory_stats))
+    }
+
+    /// Measure timing for SciPy functions (no `Result` handling; memory-tracking
+    /// disabled build — see [`Self::measure_timing`] for the rationale).
+    #[cfg(not(feature = "memory_tracking"))]
+    fn measure_timing_scipy<F>(
+        &self,
+        mut func: F,
+    ) -> StatsResult<(TimingStatistics, MemoryComparison)>
     where
         F: FnMut(),
     {
@@ -407,7 +542,36 @@ impl ScipyBenchmarkFramework {
             times.push(elapsed);
         }
 
-        self.calculate_timing_statistics(&times)
+        let timing_stats = self.calculate_timing_statistics(&times)?;
+        let memory_stats = MemoryComparison {
+            peak_memory: 0,
+            average_memory: 0,
+            efficiency_ratio: None,
+        };
+
+        Ok((timing_stats, memory_stats))
+    }
+
+    /// Fold a series of per-iteration RSS deltas (bytes) into a [`MemoryComparison`].
+    ///
+    /// `peak_memory` is the largest single-iteration delta (saturating growth only);
+    /// `average_memory` is the mean delta across all iterations. `efficiency_ratio` is
+    /// left `None` here — it is filled in by the caller once a SciPy baseline (if any)
+    /// is also available.
+    #[cfg(feature = "memory_tracking")]
+    fn summarize_memory_deltas(deltas: &[usize]) -> MemoryComparison {
+        let peak_memory = deltas.iter().copied().max().unwrap_or(0);
+        let average_memory = if deltas.is_empty() {
+            0
+        } else {
+            (deltas.iter().sum::<usize>() as f64 / deltas.len() as f64).round() as usize
+        };
+
+        MemoryComparison {
+            peak_memory,
+            average_memory,
+            efficiency_ratio: None,
+        }
     }
 
     /// Calculate timing statistics from raw measurements
@@ -729,5 +893,184 @@ mod tests {
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].function_name, "mean");
         assert!(results[0].accuracy.passes_tolerance);
+    }
+
+    // ------------------------------------------------------------------
+    // Real RSS memory-tracking tests (require the `memory_tracking` feature,
+    // e.g. `cargo test -p scirs2-stats --features memory_tracking`, or any
+    // invocation with `--all-features`).
+    //
+    // RSS sampling is page-granularity and OS/allocator-dependent (freed pages
+    // are not always reclaimed immediately), so these tests assert relative /
+    // ordering properties rather than exact byte counts.
+    // ------------------------------------------------------------------
+
+    /// Per-call growth size (~1.6 MiB of f64) for the monotonically-growing buffer
+    /// used by the memory-tracking tests below — big enough that its resident-memory
+    /// footprint is unambiguously distinguishable from sampling noise (page-granularity
+    /// jitter, allocator bookkeeping, etc).
+    #[cfg(feature = "memory_tracking")]
+    const MEMORY_TEST_GROWTH_LEN: usize = 200_000;
+
+    #[cfg(feature = "memory_tracking")]
+    #[test]
+    fn test_memory_tracking_allocating_closure_reports_nonzero_memory() {
+        let framework = ScipyBenchmarkFramework::new(BenchmarkConfig {
+            performance_iterations: 20,
+            warmup_iterations: 2,
+            ..Default::default()
+        });
+
+        // Deliberately *grow* a buffer captured by the (`FnMut`) closure on every call,
+        // rather than allocating-then-freeing a fresh same-sized `Vec` each time. The
+        // latter was tried first and reliably measured a peak/average of exactly 0 on
+        // macOS: `measure_timing`'s 2 warmup calls already prime the allocator's
+        // same-size free list/large-allocation cache, so every "after" sample in the
+        // measured loop finds the identical (already-resident) pages reused for the
+        // new allocation, showing zero incremental RSS growth. A buffer that only ever
+        // grows (never freed until the closure itself drops at the end of this test)
+        // sidesteps that reuse entirely and gives a deterministic, platform-independent
+        // nonzero delta on every iteration.
+        let mut buffer: Vec<f64> = Vec::new();
+        let (_, memory) = framework
+            .measure_timing(move || -> StatsResult<()> {
+                buffer.extend(std::iter::repeat_n(1.0_f64, MEMORY_TEST_GROWTH_LEN));
+                Ok(())
+            })
+            .expect("Operation failed");
+
+        assert!(
+            memory.peak_memory > 0,
+            "expected nonzero peak resident-memory delta for an allocating closure, got {}",
+            memory.peak_memory
+        );
+        assert!(
+            memory.average_memory > 0,
+            "expected nonzero average resident-memory delta for an allocating closure, got {}",
+            memory.average_memory
+        );
+    }
+
+    #[cfg(feature = "memory_tracking")]
+    #[test]
+    fn test_memory_tracking_trivial_closure_much_smaller_than_allocating() {
+        let framework = ScipyBenchmarkFramework::new(BenchmarkConfig {
+            performance_iterations: 20,
+            warmup_iterations: 2,
+            ..Default::default()
+        });
+
+        // See `test_memory_tracking_allocating_closure_reports_nonzero_memory` for why
+        // this uses a monotonically-growing captured buffer rather than a fresh
+        // allocate-then-free `Vec` per call.
+        let mut buffer: Vec<f64> = Vec::new();
+        let (_, allocating_memory) = framework
+            .measure_timing(move || -> StatsResult<()> {
+                buffer.extend(std::iter::repeat_n(1.0_f64, MEMORY_TEST_GROWTH_LEN));
+                Ok(())
+            })
+            .expect("Operation failed");
+
+        // A trivial closure that touches no heap memory at all.
+        let (_, trivial_memory) = framework
+            .measure_timing(|| -> StatsResult<i32> { Ok(1 + 1) })
+            .expect("Operation failed");
+
+        assert!(
+            allocating_memory.peak_memory > 0,
+            "sanity check: allocating closure should itself report nonzero peak memory, got {}",
+            allocating_memory.peak_memory
+        );
+        // Contrast rather than asserting an arbitrary absolute bound: the trivial
+        // closure's footprint must be much smaller than the ~15.3 MiB allocating
+        // closure's, not merely nonnegative (which would be vacuous for a usize).
+        assert!(
+            trivial_memory.peak_memory < allocating_memory.peak_memory,
+            "expected trivial closure's peak memory ({}) to be much smaller than the \
+             allocating closure's ({})",
+            trivial_memory.peak_memory,
+            allocating_memory.peak_memory
+        );
+        assert!(
+            trivial_memory.average_memory < allocating_memory.average_memory,
+            "expected trivial closure's average memory ({}) to be much smaller than the \
+             allocating closure's ({})",
+            trivial_memory.average_memory,
+            allocating_memory.average_memory
+        );
+    }
+
+    #[cfg(feature = "memory_tracking")]
+    #[test]
+    fn test_memory_tracking_wired_into_compare_performance() {
+        use std::cell::RefCell;
+
+        // End-to-end: `compare_performance` (used by `benchmark_function`) should
+        // surface the same real memory tracking, including a computed
+        // `efficiency_ratio` once both SciRS2 and SciPy sides report nonzero
+        // average memory.
+        //
+        // `compare_performance`'s SciRS2 timing/memory loop discards the closure's
+        // own return value (`.map(|_| ())`), so an allocation that is built *and*
+        // freed entirely inside `scirs2_impl`'s body would depend on whether the
+        // allocator/OS happens to reclaim those pages before the "after" sample —
+        // exactly the kind of nondeterminism this feature's docs warn about. To get
+        // a deterministic, platform-independent signal instead, each closure here
+        // appends to a `RefCell`-captured buffer that is never freed until the test
+        // itself ends, so resident memory only ever grows across iterations.
+        let scirs2_growing: RefCell<Vec<f64>> = RefCell::new(Vec::new());
+        let scipy_growing: RefCell<Vec<f64>> = RefCell::new(Vec::new());
+        const GROWTH_PER_CALL: usize = 200_000; // ~1.5 MiB of f64 per call
+
+        let framework = ScipyBenchmarkFramework::new(BenchmarkConfig {
+            performance_iterations: 10,
+            warmup_iterations: 1,
+            ..Default::default()
+        });
+
+        let testdata = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+
+        // Both "implementations" deliberately grow captured state so both sides of
+        // the comparison report nonzero average memory (letting us exercise the
+        // `efficiency_ratio` computation, not just the raw peak/average fields).
+        // `RefCell` gives interior mutability so these closures can still satisfy
+        // the `Fn` bound `compare_performance` requires.
+        let scirs2_impl = |data: &ArrayView1<f64>| -> StatsResult<f64> {
+            scirs2_growing
+                .borrow_mut()
+                .extend(std::iter::repeat_n(1.0_f64, GROWTH_PER_CALL));
+            Ok(data.sum())
+        };
+        let scipy_reference = |data: &ArrayView1<f64>| -> f64 {
+            scipy_growing
+                .borrow_mut()
+                .extend(std::iter::repeat_n(1.0_f64, GROWTH_PER_CALL));
+            data.sum()
+        };
+
+        let performance = framework
+            .compare_performance(&scirs2_impl, Some(&scipy_reference), &testdata.view())
+            .expect("Operation failed");
+
+        assert!(
+            performance.memory_usage.peak_memory > 0,
+            "expected nonzero peak memory from an allocating benchmarked closure, got {}",
+            performance.memory_usage.peak_memory
+        );
+        assert!(
+            performance.memory_usage.average_memory > 0,
+            "expected nonzero average memory from an allocating benchmarked closure, got {}",
+            performance.memory_usage.average_memory
+        );
+        assert!(
+            performance.memory_usage.efficiency_ratio.is_some(),
+            "expected an efficiency_ratio once both SciRS2 and SciPy sides allocate"
+        );
+
+        // Keep the growing buffers alive (and their growth "used") through the end
+        // of the test, rather than letting the borrow checker/optimizer treat the
+        // accumulated data as dead.
+        assert!(scirs2_growing.borrow().len() >= GROWTH_PER_CALL);
+        assert!(scipy_growing.borrow().len() >= GROWTH_PER_CALL);
     }
 }

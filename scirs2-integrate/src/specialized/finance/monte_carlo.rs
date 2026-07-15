@@ -242,7 +242,7 @@ fn geometric_asian_call(s0: f64, k: f64, r: f64, sigma: f64, t: f64, n: usize) -
 // Summary statistics helper
 // ============================================================
 
-fn build_result(payoffs: &[f64], n_paths: usize, r: f64, t: f64) -> MonteCarloResult {
+pub(crate) fn build_result(payoffs: &[f64], n_paths: usize, r: f64, t: f64) -> MonteCarloResult {
     let discount = (-r * t).exp();
     let mean_payoff: f64 = payoffs.iter().sum::<f64>() / payoffs.len() as f64;
     let price = discount * mean_payoff;

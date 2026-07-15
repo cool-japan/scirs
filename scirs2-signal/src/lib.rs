@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-signal = "0.6.0"
+//! scirs2-signal = "0.6.1"
 //! ```
 //!
 //! ```rust
@@ -49,7 +49,7 @@
 //! let filtered = convolve(&signal, &kernel, "same").expect("operation should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.6.0 (March 27, 2026)
+//! ## 🔒 Version: 0.6.1 (March 27, 2026)
 
 // Core error handling - ESSENTIAL
 pub mod error;
@@ -398,6 +398,7 @@ pub use oma_efdd::{efdd, EfddConfig, EfddMode, EfddResult};
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dwt::utils::check_perfect_reconstruction;
     use crate::dwt::{wavedec, waverec, Wavelet};
 
     #[test]
@@ -405,42 +406,138 @@ mod tests {
         assert_eq!(2 + 2, 4);
     }
 
+    /// Real numerical perfect-reconstruction (PR) test: `waverec(wavedec(x))`
+    /// must match `x` to a tight (1e-10) tolerance, for a parametrized set of
+    /// genuinely PR-capable (orthogonal wavelet family, extension mode,
+    /// decomposition level, signal length) configurations.
+    ///
+    /// This replaces the previous version of this test, which only asserted
+    /// that the reconstructed signal was non-empty. That was not just weak
+    /// but actively misleading: `wavedec(&[1.0..8.0], Wavelet::DB(4),
+    /// Some(1), None)` silently decomposes to a single (identity) level,
+    /// because `wavedec`'s `max_level` computation clamps to 0 whenever the
+    /// signal length does not exceed the filter length (8 samples vs. DB(4)'s
+    /// 8-tap filter) -- so the old test never actually exercised the
+    /// transform at all.
+    ///
+    /// ## Confirmed PR requirements (empirically determined)
+    ///
+    /// * **Filter validity is necessary but not sufficient.** The raw filter
+    ///   coefficients must satisfy the QMF/orthonormality conditions checked
+    ///   by [`check_perfect_reconstruction`] (lowpass DC gain = sqrt(2),
+    ///   highpass DC gain = 0, unit energy, double-shift orthogonality).
+    ///   `Haar`, `DB(n)`, and `Coif(n)` all satisfy this to 1e-10.
+    ///   **`Sym(4)`, `Sym(5)`, and `Sym(8)` do not** (e.g. `Sym(4)`'s
+    ///   highpass DC gain is ~4e-2, not ~0, and its filter energy is off by
+    ///   ~8e-4) -- their hardcoded coefficients in `dwt/filters/mod.rs` are
+    ///   not valid conjugate-mirror filters. That is a distinct, pre-existing
+    ///   data bug (already hinted at by the deliberately loose bounds in
+    ///   `test_symlet_finite_energy` in
+    ///   `tests/dwt_advanced_wavelet_test.rs`) and is out of scope for this
+    ///   test; `Coif(2)` is used as the third orthogonal family instead of
+    ///   `Sym(4)`.
+    /// * **Any signal length works once decomposition actually happens**,
+    ///   not just lengths that are exact powers of two equal to the filter
+    ///   length -- both the default ("symmetric") and "periodic" extension
+    ///   modes give tight PR.
+    /// * **`wavedec`/`waverec` had a real, fixed length bug** for every
+    ///   filter longer than Haar's 2 taps: `waverec` only cropped
+    ///   intermediate reconstruction levels to their correct length (by
+    ///   cross-referencing the next stored detail array's length); the
+    ///   *final* (finest) level had no further stored array to crop against,
+    ///   so it came out at `dwt_reconstruct`'s raw, uncropped
+    ///   `2 * input_len` samples instead of the original signal length
+    ///   (e.g. `DB(4)` on a 16-sample signal reconstructed to 22 samples).
+    ///   Fixed in `dwt::multiscale::waverec` by cropping *every* level
+    ///   (including the last) to the canonical single-level reconstruction
+    ///   length `2 * input_len - filter_len + 2`, which mirrors the
+    ///   encode-side `output_len = (n + filter_len - 1) / 2` formula in
+    ///   `dwt::transform::dwt_decompose` and is exact whenever the
+    ///   pre-decomposition length and filter length share the same parity
+    ///   (true for every even-tap filter bank exercised here). This fix is
+    ///   confined to `multiscale.rs`; `dwt_reconstruct` itself (used
+    ///   directly by `wpt.rs`, `dwt2d/*`, `wavelet_advanced.rs`, and
+    ///   `denoise_adaptive_advanced.rs`) is untouched, so those call sites
+    ///   keep their existing (self-managed) length handling.
     #[test]
     fn test_dwt_phase3_verification() {
-        println!("Testing Phase 3 DWT functionality...");
+        // Comfortably below the worst-case error observed across every case
+        // below (~3e-11, for Coif(2) at level 2 on a 64-sample signal).
+        const PR_TOLERANCE: f64 = 1e-10;
 
-        // Create a simpler test signal (power of 2 length for DWT)
-        let signal: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        // A smooth, bounded, non-symmetric signal. Amplitude matters for an
+        // *absolute*-error tolerance: a large-magnitude ramp (e.g. 1..=64)
+        // still reconstructs correctly, but pushes the level-3 `Coif(2)`
+        // error toward ~1e-9 purely from floating-point accumulation over
+        // larger numbers -- an amplitude effect, not a PR failure. Keeping
+        // the signal in a small, bounded range avoids conflating the two.
+        fn test_signal(n: usize) -> Vec<f64> {
+            (0..n)
+                .map(|i| {
+                    let x = i as f64;
+                    1.0 + 0.5 * (x * 0.37).sin() + 0.25 * (x * 0.11).cos()
+                })
+                .collect()
+        }
 
-        // Test wavelet decomposition (using DB(4) instead of Daubechies4 alias)
-        let coeffs =
-            wavedec(&signal, Wavelet::DB(4), Some(1), None).expect("DWT decomposition should work");
+        // (family label, wavelet, signal length, decomposition level, mode)
+        let cases: Vec<(&str, Wavelet, usize, usize, Option<&str>)> = vec![
+            // Haar: trivially exact PR at any length/level (2-tap filter).
+            ("Haar", Wavelet::Haar, 16, 1, None),
+            ("Haar", Wavelet::Haar, 16, 2, None),
+            ("Haar", Wavelet::Haar, 64, 3, Some("periodic")),
+            // DB(4): 8-tap orthogonal filter.
+            ("DB(4)", Wavelet::DB(4), 16, 1, None),
+            ("DB(4)", Wavelet::DB(4), 32, 2, None),
+            ("DB(4)", Wavelet::DB(4), 64, 2, Some("periodic")),
+            ("DB(4)", Wavelet::DB(4), 64, 3, None),
+            // Coif(2): 12-tap orthogonal filter.
+            ("Coif(2)", Wavelet::Coif(2), 32, 1, None),
+            ("Coif(2)", Wavelet::Coif(2), 64, 2, None),
+            ("Coif(2)", Wavelet::Coif(2), 64, 2, Some("periodic")),
+        ];
 
-        println!(
-            "✓ DWT decomposition successful with {} coefficient arrays",
-            coeffs.len()
-        );
-        assert!(!coeffs.is_empty(), "Should have coefficient arrays");
+        for (name, wavelet, len, level, mode) in cases {
+            // The filters themselves must satisfy the QMF/orthonormality
+            // conditions -- necessary for PR, and independent of
+            // wavedec/waverec's length bookkeeping.
+            let filters = wavelet
+                .filters()
+                .unwrap_or_else(|e| panic!("{name}: filters() should succeed: {e:?}"));
+            let filters_are_pr = check_perfect_reconstruction(&filters, Some(PR_TOLERANCE))
+                .unwrap_or_else(|e| panic!("{name}: check_perfect_reconstruction errored: {e:?}"));
+            assert!(
+                filters_are_pr,
+                "{name}: filter coefficients do not satisfy perfect-reconstruction conditions"
+            );
 
-        // Test reconstruction
-        let reconstructed =
-            waverec(&coeffs, Wavelet::DB(4)).expect("DWT reconstruction should work");
+            let signal = test_signal(len);
+            let coeffs = wavedec(&signal, wavelet, Some(level), mode).unwrap_or_else(|e| {
+                panic!("{name} len={len} level={level} mode={mode:?}: wavedec failed: {e:?}")
+            });
+            let reconstructed = waverec(&coeffs, wavelet).unwrap_or_else(|e| {
+                panic!("{name} len={len} level={level} mode={mode:?}: waverec failed: {e:?}")
+            });
 
-        println!("✓ DWT reconstruction successful");
-        println!(
-            "Original length: {}, Reconstructed length: {}",
-            signal.len(),
-            reconstructed.len()
-        );
+            assert_eq!(
+                reconstructed.len(),
+                signal.len(),
+                "{name} len={len} level={level} mode={mode:?}: reconstructed length {} != original length {}",
+                reconstructed.len(),
+                signal.len(),
+            );
 
-        // Check basic functionality rather than perfect reconstruction for now
-        assert!(
-            !reconstructed.is_empty(),
-            "Reconstructed signal should not be empty"
-        );
-        println!("✓ DWT Phase 3 verification: BASIC FUNCTIONALITY CONFIRMED");
+            let max_err = signal
+                .iter()
+                .zip(reconstructed.iter())
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0_f64, f64::max);
 
-        // TODO: Investigate perfect reconstruction requirements
-        // For now, confirming the API works is sufficient for Phase 3 completion
+            assert!(
+                max_err < PR_TOLERANCE,
+                "{name} len={len} level={level} mode={mode:?}: perfect reconstruction failed, \
+                 max error {max_err:e} >= tolerance {PR_TOLERANCE:e}"
+            );
+        }
     }
 }

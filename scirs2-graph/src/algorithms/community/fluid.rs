@@ -21,7 +21,7 @@ use std::hash::Hash;
 ///
 /// # Returns
 /// * A community structure with node assignments and modularity
-#[deprecated(note = "Use `fluid_communities_result` instead")]
+#[deprecated(since = "0.1.0", note = "Use `fluid_communities_result` instead")]
 #[allow(dead_code)]
 pub fn fluid_communities<N, E, Ix>(
     graph: &Graph<N, E, Ix>,

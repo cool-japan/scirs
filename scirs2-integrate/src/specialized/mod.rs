@@ -15,16 +15,15 @@ pub use finance::{
     StochasticPDESolver, VolatilityModel,
 };
 // Advanced-performance financial computing exports
-// TODO: These modules need to be created or mapped to existing modules
-// pub use finance::advanced_monte_carlo_engine::{
-//     AdvancedMonteCarloEngine, OptionPricingResult, QuantumInspiredRNG, VarianceReductionSuite,
-// };
-// pub use finance::realtime_risk_engine::{
-//     AlertSeverity, RealTimeRiskMonitor, RiskAlert, RiskAlertType, RiskDashboard, RiskSnapshot,
-// };
-// pub use fluid_dynamics::turbulence_models::{
-//     FluidState3D, LESolver, RANSModel, RANSSolver, RANSState, SGSModel,
-// };
+//
+// `QuantumInspiredRNG` is intentionally not exported here — see
+// `TODO.md` "Proposed follow-ups" for why.
+pub use finance::advanced_monte_carlo_engine::{
+    AdvancedMonteCarloEngine, OptionPricingResult, VarianceReductionSuite,
+};
+pub use finance::realtime_risk_engine::{
+    AlertSeverity, RealTimeRiskMonitor, RiskAlert, RiskAlertType, RiskDashboard, RiskSnapshot,
+};
 pub use fluid_dynamics::{
     DealiasingStrategy, FluidBoundaryCondition, FluidState, FluidState3D, LESolver,
     NavierStokesParams, NavierStokesSolver, RANSModel, RANSSolver, RANSState, SGSModel,
@@ -52,12 +51,9 @@ pub use quantum::{
 //     EntanglementPattern, QuantumFeatureMap, QuantumKernelParams, QuantumSVMModel,
 //     QuantumSupportVectorMachine,
 // };
-// Enhanced quantum optimization exports - already imported above
-// pub use quantum::QuantumAnnealingSolver;
 // Enhanced financial modeling exports
-// TODO: Map to actual existing modules
-// pub use finance::exotic_options::{
-//     AveragingType, ExoticOption, ExoticOptionPricer, ExoticOptionType, PricingResult,
-//     RainbowPayoffType,
-// };
-// pub use finance::risk_management::{PortfolioRiskMetrics, RiskAnalyzer, StressScenario};
+//
+// `RainbowPayoffType` and `StressScenario` are intentionally not exported
+// here — see `TODO.md` "Proposed follow-ups" for why.
+pub use finance::exotic_options::{ExoticOptionPricer, ExoticOptionType, PricingResult};
+pub use finance::risk_management::{PortfolioRiskMetrics, RiskAnalyzer};

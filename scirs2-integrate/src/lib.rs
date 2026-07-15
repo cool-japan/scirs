@@ -50,7 +50,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-integrate = "0.6.0"
+//! scirs2-integrate = "0.6.1"
 //! ```
 
 //!
@@ -232,7 +232,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.6.0
+//! - **Version**: 0.6.1
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-integrate](https://docs.rs/scirs2-integrate)
@@ -502,8 +502,14 @@ pub use autodiff::{
 };
 // Export specialized domain-specific solvers
 pub use specialized::{
+    // Advanced Monte Carlo / real-time risk / exotic options / portfolio
+    // risk facade exports
+    AdvancedMonteCarloEngine,
+    AlertSeverity,
     // Fluid dynamics exports
     DealiasingStrategy,
+    ExoticOptionPricer,
+    ExoticOptionType,
     // Finance module exports
     FinanceMethod,
     FinancialOption,
@@ -522,15 +528,24 @@ pub use specialized::{
     MultiBodyQuantumSolver,
     NavierStokesParams,
     NavierStokesSolver,
+    OptionPricingResult,
     OptionStyle,
     OptionType,
     ParticleInBox,
+    PortfolioRiskMetrics,
+    PricingResult,
     QuantumAnnealer,
     QuantumPotential,
     QuantumState,
     RANSModel,
     RANSSolver,
     RANSState,
+    RealTimeRiskMonitor,
+    RiskAlert,
+    RiskAlertType,
+    RiskAnalyzer,
+    RiskDashboard,
+    RiskSnapshot,
     SGSModel,
     SchrodingerMethod,
     SchrodingerSolver,
@@ -542,6 +557,7 @@ pub use specialized::{
     // QuantumSupportVectorMachine,
     SpectralNavierStokesSolver,
     StochasticPDESolver,
+    VarianceReductionSuite,
     VariationalQuantumEigensolver,
     VolatilityModel,
 };

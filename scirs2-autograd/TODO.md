@@ -1,6 +1,8 @@
 # scirs2-autograd TODO
 
-## Status: v0.3.4 Released (March 18, 2026)
+## Status: v0.6.1 (released 2026-07-15; last reviewed 2026-07-15)
+
+scirs2-autograd's own test suite (freshly run 2026-07-15): 1260 tests pass, 0 failed, 18 skipped (default features); 1345 tests pass, 0 failed, 18 skipped (`--all-features`).
 
 ## v0.3.3 Completed
 
@@ -122,5 +124,5 @@
 
 ## Known Issues / Technical Debt
 
-- Some gradient implementations for exotic matrix functions use approximate gradients; exact gradients tracked in issue backlog
+- Some gradient implementations for exotic matrix functions use approximate gradients; exact gradients tracked in issue backlog (the 2-norm condition number now has an exact analytic gradient via `CondOp::two_norm_gradient`; the 1-norm/∞-norm/Frobenius condition-number variants and matrix rank remain honestly non-differentiable rather than approximated)
 - `graph_viz.rs` DOT output works best for small graphs; large graph layout needs truncation heuristics

@@ -3,11 +3,12 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-series.svg)](https://crates.io/crates/scirs2-series)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-series)](https://docs.rs/scirs2-series)
-[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
-**Production-ready time series analysis for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
+**Comprehensive time series analysis for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
-`scirs2-series` is a comprehensive time series library covering classical econometric models through state-of-the-art deep learning forecasters. Version 0.5.0 carries forward the full neural architecture forecaster suite (TFT, N-BEATS, N-HiTS, DeepAR), streaming/online algorithms, conformal prediction intervals, long-memory processes, intermittent demand forecasting, and hierarchical reconciliation. The Wave 3 stub-check sweep also restored the public `PatternDetector`, `STLDecomposer`, `AnomalyDetector`, and `PELTDetector` types, and `SarimaModel.forecast(steps)` was reinstated alongside the `SARIMAModel` type alias.
+`scirs2-series` is a large time series library covering classical econometric models through state-of-the-art deep learning forecasters: the neural architecture forecaster suite (TFT, N-BEATS, N-HiTS, DeepAR), streaming/online algorithms, long-memory processes, intermittent demand forecasting, and hierarchical reconciliation are all real and reachable through the public API. A handful of advertised areas are weaker than the rest of the crate — see [TODO.md](./TODO.md) "Known Issues" for specifics (most notably: split/adaptive conformal prediction code exists in the source tree but is not yet wired into `lib.rs`, so it is not reachable from outside the crate; only Markov-switching autoregression is implemented among the regime-switching models; and `VECMModel::fit` is currently a placeholder that does not run the Johansen procedure). Everything else described below has been spot-checked against `src/`.
 
 ---
 
@@ -18,13 +19,13 @@ Time series problems span a wide spectrum: univariate forecasting with uncertain
 Key design goals:
 
 - **Breadth**: classical (ARIMA, ETS) through neural (TFT, N-BEATS, DeepAR) through streaming (online ARIMA, ADWIN)
-- **Uncertainty quantification**: prediction intervals via conformal prediction and probabilistic models
+- **Uncertainty quantification**: confidence/prediction intervals on ARIMA and other forecasters, probabilistic neural outputs (DeepAR), and evaluation-side coverage/Winkler-score diagnostics
 - **Ecosystem coherence**: built on `scirs2-core` abstractions; no C/Fortran dependencies
-- **Performance**: parallel processing with Rayon, SIMD acceleration via `scirs2-core`
+- **Performance**: SIMD-accelerated operations via `scirs2-core` (`simd` feature); the crate has no `rayon` dependency — the `out_of_core` module instead uses `std::thread` directly for its own worker pool
 
 ---
 
-## Feature List (v0.5.1)
+## Feature List (v0.6.1)
 
 ### Decomposition
 - STL (Seasonal-Trend decomposition using Loess) with robustness iterations
@@ -70,25 +71,23 @@ Key design goals:
 - Fractional differencing (fractional-d operator) with memory-preserving transforms
 
 ### Causality & Cointegration
-- Granger causality testing with F-statistics and block-exogeneity
-- Transfer entropy with bootstrap significance testing
+- Granger causality testing with F-statistics and block-exogeneity (`causality::granger_causality_test`), spectral (frequency-domain) Granger causality, conditional/multivariate variants
+- Transfer entropy (Shannon, Renyi, conditional, effective) with bootstrap significance testing
 - Convergent cross mapping (CCM) for nonlinear causality
-- Cointegration: Engle-Granger two-step, Johansen trace and max-eigenvalue tests
-- Vector Error Correction Models (VECM) with cointegration rank selection
+- Causal discovery: PC, PC-stable, PCMCI, FCI (latent confounders)
+- Johansen trace cointegration test over a rolling window (`streaming::cointegration::StreamingCointegrationTester`); a simplified Engle-Granger residual-based check is used internally by the ECM regression fitting path
+- `VECMModel` type exists in `var_models`, but `VECMModel::fit` is currently a placeholder that does not run the Johansen estimation procedure — see Known Issues in [TODO.md](./TODO.md)
 
 ### Vector Autoregressive (VAR) Models
 - VAR(p) fitting with OLS and information criterion lag selection (AIC, BIC, HQIC)
-- Impulse response functions (IRF) with bootstrap confidence bands
-- Forecast error variance decomposition (FEVD)
-- Granger causality block-exogeneity Wald test
+- Impulse response functions (IRF, `VARModel::impulse_response`) and forecast error variance decomposition (FEVD, `VARModel::variance_decomposition`); bootstrap confidence bands around the IRF are not implemented
+- Granger causality block-exogeneity Wald test — real and reachable via `causality::granger_causality_test` and friends. **Caveat**: the separate convenience method `VARModel::granger_causality(&self, ...)` is currently hardcoded (`f_stat = 2.5`, `p_value = 0.05` regardless of input — comment says "Would implement proper F-test for coefficient restrictions"); use the `causality` module function instead
 - VECM for cointegrated systems
 
 ### Functional Data Analysis (FDA)
-- Functional PCA (FPCA) with PACE algorithm for sparse/irregular data
-- B-spline and Fourier basis expansions for functional data representation
-- Functional linear model (scalar-on-function regression)
-- Functional clustering (k-centres, hierarchical functional)
-- Dynamic time warping barycenter averaging (DBA)
+- Functional PCA (`dimensionality_reduction::functional_pca`), including bivariate and multilevel variants
+- Dynamic time warping barycenter averaging (DBA) with medoid/mean initialization (`dimensionality_reduction::dtw`)
+- A richer FDA suite (B-spline/Fourier/wavelet basis expansions, functional linear model, functional ANOVA, k-centres functional clustering) exists as source files under `src/functional/` but is not currently declared as a module in `lib.rs`, so it is not part of the public API — see Known Issues in [TODO.md](./TODO.md)
 
 ### Hierarchical Forecasting & Reconciliation
 - Bottom-up, top-down (average historical proportions, PHA, TDA), and middle-out aggregation
@@ -96,18 +95,17 @@ Key design goals:
 - Cross-temporal reconciliation for multi-frequency hierarchies
 - Evaluation with hierarchical MASE and weighted MAPE
 
-### Conformal Prediction for Time Series
-- Split conformal prediction intervals (exchangeable and time-series-adapted variants)
-- Adaptive conformal inference (ACI) for online coverage guarantees
-- Mondrian conformal prediction for conditional coverage
-- Calibration diagnostics and coverage plots
+### Conformal Prediction for Time Series (not yet exposed publicly)
+- Split conformal, EnbPI, adaptive/weighted conformal, and interval calibration diagnostics have source code under `src/conformal/` and `src/forecast_uncertainty/`, but neither directory is declared as a module in `lib.rs`, so none of this is reachable as `scirs2_series::...` today
+- Mondrian conformal prediction does not exist anywhere in the source tree
+- See Known Issues in [TODO.md](./TODO.md) for the wiring gap
 
 ### Online / Streaming Algorithms
-- ADWIN (Adaptive Windowing) concept drift detector
-- Online ARIMA with recursive least squares parameter tracking
-- Streaming mean, variance, quantile estimation (P² algorithm, KLL sketch)
+- ADWIN (Adaptive Windowing) concept drift detector (`online_algorithms::ADWINDetector`)
+- Online ARIMA with recursive-least-squares-style parameter tracking
+- Streaming quantile estimation via the P² algorithm (`online_algorithms::OnlineQuantile`); a KLL sketch is not implemented
 - Online anomaly detection: CUSUM, EWMA control charts, streaming isolation forest
-- Reservoir sampling and sliding window statistics
+- Reservoir sampling (uniform and weighted) and sliding window statistics
 
 ### Change Detection
 - PELT (Pruned Exact Linear Time) for multiple change point detection
@@ -128,13 +126,13 @@ Key design goals:
 - Autocorrelation (ACF) and partial autocorrelation (PACF) with confidence bands
 - Cross-correlation with bootstrap confidence intervals
 - Dynamic time warping (DTW) with Sakoe-Chiba and Itakura constraints
-- Motif discovery and discord detection via matrix profile
-- Symbolic Aggregate approXimation (SAX), APCA, PLA
-- Time-frequency analysis: STFT, CWT (Morlet), coherence analysis
+- Symbolic Aggregate approXimation (SAX), APCA, PLA, and Persist — `dimensionality_reduction::symbolic::{apply_symbolic_approximation, SymbolicMethod}`
+- Time-frequency analysis: STFT, CWT (Morlet), coherence analysis (`correlation`, `features::wavelet`)
+- Motif discovery and discord detection via matrix profile has source code (`TimeSeriesMotif`, `Discord`) in `src/pattern/mod.rs`, but — like `src/conformal/`, `src/forecast_uncertainty/`, `src/functional/`, and `src/change_detection/` — that directory is not declared as a module in `lib.rs`, so it is not reachable from the public API; see Known Issues in [TODO.md](./TODO.md)
 
 ### Feature Engineering (60+ features)
 - Statistical: mean, variance, skewness, kurtosis, entropy, crossing rate, linearity
-- Frequency domain: spectral entropy, spectral centroid, dominant frequency, bandwidth
+- Frequency domain: spectral entropy, spectral centroid, dominant frequency (`features::frequency`); a further "noise bandwidth" field exists on `SpectralAnalysisFeatures` but is only ever zero-initialized, never actually computed, in the current code
 - Complexity: approximate entropy, sample entropy, permutation entropy, Lyapunov exponent estimate
 - Trend: linear trend slope, Hurst exponent, CUSUM range, range/IQR ratio
 - Lag-based: ACF at specified lags, PACF, partial correlation coefficients
@@ -147,16 +145,16 @@ Key design goals:
 - Regression with ARIMA errors (ARIMAX / REGARIMA)
 
 ### Clustering & Classification
-- Time series k-means, k-medoids (PAM), hierarchical clustering
-- DBSCAN and HDBSCAN with DTW distance
-- k-NN classification with DTW, Euclidean, correlation-based distances
+- Time series clustering: k-means, hierarchical, DBSCAN, spectral, and Gaussian mixture models (`clustering::ClusteringAlgorithm`)
+- k-NN classification with DTW, Euclidean, and correlation-based distances; feature-based and ensemble classification
 - Shapelet discovery and shapelet transform classification
-- Functional data clustering (k-centres functional)
+- k-medoids (PAM) and HDBSCAN are not implemented as distinct algorithms; functional-data clustering (k-centres functional) exists only in the unwired `src/functional/` tree (see FDA note above)
 
 ### Ensemble & Probabilistic Forecasting
-- Ensemble forecasting: simple average, weighted average, stacking
-- Prediction interval methods: bootstrap, conformal, quantile regression forests
-- Probabilistic forecast evaluation: CRPS, log score, reliability diagrams, PIT histograms
+- Ensemble forecasting (`ensemble_forecast`): simple average, weighted average, stacking, median ensemble, trimmed mean, bagging, dynamic ensemble selection
+- Probabilistic forecast evaluation (`energy_forecast`): pinball loss, CRPS, coverage, Winkler score, reliability diagrams, sharpness, skill score
+- General-purpose point-forecast evaluation (`evaluation`): MAE, MAPE, SMAPE, MASE (incl. seasonal), RMSE, MSE, WAPE, coverage probability, Winkler score, Diebold-Mariano test
+- Bootstrap/conformal prediction intervals and quantile regression forests, and log score / PIT histograms specifically, are not currently implemented anywhere in the crate
 
 ### Domain-Specific Extensions
 - **Financial**: GARCH volatility, 15+ technical indicators (CCI, MFI, OBV, Parabolic SAR, RSI, MACD, Bollinger Bands, ATR)
@@ -171,10 +169,9 @@ Key design goals:
 - Stationarity transformation pipeline with ADF/KPSS guidance
 
 ### Regime-Switching Models
-- Markov-switching autoregression (MS-AR) with Hamilton filter
-- Threshold autoregressive (TAR) and SETAR models
-- Smooth transition autoregressive (STAR) models
-- Structural break detection (Bai-Perron multiple break test)
+- Markov-switching autoregression (MS-AR) with Hamilton filter, Kim smoother, and EM estimation (`regime::fit_msar`)
+- Simple CUSUM-of-innovations structural break detection on a fitted state-space model (`state_space::detect_structural_break_ssm`)
+- Threshold/self-exciting (TAR/SETAR), smooth-transition (STAR), and Bai-Perron multiple structural break tests are **not implemented** anywhere in the crate despite being listed in earlier TODO notes — see Known Issues in [TODO.md](./TODO.md)
 
 ---
 
@@ -182,64 +179,77 @@ Key design goals:
 
 ```toml
 [dependencies]
-scirs2-series = "0.5.1"
+scirs2-series = "0.6.1"
 ```
 
 ### ARIMA Forecasting
 
 ```rust
-use scirs2_series::arima_models::AutoArima;
+use scirs2_series::arima_models::arima;
 use scirs2_core::ndarray::Array1;
 
-let data: Array1<f64> = Array1::from(vec![
-    110.0, 115.0, 118.0, 122.0, 120.0, 125.0, 130.0, 128.0,
-    132.0, 135.0, 140.0, 138.0, 145.0, 148.0, 152.0, 155.0,
-]);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let data: Array1<f64> = Array1::from(vec![
+        110.0, 115.0, 118.0, 122.0, 120.0, 125.0, 130.0, 128.0,
+        132.0, 135.0, 140.0, 138.0, 145.0, 148.0, 152.0, 155.0,
+    ]);
 
-let model = AutoArima::fit(&data, None).unwrap();
-let forecast = model.predict(5).unwrap();
-println!("5-step forecast: {:?}", forecast.values);
-println!("95% intervals:   {:?}", forecast.intervals_95);
+    let model = arima(&data, 1, 1, 1)?;
+    let forecast = model.forecast_with_confidence(5, &data, 0.95)?;
+    println!("5-step forecast: {:?}", forecast.point_forecast);
+    println!("95% interval:    {:?} .. {:?}", forecast.lower_ci, forecast.upper_ci);
+    Ok(())
+}
 ```
 
 ### Temporal Fusion Transformer
 
 ```rust
-use scirs2_series::neural_forecast::{TFT, TFTConfig};
+use scirs2_series::tft::{TFT, TFTConfig};
 
-let config = TFTConfig {
-    hidden_size: 64,
-    num_heads: 4,
-    num_encoder_steps: 24,
-    forecast_horizon: 12,
-    ..Default::default()
-};
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = TFTConfig {
+        hidden_size: 8,
+        n_heads: 2,
+        dropout: 0.0,
+        horizon: 4,
+        lookback: 12,
+    };
+    let model = TFT::new(config);
 
-let mut model = TFT::new(config);
-model.fit(&train_data, &covariates, 100).unwrap();
-let forecasts = model.predict(&test_context, &future_covariates).unwrap();
+    let x_past: Vec<Vec<f32>> = vec![vec![0.5f32]; 12];
+    let x_future: Vec<Vec<f32>> = vec![vec![0.5f32]; 4];
+    let forecast = model.forward(&x_past, &x_future)?;
+    println!("forecast: {:?}", forecast);
+    Ok(())
+}
 ```
+
+(There is a separate, simpler `TFTModel` in `neural_forecast::tft` used by the "simple neural forecast API"; the example above uses the standalone `scirs2_series::tft` module, which also carries the FlashAttention-for-long-lookback variant.)
 
 ### Granger Causality Test
 
 ```rust
-use scirs2_series::causality::granger_causality;
+use scirs2_series::causality::granger_causality_test;
 use scirs2_core::ndarray::array;
 
-let x = array![1.0f64, 1.5, 2.0, 2.5, 3.0, 3.2, 2.8, 3.5, 4.0, 3.7];
-let y = array![0.5f64, 0.8, 1.2, 1.8, 2.2, 2.6, 2.4, 2.9, 3.3, 3.1];
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let x = array![1.0f64, 1.5, 2.0, 2.5, 3.0, 3.2, 2.8, 3.5, 4.0, 3.7];
+    let y = array![0.5f64, 0.8, 1.2, 1.8, 2.2, 2.6, 2.4, 2.9, 3.3, 3.1];
 
-let result = granger_causality(&x.view(), &y.view(), 2).unwrap();
-println!("F-statistic: {:.4}, p-value: {:.4}", result.f_stat, result.p_value);
-println!("Does x Granger-cause y? {}", result.p_value < 0.05);
+    let result = granger_causality_test(&x, &y, 2)?;
+    println!("F-statistic: {:.4}, p-value: {:.4}", result.f_statistic, result.p_value);
+    println!("Does x Granger-cause y? {}", result.p_value < 0.05);
+    Ok(())
+}
 ```
 
 ### ADWIN Concept Drift Detection
 
 ```rust
-use scirs2_series::streaming::adwin::ADWIN;
+use scirs2_series::online_algorithms::ADWINDetector;
 
-let mut detector = ADWIN::new(0.002);  // delta parameter
+let mut detector = ADWINDetector::new(0.002); // delta parameter
 
 for &obs in &stream_of_values {
     if detector.update(obs) {
@@ -248,28 +258,26 @@ for &obs in &stream_of_values {
 }
 ```
 
-### Hierarchical Reconciliation
+### Hierarchical Reconciliation (MinT)
 
 ```rust
-use scirs2_series::reconciliation::{MinTReconciler, HierarchyMatrix};
+use scirs2_series::reconciliation::{SummationMatrix, MinTraceReconciliation};
 
-let hierarchy = HierarchyMatrix::from_summing_matrix(&s_matrix);
-let reconciler = MinTReconciler::sample_covariance(hierarchy);
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Node 0 is the aggregate total; nodes 1 and 2 are its two bottom-level children.
+    let parents: Vec<Option<usize>> = vec![None, Some(0), Some(0)];
+    let s = SummationMatrix::from_parents(&parents)?;
 
-let reconciled = reconciler.reconcile(&base_forecasts, &residual_matrix).unwrap();
+    let reconciled =
+        MinTraceReconciliation::reconcile_mint_shrink(&base_forecasts, &s, &residuals)?;
+    println!("{:?}", reconciled);
+    Ok(())
+}
 ```
 
-### Conformal Prediction Intervals
-
-```rust
-use scirs2_series::conformal::SplitConformalForecaster;
-
-let mut cp = SplitConformalForecaster::new(0.90);  // 90% coverage target
-cp.calibrate(&calibration_residuals);
-
-let interval = cp.predict_interval(&point_forecast);
-println!("[{:.2}, {:.2}]", interval.lower, interval.upper);
-```
+Note: split/adaptive conformal prediction intervals are not shown here because that code
+(`src/conformal/`, `src/forecast_uncertainty/`) is not currently wired into `lib.rs` — see
+Known Issues in [TODO.md](./TODO.md).
 
 ---
 
@@ -285,30 +293,32 @@ println!("[{:.2}, {:.2}]", interval.lower, interval.upper);
 | `neural_forecast` | TFT, N-BEATS, N-HiTS, DeepAR, simple API |
 | `state_space` | Kalman filter, EKF, UKF, structural time series |
 | `forecasting` | Naive, drift, MA, ensemble of simple methods |
-| `var_models` | VAR, VECM, impulse response, variance decomposition |
-| `causality` | Granger causality, transfer entropy, CCM |
-| `cointegration` | Engle-Granger, Johansen tests |
+| `var_models` | VAR, impulse response, variance decomposition; `VECMModel` type is present but `fit()` is a placeholder |
+| `causality` | Granger causality (incl. spectral/conditional), transfer entropy, CCM, PC/PC-stable/PCMCI/FCI causal discovery |
+| `streaming::cointegration` | Rolling-window Johansen trace cointegration test |
 | `volatility` | GARCH, EGARCH, FIGARCH, GJR-GARCH |
 | `long_memory` | ARFIMA, Hurst estimation, fractional differencing |
 | `decomposition` | STL, SSA, STR, TBATS, classical |
 | `features` | 60+ time series features with automated selection |
 | `feature_selection` | Filter, wrapper, embedded feature selection |
-| `change_detection` | PELT, binary segmentation, BOCPD, CUSUM |
+| `change_point` | Unified PELT / binary segmentation / CUSUM / Bayesian-online / kernel change-point dispatch; PELT also available standalone via `detection::pelt` |
 | `anomaly` | SPC charts, isolation forest, prediction-error methods |
-| `streaming` | ADWIN, online ARIMA, streaming statistics |
-| `conformal` | Split conformal, ACI, Mondrian conformal |
-| `hierarchical` | Hierarchical aggregation strategies |
-| `reconciliation` | MinT, WLS, OLS optimal reconciliation |
-| `ensemble_forecast` | Forecast combination and stacking |
-| `regime` | Markov-switching AR, TAR, SETAR, STAR |
-| `structural` | Structural break detection (Bai-Perron) |
-| `functional` | FPCA, functional linear model, FDA utilities |
-| `clustering` | k-means/medoids, DBSCAN, shapelet classification |
+| `streaming` | Streaming statistics, change detection, cointegration (ADWIN itself lives in `online_algorithms`) |
+| `online_algorithms` | ADWIN drift detector, P² streaming quantiles, online regression |
+| ~~`conformal`~~ | Not wired into `lib.rs` — unreachable (see Known Issues) |
+| `hierarchical` | Hierarchical aggregation strategies; `hierarchical::reconciliation` also has its own `HierarchyMatrix`/MinT/bottom-up/ERM functions |
+| `reconciliation` | MinT (shrinkage), WLS, OLS optimal reconciliation, summation-matrix builder |
+| `ensemble_forecast` | Forecast combination, stacking, bagging, dynamic ensemble selection |
+| `regime` | Markov-switching AR (Hamilton filter) only — TAR/SETAR/STAR are not implemented |
+| `structural` | Structural *time series* models (local level, local linear trend) with Kalman decompose/forecast — not a Bai-Perron break test |
+| `dimensionality_reduction` | Functional PCA, DTW + barycenter averaging, other reduction utilities |
+| `clustering` | k-means, hierarchical, DBSCAN, spectral, GMM clustering; DTW/kNN/shapelet classification |
 | `correlation` | ACF, PACF, CCF, DTW, coherence |
 | `regression` | DL, ARDL, ECM, regression with ARIMA errors |
 | `transformations` | Box-Cox, differencing, normalization, stationarity |
 | `tests` | Unit root and stationarity tests (ADF, KPSS, PP) |
-| `evaluation` | MASE, SMAPE, CRPS, coverage, PIT, reliability |
+| `evaluation` | MAE, MAPE, SMAPE, MASE, RMSE, WAPE, coverage, Winkler score, Diebold-Mariano |
+| `energy_forecast` | Pinball loss, CRPS, reliability diagrams, sharpness, skill score (in addition to its energy-domain forecasting) |
 | `financial` | Technical indicators, GARCH, financial metrics |
 | `environmental` | Climate indices, drought, weather analysis |
 | `biomedical` | ECG, EEG, EMG signal analysis |
@@ -320,11 +330,31 @@ println!("[{:.2}, {:.2}]", interval.lower, interval.upper);
 
 | Flag | Description |
 |---|---|
-| `parallel` | Rayon parallel computation for large datasets |
 | `simd` | SIMD-accelerated operations via `scirs2-core` |
 | `serde` | Serialization support |
-| `wasm` | WebAssembly bindings |
-| `python` | Python interop layer |
+| `wasm` | WebAssembly bindings (pulls in `serde`) |
+| `python` | Python interop layer (via `scirs2-core/python`) |
+| `r` | R integration (`r_integration` module) |
+
+`default = []` — no feature is enabled by default. There is no `parallel` feature; the crate
+does not depend on `rayon`.
+
+---
+
+## Testing
+
+`grep -rn "todo!()\|unimplemented!()" src/` returns 0 matches — but see [TODO.md](./TODO.md)
+"Known Issues" for several public API methods that silently return placeholder/fabricated
+results instead of panicking or erroring, which a `todo!()` grep cannot catch.
+
+Freshly measured 2026-07-15:
+
+```bash
+cargo nextest run -p scirs2-series               # default features: 1752 tests run, 1752 passed, 1 skipped
+cargo nextest run -p scirs2-series --all-features # all-features:     1805 tests run, 1805 passed, 1 skipped
+```
+
+Both runs: 0 failed. (The 1 skipped test is `#[ignore]`d in both modes.)
 
 ---
 

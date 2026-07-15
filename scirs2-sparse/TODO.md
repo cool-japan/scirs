@@ -1,5 +1,9 @@
 # scirs2-sparse Development TODO
 
+## Status: v0.6.1 (released, 2026-07-15)
+
+scirs2-sparse's own test suite (freshly re-run 2026-07-15): 1093 tests pass, 3 skipped, 0 failed with default features; 1093 tests pass, 3 skipped, 0 failed with `--all-features`.
+
 ## v0.3.3 — COMPLETED
 
 ### New Sparse Formats
@@ -72,10 +76,14 @@
 - [x] GPU BiCGSTAB and CG solvers — Implemented in v0.4.0 (`gpu/solvers.rs`)
 - [x] Mixed CPU/GPU preconditioning (ILU on CPU, SpMV on GPU) — Implemented in v0.4.2 (`gpu_preconditioner.rs`)
 
+Status (verified 2026-07-15): all four items above are real, tested algorithms, but per their own module doc comments they currently execute as CPU-side simulations of the intended GPU pattern, not actual GPU dispatch — `gpu/spmv.rs` states it provides "CPU-side SIMD-friendly implementations that serve as compute-shader placeholders" (`GpuSpMvBackend::Cpu` is the only wired variant; `WebGpu` is "feature-gated, not yet wired"), and `gpu/solvers.rs` states "The CPU computation paths mirror what GPU compute shaders would execute." Checked off because the row-parallel/chunked algorithms themselves are complete and correct, not because real GPU hardware dispatch exists.
+
 ### Distributed Sparse Solvers
 - [x] Distributed CSR with row-based partitioning — Implemented in v0.4.0 (`distributed/csr.rs`, `distributed/partition.rs`)
 - [x] Distributed SpMV with halo exchange — Implemented in v0.4.0 (`distributed/halo_exchange.rs`)
 - [x] Distributed AMG via `scirs2-core` ring allreduce — Implemented in v0.4.0 (`distributed/dist_amg.rs`)
+
+Status (verified 2026-07-15): same caveat as GPU Sparse BLAS above — `distributed/csr.rs` and `distributed/halo_exchange.rs` explicitly document the halo exchange as "simulated via shared memory ... a real distributed implementation would replace the halo broadcast with MPI or similar," and `distributed/dist_amg.rs` uses a local "simulated (shared-memory) communication pattern," not an actual `scirs2-core` ring-allreduce call (no `scirs2_core` import is present in that file at all — the third bullet's "via `scirs2-core` ring allreduce" description is inaccurate as written). The partitioning, halo-identification, and AMG-hierarchy math are real and tested single-process; multi-process/MPI execution is not implemented.
 
 ### Graph Algorithm Enhancements
 - [x] Approximate graph coloring for parallel Gauss-Seidel — Implemented in v0.4.0
@@ -99,8 +107,8 @@
 
 - `krylov.rs` was deleted and replaced by the `krylov/` submodule; ensure no lingering re-exports break downstream
 - `neural_adaptive_sparse/neural_network.rs` needs more training data and documented hyperparameters
-- H-matrix implementation is a structural sketch; ACA convergence not yet validated against dense reference
-- GPU sparse stubs in `linalg/` are feature-gated but untested without actual GPU; add mock tests
-- Several solver files exceed 2000 lines; use `rslines 50` to identify split candidates
+- [x] H-matrix ACA convergence is validated against dense reference — see `test_aca_rank1`, `test_aca_plus_rank1`, `test_hmatrix_truncate`, `test_aca_error_cases` in `src/hierarchical/low_rank.rs` (Frobenius-error checks against explicit dense reconstructions); `src/hierarchical/cluster_tree.rs` provides `ClusterTree`/`build_cluster_tree`/`admissibility_check` beyond a bare structural sketch
+- GPU sparse code lives in the top-level `gpu/` module and `gpu_preconditioner.rs` (not `linalg/`, which has no `feature = "gpu"` gates); see the CPU-simulation caveat under "GPU Sparse BLAS" above
+- [x] No source file currently exceeds 2000 lines (verified 2026-07-15: largest is `src/linalg/iterative.rs` at 1800 lines); re-check with `rslines 50` if new files grow past the threshold
 - SPAI preconditioner setup cost is O(n * bandwidth^2); document when to prefer it over ILU
 - Saddle-point solver assumes 2x2 block structure; generalize to block-n

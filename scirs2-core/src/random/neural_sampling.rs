@@ -67,6 +67,8 @@ pub struct NormalizingFlow {
     flow_layers: Vec<FlowLayer>,
     base_distribution: MultivariateNormal,
     trained: bool,
+    /// Per-epoch average negative log-likelihood recorded by [`Self::train`].
+    training_history: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -123,6 +125,7 @@ impl NormalizingFlow {
             flow_layers,
             base_distribution,
             trained: false,
+            training_history: Vec::new(),
         }
     }
 
@@ -135,6 +138,9 @@ impl NormalizingFlow {
             // Mini-batch training (simplified)
             let num_batches = training_data.nrows().div_ceil(batch_size);
 
+            let mut epoch_loss = 0.0;
+            let mut epoch_samples = 0usize;
+
             for batch_idx in 0..num_batches {
                 let start_idx = batch_idx * batch_size;
                 let end_idx = (start_idx + batch_size).min(training_data.nrows());
@@ -142,7 +148,7 @@ impl NormalizingFlow {
                 let batch = training_data.slice(s![start_idx..end_idx, ..]);
 
                 // Forward pass: compute negative log-likelihood
-                let mut _total_loss = 0.0;
+                let mut total_loss = 0.0;
                 for i in 0..batch.nrows() {
                     let x = batch.row(i).to_owned();
                     let (z, log_det_jacobian) = self.forward(&x)?;
@@ -151,20 +157,40 @@ impl NormalizingFlow {
                     let log_prob_z = self.base_distribution.log_probability(&z.to_vec())?;
                     let log_prob_x = log_prob_z + log_det_jacobian;
 
-                    _total_loss -= log_prob_x; // Negative log-likelihood (TODO: use for monitoring)
+                    total_loss -= log_prob_x; // Negative log-likelihood
                 }
+
+                epoch_loss += total_loss;
+                epoch_samples += batch.nrows();
 
                 // Backward pass (simplified gradient computation)
                 self.update_parameters(learning_rate, &batch)?;
             }
 
+            // Average negative log-likelihood per sample for this epoch.
+            let avg_loss = if epoch_samples > 0 {
+                epoch_loss / epoch_samples as f64
+            } else {
+                0.0
+            };
+            self.training_history.push(avg_loss);
+
             if epoch % 100 == 0 {
-                println!("Epoch {}: Training flow...", epoch);
+                println!("Epoch {epoch}: loss = {avg_loss:.6}");
             }
         }
 
         self.trained = true;
         Ok(())
+    }
+
+    /// Returns the per-epoch training loss history recorded by [`Self::train`].
+    ///
+    /// Each entry is the average negative log-likelihood over all samples
+    /// processed during the corresponding epoch (one entry is pushed per
+    /// epoch, in order).
+    pub fn training_history(&self) -> &[f64] {
+        &self.training_history
     }
 
     /// Forward transformation: x -> z
@@ -401,6 +427,9 @@ pub struct ScoreBasedDiffusion {
     score_network: ScoreNetwork,
     noise_schedule: NoiseSchedule,
     trained: bool,
+    /// Per-epoch average denoising score-matching loss recorded by
+    /// [`Self::train`].
+    training_history: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
@@ -461,6 +490,7 @@ impl ScoreBasedDiffusion {
             score_network,
             noise_schedule,
             trained: false,
+            training_history: Vec::new(),
         }
     }
 
@@ -470,6 +500,9 @@ impl ScoreBasedDiffusion {
         let batch_size = 32;
 
         for epoch in 0..num_epochs {
+            let mut epoch_loss = 0.0;
+            let mut num_batches_processed = 0usize;
+
             // Denoising score matching training
             for _ in 0..training_data.nrows().div_ceil(batch_size) {
                 // Sample random timesteps
@@ -482,16 +515,34 @@ impl ScoreBasedDiffusion {
                 let noisy_data = self.add_noise(training_data, &noise, t)?;
 
                 // Train score network to predict noise
-                self.score_network.train_step(&noisy_data, &noise, t)?;
+                epoch_loss += self.score_network.train_step(&noisy_data, &noise, t)?;
+                num_batches_processed += 1;
             }
 
+            // Average denoising score-matching MSE loss for this epoch.
+            let avg_loss = if num_batches_processed > 0 {
+                epoch_loss / num_batches_processed as f64
+            } else {
+                0.0
+            };
+            self.training_history.push(avg_loss);
+
             if epoch % 100 == 0 {
-                println!("Epoch {}: Training diffusion model...", epoch);
+                println!("Epoch {epoch}: loss = {avg_loss:.6}");
             }
         }
 
         self.trained = true;
         Ok(())
+    }
+
+    /// Returns the per-epoch training loss history recorded by [`Self::train`].
+    ///
+    /// Each entry is the average denoising score-matching mean-squared-error
+    /// loss over all batches processed during the corresponding epoch (one
+    /// entry is pushed per epoch, in order).
+    pub fn training_history(&self) -> &[f64] {
+        &self.training_history
     }
 
     /// Sample from the diffusion model using DDPM
@@ -636,19 +687,38 @@ impl NoiseSchedule {
 
 impl ScoreNetwork {
     /// Train step for score network
+    ///
+    /// Returns the mean squared error between the network's predicted noise
+    /// and the true noise added at timestep `t` — the standard denoising
+    /// score-matching training objective.
     fn train_step(
         &mut self,
         noisy_data: &Array2<f64>,
         target_noise: &Array2<f64>,
         t: usize,
-    ) -> Result<(), String> {
+    ) -> Result<f64, String> {
         // Simplified training step - would implement proper backpropagation
+        let mut squared_error_sum = 0.0;
+        let mut count = 0usize;
+
         for i in 0..noisy_data.nrows() {
             let input = self.prepare_input(&noisy_data.row(i).to_owned(), t)?;
-            let _predicted = self.mlp.forward(&input)?;
+            let predicted = self.mlp.forward(&input)?;
+            let target = target_noise.row(i);
+
             // Compute loss and update parameters
+            for j in 0..predicted.len().min(target.len()) {
+                let diff = predicted[j] - target[j];
+                squared_error_sum += diff * diff;
+                count += 1;
+            }
         }
-        Ok(())
+
+        Ok(if count > 0 {
+            squared_error_sum / count as f64
+        } else {
+            0.0
+        })
     }
 
     /// Predict noise at given timestep
@@ -697,6 +767,9 @@ pub struct EnergyBasedModel {
     dimension: usize,
     temperature: f64,
     mcmc_steps: usize,
+    /// Per-epoch average contrastive-divergence loss recorded by
+    /// [`Self::train`].
+    training_history: Vec<f64>,
 }
 
 impl EnergyBasedModel {
@@ -711,12 +784,15 @@ impl EnergyBasedModel {
             dimension,
             temperature: 1.0,
             mcmc_steps: 100,
+            training_history: Vec::new(),
         }
     }
 
     /// Train using contrastive divergence
     pub fn train(&mut self, training_data: &Array2<f64>, num_epochs: usize) -> Result<(), String> {
         for epoch in 0..num_epochs {
+            let mut epoch_loss = 0.0;
+
             for i in 0..training_data.nrows() {
                 let positive_sample = training_data.row(i).to_owned();
 
@@ -724,15 +800,35 @@ impl EnergyBasedModel {
                 let negative_sample = self.sample_mcmc(&positive_sample, self.mcmc_steps)?;
 
                 // Contrastive divergence update
-                self.contrastive_divergence_update(&positive_sample, &negative_sample)?;
+                epoch_loss +=
+                    self.contrastive_divergence_update(&positive_sample, &negative_sample)?;
             }
 
+            // Average contrastive divergence loss (positive minus negative
+            // energy) for this epoch.
+            let avg_loss = if training_data.nrows() > 0 {
+                epoch_loss / training_data.nrows() as f64
+            } else {
+                0.0
+            };
+            self.training_history.push(avg_loss);
+
             if epoch % 100 == 0 {
-                println!("Epoch {}: Training EBM...", epoch);
+                println!("Epoch {epoch}: loss = {avg_loss:.6}");
             }
         }
 
         Ok(())
+    }
+
+    /// Returns the per-epoch training loss history recorded by [`Self::train`].
+    ///
+    /// Each entry is the average contrastive-divergence loss (positive-sample
+    /// energy minus negative-sample energy) over all training rows processed
+    /// during the corresponding epoch (one entry is pushed per epoch, in
+    /// order).
+    pub fn training_history(&self) -> &[f64] {
+        &self.training_history
     }
 
     /// Sample using Langevin dynamics
@@ -806,19 +902,25 @@ impl EnergyBasedModel {
     }
 
     /// Contrastive divergence parameter update
+    ///
+    /// Returns the contrastive divergence loss (positive-sample energy minus
+    /// negative-sample energy) — the quantity contrastive divergence training
+    /// drives down (a well-fit model assigns lower energy to real/positive
+    /// samples than to MCMC-generated/negative samples).
     fn contrastive_divergence_update(
         &mut self,
         positive: &Array1<f64>,
         negative: &Array1<f64>,
-    ) -> Result<(), String> {
+    ) -> Result<f64, String> {
         // Simplified parameter update - would implement proper gradients
-        let _pos_energy = self.energy_network.forward(positive)?;
-        let _neg_energy = self.energy_network.forward(negative)?;
+        let pos_energy = self.energy_network.forward(positive)?;
+        let neg_energy = self.energy_network.forward(negative)?;
 
         // Update parameters to decrease positive energy and increase negative energy
         // (Implementation would use automatic differentiation)
+        let cd_loss = pos_energy[0] - neg_energy[0];
 
-        Ok(())
+        Ok(cd_loss)
     }
 }
 
@@ -830,6 +932,9 @@ pub struct NeuralPosteriorEstimation {
     observation_dim: usize,
     parameter_dim: usize,
     trained: bool,
+    /// Per-epoch average Gaussian negative log-likelihood loss recorded by
+    /// [`Self::train`].
+    training_history: Vec<f64>,
 }
 
 impl NeuralPosteriorEstimation {
@@ -851,6 +956,7 @@ impl NeuralPosteriorEstimation {
             observation_dim,
             parameter_dim,
             trained: false,
+            training_history: Vec::new(),
         }
     }
 
@@ -863,6 +969,9 @@ impl NeuralPosteriorEstimation {
         let mut rng = seeded_rng(42);
 
         for epoch in 0..1000 {
+            let mut epoch_loss = 0.0;
+            let mut num_steps = 0usize;
+
             for _ in 0..num_simulations / 1000 {
                 // Sample from prior
                 let mut theta = Array1::zeros(self.parameter_dim);
@@ -874,16 +983,35 @@ impl NeuralPosteriorEstimation {
                 let x = simulator(&theta);
 
                 // Train posterior network
-                self.train_posterior_step(&x, &theta)?;
+                epoch_loss += self.train_posterior_step(&x, &theta)?;
+                num_steps += 1;
             }
 
+            // Average Gaussian negative log-likelihood loss for this epoch.
+            let avg_loss = if num_steps > 0 {
+                epoch_loss / num_steps as f64
+            } else {
+                0.0
+            };
+            self.training_history.push(avg_loss);
+
             if epoch % 100 == 0 {
-                println!("Epoch {}: Training NPE...", epoch);
+                println!("Epoch {epoch}: loss = {avg_loss:.6}");
             }
         }
 
         self.trained = true;
         Ok(())
+    }
+
+    /// Returns the per-epoch training loss history recorded by [`Self::train`].
+    ///
+    /// Each entry is the average Gaussian negative log-likelihood loss over
+    /// all simulations processed during the corresponding epoch (one entry is
+    /// pushed per epoch, in order — `train` always runs a fixed 1000-epoch
+    /// schedule).
+    pub fn training_history(&self) -> &[f64] {
+        &self.training_history
     }
 
     /// Estimate posterior given observation
@@ -920,18 +1048,33 @@ impl NeuralPosteriorEstimation {
     }
 
     /// Train posterior network step
+    ///
+    /// Returns the Gaussian negative log-likelihood of `true_parameter` under
+    /// the predicted posterior mean/variance — the amortized inference loss
+    /// this step is meant to minimize.
     fn train_posterior_step(
         &mut self,
         observation: &Array1<f64>,
         true_parameter: &Array1<f64>,
-    ) -> Result<(), String> {
+    ) -> Result<f64, String> {
         // Get predicted posterior parameters
-        let _predicted_params = self.posterior_network.forward(observation)?;
+        let predicted_params = self.posterior_network.forward(observation)?;
+
+        let mean_start = 0;
+        let var_start = self.parameter_dim;
 
         // Compute loss (negative log-likelihood) and update
         // (Implementation would use automatic differentiation)
+        let mut nll = 0.0;
+        for j in 0..self.parameter_dim {
+            let mean = predicted_params[mean_start + j];
+            let var = predicted_params[var_start + j].exp().max(1e-12); // Ensure positive variance
+            let diff = true_parameter[j] - mean;
+            nll += 0.5 * diff * diff / var + 0.5 * var.ln();
+        }
+        nll += 0.5 * (self.parameter_dim as f64) * (2.0 * std::f64::consts::PI).ln();
 
-        Ok(())
+        Ok(nll)
     }
 }
 
@@ -1018,6 +1161,116 @@ mod tests {
         // Check that alpha_bars are decreasing
         for i in 1..schedule.alpha_bars.len() {
             assert!(schedule.alpha_bars[i] <= schedule.alpha_bars[i - 1]);
+        }
+    }
+
+    #[test]
+    fn test_normalizing_flow_training_history() {
+        let mut flow = NormalizingFlow::new(4, 2);
+        let training_data =
+            Array2::from_shape_fn((8, 4), |(i, j)| (i as f64 * 0.3 + j as f64 * 0.1) - 1.0);
+        let num_epochs = 5;
+
+        flow.train(&training_data, num_epochs)
+            .expect("training should succeed on well-formed synthetic data");
+
+        let history = flow.training_history();
+        assert_eq!(
+            history.len(),
+            num_epochs,
+            "training_history should have exactly one entry per epoch"
+        );
+        for (i, &loss) in history.iter().enumerate() {
+            assert!(
+                loss.is_finite(),
+                "epoch {i} loss should be finite, got {loss}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_score_based_diffusion_training_history() {
+        let config = DiffusionConfig {
+            dimension: 3,
+            num_timesteps: 20,
+            beta_start: 1e-4,
+            beta_end: 0.02,
+            hidden_dims: vec![8, 8],
+        };
+        let mut diffusion = ScoreBasedDiffusion::new(config);
+        let training_data = Array2::from_shape_fn((6, 3), |(i, j)| (i as f64 - j as f64) * 0.2);
+
+        diffusion
+            .train(&training_data)
+            .expect("training should succeed on well-formed synthetic data");
+
+        let history = diffusion.training_history();
+        // `train` has no epoch parameter and always runs a fixed 1000-epoch
+        // schedule internally.
+        assert_eq!(
+            history.len(),
+            1000,
+            "training_history should have exactly one entry per (fixed) epoch"
+        );
+        for (i, &loss) in history.iter().enumerate() {
+            assert!(
+                loss.is_finite(),
+                "epoch {i} loss should be finite, got {loss}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_energy_based_model_training_history() {
+        let mut ebm = EnergyBasedModel::new(3, &[8, 8]);
+        let training_data = Array2::from_shape_fn((4, 3), |(i, j)| (i as f64 - j as f64) * 0.15);
+        let num_epochs = 4;
+
+        ebm.train(&training_data, num_epochs)
+            .expect("training should succeed on well-formed synthetic data");
+
+        let history = ebm.training_history();
+        assert_eq!(
+            history.len(),
+            num_epochs,
+            "training_history should have exactly one entry per epoch"
+        );
+        for (i, &loss) in history.iter().enumerate() {
+            assert!(
+                loss.is_finite(),
+                "epoch {i} loss should be finite, got {loss}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_neural_posterior_estimation_training_history() {
+        let mut npe = NeuralPosteriorEstimation::new(4, 2, &[8, 8]);
+        let simulator = |theta: &Array1<f64>| -> Array1<f64> {
+            Array1::from_vec(vec![
+                theta[0],
+                theta[1],
+                theta[0] + theta[1],
+                theta[0] - theta[1],
+            ])
+        };
+
+        npe.train(simulator, 2000)
+            .expect("training should succeed on well-formed synthetic simulator");
+
+        let history = npe.training_history();
+        // `train` has no epoch parameter and always runs a fixed 1000-epoch
+        // schedule internally.
+        assert_eq!(
+            history.len(),
+            1000,
+            "training_history should have exactly one entry per (fixed) epoch"
+        );
+        for (i, &loss) in history.iter().enumerate() {
+            assert!(
+                loss.is_finite(),
+                "epoch {i} loss should be finite, got {loss}"
+            );
         }
     }
 }

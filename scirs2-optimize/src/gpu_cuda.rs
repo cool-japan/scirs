@@ -89,8 +89,10 @@ fn build_context() -> OptimizeResult<std::sync::Arc<oxicuda_driver::Context>> {
 /// [`as_standard_layout`](scirs2_core::ndarray::ArrayBase::as_standard_layout)
 /// and describe it as a [`Layout::RowMajor`] `MatrixDesc` (`n`×`n`). Mirroring
 /// the proven interpolate `cuda_eval_gemm` matrix×vector layout, `v` is
-/// described as a column-vector [`Layout::ColMajor`] `MatrixDesc` (`n`×1) and
-/// the output as a [`Layout::ColMajor`] `MatrixDescMut` (`n`×1). Under
+/// described as a column-vector [`Layout::RowMajor`] `MatrixDesc` (`n`×1) and
+/// the output as a [`Layout::RowMajor`] `MatrixDescMut` (`n`×1) — a
+/// single-column matrix is byte-identical under either layout tag, and
+/// `oxicuda-blas`'s GEMM dispatcher requires RowMajor on every operand. Under
 /// [`Transpose::NoTrans`] (`alpha = 1.0`, `beta = 0.0`) this yields `M = n`,
 /// `K = n`, `N = 1`.
 pub fn cuda_hessian_vector_product(
@@ -129,13 +131,15 @@ pub fn cuda_hessian_vector_product(
     let d_v = oxicuda_memory::DeviceBuffer::from_host(&v_vec).map_err(cuda_err)?;
     let mut d_c = oxicuda_memory::DeviceBuffer::<f64>::alloc(n).map_err(cuda_err)?;
 
-    // H as RowMajor (n×n), v as a ColMajor column (n×1), output ColMajor (n×1) —
-    // the exact operand layout of interpolate's `cuda_eval_gemm`.
+    // H as RowMajor (n×n), v as a RowMajor column (n×1), output RowMajor (n×1).
+    // A single-column matrix has one possible packed layout regardless of the
+    // tag, but oxicuda-blas's GEMM dispatcher hard-rejects any non-RowMajor
+    // descriptor, so all three must be tagged RowMajor.
     let a_desc =
         MatrixDesc::from_buffer(&d_h, n as u32, n as u32, Layout::RowMajor).map_err(blas_err)?;
-    let b_desc = MatrixDesc::from_buffer(&d_v, n as u32, 1, Layout::ColMajor).map_err(blas_err)?;
+    let b_desc = MatrixDesc::from_buffer(&d_v, n as u32, 1, Layout::RowMajor).map_err(blas_err)?;
     let mut c_desc =
-        MatrixDescMut::from_buffer(&mut d_c, n as u32, 1, Layout::ColMajor).map_err(blas_err)?;
+        MatrixDescMut::from_buffer(&mut d_c, n as u32, 1, Layout::RowMajor).map_err(blas_err)?;
 
     oxicuda_blas::level3::gemm_api::gemm::<f64>(
         &handle,
@@ -148,6 +152,14 @@ pub fn cuda_hessian_vector_product(
         &mut c_desc,
     )
     .map_err(blas_err)?;
+
+    // The GEMM runs on the BLAS handle's `CU_STREAM_NON_BLOCKING` stream, but
+    // `copy_to_host` issues its `cuMemcpyDtoH_v2` on the legacy default stream,
+    // which a non-blocking stream does NOT implicitly synchronise with. Without
+    // this wait the copy races the kernel and reads the (uninitialised / zero)
+    // output before the GEMM finishes — the longer the kernel runs (large n),
+    // the more often it reads all-zeros. Synchronise the compute stream first.
+    handle.stream().synchronize().map_err(cuda_err)?;
 
     let mut hv = vec![0.0f64; n];
     d_c.copy_to_host(&mut hv).map_err(cuda_err)?;

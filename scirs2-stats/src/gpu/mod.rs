@@ -221,7 +221,7 @@ fn dispatch_with_params_f32(
 
     // ── Adapter / device ─────────────────────────────────────────────────────
     let instance = Instance::new(InstanceDescriptor {
-        backends: Backends::all(),
+        backends: Backends::PRIMARY,
         flags: wgpu::InstanceFlags::default(),
         memory_budget_thresholds: Default::default(),
         backend_options: Default::default(),

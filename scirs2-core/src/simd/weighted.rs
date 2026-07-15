@@ -21,7 +21,14 @@ use ndarray::ArrayView1;
 /// # Panics
 ///
 /// Panics if arrays have different lengths
+///
+/// # Stack-safety note
+///
+/// Deliberately `#[inline(never)]` (same precautionary reasoning as the squared-Euclidean
+/// distance leaves in `simd/distances.rs`): callers of this kernel may sit deep inside
+/// recursive numeric code, so its wide-register locals are kept out of ancestor frames.
 #[allow(dead_code)]
+#[inline(never)]
 pub fn simd_weighted_sum_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32>) -> f32 {
     assert_eq!(
         values.len(),
@@ -145,7 +152,12 @@ pub fn simd_weighted_sum_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32>
 /// SIMD-accelerated weighted sum for f64 arrays
 ///
 /// Computes Σ(w_i × x_i)
+///
+/// # Stack-safety note
+///
+/// Deliberately `#[inline(never)]` — see [`simd_weighted_sum_f32`] for rationale.
 #[allow(dead_code)]
+#[inline(never)]
 pub fn simd_weighted_sum_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64>) -> f64 {
     assert_eq!(
         values.len(),

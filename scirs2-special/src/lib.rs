@@ -44,7 +44,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-special = "0.6.0"
+//! scirs2-special = "0.6.1"
 //! ```
 //!
 //!
@@ -96,7 +96,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.6.0
+//! - **Version**: 0.6.1
 //! - **Release Date**: March 27, 2026
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
 

@@ -1,5 +1,18 @@
 # scirs2-core Development TODO
 
+## Status: v0.6.1 (released 2026-07-15; last reviewed 2026-07-15)
+
+scirs2-core's own test suite (freshly run 2026-07-15): 3025 tests run, 3024 passed, 1 failed, 2 skipped
+(default features); 4540 tests run, 4540 passed (2 flagged leaky by nextest's leak detector, not
+failures), 14 skipped (`--all-features`). The 1 default-features failure is
+`simd_matmul_tests::test_performance_benchmark`, a hardcoded wall-clock threshold assertion
+(`elapsed.as_millis() < 500` for a 256×256 f32 matmul) — it failed under heavy CPU contention from
+concurrent builds sharing this machine (100+ concurrent cargo/rustc processes from other agents at the
+time), not a functional regression; the same test passed cleanly in the `--all-features` run, and the
+underlying SIMD matmul correctness assertions in the same test passed in both runs. This session also
+fixed a broken rustdoc intra-doc link in `profiling/production.rs` (`Dashboard::export_config` →
+`PerformanceDashboard::export_config`) — a docs-only fix.
+
 ## v0.3.3 — COMPLETED
 
 ### Work-Stealing Scheduler and Parallel Iterators
@@ -134,7 +147,7 @@ All items listed under v0.4.0 Planned were implemented during Waves 1-39 and are
 
 ## Known Issues / Technical Debt
 
-- Several source files exceed 2000 lines (refactoring policy); track with `rslines 50` and split
+- Verified 2026-07-15: no source file in `scirs2-core/src` currently exceeds the 2000-line refactoring threshold (closest: `ecosystem/validation.rs` at 1924, `performance_optimization.rs` at 1865, `profiling/coverage.rs` at 1834). Several files are close to the limit — re-check with `rslines 50` before adding substantial code to any of them.
 - `#![allow(dead_code)]` is blanket-applied; should be narrowed to specific items
 - GPU allocator tests are `#[ignore]`d on CI due to hardware availability; need mock backend
 - NUMA allocator falls back silently when `libnuma` is absent; add explicit warning log

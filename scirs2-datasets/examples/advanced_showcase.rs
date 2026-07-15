@@ -179,14 +179,14 @@ fn demonstrate_advanced_gpu_optimization() -> Result<(), Box<dyn std::error::Err
         optimizer.benchmark_performance(&gpu_context, "matrix_generation", &datashapes)?;
 
     println!("   Benchmark Results:");
-    println!(
-        "     Best Speedup: {:.2}x",
-        benchmark_results.best_speedup()
-    );
-    println!(
-        "     Average Speedup: {:.2}x",
-        benchmark_results.average_speedup()
-    );
+    match benchmark_results.best_speedup() {
+        Some(speedup) => println!("     Best Speedup: {speedup:.2}x"),
+        None => println!("     Best Speedup: N/A (no GPU dispatch ran; CPU-only baseline)"),
+    }
+    match benchmark_results.average_speedup() {
+        Some(speedup) => println!("     Average Speedup: {speedup:.2}x"),
+        None => println!("     Average Speedup: N/A (no GPU dispatch ran; CPU-only baseline)"),
+    }
     println!(
         "     Total Memory Usage: {:.1} MB",
         benchmark_results.total_memory_usage()

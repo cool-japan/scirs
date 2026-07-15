@@ -151,7 +151,6 @@ class TestPoissonDistribution:
         # CDF at large k should approach 1
         assert dist.cdf(20.0) > 0.999
 
-    @pytest.mark.skip(reason="Poisson PPF not implemented yet in scirs2-stats")
     def test_poisson_ppf(self):
         """Test Poisson PPF."""
         dist = scirs2.poisson(3.0)

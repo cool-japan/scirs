@@ -70,10 +70,17 @@ pub type NumpyCompatArray2<T> = Array2<T>;
 // CONVERSION FUNCTIONS
 // ========================================
 
-/// Convert NumPy array to scirs2 ArrayD (zero-copy when possible)
+/// Convert a NumPy array to an owned scirs2 `ArrayD`
 ///
-/// This function attempts zero-copy conversion when the NumPy array is C-contiguous.
-/// Otherwise, it creates a owned copy.
+/// This function always copies -- it cannot be zero-copy. `.readonly()` produces a
+/// `PyReadonlyArrayDyn` guard that is local to this call and is dropped when the
+/// function returns, so a view borrowed from it could never be returned soundly by
+/// this `ArrayD<T>`-returning signature. `.to_owned()` is required here, not merely
+/// an optimization choice.
+///
+/// For true zero-copy access, use [`numpy_readonly_to_scirs_view`] instead: it takes
+/// the `PyReadonlyArrayDyn` guard by reference from the *caller*, so the caller keeps
+/// the guard (and therefore the returned view) alive for as long as it's needed.
 #[cfg(feature = "python")]
 pub fn numpy_to_scirs_arrayd<'py, T>(array: &Bound<'py, PyArrayDyn<T>>) -> PyResult<ArrayD<T>>
 where
@@ -82,10 +89,9 @@ where
     let readonly = array.readonly();
     let array_ref = readonly.as_array();
 
-    // Always create owned array for safety
-    // Zero-copy path: use `numpy_readonly_to_scirs_view` for a lifetime-bounded
-    // `ArrayViewD<'a, T>` that avoids the allocation here. This owned-copy path
-    // exists for callers that need owned data or mutable access.
+    // `readonly` is a local guard dropped when this function returns, so copying
+    // here is required for soundness -- see the zero-copy alternative documented
+    // above.
     Ok(array_ref.to_owned())
 }
 

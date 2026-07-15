@@ -7,6 +7,8 @@ description = "Neural network building blocks module for SciRS2 (scirs2-neural) 
 readme = "README.md"
 license.workspace = true
 repository.workspace = true
+homepage = "https://github.com/cool-japan/scirs"
+documentation = "https://docs.rs/scirs2-neural"
 keywords = ["neural-network", "deep-learning", "scientific", "ai", "machine-learning"]
 categories = ["science", "mathematics", "algorithms"]
 
@@ -29,10 +31,12 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 oxicode = { workspace = true }
+chrono = { workspace = true }
 scirs2-symbolic = { workspace = true, optional = true }
 
 [dev-dependencies]
-scirs2-autograd = { workspace = true }
+scirs2-autograd = { path = "../scirs2-autograd" }
+tempfile = { workspace = true }
 
 [features]
 default = []

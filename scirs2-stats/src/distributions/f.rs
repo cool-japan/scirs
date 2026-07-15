@@ -213,6 +213,97 @@ impl<T: Float + NumCast> F<T> {
 
         Ok(samples)
     }
+
+    /// Percent-point function (inverse CDF / quantile function) at a given probability
+    ///
+    /// Returns the value `x` such that `CDF(x) = p`, by inverting the
+    /// regularized-incomplete-beta relation used by [`F::cdf`] via bisection
+    /// on the incomplete-beta argument `z`, following the same pattern as
+    /// `Beta::ppf`.
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Probability value (between 0 and 1)
+    ///
+    /// # Returns
+    ///
+    /// * The value `x` such that `CDF(x) = p`
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_stats::distributions::f::F;
+    ///
+    /// let f_dist = F::new(2.0f64, 10.0, 0.0, 1.0).expect("Test/example failed");
+    /// let x = f_dist.ppf(0.5).expect("Test/example failed");
+    /// let p_roundtrip = f_dist.cdf(x);
+    /// assert!((p_roundtrip - 0.5).abs() < 1e-6);
+    /// ```
+    pub fn ppf(&self, p: T) -> StatsResult<T> {
+        if p < T::zero() || p > T::one() {
+            return Err(StatsError::DomainError(
+                "Probability must be between 0 and 1".to_string(),
+            ));
+        }
+
+        // p = 0 maps to the (finite) lower boundary of the support: loc.
+        if p == T::zero() {
+            return Ok(self.loc);
+        }
+
+        // p = 1 is a genuine singularity: CDF(x) -> 1 only in the limit
+        // x -> infinity (equivalently z -> 1 in the incomplete-beta argument
+        // below), since the F distribution's support is unbounded above.
+        // Unlike Beta (bounded support, where p=1 maps exactly to
+        // `loc + scale`), there is no finite exact answer here. Mirror
+        // `Poisson::ppf_impl`'s convention for unbounded-support
+        // distributions and return a large-but-finite sentinel rather than
+        // literal infinity.
+        if p == T::one() {
+            let dfn_f64 = self.dfn.to_f64().unwrap_or(1.0).max(1e-3);
+            let dfd_f64 = self.dfd.to_f64().unwrap_or(1.0).max(1e-3);
+            let huge_x = 1.0e15_f64 * (dfd_f64 / dfn_f64).max(1.0);
+            return T::from(huge_x)
+                .map(|v| self.loc + v * self.scale)
+                .ok_or_else(|| {
+                    StatsError::ComputationError("Overflow in F ppf upper bound".to_string())
+                });
+        }
+
+        let two = const_f64::<T>(2.0);
+        let dfn_half = self.dfn / two;
+        let dfd_half = self.dfd / two;
+
+        // Bisect on z in (0,1) against the regularized incomplete beta
+        // function I_z(dfn/2, dfd/2) = p (same pattern as `Beta::ppf`), then
+        // invert z = dfn*x_std/(dfn*x_std+dfd) to recover x_std.
+        let eps = const_f64::<T>(1e-12);
+        let mut lo = const_f64::<T>(1e-15);
+        let mut hi = T::one() - const_f64::<T>(1e-15);
+
+        for _ in 0..100 {
+            let mid = (lo + hi) * const_f64::<T>(0.5);
+            let cdf_mid = regularized_beta(mid, dfn_half, dfd_half);
+            if (cdf_mid - p).abs() < eps {
+                lo = mid;
+                hi = mid;
+                break;
+            }
+            if cdf_mid < p {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+            if (hi - lo) < eps {
+                break;
+            }
+        }
+
+        let z = (lo + hi) * const_f64::<T>(0.5);
+        let x_std = self.dfd * z / (self.dfn * (T::one() - z));
+
+        Ok(self.loc + x_std * self.scale)
+    }
 }
 
 /// Beta function B(a,b) = Γ(a)Γ(b)/Γ(a+b)
@@ -518,5 +609,97 @@ mod tests {
         assert_relative_eq!(beta_function(1.0, 1.0), 1.0, epsilon = 1e-10);
         assert_relative_eq!(beta_function(2.0, 3.0), 1.0 / 12.0, epsilon = 1e-10);
         assert_relative_eq!(beta_function(0.5, 0.5), PI, epsilon = 1e-10);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // PPF (inverse CDF) tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_f_ppf_round_trip() {
+        // Round-trip ppf(cdf(x)) ≈ x across several (dfn, dfd) pairs and x values.
+        let df_pairs: &[(f64, f64)] = &[(1.0, 1.0), (5.0, 10.0), (20.0, 30.0)];
+        let xs: &[f64] = &[0.05, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0];
+
+        for &(dfn, dfd) in df_pairs {
+            let f_dist = F::new(dfn, dfd, 0.0, 1.0).expect("F::new failed");
+            for &x in xs {
+                let p = f_dist.cdf(x);
+                // Skip probabilities too close to the boundaries, where the
+                // round trip is inherently lossy (extreme tails).
+                if !(1e-6..=1.0 - 1e-6).contains(&p) {
+                    continue;
+                }
+                let x_roundtrip = f_dist.ppf(p).expect("ppf failed");
+                assert_relative_eq!(x_roundtrip, x, epsilon = 1e-6, max_relative = 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn test_f_ppf_with_loc_scale() {
+        // Round trip still holds once loc/scale are non-trivial.
+        let f_dist = F::new(3.0, 8.0, 2.0, 1.5).expect("F::new failed");
+        for &x in &[2.5, 3.0, 5.0, 10.0] {
+            let p = f_dist.cdf(x);
+            if !(1e-6..=1.0 - 1e-6).contains(&p) {
+                continue;
+            }
+            let x_roundtrip = f_dist.ppf(p).expect("ppf failed");
+            assert_relative_eq!(x_roundtrip, x, epsilon = 1e-5, max_relative = 1e-5);
+        }
+    }
+
+    #[test]
+    fn test_f_ppf_matches_known_cdf() {
+        // scipy: f.cdf(1, dfn=2, dfd=10) ≈ 0.59812  =>  f.ppf(0.59812, dfn=2, dfd=10) ≈ 1
+        let f2_10 = F::new(2.0, 10.0, 0.0, 1.0).expect("F::new failed");
+        let x = f2_10.ppf(0.59812).expect("ppf failed");
+        assert_relative_eq!(x, 1.0, epsilon = 1e-3);
+
+        // scipy: f.cdf(1, dfn=5, dfd=20) ≈ 0.5560  =>  f.ppf(0.5560, dfn=5, dfd=20) ≈ 1
+        let f5_20 = F::new(5.0, 20.0, 0.0, 1.0).expect("F::new failed");
+        let x2 = f5_20.ppf(0.5560).expect("ppf failed");
+        assert_relative_eq!(x2, 1.0, epsilon = 1e-2);
+
+        // scipy: f.cdf(1, dfn=1, dfd=10) ≈ 0.6591  =>  f.ppf(0.6591, dfn=1, dfd=10) ≈ 1
+        let f1_10 = F::new(1.0, 10.0, 0.0, 1.0).expect("F::new failed");
+        let x3 = f1_10.ppf(0.6591).expect("ppf failed");
+        assert_relative_eq!(x3, 1.0, epsilon = 1e-3);
+    }
+
+    #[test]
+    fn test_f_ppf_edge_cases() {
+        let f_dist = F::new(2.0, 10.0, 0.0, 1.0).expect("F::new failed");
+
+        // p = 0 -> loc boundary
+        let x0 = f_dist.ppf(0.0).expect("ppf(0) failed");
+        assert_eq!(x0, 0.0);
+
+        // p = 1 -> large-but-finite sentinel value (unbounded support, no
+        // finite exact answer; mirrors Poisson::ppf_impl's convention).
+        let x1 = f_dist.ppf(1.0).expect("ppf(1) failed");
+        assert!(x1.is_finite());
+        assert!(x1 > 1.0e6);
+
+        // Out-of-range probabilities are rejected.
+        assert!(f_dist.ppf(-0.1).is_err());
+        assert!(f_dist.ppf(1.1).is_err());
+    }
+
+    #[test]
+    fn test_f_ppf_monotonic() {
+        // PPF must be monotonically non-decreasing in p.
+        let f_dist = F::new(4.0, 15.0, 0.0, 1.0).expect("F::new failed");
+        let ps = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99];
+        let mut prev = f_dist.ppf(ps[0]).expect("ppf failed");
+        for &p in &ps[1..] {
+            let x = f_dist.ppf(p).expect("ppf failed");
+            assert!(
+                x >= prev,
+                "ppf({p}) = {x} should be >= ppf of smaller p = {prev}"
+            );
+            prev = x;
+        }
     }
 }

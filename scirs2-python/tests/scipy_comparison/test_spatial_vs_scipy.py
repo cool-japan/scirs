@@ -46,12 +46,14 @@ class TestDistanceFunctions:
 
             assert np.allclose(scipy_dist, scirs2_dist, rtol=1e-12)
 
-    @pytest.mark.skip(reason="hamming_py is a window function, not a distance function")
     def test_hamming_distance(self):
         """Hamming distance should match SciPy
 
         NOTE: scirs2.hamming_py is actually a Hamming window function for signal
-        processing, not a distance metric. Hamming distance is not implemented.
+        processing, not a distance metric -- use scirs2.spatial_hamming_distance_py
+        instead, which is the SciPy-compatible Hamming distance metric. The name
+        hamming_distance_py is intentionally avoided as well, since it is reserved
+        for the text module's string/character Hamming distance.
         """
         np.random.seed(42)
 
@@ -62,10 +64,10 @@ class TestDistanceFunctions:
         # SciPy Hamming
         scipy_dist = scipy.spatial.distance.hamming(u, v)
 
-        # SciRS2 Hamming (not available as distance metric)
-        # scirs2_dist = scirs2.hamming_distance_py(u, v)
+        # SciRS2 Hamming
+        scirs2_dist = scirs2.spatial_hamming_distance_py(u, v)
 
-        # assert np.allclose(scipy_dist, scirs2_dist, rtol=1e-12)
+        assert np.allclose(scipy_dist, scirs2_dist, rtol=1e-12)
 
 
 class TestPairwiseDistances:

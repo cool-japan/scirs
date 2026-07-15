@@ -1,5 +1,12 @@
 # scirs2-linalg Development TODO
 
+## Status: v0.6.1 (released 2026-07-15; last reviewed 2026-07-15)
+
+scirs2-linalg's own test suite (freshly run 2026-07-15): 2018 tests pass, 0 failed, 2 skipped (default
+features); 2248 tests pass, 0 failed, 2 skipped (`--all-features`). This session's dev-dependency packaging fix
+(`scirs2-autograd` / `scirs2-sparse` dev-deps: `workspace=true` → `path=`) is packaging-only, no
+functional/feature change.
+
 ## v0.3.3 — COMPLETED
 
 ### Iterative Solvers
@@ -99,7 +106,7 @@
 
 ## Known Issues / Technical Debt
 
-- Some matrix function files exceed 2000 lines; use `rslines 50` to find candidates for splitting
+- Verified 2026-07-15: no source file in `scirs2-linalg/src` currently exceeds the 2000-line refactoring threshold (closest: `preconditioning/mod.rs` at 1948 lines, `eigen/standard.rs` at 1898). Re-check with `rslines 50` before adding substantial new code to either file.
 - Lanczos eigensolver was rewritten Feb 26, 2026 after QL deflation bug; needs more stress tests on near-degenerate spectra
 - Bartels-Stewart Sylvester 2x2 block handling was patched Feb 26, 2026; audit complex case
 - GMRES recycled Krylov was substantially rewritten Feb 26, 2026; regression tests cover Poisson/convection-diffusion but not all corner cases

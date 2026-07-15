@@ -1,6 +1,6 @@
 # scirs2-validation TODO
 
-## Status: v0.4.3 Released (2026-05-03)
+## Status: v0.6.1 (2026-07-15)
 
 ## Purpose
 
@@ -38,15 +38,16 @@ Shared statistical validation framework providing pre-computed analytical refere
 - [x] `ValidationReport` aggregator with pass/fail summary
 - [x] Optional `serialization` feature for richer serde-based output
 
-## v0.4.3 Quality Gate
+## v0.6.1 Quality Gate (verified 2026-07-15)
 
-- ~25 `#[test]` functions covering distribution validation suite
+- 25 `#[test]` functions (all passing) + 1 passing doctest, covering the full distribution validation suite
+- `todo!()`/`unimplemented!()` count: 0
 - cargo check + clippy: clean
 - Pure Rust (no C/Fortran deps); core has zero non-stdlib runtime dependencies (serde optional)
-- Distribution validation suite consumed by `scirs2-stability-tests` and downstream crates (78 tests across 15+ dists at workspace level)
 
 ## Notes
 
-- Crate is `publish = false` — used internally by SciRS2 ecosystem.
+- Crate is `publish = false` — designed for internal use by the SciRS2 ecosystem.
 - All reference values are derived analytically and verifiable by hand (no external numerical tools).
-- Wave 8 distribution accuracy fixes (Beta CDF Lentz fraction, F-dist via regularized beta, ChiSquare even-df Poisson sum, Normal PPF Acklam, Pareto PDF strict boundary) are validated through this framework.
+- Wave 8 distribution accuracy fixes (Beta CDF Lentz fraction, F-dist via regularized beta, ChiSquare even-df Poisson sum, Normal PPF Acklam, Pareto PDF strict boundary) were validated through this framework during their development.
+- **Known gap**: despite being designed as the shared reference-value source for `scirs2-stats`, `scirs2-stability-tests`, and sibling ecosystem crates, as of v0.6.1 no other workspace crate (and no other `~/work/*` COOLJAPAN project) actually depends on `scirs2-validation` — a workspace-wide search finds zero `scirs2-validation` Cargo dependencies and zero `scirs2_validation::` imports outside this crate itself. The earlier claim in this file that the suite was "consumed by `scirs2-stability-tests` and downstream crates" was not accurate and has been removed. Wiring this framework into an actual consumer (most naturally `scirs2-stats`'s own test suite) remains open future work.

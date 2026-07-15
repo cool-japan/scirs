@@ -3,7 +3,8 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-metrics.svg)](https://crates.io/crates/scirs2-metrics)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-metrics)](https://docs.rs/scirs2-metrics)
-[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 Comprehensive machine learning evaluation metrics for the SciRS2 scientific computing ecosystem. Covers classification, regression, clustering, ranking, object detection, information retrieval, generative model evaluation, fairness, segmentation, and streaming/online metrics — with SIMD acceleration and parallel processing throughout.
 
@@ -33,8 +34,8 @@ Comprehensive machine learning evaluation metrics for the SciRS2 scientific comp
 ### Clustering Metrics
 - **Internal** (no ground truth): Silhouette score/samples, Calinski-Harabasz index, Davies-Bouldin index, Dunn index
 - **External** (with ground truth): Adjusted Rand Index (ARI), Normalized MI, Adjusted MI, V-measure, Fowlkes-Mallows score
-- Homogeneity, completeness, contingency matrix, pair confusion matrix
-- Cluster stability, consensus scoring, gap statistic
+- Homogeneity, completeness
+- Cluster stability, consensus scoring
 
 ### Ranking and Information Retrieval
 - NDCG (normalized discounted cumulative gain), DCG
@@ -51,19 +52,16 @@ Comprehensive machine learning evaluation metrics for the SciRS2 scientific comp
 - PASCAL VOC and COCO-style evaluation protocols
 - Per-class AP breakdown
 
-### Generative Model Evaluation
-- Fréchet Inception Distance (FID)
-- Inception Score (IS)
-- Precision and Recall for generative models
-- Maximum Mean Discrepancy (MMD)
-- Kernel-based evaluation metrics
+### Generative Model Evaluation (`domains::generative_ai::gan_evaluation`)
+- Fréchet Inception Distance (FID) — `GANEvaluationMetrics::frechet_inception_distance`
+- Inception Score (IS) — `GANEvaluationMetrics::inception_score`
+- Kernel Inception Distance (KID) — `GANEvaluationMetrics::kernel_inception_distance`
+- General-purpose Maximum Mean Discrepancy (MMD) two-sample test — `anomaly::maximum_mean_discrepancy`
 
-### Segmentation Metrics
-- Pixel accuracy, mean pixel accuracy
-- Intersection over Union (IoU) per-class and mean IoU
-- Dice coefficient, Jaccard index
-- Boundary F-measure
-- Panoptic Quality (PQ)
+### Segmentation Metrics (via `detection` module)
+- Pixel accuracy — `detection::pixel_accuracy`
+- Mean IoU for segmentation masks — `detection::mean_iou_segmentation`
+- Dice coefficient — `detection::dice_coefficient`
 
 ### Fairness and Bias Detection
 - Demographic parity difference and ratio
@@ -75,19 +73,12 @@ Comprehensive machine learning evaluation metrics for the SciRS2 scientific comp
 - Intersectional fairness measures
 - Bias detection and robustness testing
 
-### Advanced Regression Metrics (`regression_advanced`)
-- Pinball (quantile) loss for quantile regression
-- Interval score for prediction interval evaluation
-- Coverage probability, interval width
-- Winkler score
-
-### Streaming Metrics (Online Estimation)
-- Memory-efficient online evaluation for large-scale and real-time applications
-- **Optimization patterns** (`streaming/optimization/patterns/`):
-  - Batching: group evaluations into batches for efficiency
-  - Buffering: ring-buffer based streaming metric windows
-  - Partitioning: shard metrics by key/group
-  - Windowing: sliding and tumbling window metrics
+### Streaming Metrics (Online Estimation, `streaming::advanced`)
+- `AdaptiveStreamingMetrics`: memory-efficient online evaluation with adaptive window sizing
+- Concept drift detection — `AdwinDetector`, `DdmDetector`, `PageHinkleyDetector`
+- Streaming anomaly detection and alerting — `AnomalyDetector`, `AlertsManager`
+- Performance monitoring and degradation tracking — `PerformanceMonitor`
+- Metric ensembling (`MetricEnsemble`) and history buffering (`HistoryBuffer`)
 
 ### Statistical Testing and Validation
 - McNemar's test for classifier comparison
@@ -115,14 +106,14 @@ Comprehensive machine learning evaluation metrics for the SciRS2 scientific comp
 
 ```toml
 [dependencies]
-scirs2-metrics = "0.5.1"
+scirs2-metrics = "0.6.1"
 ```
 
 Selective features:
 
 ```toml
 [dependencies]
-scirs2-metrics = { version = "0.5.1", features = ["neural_common", "plotters_backend"] }
+scirs2-metrics = { version = "0.6.1", features = ["neural_common", "plotters_backend"] }
 ```
 
 Available features:
@@ -145,9 +136,9 @@ let y_pred   = array![0, 1, 1, 1, 0, 0, 0, 1];
 let y_scores = array![0.1, 0.9, 0.8, 0.7, 0.2, 0.3, 0.4, 0.8];
 
 let accuracy  = accuracy_score(&y_true, &y_pred)?;
-let precision = precision_score(&y_true, &y_pred, None, None, None)?;
-let recall    = recall_score(&y_true, &y_pred, None, None, None)?;
-let f1        = f1_score(&y_true, &y_pred, None, None, None)?;
+let precision = precision_score(&y_true, &y_pred, 1)?;
+let recall    = recall_score(&y_true, &y_pred, 1)?;
+let f1        = f1_score(&y_true, &y_pred, 1)?;
 let auc       = roc_auc_score(&y_true, &y_scores)?;
 
 println!("Acc={:.3} P={:.3} R={:.3} F1={:.3} AUC={:.3}", accuracy, precision, recall, f1, auc);
@@ -162,9 +153,9 @@ use scirs2_core::ndarray::array;
 let y_true = array![3.0, -0.5, 2.0, 7.0, 2.0];
 let y_pred = array![2.5,  0.0, 2.1, 7.8, 1.8];
 
-let mse = mean_squared_error(&y_true, &y_pred, None)?;
-let mae = mean_absolute_error(&y_true, &y_pred, None)?;
-let r2  = r2_score(&y_true, &y_pred, None)?;
+let mse = mean_squared_error(&y_true, &y_pred)?;
+let mae = mean_absolute_error(&y_true, &y_pred)?;
+let r2  = r2_score(&y_true, &y_pred)?;
 println!("MSE={:.4} MAE={:.4} R2={:.4}", mse, mae, r2);
 ```
 
@@ -178,7 +169,7 @@ let data   = arr2(&[[1.0,2.0],[1.5,1.8],[5.0,8.0],[8.0,8.0],[1.0,0.6],[9.0,11.0]
 let pred   = array![0, 0, 1, 1, 0, 1];
 let truth  = array![0, 0, 1, 1, 0, 2];
 
-let silhouette = silhouette_score(&data, &pred, None, None)?;
+let silhouette = silhouette_score(&data, &pred, "euclidean")?;
 let db         = davies_bouldin_score(&data, &pred)?;
 let ari        = adjusted_rand_index(&truth, &pred)?;
 println!("Silhouette={:.3} DB={:.3} ARI={:.3}", silhouette, db, ari);
@@ -187,29 +178,29 @@ println!("Silhouette={:.3} DB={:.3} ARI={:.3}", silhouette, db, ari);
 ### Object Detection
 
 ```rust
-use scirs2_metrics::detection::{iou_score, average_precision, compute_map};
+use scirs2_metrics::detection::{iou, mean_average_precision_detection};
 
 // Compute IoU between predicted and ground-truth bounding boxes
-// Boxes in [x1, y1, x2, y2] format
-let pred_box  = [10.0_f64, 20.0, 50.0, 60.0];
-let true_box  = [12.0_f64, 22.0, 48.0, 58.0];
-let iou       = iou_score(&pred_box, &true_box);
+// Boxes in (x1, y1, x2, y2) format
+let pred_box  = (10.0_f64, 20.0, 50.0, 60.0);
+let true_box  = (12.0_f64, 22.0, 48.0, 58.0);
+let iou_val   = iou(pred_box, true_box)?;
 
-// mAP@0.5 over multiple classes
-let map50 = compute_map(&predictions, &ground_truths, 0.5)?;
-println!("IoU={:.3} mAP@0.5={:.3}", iou, map50);
+// mAP@0.5 over multiple images (each prediction box carries a confidence score)
+let map50 = mean_average_precision_detection(&predictions, &ground_truths, 0.5)?;
+println!("IoU={:.3} mAP@0.5={:.3}", iou_val, map50);
 ```
 
 ### Information Retrieval
 
 ```rust
-use scirs2_metrics::ranking::ir_metrics::{ndcg_score, mean_average_precision, mrr_score};
+use scirs2_metrics::ranking::{ndcg_score, mean_average_precision, mean_reciprocal_rank};
 use scirs2_core::ndarray::array;
 
-// NDCG@5 for a single query
+// NDCG@5 for a single query (queries are passed as one array per query)
 let relevance = array![3.0, 2.0, 3.0, 0.0, 1.0, 2.0];
 let scores    = array![0.9, 0.8, 0.7, 0.6, 0.5, 0.4];
-let ndcg      = ndcg_score(&relevance, &scores, Some(5))?;
+let ndcg      = ndcg_score(&[relevance], &[scores], Some(5))?;
 
 // MAP over a query set
 let map = mean_average_precision(&queries_relevance, &queries_scores, None)?;
@@ -219,14 +210,15 @@ println!("NDCG@5={:.4} MAP={:.4}", ndcg, map);
 ### Fairness Metrics
 
 ```rust
-use scirs2_metrics::fairness::advanced::{demographic_parity, equalized_odds, disparate_impact};
+use scirs2_metrics::fairness::{demographic_parity_difference, equalized_odds_difference, disparate_impact};
+use scirs2_core::ndarray::array;
 
-let y_true   = array![1, 0, 1, 1, 0, 0, 1, 0];
-let y_pred   = array![1, 0, 1, 0, 0, 1, 1, 0];
-let groups   = array![0, 0, 0, 0, 1, 1, 1, 1];   // 0 = group A, 1 = group B
+let y_true   = array![1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0];
+let y_pred   = array![1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0];
+let groups   = array![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];   // 0 = group A, 1 = group B
 
-let dp_diff  = demographic_parity(&y_pred, &groups)?;
-let eo_diff  = equalized_odds(&y_true, &y_pred, &groups)?;
+let dp_diff  = demographic_parity_difference(&y_pred, &groups)?;
+let eo_diff  = equalized_odds_difference(&y_true, &y_pred, &groups)?;
 let di_ratio = disparate_impact(&y_pred, &groups)?;
 
 println!("DP diff={:.4} EO diff={:.4} DI ratio={:.4}", dp_diff, eo_diff, di_ratio);
@@ -235,24 +227,23 @@ println!("DP diff={:.4} EO diff={:.4} DI ratio={:.4}", dp_diff, eo_diff, di_rati
 ### Streaming Metrics
 
 ```rust
-use scirs2_metrics::streaming::optimization::patterns::{
-    batching::BatchingAccumulator,
-    windowing::SlidingWindowMetric,
-};
+use scirs2_metrics::streaming::advanced::{AdaptiveStreamingMetrics, StreamingConfig};
 
-// Sliding window accuracy over last 1000 predictions
-let mut window = SlidingWindowMetric::new(1000);
-for (pred, truth) in prediction_stream {
-    window.push(pred, truth);
-    println!("Window accuracy: {:.4}", window.accuracy());
+// Adaptive online evaluation with drift/anomaly detection enabled by default
+let config = StreamingConfig::default();
+let mut metrics = AdaptiveStreamingMetrics::<f64>::new(config)?;
+
+// Feed (truth, prediction) pairs from a live stream
+for (truth, pred) in prediction_stream {
+    let update = metrics.update(truth, pred, None)?;
+    if update.drift_detected {
+        println!("Concept drift detected!");
+    }
 }
 
-// Batch evaluations for efficiency
-let mut batcher = BatchingAccumulator::new(64);
-for batch in dataset.batches(64) {
-    batcher.add_batch(&batch.predictions, &batch.labels);
-}
-let final_metrics = batcher.finalize()?;
+// Current windowed performance snapshot
+let performance = metrics.get_current_performance();
+println!("{:?}", performance);
 ```
 
 ### Visualization
@@ -264,16 +255,19 @@ use scirs2_metrics::{
     visualization::VisualizationOptions,
 };
 
-let (fpr, tpr, _) = roc_curve(&y_true, &y_scores, None, None)?;
-let viz = helpers::visualize_roc_curve(fpr.view(), tpr.view(), None, Some(auc));
+let (fpr, tpr, _thresholds) = roc_curve(&y_true, &y_scores)?;
+let roc_viz = helpers::visualize_roc_curve(fpr.view(), tpr.view(), None, Some(auc));
 
-let options = VisualizationOptions::new()
+// Inspect visualization metadata (title, plot type, axis labels, ...)
+let metadata = roc_viz.get_metadata();
+println!("{}: {:?}", metadata.title, metadata.plot_type);
+
+// Configure rendering options (used by the Plotters/Plotly backends)
+let _options = VisualizationOptions::new()
     .with_width(800)
     .with_height(600)
     .with_grid(true)
     .with_legend(true);
-
-viz.save_to_file("roc_curve.png", Some(options))?;
 ```
 
 ### Interactive Dashboard
@@ -291,7 +285,7 @@ dashboard.add_metric("loss", 0.12)?;
 
 // Start HTTP server on port 8080 (requires `dashboard_server` feature)
 #[cfg(feature = "dashboard_server")]
-start_http_server(dashboard.clone())?;
+scirs2_metrics::dashboard::server::start_http_server(dashboard.clone())?;
 
 // Export results
 let json = dashboard.export_to_json()?;
@@ -314,16 +308,16 @@ let callback = MetricsCallback::new(vec![accuracy, f1], true);
 ### Optimization (`optim_integration` feature)
 
 ```rust
-use scirs2_metrics::integration::optim::{MetricScheduler, HyperParameterTuner, HyperParameter};
+use scirs2_metrics::integration::optim::{MetricLRScheduler, HyperParameterTuner, HyperParameter};
 
-let mut scheduler = MetricScheduler::new(0.1, 0.5, 2, 0.001, "val_loss", false);
+let mut scheduler = MetricLRScheduler::new(0.1, 0.5, 2, 0.001, "val_loss", false);
 let new_lr = scheduler.step_with_metric(val_loss);
 
 let params = vec![
     HyperParameter::new("learning_rate", 0.01, 0.001, 0.1),
     HyperParameter::new("hidden_size", 5.0, 2.0, 20.0),
 ];
-let mut tuner = HyperParameterTuner::new(params, "accuracy", true, 20);
+let mut tuner = HyperParameterTuner::new(params, "accuracy", true, 20)?;
 let result = tuner.random_search(|p| train_and_evaluate(p))?;
 ```
 
@@ -332,15 +326,14 @@ let result = tuner.random_search(|p| train_and_evaluate(p))?;
 | Module | Key Functions |
 |--------|--------------|
 | `classification` | `accuracy_score`, `precision_score`, `recall_score`, `f1_score`, `roc_auc_score`, `confusion_matrix`, `average_precision_score` |
-| `regression` | `mean_squared_error`, `mean_absolute_error`, `r2_score`, `mape`, `explained_variance_score` |
+| `regression` | `mean_squared_error`, `mean_absolute_error`, `r2_score`, `mean_absolute_percentage_error`, `explained_variance_score` |
 | `clustering` | `silhouette_score`, `calinski_harabasz_score`, `davies_bouldin_score`, `adjusted_rand_index`, `normalized_mutual_info_score` |
-| `ranking` | `ndcg_score`, `mean_average_precision`, `mrr_score`, `precision_at_k` |
-| `detection` | `iou_score`, `average_precision`, `compute_map`, `nms` |
-| `fairness.advanced` | `demographic_parity`, `equalized_odds`, `disparate_impact` |
-| `segmentation` | `pixel_accuracy`, `mean_iou`, `dice_coefficient` |
-| `generative` | `frechet_inception_distance`, `inception_score`, `mmd` |
-| `streaming.optimization.patterns` | `BatchingAccumulator`, `SlidingWindowMetric`, `BufferingAccumulator`, `PartitionedMetric` |
-| `evaluation` | `cross_val_score`, `train_test_split`, `learning_curve`, `grid_search_cv` |
+| `ranking` | `ndcg_score`, `mean_average_precision`, `mean_reciprocal_rank`, `precision_at_k` |
+| `detection` | `iou`, `average_precision_bbox`, `mean_average_precision_detection`, `nms`, `pixel_accuracy`, `dice_coefficient` |
+| `fairness` | `demographic_parity_difference`, `equalized_odds_difference`, `disparate_impact` |
+| `domains::generative_ai::gan_evaluation` | `GANEvaluationMetrics::{inception_score, frechet_inception_distance, kernel_inception_distance}` |
+| `streaming::advanced` | `AdaptiveStreamingMetrics`, `AdwinDetector`, `DdmDetector`, `PageHinkleyDetector`, `PerformanceMonitor` |
+| `evaluation` | `k_fold_cross_validation`, `train_test_split`, `learning_curve`, `nested_cross_validation` |
 | `visualization` | `visualize_roc_curve`, `visualize_confusion_matrix`, `visualize_metric` |
 
 ## Performance
@@ -348,7 +341,7 @@ let result = tuner.random_search(|p| train_and_evaluate(p))?;
 - **SIMD acceleration** with automatic hardware detection (SSE2, AVX2, AVX-512)
 - **Parallel processing** via Rayon for batch metric computation
 - **Memory-efficient streaming** algorithms for large-scale evaluation
-- **142+ comprehensive tests** with numerical precision validation
+- **1,032 tests passing** (default features), **1,043 passing** with `--all-features` (4 skipped in each run) — numerical precision validated via `cargo nextest`, 2026-07-15
 - **Zero-warning** builds
 
 ## License

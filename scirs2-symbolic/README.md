@@ -3,6 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-symbolic)](https://crates.io/crates/scirs2-symbolic)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-symbolic)](https://docs.rs/scirs2-symbolic)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 **Symbolic mathematics for the SciRS2 scientific computing ecosystem.**
 
@@ -10,11 +11,13 @@
 algebraic simplification, and numeric evaluation of symbolic expressions — a computer algebra
 system (CAS) component designed to complement the numeric capabilities of SciRS2.
 
+**Tests:** 947/947 passing (default features), 1058/1058 passing (`--all-features`) — as of 2026-07-15.
+
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-symbolic = "0.5.1"
+scirs2-symbolic = "0.6.1"
 ```
 
 ## Quick Start
@@ -192,6 +195,16 @@ Recognised constants: `\pi`, `e`. Operators: `\frac`, `\cdot`, `a^{b}`, `\sqrt`,
 - Expression trees are **immutable** `Clone`-able values with no shared mutable state,
   making them thread-safe by construction.
 - Implements `Display` for human-readable infix notation.
+- **CAS testing maturity note:** the e-graph equality-saturation engine (`cas::e_graph`) has an
+  extensive test suite, but it is not immune to bugs — a real operand-order defect in the DP
+  term-extraction path (`cas/e_graph/extract.rs`) was found and fixed during 0.6.1 hardening: binary
+  nodes for non-commutative operators (`Pow`, `Sub`, `Div`) could be reconstructed with swapped
+  operands, which is a soundness violation (e.g. `sin²(x)` silently reconstructed as `2^sin(x)`).
+  Fixed, verified with 120 consecutive passing test runs, and covered by a permanent regression
+  test (`test_extract_preserves_noncommutative_operand_order`). This is disclosed here deliberately:
+  the CAS is well-tested, not infallible, and the SMT-certified-rewrite subsystem's "sound by
+  construction" claim applies to registered rewrite *rules*, not to unrelated engine-internal code
+  such as extraction.
 
 ## Optional Features
 
@@ -201,8 +214,10 @@ Recognised constants: `\pi`, `e`. Operators: `\frac`, `\cdot`, `a^{b}`, `\sqrt`,
 | `smt`   | `oxiz` 0.2.1 | SMT-pruned SR + certified rewrite engine (OxiZ QF_NRA; note: NLSAT incomplete for surface commutativity — always canonicalize first) |
 | `jit`   | `cranelift-*` | Cranelift CPU JIT via `compile::to_jit` and `JitCache` |
 | `gpu`   | `wgpu`, `pollster`, `bytemuck` | WGSL GPU JIT; real wgpu `eval_batch`; `to_jit_auto` threshold dispatch |
-| `parallel` | `rayon` | Parallel prediction in `regression::discover`; NUMA worker pinning via `scirs2-core` |
+| `parallel` | `rayon` (via `scirs2-core`) | Parallel prediction in `regression::discover`; NUMA worker pinning via `scirs2-core` |
 | `numa`  | `scirs2-core` NUMA path | Explicit `par_map_chunks` wire-up for SR prediction |
+| `macros` | `scirs2-symbolic-macros` | `eml_pattern!`/`eml_template!` proc-macro DSL for rewrite-rule patterns |
+| `cuda`  | `oxicuda-driver`/`-memory`/`-ptx`/`-launch` | Optional, off-by-default, NVIDIA-only, runtime-probed CUDA path for batched f64 `LoweredOp` evaluation (`gpu_cuda.rs`); default builds pull zero oxicuda, and the runtime probe safely returns `false` without an NVIDIA driver |
 | `symbolic` (in cross-crate users) | `scirs2-symbolic` | Used by scirs2-optimize, scirs2-integrate, scirs2-stats, scirs2-neural, scirs2-linalg, scirs2-autograd |
 
 Default features are empty — the crate is 100% Pure Rust with zero C/Fortran dependencies in the default build.

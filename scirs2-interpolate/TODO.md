@@ -1,5 +1,9 @@
 # scirs2-interpolate TODO
 
+## Status: v0.6.1 (released, 2026-07-15)
+
+scirs2-interpolate's own test suite (freshly re-run 2026-07-15): 1143 tests pass, 13 skipped, 0 failed with default features; 1173 tests pass, 13 skipped, 0 failed with `--all-features`. See "Online / streaming interpolation" entry further down for one verified discrepancy (Kriging streaming was never implemented despite being marked done).
+
 ## v0.3.3 Completed
 
 ### 1D Interpolation
@@ -116,12 +120,13 @@
   - **Prerequisites:** none.
   - **Tests:** `nystrom_converges_to_full_kriging_as_m_grows`, `nystrom_uniform_vs_kmeans_landmark_accuracy`, `nystrom_leverage_score_accuracy`, `nystrom_prediction_variance_positive`, `nystrom_large_n_memory_footprint`.
   - **Risk:** leverage-score computation can itself be expensive — provide both exact (small n) and approximate (randomized) paths.
-- [x] Online / streaming interpolation: incremental update without full re-solve (planned 2026-04-17)
+- [x] Online / streaming interpolation for RBF and splines; **kriging streaming was not delivered** (verified 2026-07-15) (planned 2026-04-17)
   - **Goal:** Sherman-Morrison rank-1 update path for RBF/kriging so that appending a new (x_i,y_i) pair costs O(n²) instead of O(n³). Bounded-memory sliding-window variant. For splines, incremental knot insertion + local re-spline.
+  - **Actual delivered scope:** `src/streaming_online/mod.rs` (single consolidated file, 673 lines — no separate `rbf.rs`/`kriging.rs`/`spline.rs`) implements `OnlineRbfInterpolator` + `OnlineConfig` + `UpdateStrategy` with genuine Sherman-Morrison updates, plus a spline knot-insertion path. Confirmed via `tests/streaming_online_tests.rs`: `streaming_rbf_matches_full_resolve_per_step`, `streaming_rbf_sliding_window_bounded_memory`, `streaming_spline_insert_knot` all exist and pass. There is **no Kriging streaming/online type anywhere in the module or its tests** — grep for "kriging" (case-insensitive) in `src/streaming_online/` and `tests/streaming_online_tests.rs` returns zero hits, and the planned `streaming_kriging_numerical_stability_over_1000_steps` test does not exist. Treat streaming Kriging as a genuinely open item, not done.
   - **Design:** Extend `streaming_online/mod.rs`. Add `StreamingRbf` holding factorised K^{-1} (or R from QR/Cholesky) and applying the Sherman-Morrison-Woodbury identity on `add_sample`. Sliding-window: combine add + delete (reverse Sherman-Morrison or refactorise when numerical drift crosses a threshold). For splines: `StreamingCubicSpline::insert_knot(x_i, y_i)` with local de-Boor update. Numerically stable regularization to keep K positive definite.
-  - **Files:** `scirs2-interpolate/src/streaming_online/mod.rs`, `scirs2-interpolate/src/streaming_online/{rbf.rs,kriging.rs,spline.rs}` (new or extend), `scirs2-interpolate/tests/streaming_online_tests.rs` (new), `scirs2-interpolate/TODO.md`.
+  - **Files:** `scirs2-interpolate/src/streaming_online/mod.rs`, `scirs2-interpolate/tests/streaming_online_tests.rs`, `scirs2-interpolate/TODO.md`.
   - **Prerequisites:** none.
-  - **Tests:** `streaming_rbf_matches_full_resolve_per_step`, `streaming_rbf_sliding_window_bounded_memory`, `streaming_spline_insert_knot_matches_batch`, `streaming_kriging_numerical_stability_over_1000_steps`.
+  - **Tests:** `streaming_rbf_matches_full_resolve_per_step`, `streaming_rbf_sliding_window_bounded_memory`, `streaming_spline_insert_knot` (done); `streaming_kriging_numerical_stability_over_1000_steps` (not done — no Kriging streaming implementation exists).
   - **Risk:** Sherman-Morrison drifts under ill-conditioning; refactorise on ESS-style trigger.
 - [x] Out-of-core interpolation: disk-backed coefficient storage for huge datasets (2026-04-17)
   - **Goal:** `OutOfCoreRbf` + `OutOfCoreKriging` that handle n ≥ 10^6 via (a) chunked sample loading, (b) disk-backed memmap'd coefficient storage, (c) block-Cholesky panel factorization.
@@ -166,3 +171,4 @@
 - NURBS surface fitting is implemented for structured (grid-like) point clouds; unstructured point cloud fitting requires the scattered-2D module.
 - Meshless partition-of-unity methods require a minimum patch overlap ratio of 1.5x; smaller overlaps cause oscillation in the unity partition.
 - B-spline surface fitting performance degrades for large grids (> 200x200 control points) due to dense system assembly; sparse assembly is planned.
+- `KdTree` leaf nodes holding more than one point (`src/spatial/kdtree.rs::build_subtree`) store only `indices[0]`, silently dropping the remaining points in that partition once input size exceeds the default `leaf_size` of 10; `BallTree` is not affected.

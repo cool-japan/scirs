@@ -46,7 +46,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-stats = "0.6.0"
+//! scirs2-stats = "0.6.1"
 //! ```
 //!
 //! ```rust
@@ -204,7 +204,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.6.0
+//! - **Version**: 0.6.1
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-stats](https://docs.rs/scirs2-stats)
@@ -736,7 +736,6 @@ mod survival_enhanced;
 mod topological_advanced;
 // Orphaned modules that compile cleanly (tested individually)
 pub mod advanced_error_enhancements_v2;
-pub mod advanced_stubs;
 pub mod parallel_stats_advanced;
 pub mod property_based_validation;
 // Remaining orphaned modules have compilation errors - kept commented out:
@@ -761,7 +760,6 @@ pub mod property_based_tests_v2_impl;
 // pub mod advanced_property_testing_advanced_enhanced;
 // pub mod advanced_property_tests;
 // pub mod unified_processor; // Commented out for now
-// pub mod advanced_stubs; // Temporary stubs for compilation
 pub use descriptive::*;
 pub use descriptive_simd::{descriptive_stats_simd, mean_simd, std_simd, variance_simd};
 pub use dispersion_simd::{

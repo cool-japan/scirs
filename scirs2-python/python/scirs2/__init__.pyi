@@ -204,19 +204,39 @@ def from_dlpack(capsule: Any) -> NDArray[np.float64]:
     Returns
     -------
     numpy.ndarray
-        A zero-copy view of the tensor data (CPU tensors only).
+        A NumPy array, matching the source tensor's shape, whose contents
+        are *copied* from the DLPack tensor (this is a copying bridge, not a
+        zero-copy view). CPU tensors of dtype int8/16/32/64, uint8/16/32/64,
+        float32, or float64 are supported.
+
+        Non-contiguous source tensors (a transposed PyTorch tensor from
+        ``t.t().__dlpack__()``, a reversed/negative-stride view, a sliced
+        view, …) are read according to their *actual* reported strides, so
+        the copied data is always logically correct — never silently
+        misread as if the buffer were C-contiguous.
 
     Raises
     ------
-    NotImplementedError
-        Until the full zero-copy bridge is wired in.  Use
-        ``numpy.from_dlpack(tensor)`` as an interim alternative.
+    TypeError
+        If ``capsule`` is not a ``PyCapsule``, if the tensor resides on a
+        non-CPU device, or if its dtype is not one of the supported types
+        listed above.
+    ValueError
+        If the capsule is not named ``"dltensor"`` (e.g. it was already
+        consumed), if the tensor has a null data pointer, or if the
+        tensor's shape/strides metadata is malformed (e.g. an internal
+        offset computation would overflow).
+    RuntimeError
+        If the capsule pointer cannot be read, or if importing/calling
+        into NumPy fails.
 
     Examples
     --------
     >>> import torch, scirs2
     >>> t = torch.ones(3, 4)
     >>> arr = scirs2.from_dlpack(t.__dlpack__())
+    >>> # Non-contiguous (transposed) source tensors are handled correctly:
+    >>> arr_t = scirs2.from_dlpack(t.t().__dlpack__())
     """
     ...
 
@@ -226,18 +246,27 @@ def to_dlpack(array: NDArray[np.float64]) -> Any:
     Parameters
     ----------
     array : numpy.ndarray
-        A NumPy-compatible array whose data should be shared.
+        A NumPy-compatible array whose data should be shared. It is first
+        coerced to a contiguous float64 array (via ``numpy.ascontiguousarray``)
+        before being copied into the capsule.
 
     Returns
     -------
     PyCapsule
-        A capsule named ``"dltensor"`` consumable by
-        ``torch.from_dlpack``, ``jax.dlpack.from_dlpack``, etc.
+        A capsule named ``"dltensor"``, backed by an owned copy of the
+        array's data (not a zero-copy view), consumable by
+        ``torch.from_dlpack``, ``jax.dlpack.from_dlpack``, etc. The
+        capsule's ``DLManagedTensor.deleter`` frees that copy once the
+        consumer releases the tensor.
 
     Raises
     ------
-    NotImplementedError
-        Until the DLTensor ABI bridge is finalised.
+    TypeError
+        If ``array`` cannot be converted to a float64 NumPy array, or if
+        its shape cannot be extracted.
+    RuntimeError
+        If importing NumPy fails or the underlying capsule allocation
+        cannot be constructed.
 
     Examples
     --------

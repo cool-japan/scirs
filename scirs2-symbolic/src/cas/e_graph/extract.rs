@@ -198,9 +198,19 @@ fn reconstruct(
                     let op = lowered_unary(&kind, child).unwrap_or(LoweredOp::Const(0.0));
                     results.push(op);
                 } else if n_children == 2 {
-                    // Children pushed right-first, so left was pushed last → left pops first.
-                    let left = results.pop().unwrap_or(LoweredOp::Const(0.0));
+                    // The two children were pushed onto `work` in reversed order
+                    // (`children.iter().rev()` → right pushed first, left second), so
+                    // the LEFT child is processed first and its reconstructed result
+                    // is pushed onto `results` BEFORE the right child's. `results`
+                    // therefore holds [..., left_result, right_result] with the
+                    // right result on top. Pop the right child first, then the left,
+                    // so operand order is preserved for non-commutative ops
+                    // (Pow base/exp, Sub, Div). Popping in the other order silently
+                    // swaps operands — e.g. `Pow(sin(x), 2)` would reconstruct as
+                    // `Pow(2, sin(x))` = 2^sin(x), a soundness violation. This
+                    // mirrors the (correct) pop order in `pattern::instantiate`.
                     let right = results.pop().unwrap_or(LoweredOp::Const(0.0));
+                    let left = results.pop().unwrap_or(LoweredOp::Const(0.0));
                     let op = lowered_binary(&kind, left, right).unwrap_or(LoweredOp::Const(0.0));
                     results.push(op);
                 } else {
@@ -269,5 +279,45 @@ mod tests {
         eg.rebuild();
         let result = extract_class(&eg, id);
         assert_eq!(result, var(0));
+    }
+
+    #[test]
+    fn test_extract_preserves_noncommutative_operand_order() {
+        // Regression guard: `reconstruct` must NOT swap the operands of binary
+        // nodes. A prior bug popped the two child results in reversed order,
+        // silently swapping operands of every binary node during extraction.
+        // For commutative ops (Add/Mul) this is invisible, but for Pow/Sub/Div
+        // it is a soundness violation: `Pow(sin(x), 2)` (= sin²x) would be
+        // reconstructed as `Pow(2, sin(x))` (= 2^sin(x)), which made
+        // `sin²(x)+cos²(x)` evaluate to 3 instead of 1 whenever the raw
+        // expression (rather than the folded `Const(1)`) was the extracted form.
+        //
+        // Extraction round-trips a single-representative class, so the extracted
+        // op must be byte-for-byte identical to the input for every arity.
+        let cases = [
+            // Pow: base and exponent must not swap.
+            LoweredOp::Pow(Box::new(var(0)), Box::new(c(2.0))),
+            LoweredOp::Pow(Box::new(LoweredOp::Sin(Box::new(var(0)))), Box::new(c(2.0))),
+            // Sub: minuend/subtrahend must not swap.
+            LoweredOp::Sub(Box::new(var(0)), Box::new(var(1))),
+            // Div: numerator/denominator must not swap.
+            LoweredOp::Div(Box::new(var(0)), Box::new(c(3.0))),
+            // Nested non-commutative: (x - y) / (a ^ b) exercises order at
+            // several depths simultaneously.
+            LoweredOp::Div(
+                Box::new(LoweredOp::Sub(Box::new(var(0)), Box::new(var(1)))),
+                Box::new(LoweredOp::Pow(Box::new(var(2)), Box::new(var(3)))),
+            ),
+        ];
+        for input in cases {
+            let mut eg = EGraph::new();
+            let id = eg.add(&input);
+            let root = eg.find(id);
+            let extracted = extract_class(&eg, root);
+            assert_eq!(
+                extracted, input,
+                "extraction must preserve operand order for {input:?}"
+            );
+        }
     }
 }

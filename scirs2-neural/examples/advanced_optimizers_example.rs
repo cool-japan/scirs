@@ -1,20 +1,23 @@
-// use scirs2_core::ndarray::Array2;
-// use scirs2_core::random::rngs::SmallRng;
-// use ndarray_rand::rand::SeedableRng;
-// use scirs2_neural::layers::{Dense, Dropout};
-// use scirs2_neural::losses::CrossEntropyLoss;
-// use scirs2_neural::models::{Model, Sequential};
-// use scirs2_neural::optimizers::{Adam, AdamW, Optimizer, RAdam, RMSprop, SGD};
-// use std::time::Instant;
+//! Advanced Optimizers Example
+//!
+//! Compares SGD, Adam, AdamW, RAdam, and RMSprop on a synthetic binary
+//! classification task, training identically-initialized models with each
+//! optimizer and reporting loss/accuracy progression side by side.
 
-#[allow(dead_code)]
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::prelude::SliceRandom;
+use scirs2_core::random::rngs::SmallRng;
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
+use scirs2_neural::layers::{Dense, Dropout};
+use scirs2_neural::losses::CrossEntropyLoss;
+use scirs2_neural::models::{Model, Sequential};
+use scirs2_neural::optimizers::{Adam, AdamW, Optimizer, RAdam, RMSprop, SGD};
+use std::time::Instant;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Advanced Optimizers Example");
-    println!("Note: Optimizers and models modules are not yet implemented.");
-    println!("This example is a placeholder for future optimizer functionality.");
+    println!("Comparing SGD, Adam, AdamW, RAdam, and RMSprop optimizers\n");
 
-    // TODO: Implement optimizers and models modules and uncomment the following code
-    /*
     // Initialize random number generator
     let mut rng = SmallRng::from_seed([42; 32]);
     // Create a synthetic binary classification dataset
@@ -33,13 +36,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     // Create true weights and bias for data generation
-    let mut true_weights = Array2::<f32>::zeros((num_features..1));
+    let mut true_weights = Array2::<f32>::zeros((num_features, 1));
     for i in 0..num_features {
         true_weights[[i, 0]] = rng.random_range(-1.0..1.0);
     }
     let true_bias = rng.random_range(-1.0..1.0);
     // Generate binary labels (0 or 1) based on linear model with logistic function
-    let mut y_data = Array2::<f32>::zeros((num_samples..num_classes));
+    let mut y_data = Array2::<f32>::zeros((num_samples, num_classes));
     for i in 0..num_samples {
         let mut logit = true_bias;
         for j in 0..num_features {
@@ -57,10 +60,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Split into train and test sets (80% train, 20% test)
     let train_size = (num_samples as f32 * 0.8) as usize;
     let test_size = num_samples - train_size;
-    let x_train = x_data.slice(scirs2_core::ndarray::s![0..train_size, ..]).to_owned();
-    let y_train = y_data.slice(scirs2_core::ndarray::s![0..train_size, ..]).to_owned();
-    let x_test = x_data.slice(scirs2_core::ndarray::s![train_size.., ..]).to_owned();
-    let y_test = y_data.slice(scirs2_core::ndarray::s![train_size.., ..]).to_owned();
+    let x_train = x_data
+        .slice(scirs2_core::ndarray::s![0..train_size, ..])
+        .to_owned();
+    let y_train = y_data
+        .slice(scirs2_core::ndarray::s![0..train_size, ..])
+        .to_owned();
+    let x_test = x_data
+        .slice(scirs2_core::ndarray::s![train_size.., ..])
+        .to_owned();
+    let y_test = y_data
+        .slice(scirs2_core::ndarray::s![train_size.., ..])
+        .to_owned();
     println!("Training set: {} samples", train_size);
     println!("Test set: {} samples", test_size);
     // Create a simple neural network model
@@ -106,11 +117,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sgd_optimizer = SGD::new_with_config(learning_rate, 0.9, 0.0);
     let mut adam_optimizer = Adam::new(learning_rate, 0.9, 0.999, 1e-8);
     let mut adamw_optimizer = AdamW::new(learning_rate, 0.9, 0.999, 1e-8, 0.01);
-    let mut radam_optimizer = RAdam::new(learning_rate, 0.9, 0.999, 1e-8, 0.0);
+    let mut radam_optimizer = RAdam::new(learning_rate, 0.9, 0.999, 1e-8, 0.0)?;
     let mut rmsprop_optimizer = RMSprop::new_with_config(learning_rate, 0.9, 1e-8, 0.0);
     // Helper function to compute accuracy
     let compute_accuracy = |model: &Sequential<f32>, x: &Array2<f32>, y: &Array2<f32>| -> f32 {
-        let predictions = model.forward(&x.clone().into_dyn()).expect("Operation failed");
+        let predictions = model
+            .forward(&x.clone().into_dyn())
+            .expect("Operation failed");
         let mut correct = 0;
         for i in 0..x.shape()[0] {
             let mut max_idx = 0;
@@ -122,7 +135,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             let true_idx = if y[[i, 0]] < y[[i, 1]] { 1 } else { 0 };
-            if max_idx as i32 == true_idx as i32 {
+            if max_idx as i32 == true_idx {
                 correct += 1;
             }
         }
@@ -250,25 +263,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nLoss improvement ratio (first loss / last loss):");
     println!(
         "  SGD:     {:.2}x",
-        sgd_losses.first().expect("Operation failed") / sgd_losses.last().expect("Operation failed")
+        sgd_losses.first().expect("Operation failed")
+            / sgd_losses.last().expect("Operation failed")
     );
     println!(
         "  Adam:    {:.2}x",
-        adam_losses.first().expect("Operation failed") / adam_losses.last().expect("Operation failed")
+        adam_losses.first().expect("Operation failed")
+            / adam_losses.last().expect("Operation failed")
     );
     println!(
         "  AdamW:   {:.2}x",
-        adamw_losses.first().expect("Operation failed") / adamw_losses.last().expect("Operation failed")
+        adamw_losses.first().expect("Operation failed")
+            / adamw_losses.last().expect("Operation failed")
     );
     println!(
         "  RAdam:   {:.2}x",
-        radam_losses.first().expect("Operation failed") / radam_losses.last().expect("Operation failed")
+        radam_losses.first().expect("Operation failed")
+            / radam_losses.last().expect("Operation failed")
     );
     println!(
         "  RMSprop: {:.2}x",
-        rmsprop_losses.first().expect("Operation failed") / rmsprop_losses.last().expect("Operation failed")
+        rmsprop_losses.first().expect("Operation failed")
+            / rmsprop_losses.last().expect("Operation failed")
     );
     println!("\nAdvanced optimizers demo completed successfully!");
-    */
     Ok(())
 }

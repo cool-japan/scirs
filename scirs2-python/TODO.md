@@ -1,6 +1,6 @@
 # scirs2-python TODO
 
-## Status: v0.4.3 Released (2026-05-03)
+## Status: v0.6.1 (2026-07-15; fixes below verified 2026-07-07, re-confirmed in source + a fresh 39/39 `cargo nextest` run on 2026-07-15)
 
 ## v0.3.3 Completed
 
@@ -165,9 +165,27 @@
 - [x] SciPy migration guide with side-by-side examples
 - [x] Performance comparison notebooks (Jupyter)
 
+## v0.6.1 Fixes and Additions (2026-07-07)
+
+- [x] **Critical DLPack SIGBUS fix** — `to_dlpack`'s internal `BackingStore` struct was missing `#[repr(C)]`; Rust's default (unspecified) layout could reorder its fields so the pointer stashed in the `PyCapsule` no longer actually addressed a `DLManagedTensor`, crashing the interpreter with SIGBUS whenever a `to_dlpack` capsule was garbage-collected. Also fixed a related double-consumption bug in `capsule_destructor`: it did not account for capsules already consumed and renamed by `from_dlpack` (to `"used_dltensor"`), which leaked a `ValueError` out of `gc.collect()`.
+- [x] **DLPack real N-dimensional strided reads** — `from_dlpack` previously assumed the producer's buffer was C-contiguous. It now walks `shape`/`strides` genuinely (`read_strided_elements` / `extract_dlpack_data`), so transposed, reversed/negative-stride, and sliced (non-contiguous) source tensors — e.g. a PyTorch `t.t().__dlpack__()` — are read correctly instead of silently producing wrong data.
+- [x] **New Python bindings**: `spatial_hamming_distance_py` (`src/spatial.rs`; also wired into the `pdist_py`/`cdist_py` `"hamming"` metric string) and `F.ppf()` (`src/stats/types.rs`, inverse CDF via bisection, mirroring `Beta.ppf`).
+- [x] Removed a stale `@pytest.mark.skip` on `test_poisson_ppf` (Poisson PPF already worked; both the test skip and an accompanying "Not yet implemented" note in `scirs2.pyi`'s docstring were stale) and un-skipped `test_hamming_distance` (now exercises `spatial_hamming_distance_py`).
+  - Files: `src/dlpack.rs`, `src/spatial.rs`, `src/stats/types.rs`, `python/scirs2/__init__.pyi`, `scirs2.pyi`, `tests/test_dlpack.py` (new regression-test file), `tests/test_distributions.py`, `tests/scipy_comparison/test_spatial_vs_scipy.py`.
+  - Rust-side: 39 `cargo nextest` tests pass. See Known Issues below for a broader Python-side pytest gap found during this session's validation (unrelated to the fixes above).
+
+### Re-verification (2026-07-15)
+
+- `cargo nextest run -p scirs2-python`: 39/39 passing, 0 skipped (re-confirmed against a fresh build)
+- `grep -rn "todo!()\|unimplemented!()" src/`: 0 hits
+- API surface: 234 `pub fn`/`struct`/`enum`/`trait` items across `src/` (35 files, ~19.1k lines)
+- The DLPack `#[repr(C)]` fix, `read_strided_elements`/`extract_dlpack_data`, `spatial_hamming_distance_py`, and `F::ppf` bindings described above are all still present and unchanged in source
+- `pyproject.toml` version confirmed `0.6.1` (hardcoded, standalone from workspace — expected for this crate)
+
 ## Known Issues
 
 - ndarray version boundary: `scirs2-numpy` resolves the ndarray 0.16/0.17 mismatch that blocked earlier versions; this is fully resolved in v0.3.1.
 - Large matrix operations (>200x200) may be slower than SciPy with a well-tuned system LAPACK; use NumPy/SciPy for those cases.
 - `scirs2-python` is excluded from the default workspace build (`--exclude scirs2-python`) because it requires Python dev headers.
 - Graph module suppresses `#[allow(deprecated)]` for `PyAnyMethods::downcast`; will be updated when PyO3 stabilizes the replacement.
+- A broader `pytest` sweep across the full Python test suite (beyond `cargo nextest`, which passes cleanly at 39/39) currently shows approximately 1,146 passed / 404 failed, concentrated in the vision, neural, sparse, pandas-compat, async, io, and text binding modules. This is a pre-existing binding-surface gap relative to the underlying Rust crates — not a regression introduced this session — and is not yet root-caused per-module. The `- [x]` entries elsewhere in this file for those modules reflect that Rust-side bindings exist and are registered, not that every Python-facing behavior has been verified end-to-end against them; closing this gap needs a dedicated audit pass before any "complete parity" claim can be considered fully verified for those specific modules.

@@ -912,7 +912,7 @@ impl ArbitraryRational {
     }
 
     /// Parse a rational from a string (e.g. "22/7").
-    #[deprecated(note = "Use str::parse() instead")]
+    #[deprecated(since = "0.1.0", note = "Use str::parse() instead")]
     pub fn parse_rational(s: &str) -> CoreResult<Self> {
         s.parse()
     }

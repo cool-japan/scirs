@@ -1332,13 +1332,15 @@ mod tests {
 
     #[test]
     fn test_load_nonexistent_checkpoint() {
-        let result = load_checkpoint(Path::new("/tmp/nonexistent_checkpoint_xyz"));
+        let path = std::env::temp_dir().join("nonexistent_checkpoint_xyz");
+        let result = load_checkpoint(&path);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_list_empty_directory() -> Result<()> {
-        let result = list_checkpoints(Path::new("/tmp/nonexistent_dir_xyz"))?;
+        let path = std::env::temp_dir().join("nonexistent_dir_xyz");
+        let result = list_checkpoints(&path)?;
         assert!(result.is_empty());
         Ok(())
     }

@@ -986,9 +986,16 @@ impl AdaptiveOptimizer {
                     return Trend::Unknown;
                 }
 
-                let avg_old =
-                    recent_values[5..].iter().sum::<f64>() / (recent_values.len() - 5) as f64;
-                let avg_new = recent_values[..5].iter().sum::<f64>() / 5.0;
+                // Split the recent samples (newest-first, thanks to `.rev()` above) into
+                // a "new" half and an "old" half so the comparison scales correctly even
+                // before a full 10-sample window has accumulated. Previously this assumed
+                // a fixed 5/5 split, which panicked on slice indexing (`recent_values[5..]`)
+                // whenever fewer than 5 samples were available (i.e. for the first several
+                // calls of any workload/metric combination).
+                let split = recent_values.len() / 2;
+                let avg_new = recent_values[..split].iter().sum::<f64>() / split as f64;
+                let avg_old = recent_values[split..].iter().sum::<f64>()
+                    / (recent_values.len() - split) as f64;
 
                 let change_percent = (avg_new - avg_old) / avg_old * 100.0;
 

@@ -704,6 +704,12 @@ impl PyF {
     fn cdf(&self, x: f64) -> f64 {
         self.dist.cdf(x)
     }
+    /// Percent point function (inverse CDF)
+    fn ppf(&self, q: f64) -> PyResult<f64> {
+        self.dist
+            .ppf(q)
+            .map_err(|e| PyRuntimeError::new_err(format!("PPF failed: {}", e)))
+    }
     /// Random variates
     fn rvs(&self, size: usize) -> PyResult<Vec<f64>> {
         let arr = self

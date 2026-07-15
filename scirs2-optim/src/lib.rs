@@ -35,9 +35,10 @@
 //! use optirs::prelude::*;
 //! ```
 
-#![deprecated(note = "This crate has been moved to the independent OptiRS project. Use 'optirs' crate instead. See: https://github.com/cool-japan/optirs")]
+#![deprecated(since = "0.1.0", note = "This crate has been moved to the independent OptiRS project. Use 'optirs' crate instead. See: https://github.com/cool-japan/optirs")]
 
 #[deprecated(
+    since = "0.1.0",
     note = "This crate has been moved to OptiRS. Use 'optirs' crate instead."
 )]
 pub fn migration_notice() {

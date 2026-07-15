@@ -125,7 +125,13 @@ fn demo_basic_workload_analysis() -> CoreResult<()> {
     println!("⚡ Basic Workload Analysis");
     println!("-------------------------");
 
-    let config = ProfileConfig::development(); // Use development config for demo
+    // Sampling is forced to 100% here (and in the other demos below) so the
+    // profiler deterministically starts a session; `ProductionProfiler` uses
+    // probabilistic sampling internally (see `should_sample`), and at the
+    // default development sampling rate `finish_workload_analysis` would
+    // intermittently fail with "No active sessions" when a workload happens
+    // not to be sampled.
+    let config = ProfileConfig::development().with_samplingrate(1.0);
     let mut profiler = ProductionProfiler::new(config)?;
 
     // Analyze a compute-intensive workload
@@ -207,7 +213,7 @@ fn demo_enterprise_features() -> CoreResult<()> {
     println!("---------------------------");
 
     let config = ProfileConfig::production()
-        .with_samplingrate(0.01) // 1% sampling for enterprise demo
+        .with_samplingrate(1.0) // 100% sampling for demo reliability (see note above)
         .with_bottleneck_detection(true)
         .with_regression_detection(true);
 
@@ -276,7 +282,9 @@ fn demo_bottleneck_identification() -> CoreResult<()> {
     println!("🔍 Bottleneck Identification Demo");
     println!("---------------------------------");
 
-    let config = ProfileConfig::development().with_bottleneck_detection(true);
+    let config = ProfileConfig::development()
+        .with_samplingrate(1.0) // 100% sampling for demo reliability (see note above)
+        .with_bottleneck_detection(true);
 
     let mut profiler = ProductionProfiler::new(config)?;
 
@@ -331,7 +339,9 @@ fn demo_regression_detection() -> CoreResult<()> {
     println!("📈 Performance Regression Detection Demo");
     println!("---------------------------------------");
 
-    let config = ProfileConfig::development().with_regression_detection(true);
+    let config = ProfileConfig::development()
+        .with_samplingrate(1.0) // 100% sampling for demo reliability (see note above)
+        .with_regression_detection(true);
 
     let mut profiler = ProductionProfiler::new(config)?;
 
@@ -426,9 +436,11 @@ fn demo_resourcemonitoring() -> CoreResult<()> {
     );
 
     println!("\n📤 Data Export Capabilities:");
-    // TODO: Implement export_data method when available
-    println!("  - Export Format: JSON (planned)");
+    let exported = profiler.export_data()?;
+    println!("  - Export Format: JSON");
+    println!("  - Payload Size: {} bytes", exported.len());
     println!("  - Contains: Configuration, resource metrics, timestamps");
+    println!("  - Sample Export:\n{exported}");
 
     Ok(())
 }

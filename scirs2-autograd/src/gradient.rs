@@ -696,6 +696,53 @@ fn compute_grad_for_input<'graph, F: Float>(
             .append_input(gy, false)
             .build(SVDBackwardOp { component });
         Some(gx)
+    } else if op_name == "Cond" {
+        // Condition number. Only the 2-norm (spectral) variant has an
+        // analytic gradient implemented -- see `CondOp::two_norm_gradient`
+        // in tensor_ops/numerical_props.rs for the derivation via SVD
+        // perturbation theory. The 1-norm/∞-norm/Frobenius variants are
+        // honestly left non-differentiable (`None`) rather than fabricating
+        // a plausible-looking but wrong gradient, so recover which variant
+        // the forward op used via downcast before deciding.
+        let inner = y_tensor.inner();
+        let is_two_norm = inner
+            .get_op()
+            .as_any()
+            .and_then(|any| any.downcast_ref::<crate::tensor_ops::CondOp>())
+            .map(|op| matches!(op.p, crate::tensor_ops::ConditionType::Two));
+        drop(inner);
+
+        if is_two_norm == Some(true) {
+            let gx = crate::tensor::Tensor::builder(g)
+                .append_input(x_tensor, false)
+                .append_input(gy, false)
+                .build(crate::tensor_ops::CondTwoNormBackwardOp);
+            Some(gx)
+        } else {
+            None
+        }
+    } else if op_name == "LogDet" {
+        // d log|det(A)| = tr(A⁻¹ dA), i.e. gradient (A⁻¹)ᵀ · gy.
+        // Discovered alongside the `Cond` fix above: once `cond_2`'s
+        // gradient became properly shaped, `logdet`'s previous default
+        // (unshaped) pass-through gradient could no longer be summed
+        // against it when both feed the same input (see
+        // `LogDetBackwardOp`'s doc comment in
+        // tensor_ops/numerical_props.rs for the full story).
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(x_tensor, false)
+            .append_input(gy, false)
+            .build(crate::tensor_ops::LogDetBackwardOp);
+        Some(gx)
+    } else if op_name == "Rank" {
+        // Matrix rank is a discrete, piecewise-constant function of A --
+        // its gradient is zero almost everywhere and undefined at rank
+        // transitions. `None` here means "no contribution", which is the
+        // honest answer (and, discovered alongside the `Cond`/`LogDet`
+        // fixes above, also keeps its edge out of the shape-inconsistent
+        // scalar pass-through that the generic default below would
+        // otherwise produce).
+        None
     } else {
         // Default case: pass through gradient for unknown ops.
         // This is generally safer than returning None (zero gradient)

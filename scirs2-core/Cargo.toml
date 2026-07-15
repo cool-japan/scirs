@@ -7,6 +7,8 @@ description = "Core utilities and common functionality for SciRS2 (scirs2-core)"
 readme = "README.md"
 license.workspace = true
 repository.workspace = true
+homepage = "https://github.com/cool-japan/scirs"
+documentation = "https://docs.rs/scirs2-core"
 keywords = ["scientific", "mathematics", "science", "scipy", "numerical"]
 categories = ["science", "mathematics", "algorithms"]
 
@@ -156,11 +158,13 @@ objc2-metal-performance-shaders-graph = { workspace = true, optional = true }  #
 [target.'cfg(target_os = "linux")'.dependencies]
 perf-event = { workspace = true, optional = true }  # Linux perf integration
 libnuma = { workspace = true, optional = true }  # NUMA operations (C dep, Linux only, feature-gated)
+libloading = { workspace = true }  # Runtime CUDA driver probe for PlatformCapabilities (detection only; compute lives in oxicuda-*)
 
 # Windows-specific dependencies
 [target.'cfg(target_os = "windows")'.dependencies]
 # GlobalMemoryStatusEx requires both Win32_System_SystemInformation and Win32_Foundation features
 windows-sys = { workspace = true, features = ["Win32_System_SystemInformation", "Win32_Foundation"] }  # Windows system APIs for memory detection
+libloading = { workspace = true }  # Runtime CUDA driver probe for PlatformCapabilities (detection only; compute lives in oxicuda-*)
 
 [dev-dependencies]
 approx = { workspace = true }

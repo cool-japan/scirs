@@ -27,7 +27,10 @@ use crate::distance::euclidean;
 use crate::error::SpatialResult;
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::numeric::Float;
-use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::{
+    rngs::{StdRng, SysRng},
+    SeedableRng,
+};
 use scirs2_core::SliceRandomExt;
 
 /// Compute the directed Hausdorff distance from set1 to set2.
@@ -86,8 +89,7 @@ pub fn directed_hausdorff<T: Float + Send + Sync>(
     // Create randomized indices for shuffling
     let mut rng = match seed {
         Some(s) => StdRng::seed_from_u64(s),
-        None => StdRng::try_from_rng(&mut rand::rngs::SysRng)
-            .unwrap_or_else(|_| StdRng::seed_from_u64(42)),
+        None => StdRng::try_from_rng(&mut SysRng).unwrap_or_else(|_| StdRng::seed_from_u64(42)),
     };
 
     let mut indices1: Vec<usize> = (0..n1).collect();

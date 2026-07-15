@@ -3,7 +3,8 @@
 High-performance scientific computing for JavaScript and TypeScript environments, powered by Rust compiled to WebAssembly. Part of the [SciRS2](https://github.com/cool-japan/scirs) ecosystem.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](../LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 ## Overview
 
@@ -281,6 +282,8 @@ npm run test:node
 # Run Rust unit tests (non-WASM)
 cargo test --lib
 ```
+
+Native (non-WASM) test suite: 205 tests passing, both default features and all-features (`cargo nextest run -p scirs2-wasm[--all-features]`) — the count is unchanged between modes since the optional `simd`/`linalg`/`stats`/`fft`/`signal`/`integrate`/`optimize`/`interpolate`/`all-modules` features gate dispatch paths rather than adding new native `#[test]` functions. 0 `todo!()`/`unimplemented!()` markers in `src/`.
 
 ## Performance
 

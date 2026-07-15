@@ -182,13 +182,28 @@ fn test_workspace_discovery() {
     .expect("crate-b Cargo.toml");
     fs::write(crate_b.join("src").join("lib.rs"), "").expect("lib.rs");
 
-    let ws = discover_workspace(&root);
+    let ws = discover_workspace(&root).expect("existing directory should discover cleanly");
     assert_eq!(ws.crates.len(), 2, "Should discover 2 crates");
     let names: Vec<&str> = ws.crates.iter().map(|c| c.name.as_str()).collect();
     assert!(names.contains(&"crate-a"), "Should find crate-a");
     assert!(names.contains(&"crate-b"), "Should find crate-b");
 
     let _ = fs::remove_dir_all(&root);
+}
+
+// ===========================================================================
+// 11. discover_workspace rejects a nonexistent --workspace path (BUG 1)
+// ===========================================================================
+
+#[test]
+fn test_discover_workspace_nonexistent_path_is_rejected() {
+    let path = Path::new("/nonexistent/scirs2_policy_integration_test_xyz");
+    let result = discover_workspace(path);
+    assert!(
+        result.is_err(),
+        "A nonexistent --workspace path must be rejected instead of silently \
+         producing an empty WorkspaceInfo"
+    );
 }
 
 // ===========================================================================

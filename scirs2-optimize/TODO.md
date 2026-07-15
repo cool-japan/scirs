@@ -1,8 +1,8 @@
 # scirs2-optimize TODO
 
-## Status: v0.4.3 Released (May 3, 2026)
+## Status: v0.6.1 (last updated 2026-07-15)
 
-19,685 workspace tests pass (100% pass rate). All v0.3.4 features are complete and production-ready.
+`scirs2-optimize` test suite: 2003/2003 tests pass with default features; 2037/2037 tests pass with `--all-features` (both measured 2026-07-15). 0 `todo!()`/`unimplemented!()` stubs in `src/`. Most items below are verified directly against source; a small number of previously-claimed items were not found and are now marked `[ ]` with a citation of where they were checked (see Metaheuristics, MIP, Proximal & Convex Methods, Game Theory & Equilibrium, Minimax & Robust Optimization, Least Squares, Numerical Differentiation, Combinatorial Optimization, and Multi-Objective Optimization sections).
 
 ---
 
@@ -30,9 +30,10 @@
 ### Mixed Integer Programming (MIP)
 - [x] Branch and bound framework with LP relaxation (LP-BB)
 - [x] Gomory mixed-integer cuts
-- [x] Feasibility pump heuristic
-- [x] Rounding and random rounding heuristics
-- [x] MILP formulations: knapsack, set cover, assignment, facility location
+- [x] MILP formulations: knapsack, set cover, assignment
+- [ ] Feasibility pump heuristic (not found in `src/integer/` or `src/mip.rs`; not yet implemented)
+- [ ] Rounding / random-rounding heuristics (not found; not yet implemented)
+- [ ] Facility location MILP formulation (not found; not yet implemented)
 
 ### Semidefinite & Conic Programming
 - [x] SDP solver via ADMM (primal-dual with augmented Lagrangian)
@@ -47,7 +48,8 @@
 - [x] MOEA/D: decomposition via weighted Tchebycheff with neighbourhood mating restriction
 - [x] Weighted sum, Tchebycheff, augmented Tchebycheff scalarisation
 - [x] Epsilon-constraint with lexicographic optimisation
-- [x] Pareto front quality metrics: hypervolume indicator (WFG algorithm), IGD, GD, epsilon indicator
+- [x] Pareto front quality metrics: hypervolume indicator (WFG algorithm, 3-7 objectives; Monte Carlo fallback beyond), IGD, GD
+- [ ] Epsilon indicator (additive/multiplicative) quality metric (not found in `multi_objective/indicators/` or `advanced.rs`; not yet implemented)
 
 ### Global Optimization
 - [x] DIRECT (Dividing RECTangles): Jones et al. deterministic global optimizer
@@ -58,9 +60,10 @@
 - [x] Dual Annealing: hybrid fast SA + classical SA with restart
 
 ### Metaheuristics
-- [x] Differential Evolution (DE): rand/1/bin, best/1/exp, current-to-best/1/bin; JADE self-adaptive variant
+- [x] Differential Evolution (DE): rand/1/bin, best/1/exp, rand-to-best/1/bin (`DeStrategy::RandToBest1`); jDE self-adaptive variant (`JdeOptions`)
 - [x] Particle Swarm Optimization (PSO): inertia weight and constriction factor
-- [x] Ant Colony Optimization (ACO): Ant System (AS), MMAS, ACS for combinatorial instances
+- [x] Ant Colony Optimization (ACO): Ant System (AS), Max-Min Ant System (MMAS) for combinatorial instances
+- [ ] Ant Colony System (ACS) variant (not found in `src/metaheuristics/aco.rs`; only AS and MMAS implemented)
 - [x] Harmony Search (HS): dynamic memory consideration rate, dynamic pitch adjustment
 - [x] Simulated Annealing variants (fast SA, generalized SA with visiting distribution)
 
@@ -68,9 +71,9 @@
 - [x] GP surrogate with SE, Matern 5/2, and ARD kernels; marginal likelihood optimization
 - [x] Acquisition functions: EI, LCB, PI, Thompson sampling
 - [x] Parallel/batch acquisition: qEI, kriging believer, constant liar
-- [x] Constrained BO: unknown feasibility via separate GP per constraint; augmented EI
-- [x] Multi-fidelity BO: BOCA / MF-GP-UCB with fidelity-cost trade-off and freezing-thaw extension
-- [x] Transfer BO: RGPE (Ranking-Weighted GP Ensemble) and TAF (Transfer Acquisition Function)
+- [x] Constrained BO: unknown feasibility via separate GP per constraint; probability-of-feasibility and expected-feasible-improvement acquisition strategies
+- [x] Multi-fidelity BO: AR(1) coregionalization model (Kennedy & O'Hagan 2000) with cost-normalized Expected Improvement across fidelity levels
+- [x] Transfer BO: task-similarity-weighted GP ensemble (`exp(-distance/temperature)` task weights) with adaptive target/source acquisition blending and warm-start injection
 - [x] Warm-start BO: reuse of evaluations from prior runs via prior data injection
 
 ### Stochastic Optimization
@@ -91,12 +94,12 @@
 - [x] CMA-ES (Covariance Matrix Adaptation Evolution Strategy) — `global/cmaes.rs` (v0.4.2, Wave 44)
 
 ### Proximal & Convex Methods
-- [x] ISTA (Iterative Soft-Thresholding Algorithm) and FISTA (accelerated)
-- [x] ADMM: Douglas-Rachford operator splitting
+- [x] ISTA (Iterative Soft-Thresholding Algorithm) and FISTA (accelerated, adaptive restart)
+- [x] ADMM; Douglas-Rachford and Peaceman-Rachford operator splitting
 - [x] Chambolle-Pock primal-dual algorithm
-- [x] Split Bregman iteration
-- [x] Frank-Wolfe (conditional gradient) with linear minimisation oracle
 - [x] Proximal operators: L1 (soft-threshold), L2, Linf (projection), nuclear norm, box projection, simplex projection, indicator functions
+- [ ] Split Bregman iteration (not found in `src/proximal/`; not yet implemented)
+- [ ] Frank-Wolfe (conditional gradient) with linear minimisation oracle (not found anywhere in the crate; not yet implemented)
 
 ### Decomposition Methods
 - [x] Benders decomposition with cut aggregation and pareto-optimal cuts
@@ -105,12 +108,16 @@
 - [x] ADMM-based distributed optimization with variable splitting
 
 ### Game Theory & Equilibrium
-- [x] Two-player zero-sum Nash equilibrium via LP
-- [x] Two-player general-sum Nash equilibrium via support enumeration and Lemke-Howson
-- [x] Stackelberg equilibrium via MPEC reformulation and bilevel reformulation
-- [x] Coarse correlated equilibrium (CCE) via LP
-- [x] Hedge / multiplicative weights for online learning and equilibrium computation
-- [x] Counterfactual Regret minimisation (CFR) for extensive-form games
+- [x] Two-player zero-sum Nash equilibrium via LP (`zero_sum::linear_program_minimax`)
+- [x] Two-player general-sum Nash equilibrium via support enumeration (`normal_form::find_all_nash_equilibria`)
+- [x] Bilevel leader-follower (Stackelberg-style) problems via the generic bilevel KKT reformulation (see Bilevel Optimization section)
+- [x] Cooperative game theory: Shapley value, Banzhaf index, core membership, nucleolus, tau-value (`game_theory::cooperative`) — previously undocumented
+- [x] Fictitious play, best-response dynamics, replicator dynamics, evolutionarily stable strategies (ESS) — previously undocumented
+- [ ] Lemke-Howson pivoting algorithm for general-sum Nash equilibrium (not found; not yet implemented)
+- [ ] Coarse correlated equilibrium (CCE) via LP (not found; not yet implemented)
+- [ ] Hedge / multiplicative weights for online learning and equilibrium computation (not found; not yet implemented)
+- [ ] Counterfactual Regret minimisation (CFR) for extensive-form games (not found; not yet implemented)
+- [ ] Mechanism design utilities (not found; not yet implemented)
 
 ### Bilevel Optimization
 - [x] KKT-based single-level reformulation (MPCC) for convex lower level
@@ -122,14 +129,16 @@
 - [x] Alternating gradient descent-ascent (GDA) for min-max problems
 - [x] Extragradient method (Korpelevich) for saddle-point problems
 - [x] Optimistic gradient descent-ascent (OGDA)
-- [x] Distributionally robust optimization: Wasserstein ball ambiguity set, moment-based (mean-covariance) ambiguity set
+- [x] Distributionally robust optimization: Wasserstein-ball ambiguity set; CVaR (Conditional Value-at-Risk) risk-measure formulation
+- [ ] Moment-based (mean-covariance) ambiguity set (not found in `src/dro/`; not yet implemented)
 - [x] Robust LP/QP via second-order cone reformulations
 
 ### Combinatorial Optimization
 - [x] Branch and bound with upper bounding heuristics (greedy, LP relaxation)
 - [x] Dynamic programming framework (tabulation and memoization)
 - [x] 0-1 knapsack, bounded and unbounded knapsack (DP and LP relaxation)
-- [x] TSP: nearest-neighbor heuristic, 2-opt local search, 3-opt, Lin-Kernighan moves
+- [x] TSP: nearest-neighbor heuristic, 2-opt local search, 3-opt, Or-opt segment relocation, Christofides-style MST lower bound
+- [ ] Lin-Kernighan moves (not found in `src/combinatorial/tsp.rs`; not yet implemented)
 - [x] Assignment problem: Hungarian algorithm (O(n³))
 - [x] Bipartite matching: augmenting paths
 - [x] Shortest paths: Dijkstra, Bellman-Ford, Floyd-Warshall
@@ -144,16 +153,18 @@
 ### Least Squares
 - [x] Levenberg-Marquardt with adaptive damping, Jacobian scaling, trust-region strategy
 - [x] Trust Region Reflective for bound-constrained nonlinear LS
-- [x] Huber, Bisquare (Tukey biweight), Cauchy, Arctan robust loss functions
+- [x] Huber, Bisquare (Tukey biweight), Cauchy robust loss functions
 - [x] Weighted, total, separable (VARPRO) least squares
 - [x] Scalar/linear least squares with regularisation
+- [ ] Arctan robust loss function (not found in `src/least_squares/robust.rs`; only Huber/Bisquare/Cauchy implemented)
 
 ### Numerical Differentiation
 - [x] Forward, backward, and central finite differences
-- [x] Richardson extrapolation for improved accuracy
 - [x] Complex-step differentiation (machine-precision gradients)
 - [x] Sparse Jacobian computation via graph colouring
-- [x] `scirs2-autograd` integration for reverse-mode AD
+- [x] Self-contained reverse-mode AD (computation-graph/tape in `automatic_differentiation::reverse_mode`)
+- [ ] Richardson extrapolation for improved accuracy (not found in `src/`; not yet implemented)
+- [ ] `scirs2-autograd` integration for reverse-mode AD (crate has no `scirs2-autograd` dependency; reverse-mode AD is self-contained, not integrated with `scirs2-autograd`)
 
 ---
 
@@ -195,4 +206,4 @@
 
 - SDP ADMM convergence may be slow for ill-conditioned problems; interior-point is preferred for high-accuracy requirements
 - DIRECT becomes computationally expensive beyond ~15 dimensions; switch to Bayesian optimization or differential evolution for high-dimensional global problems
-- TSP 3-opt and Lin-Kernighan are heuristic and do not guarantee optimality for large instances (n > 200); use exact branch-and-cut for guaranteed solutions
+- TSP 3-opt and Or-opt are heuristic and do not guarantee optimality for large instances (n > 200); use exact branch-and-cut for guaranteed solutions

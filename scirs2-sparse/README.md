@@ -3,26 +3,29 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-sparse)](https://crates.io/crates/scirs2-sparse)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-sparse)](https://docs.rs/scirs2-sparse)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 **Sparse matrix library for Rust, modeled after SciPy's sparse module.**
 
 `scirs2-sparse` provides comprehensive sparse matrix formats, iterative solvers, eigenvalue algorithms, preconditioners, graph algorithms, and advanced sparse linear algebra — all in pure Rust with no C or Fortran dependencies.
 
+Tested: 1093/1093 tests passing with default features, 1093/1093 with `--all-features` (verified 2026-07-15).
+
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-sparse = "0.5.1"
+scirs2-sparse = "0.6.1"
 ```
 
 With optional acceleration:
 
 ```toml
 [dependencies]
-scirs2-sparse = { version = "0.5.1", features = ["parallel", "simd"] }
+scirs2-sparse = { version = "0.6.1", features = ["parallel", "simd"] }
 ```
 
-## Features (v0.5.1)
+## Features (v0.6.1)
 
 ### Sparse Matrix Formats
 
@@ -182,10 +185,12 @@ let x = amg.solve(&b, Some(1e-10), Some(100))?;
 
 | Feature | Description |
 |---------|-------------|
-| `parallel` | Multi-threaded SpMV and solver kernels via Rayon |
-| `simd` | SIMD-accelerated dot product and SpMV inner loops |
-| `serde` | Serialization support for sparse matrix types |
-| `gpu` | GPU sparse BLAS stubs (requires `scirs2-core` gpu feature) |
+| `parallel` | Multi-threaded SpMV and solver kernels via Rayon (`scirs2-core/parallel`, in `default`) |
+| `simd` | SIMD-accelerated dot product and SpMV inner loops (`scirs2-core/simd`) |
+| `random` | RNG support for neural-adaptive-sparse and randomized algorithms (`scirs2-core/random`, in `default`) |
+| `gpu` | GPU sparse BLAS APIs (`scirs2-core/gpu`) — see the CPU-simulation caveat under "GPU Sparse BLAS" in `TODO.md`: real algorithms, CPU-executed |
+
+Note: this crate's own `Cargo.toml` has no `serde` feature (corrected 2026-07-15 — the previous table entry named a feature that does not exist here).
 
 ## Links
 

@@ -1,5 +1,9 @@
 # scirs2-signal TODO
 
+## Status: v0.6.1 (released, 2026-07-15)
+
+scirs2-signal's own test suite (freshly re-run 2026-07-15): 1489 tests pass, 2 skipped, 0 failed with default features; 1489 tests pass, 2 skipped, 0 failed with `--all-features`. Fixed a real `waverec` bug (`dwt/multiscale.rs`): it was reconstructing to 2x the correct length for wavelet filters with more than 2 taps; the DWT round-trip test now asserts genuine perfect reconstruction instead of just checking non-empty output.
+
 ## Status: v0.4.3 Released (May 3, 2026)
 
 34,275+ workspace tests pass (100% pass rate). All v0.4.3 features are complete and production-ready. The Savitzky-Golay filter module (`savgol`) was uncommented and validated in the Wave 5 stub-check (+5 new tests).
@@ -173,6 +177,8 @@
 - [x] GPU-accelerated matched filter bank (multiple templates simultaneously) — implemented in v0.4.2 (`gpu_matched_filter.rs`)
 - [x] Batched Welch PSD for parallel channel processing — Implemented in v0.4.2 (`welch_batch.rs`)
 - [x] GPU wavelet transform for high-throughput applications — Implemented in v0.4.3 (`gpu_wavelet.rs`: `GpuWaveletConfig`, `GpuWaveletFamily`, `GpuWaveletBackend`, `dwt_dispatch`, `dwt_dispatch_batch`; wraps `gpu/fast_wavelet.rs` with Auto/Cpu/WebGpu backend selection)
+
+Status (verified 2026-07-15): `gpu_spectrograms.rs` and `gpu_matched_filter.rs` provide GPU-ready APIs backed by "a correct CPU reference implementation that can be swapped for a GPU kernel without changing calling code" (their own doc comments); `gpu_wavelet.rs`'s `wgpu` code-path "is reserved for future WGSL compute shader integration" and currently returns `GpuWaveletError::GpuNotAvailable`, auto-falling back to the rayon-parallel CPU path. All three are real, tested, useful implementations, but no actual GPU dispatch occurs yet on any backend — checked off for the API/CPU-path completeness, not for GPU hardware execution. `welch_batch.rs` (third bullet) is unaffected by this caveat — it is a genuine CPU-parallel multi-channel Welch/CPSD estimator with no GPU claim of its own.
 
 ### Deep Learning-Based Denoising
 - [x] Learned speech enhancement model (Conv-TasNet architecture) in pure Rust — Implemented in v0.4.0 (`neural_audio/conv_tasnet.rs`)

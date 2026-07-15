@@ -578,9 +578,9 @@ if caps.simd_available {
 
 - `simd_available` - SIMD support
 - `gpu_available` - GPU support
-- `cuda_available` - CUDA support
+- `cuda_available` - CUDA driver detected at runtime (dlopen probe; CUDA compute lives in the per-crate `oxicuda-*` backends)
 - `opencl_available` - OpenCL support
-- `metal_available` - Metal support (macOS)
+- `metal_available` - Metal-capable GPU detected at runtime (macOS only)
 - `avx2_available` - AVX2 instructions
 - `avx512_available` - AVX512 instructions
 - `neon_available` - ARM NEON instructions

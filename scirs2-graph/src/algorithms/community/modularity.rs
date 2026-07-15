@@ -104,6 +104,7 @@ where
 /// # Space Complexity
 /// O(n) for storing community assignments and modularity calculations.
 #[deprecated(
+    since = "0.1.0",
     note = "Use `modularity_optimization_result` instead for standardized community detection API"
 )]
 #[allow(dead_code)]
@@ -248,6 +249,7 @@ where
 /// # Space Complexity
 /// O(n) for storing community assignments and tracking modularity gains.
 #[deprecated(
+    since = "0.1.0",
     note = "Use `greedy_modularity_optimization_result` instead for standardized community detection API"
 )]
 #[allow(dead_code)]

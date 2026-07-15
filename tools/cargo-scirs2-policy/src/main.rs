@@ -62,6 +62,21 @@ struct PolicyArgs {
     command: PolicyCommand,
 }
 
+/// Output format for `check` and `check-semver` reports.
+///
+/// Using a `clap::ValueEnum` here (rather than a plain `String` matched with
+/// a catch-all `_` arm) means clap itself rejects unrecognised values at
+/// parse time with a clean `error: invalid value '...' for '--format
+/// <FORMAT>' [possible values: text, json]`, instead of silently falling
+/// back to the text report for any garbage input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum OutputFormat {
+    /// Human-readable text report (default).
+    Text,
+    /// Machine-readable JSON report.
+    Json,
+}
+
 /// Available sub-commands.
 #[derive(Subcommand)]
 enum PolicyCommand {
@@ -71,8 +86,8 @@ enum PolicyCommand {
         #[arg(long, default_value = ".")]
         workspace: PathBuf,
         /// Output format: `text` (default) or `json`.
-        #[arg(long, default_value = "text")]
-        format: String,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
     },
     /// List all available policy rules with their IDs and descriptions.
     Rules,
@@ -137,8 +152,8 @@ enum PolicyCommand {
         #[arg(long)]
         api_snapshot: Option<PathBuf>,
         /// Output format: `text` (default) or `json`.
-        #[arg(long, default_value = "text")]
-        format: String,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+        format: OutputFormat,
     },
     /// Save the current public API surface as a JSON snapshot.
     ///
@@ -168,7 +183,7 @@ fn main() {
     let Cargo::Policy(args) = Cargo::parse();
 
     let exit_code = match args.command {
-        PolicyCommand::Check { workspace, format } => run_check(&workspace, &format as &str),
+        PolicyCommand::Check { workspace, format } => run_check(&workspace, format),
         PolicyCommand::Rules => {
             print_rules();
             0
@@ -197,7 +212,7 @@ fn main() {
             workspace,
             api_snapshot,
             format,
-        } => run_check_semver(&workspace, api_snapshot.as_deref(), &format),
+        } => run_check_semver(&workspace, api_snapshot.as_deref(), format),
         PolicyCommand::SaveApiSnapshot { workspace, output } => {
             let output_path =
                 output.unwrap_or_else(|| std::env::temp_dir().join("scirs2_api_snapshot.json"));
@@ -215,16 +230,26 @@ fn main() {
 
 /// Run all policy rules against the workspace and print the results.
 ///
-/// Returns `0` when no violations are found, `1` otherwise.
+/// Returns `0` when no violations are found, `1` otherwise (including when
+/// `workspace` does not exist or is not a directory — see
+/// [`workspace::discover_workspace`]).
 ///
 /// This runs both the legacy [`rules::PolicyRule`]-based checks and the newer
 /// per-line [`checks`]-based checks (banned imports, unwrap detection, etc.).
-fn run_check(workspace: &Path, output_format: &str) -> i32 {
+fn run_check(workspace: &Path, output_format: OutputFormat) -> i32 {
+    // Fine-grained checks (per-line source locations). Validates `workspace`
+    // up front so a typo'd path fails loudly instead of silently scanning
+    // zero crates and reporting a clean pass.
+    let ws_info = match workspace::discover_workspace(workspace) {
+        Ok(info) => info,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return 1;
+        }
+    };
+
     // Legacy rule-based checks (file-level granularity)
     let rule_violations = rules::check_workspace(workspace);
-
-    // Fine-grained checks (per-line source locations)
-    let ws_info = workspace::discover_workspace(workspace);
     let check_violations = checks::run_all_checks(&ws_info);
 
     // Convert legacy violations to PolicyViolation for unified reporting
@@ -251,8 +276,8 @@ fn run_check(workspace: &Path, output_format: &str) -> i32 {
     all_policy.extend(check_violations);
 
     match output_format {
-        "json" => print!("{}", report::json_report(&all_policy)),
-        _ => report::print_report(&all_policy),
+        OutputFormat::Json => print!("{}", report::json_report(&all_policy)),
+        OutputFormat::Text => report::print_report(&all_policy),
     }
 
     violation::exit_code(&all_policy)
@@ -382,8 +407,16 @@ fn run_bench_diff(baseline_path: &Path, current_path: &Path, threshold: f64, ful
 /// Run the dependency audit and print results.
 ///
 /// Returns `0` on success.  When `strict` is `true`, returns `1` if any
-/// banned dependencies are present.
+/// banned dependencies are present. Also returns `1` when `workspace` does
+/// not exist or is not a directory — without this check, a typo'd path
+/// would silently produce a "0 packages / no banned deps" report that reads
+/// as a clean pass.
 fn run_dep_audit(workspace: &Path, baseline_count: Option<usize>, strict: bool) -> i32 {
+    if let Err(e) = workspace::validate_workspace_path(workspace) {
+        eprintln!("Error: {e}");
+        return 1;
+    }
+
     let result = dep_audit::run_dep_audit(workspace, baseline_count);
     let report = dep_audit::format_audit_report(&result);
     print!("{report}");
@@ -397,13 +430,23 @@ fn run_dep_audit(workspace: &Path, baseline_count: Option<usize>, strict: bool) 
 
 /// Run SemVer and deprecation policy checks.
 ///
-/// Returns `0` when no errors are found, `1` otherwise.
+/// Returns `0` when no errors are found, `1` otherwise (including when
+/// `workspace_path` does not exist or is not a directory). Note that a
+/// missing `--api-snapshot` file is intentionally treated as a no-op
+/// elsewhere (only API-compat checks are skipped) — this function only
+/// validates the workspace path itself.
 fn run_check_semver(
     workspace_path: &Path,
     api_snapshot: Option<&Path>,
-    output_format: &str,
+    output_format: OutputFormat,
 ) -> i32 {
-    let ws_info = workspace::discover_workspace(workspace_path);
+    let ws_info = match workspace::discover_workspace(workspace_path) {
+        Ok(info) => info,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return 1;
+        }
+    };
     let violations = checks::run_all_checks_with_snapshot(&ws_info, api_snapshot);
 
     // Filter to only semver/deprecation/api-compat violations
@@ -413,8 +456,8 @@ fn run_check_semver(
         .collect();
 
     match output_format {
-        "json" => print!("{}", report::json_report(&semver_violations)),
-        _ => {
+        OutputFormat::Json => print!("{}", report::json_report(&semver_violations)),
+        OutputFormat::Text => {
             if semver_violations.is_empty() {
                 println!("SemVer/deprecation policy: all checks passed.");
             } else {
@@ -428,9 +471,16 @@ fn run_check_semver(
 
 /// Save the current public API surface as a snapshot.
 ///
-/// Returns `0` on success, `1` on error.
+/// Returns `0` on success, `1` on error (including when `workspace_path`
+/// does not exist or is not a directory).
 fn run_save_api_snapshot(workspace_path: &Path, output: &Path) -> i32 {
-    let ws_info = workspace::discover_workspace(workspace_path);
+    let ws_info = match workspace::discover_workspace(workspace_path) {
+        Ok(info) => info,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return 1;
+        }
+    };
     let items = checks::api_compat::collect_public_items(&ws_info);
 
     match checks::api_compat::save_api_snapshot(&ws_info, output) {
@@ -450,7 +500,16 @@ fn run_save_api_snapshot(workspace_path: &Path, output: &Path) -> i32 {
 }
 
 /// Print the current version policy information.
+///
+/// Returns `1` when `workspace_path` does not exist or is not a directory
+/// (rather than silently printing a policy report with an "unknown"
+/// version).
 fn run_version_policy(workspace_path: &Path) -> i32 {
+    if let Err(e) = workspace::validate_workspace_path(workspace_path) {
+        eprintln!("Error: {e}");
+        return 1;
+    }
+
     let cargo_toml = workspace_path.join("Cargo.toml");
     let version = if cargo_toml.exists() {
         std::fs::read_to_string(&cargo_toml)
@@ -570,7 +629,7 @@ mod tests {
         )
         .expect("write Cargo.toml");
 
-        let code = run_check(&dir, "text");
+        let code = run_check(&dir, OutputFormat::Text);
         assert_eq!(code, 0, "Clean workspace should return exit code 0");
 
         let _ = fs::remove_dir_all(&dir);
@@ -590,13 +649,176 @@ mod tests {
         )
         .expect("write Cargo.toml");
 
-        let code = run_check(&dir, "text");
+        let code = run_check(&dir, OutputFormat::Text);
         assert_eq!(
             code, 1,
             "Workspace with violations should return exit code 1"
         );
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_run_check_nonexistent_workspace_returns_one() {
+        let path = Path::new("/nonexistent/scirs2_policy_check_test_xyz");
+        let code = run_check(path, OutputFormat::Text);
+        assert_eq!(
+            code, 1,
+            "A nonexistent --workspace path must fail loudly, not report \
+             'No policy violations found.' as if the scan succeeded"
+        );
+    }
+
+    #[test]
+    fn test_run_check_semver_nonexistent_workspace_returns_one() {
+        let path = Path::new("/nonexistent/scirs2_policy_check_semver_test_xyz");
+        let code = run_check_semver(path, None, OutputFormat::Text);
+        assert_eq!(
+            code, 1,
+            "A nonexistent --workspace path must fail loudly, not report \
+             'SemVer/deprecation policy: all checks passed.'"
+        );
+    }
+
+    #[test]
+    fn test_run_check_semver_missing_api_snapshot_is_still_a_noop_when_workspace_valid() {
+        // The API-snapshot-missing-as-noop behavior is intentional and
+        // documented separately — only the *workspace* path is validated by
+        // this fix. A valid workspace with a missing snapshot path should
+        // not error because of the fix in this task.
+        let dir = temp_dir("check_semver_valid_ws");
+        fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"clean\"\nversion = \"0.1.0\"\n",
+        )
+        .expect("write Cargo.toml");
+
+        let code = run_check_semver(
+            &dir,
+            Some(Path::new("/nonexistent/snapshot.json")),
+            OutputFormat::Text,
+        );
+        assert_eq!(
+            code, 0,
+            "Missing API snapshot with a valid workspace should not be \
+             treated as an error by this fix"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_run_save_api_snapshot_nonexistent_workspace_returns_one() {
+        let path = Path::new("/nonexistent/scirs2_policy_snapshot_test_xyz");
+        let output = std::env::temp_dir().join("scirs2_policy_snapshot_test_output.json");
+        let code = run_save_api_snapshot(path, &output);
+        assert_eq!(
+            code, 1,
+            "A nonexistent --workspace path must fail loudly instead of \
+             saving an empty (0 public items) snapshot"
+        );
+    }
+
+    #[test]
+    fn test_run_dep_audit_nonexistent_workspace_returns_one() {
+        let path = Path::new("/nonexistent/scirs2_policy_dep_audit_test_xyz");
+        let code = run_dep_audit(path, None, false);
+        assert_eq!(
+            code, 1,
+            "A nonexistent --workspace path must fail loudly instead of \
+             reporting '[PASS] No banned dependencies found.'"
+        );
+    }
+
+    #[test]
+    fn test_run_dep_audit_nonexistent_workspace_strict_returns_one() {
+        let path = Path::new("/nonexistent/scirs2_policy_dep_audit_strict_test_xyz");
+        let code = run_dep_audit(path, None, true);
+        assert_eq!(
+            code, 1,
+            "A nonexistent --workspace path must fail loudly even in --strict mode"
+        );
+    }
+
+    #[test]
+    fn test_run_version_policy_nonexistent_workspace_returns_one() {
+        let path = Path::new("/nonexistent/scirs2_policy_version_policy_test_xyz");
+        let code = run_version_policy(path);
+        assert_eq!(
+            code, 1,
+            "A nonexistent --workspace path must fail loudly instead of \
+             printing a policy report with an 'unknown' version"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // --format clap ValueEnum validation (BUG 2)
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_check_format_arg_rejects_invalid_value() {
+        let result = Cargo::try_parse_from([
+            "cargo",
+            "scirs2-policy",
+            "check",
+            "--format",
+            "notarealformat",
+        ]);
+        assert!(
+            result.is_err(),
+            "clap should reject an invalid --format value for `check` at parse time"
+        );
+    }
+
+    #[test]
+    fn test_check_semver_format_arg_rejects_invalid_value() {
+        let result = Cargo::try_parse_from([
+            "cargo",
+            "scirs2-policy",
+            "check-semver",
+            "--format",
+            "notarealformat",
+        ]);
+        assert!(
+            result.is_err(),
+            "clap should reject an invalid --format value for `check-semver` at parse time"
+        );
+    }
+
+    #[test]
+    fn test_check_format_arg_accepts_text_and_json() {
+        for value in ["text", "json"] {
+            let result =
+                Cargo::try_parse_from(["cargo", "scirs2-policy", "check", "--format", value]);
+            assert!(result.is_ok(), "--format {value} should be accepted");
+        }
+    }
+
+    #[test]
+    fn test_check_semver_format_arg_accepts_text_and_json() {
+        for value in ["text", "json"] {
+            let result = Cargo::try_parse_from([
+                "cargo",
+                "scirs2-policy",
+                "check-semver",
+                "--format",
+                value,
+            ]);
+            assert!(result.is_ok(), "--format {value} should be accepted");
+        }
+    }
+
+    #[test]
+    fn test_check_format_defaults_to_text() {
+        let result = Cargo::try_parse_from(["cargo", "scirs2-policy", "check"])
+            .expect("check with no --format should parse using the default");
+        let Cargo::Policy(args) = result;
+        match args.command {
+            PolicyCommand::Check { format, .. } => {
+                assert_eq!(format, OutputFormat::Text, "Default format should be text")
+            }
+            _ => panic!("expected PolicyCommand::Check"),
+        }
     }
 
     #[test]
@@ -643,7 +865,7 @@ mod tests {
     #[test]
     fn test_run_check_json_format_does_not_panic() {
         let dir = temp_dir("check_json");
-        let code = run_check(&dir, "json");
+        let code = run_check(&dir, OutputFormat::Json);
         // Empty workspace has no violations
         assert_eq!(code, 0);
         let _ = fs::remove_dir_all(&dir);

@@ -874,9 +874,9 @@ impl SmcTargetDistribution for GaussianSmcTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::rngs::SmallRng;
-    use rand::SeedableRng;
     use scirs2_core::ndarray::array;
+    use scirs2_core::random::rngs::SmallRng;
+    use scirs2_core::random::SeedableRng;
 
     #[test]
     fn test_normalize_log_weights() {

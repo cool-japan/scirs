@@ -53,7 +53,7 @@ where
 ///
 /// **Note**: This function is deprecated in favor of `louvain_communities_result`.
 /// It will be removed in version 2.0.
-#[deprecated(note = "Use `louvain_communities_result` instead")]
+#[deprecated(since = "0.1.0", note = "Use `louvain_communities_result` instead")]
 #[allow(dead_code)]
 pub fn louvain_communities<N, E, Ix>(graph: &Graph<N, E, Ix>) -> CommunityStructure<N>
 where

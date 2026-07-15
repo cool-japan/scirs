@@ -147,7 +147,7 @@ impl GpuKernel {
 
         // ── Adapter / device acquisition ──────────────────────────────────────
         let instance = wgpu::Instance::new(InstanceDescriptor {
-            backends: wgpu::Backends::all(),
+            backends: wgpu::Backends::PRIMARY,
             flags: wgpu::InstanceFlags::default(),
             memory_budget_thresholds: Default::default(),
             backend_options: Default::default(),

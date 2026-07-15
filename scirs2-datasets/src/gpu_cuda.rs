@@ -11,7 +11,8 @@
 //! wgpu path.
 //!
 //! Each entry point degrades safely when no NVIDIA device is present:
-//! [`cuda_is_available`] never panics, and the compute functions return a
+//! [`cuda_is_available`](crate::gpu_cuda::cuda_is_available) never panics, and
+//! the compute functions return a
 //! [`crate::error::DatasetsError::ComputationError`] rather than aborting.
 //!
 //! # Library-call pattern
@@ -87,12 +88,14 @@ fn build_context() -> Result<std::sync::Arc<oxicuda_driver::Context>> {
 ///
 /// Layout correctness (cannot be runtime-checked on a non-NVIDIA host): ndarray
 /// is row-major. We materialize a contiguous row-major copy of `X` via
-/// [`as_standard_layout`](scirs2_core::ndarray::ArrayBase::as_standard_layout)
+/// [`as_standard_layout`](scirs2_core::ndarray::ArrayRef::as_standard_layout)
 /// and describe it as a [`Layout::RowMajor`] `MatrixDesc`
 /// (`n_samples`×`n_features`). Mirroring the proven optimize/interpolate
 /// matrix×vector layout, `coef` is described as a column-vector
-/// [`Layout::ColMajor`] `MatrixDesc` (`n_features`×1) and the output as a
-/// [`Layout::ColMajor`] `MatrixDescMut` (`n_samples`×1). Under
+/// [`Layout::RowMajor`] `MatrixDesc` (`n_features`×1) and the output as a
+/// [`Layout::RowMajor`] `MatrixDescMut` (`n_samples`×1) — a single-column
+/// matrix is byte-identical under either layout tag, and `oxicuda-blas`'s
+/// GEMM dispatcher requires RowMajor on every operand. Under
 /// [`Transpose::NoTrans`] (`alpha = 1.0`, `beta = 0.0`) this yields
 /// `M = n_samples`, `K = n_features`, `N = 1`.
 pub fn cuda_regression_target(x: &ArrayView2<f64>, coef: &ArrayView1<f64>) -> Result<Array1<f64>> {
@@ -127,16 +130,17 @@ pub fn cuda_regression_target(x: &ArrayView2<f64>, coef: &ArrayView1<f64>) -> Re
     let d_coef = oxicuda_memory::DeviceBuffer::from_host(&coef_vec).map_err(cuda_err)?;
     let mut d_y = oxicuda_memory::DeviceBuffer::<f64>::alloc(n_samples).map_err(cuda_err)?;
 
-    // X as RowMajor (n_samples×n_features), coef as a ColMajor column
-    // (n_features×1), output ColMajor (n_samples×1) — the exact operand layout
-    // of optimize's `cuda_hessian_vector_product` / interpolate's
-    // `cuda_eval_gemm`.
+    // X as RowMajor (n_samples×n_features), coef as a RowMajor column
+    // (n_features×1), output RowMajor (n_samples×1). A single-column matrix
+    // has one possible packed layout regardless of the tag, but oxicuda-blas's
+    // GEMM dispatcher hard-rejects any non-RowMajor descriptor, so all three
+    // must be tagged RowMajor.
     let a_desc =
         MatrixDesc::from_buffer(&d_x, n_samples as u32, n_features as u32, Layout::RowMajor)
             .map_err(blas_err)?;
-    let b_desc = MatrixDesc::from_buffer(&d_coef, n_features as u32, 1, Layout::ColMajor)
+    let b_desc = MatrixDesc::from_buffer(&d_coef, n_features as u32, 1, Layout::RowMajor)
         .map_err(blas_err)?;
-    let mut c_desc = MatrixDescMut::from_buffer(&mut d_y, n_samples as u32, 1, Layout::ColMajor)
+    let mut c_desc = MatrixDescMut::from_buffer(&mut d_y, n_samples as u32, 1, Layout::RowMajor)
         .map_err(blas_err)?;
 
     oxicuda_blas::level3::gemm_api::gemm::<f64>(
@@ -150,6 +154,15 @@ pub fn cuda_regression_target(x: &ArrayView2<f64>, coef: &ArrayView1<f64>) -> Re
         &mut c_desc,
     )
     .map_err(blas_err)?;
+
+    // The GEMM is enqueued on the BLAS handle's `CU_STREAM_NON_BLOCKING` stream,
+    // whereas `copy_to_host` issues `cuMemcpyDtoH_v2` on the legacy default
+    // stream. A non-blocking stream does NOT implicitly synchronise with the
+    // default stream, so without an explicit wait the device-to-host copy races
+    // the kernel and reads the (uninitialised / zero) output buffer before the
+    // GEMM has finished writing it — worse the longer the kernel runs (large K).
+    // Synchronise the compute stream so the product is fully materialised first.
+    handle.stream().synchronize().map_err(cuda_err)?;
 
     let mut y = vec![0.0f64; n_samples];
     d_y.copy_to_host(&mut y).map_err(cuda_err)?;
@@ -184,6 +197,47 @@ mod tests {
             .map(|(g, e)| (g - e).abs())
             .fold(0.0f64, f64::max);
         assert!(max_diff < 1e-9, "max abs diff {max_diff} exceeds 1e-9");
+    }
+
+    /// Regression guard for the stream-synchronisation race: a GEMM whose
+    /// runtime is long enough (large K) that a `copy_to_host` on the default
+    /// stream, issued without waiting on the non-blocking compute stream, would
+    /// read the output buffer before the kernel finished writing it. Prior to
+    /// the explicit `handle.stream().synchronize()` in `cuda_regression_target`
+    /// this returned nondeterministic all-zero output for K >~ 100.
+    #[test]
+    fn cuda_regression_target_large_k_no_stream_race() {
+        if !cuda_is_available() {
+            eprintln!("skipping: no NVIDIA CUDA device");
+            return;
+        }
+        // X[i,j] = (i+1), coef[j] = 1 => expected[i] = (i+1)*K, so any all-zero
+        // row is unambiguously a missed write rather than a legitimate value.
+        let m = 2000usize;
+        let k = 600usize;
+        let mut data = Vec::with_capacity(m * k);
+        for i in 0..m {
+            for _j in 0..k {
+                data.push((i + 1) as f64);
+            }
+        }
+        let x = mat(m, k, data);
+        let coef = Array1::from_elem(k, 1.0);
+        // Repeat: the race was intermittent, so a single pass could pass by luck.
+        for rep in 0..5 {
+            let y = cuda_regression_target(&x.view(), &coef.view()).expect("gpu call");
+            let expected = x.dot(&coef);
+            let max_diff = y
+                .iter()
+                .zip(expected.iter())
+                .map(|(g, e)| (g - e).abs())
+                .fold(0.0f64, f64::max);
+            assert!(
+                max_diff < 1e-6,
+                "rep {rep}: GPU output diverged from CPU matmul (max_diff={max_diff:.3e}); \
+                 stream-synchronisation race likely regressed"
+            );
+        }
     }
 
     #[test]

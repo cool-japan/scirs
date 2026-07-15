@@ -173,12 +173,16 @@
 //! - **Efficient Greeks**: Batch calculation using automatic differentiation
 //! - **Numerical stability**: Safe math functions, domain validation
 
+pub mod advanced_monte_carlo_engine;
 pub mod derivatives;
+pub mod exotic_options;
 pub mod ml;
 pub mod models;
 pub mod monte_carlo;
 pub mod pricing;
+pub mod realtime_risk_engine;
 pub mod risk;
+pub mod risk_management;
 pub mod solvers;
 pub mod term_structure;
 pub mod types;

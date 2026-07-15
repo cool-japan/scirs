@@ -1,5 +1,18 @@
 # scirs2-transform TODO
 
+## Status: v0.6.1 (current, 2026-07-15) — reassessed Stable → Partial
+
+- [x] **Removed unused direct `rand` dependency** — `scirs2-transform`'s `Cargo.toml` carried a direct `rand` crate dependency (previously banned; all random-number generation in this workspace goes through `scirs2_core::random`) with zero actual `rand::`/`use rand` call sites anywhere in `src/`. Removed as pure cleanup; no behavior change. (All apparent `rand`-prefixed hits in a naive grep, e.g. in `performance.rs`, are `scirs2_core::random::{Rng, RngExt}` usage and identifiers like `random_matrix`/`use_randomized` — substring matches on "rand" inside "random", not the banned crate.)
+- 0 `todo!()`/`unimplemented!()` markers in `src/`. GPU-accelerated dimensionality reduction (`gpu.rs`: matmul, SVD, eigendecomposition, t-SNE) still returns explicit "not yet implemented, use CPU" errors — this is an **honest** gap (clear `Err`, not a silent no-op) and is already tracked below under "GPU-Accelerated Dimensionality Reduction" (unchecked roadmap items); it does not by itself justify a status downgrade.
+- **Status downgraded from Stable to Partial**: a targeted sweep for the *silent*-stub pattern (code that compiles, looks real, and returns a plausible-looking value without actually computing it — the same pattern `scirs2-ndimage`/`scirs2-integrate` are marked "Partial" for) found a confirmed, crate-root-reachable instance:
+  - **`distributed::check_node_health`** (`src/distributed.rs`, module re-exported at the crate root via `pub use distributed::{...}` in `lib.rs`) — the function's own comment reads "Simulate health check - in real implementation, this would make HTTP requests"; it `sleep`s 10ms and then returns `NodeHealth { status: NodeStatus::Healthy, cpu_utilization: rng.random_range(0.1..0.9), memory_utilization: rng.random_range(0.2..0.8), network_latency_ms: rng.random_range(1.0..50.0), error_rate: rng.random_range(0.0..0.05), ... }` — every metric is a random number, not a measurement, and `status` is hardcoded `Healthy` regardless of the random values generated. Any caller relying on this for real cluster health monitoring (via the `distributed` feature) is silently getting fabricated data. Not implemented as part of this documentation pass (out of scope for a README/TODO accuracy sweep); recorded here for the next implementation pass.
+  - `quantum_optimization.rs` also uses "simulate"-labeled language (`static_evaluate_pipeline_performance` inside a black-box hyperparameter-search objective), but on inspection it appears to call through to real evaluation logic rather than returning a hardcoded number — not counted as a confirmed silent stub, but worth a closer look in a future pass.
+  - This sweep was targeted, not exhaustive — `src/` has 554+ public items across ~70 files; `neuromorphic_adaptation.rs`'s "Simulate network dynamics" was not individually triaged in depth. A dedicated follow-up stub-check pass would be worthwhile.
+
+Fresh test counts (2026-07-15, `cargo nextest run -p scirs2-transform` / `--all-features`): **493
+passed, 3 skipped** (default features) / **532 passed, 3 skipped** (all-features) — the all-features
+run adds 39 tests gated behind `gpu`/`distributed`/`monitoring`/`auto-feature-engineering`.
+
 ## Status: v0.4.3 Released (May 3, 2026)
 
 All v0.4.3 features are complete and production-ready. Quality gate (cargo check + clippy) clean.
@@ -178,3 +191,5 @@ All v0.4.3 features are complete and production-ready. Quality gate (cargo check
 - UMAP random seed behavior is not fully deterministic across platforms due to floating-point ordering
 - Some signal transform modules currently alias `scirs2-fft` operations directly; a cleaner abstraction boundary is planned
 - `topomap.rs` TDA layout is approximate; exact persistent homology needs optimization for high-dimensional inputs
+- `distributed::check_node_health` returns simulated random health metrics rather than performing real network probes (see "Status downgraded from Stable to Partial" note above for full detail) — do not rely on it for real cluster health monitoring today
+- GPU-accelerated dimensionality reduction (`gpu.rs`: matmul, SVD, eigendecomposition, t-SNE) is not yet implemented and returns a clear "use CPU instead" error (see "GPU-Accelerated Dimensionality Reduction" roadmap section)

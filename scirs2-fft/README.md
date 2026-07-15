@@ -3,26 +3,29 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-fft)](https://crates.io/crates/scirs2-fft)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-fft)](https://docs.rs/scirs2-fft)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 **Fast Fourier Transform library for Rust, modeled after SciPy's fft module.**
 
 `scirs2-fft` provides a comprehensive suite of frequency-domain algorithms — FFT, RFFT, DCT/DST, STFT, NUFFT, sparse FFT, fractional FFT, wavelet packets, polyphase filter banks, and more — all in pure Rust using OxiFFT as the core FFT engine.
 
+Tested: 674/674 tests passing with default features, 718/718 with `--all-features` (verified 2026-07-15).
+
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-fft = "0.5.1"
+scirs2-fft = "0.6.1"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-fft = { version = "0.5.1", features = ["parallel"] }
+scirs2-fft = { version = "0.6.1", features = ["parallel"] }
 ```
 
-## Features (v0.5.1)
+## Features (v0.6.1)
 
 ### Core Transforms
 
@@ -241,12 +244,16 @@ let best_basis = tree.best_basis()?;
 
 | Feature | Description |
 |---------|-------------|
-| `parallel` | Multi-threaded FFT execution and batch processing via Rayon |
+| `parallel` | Multi-threaded FFT execution and batch processing via Rayon (in `default`) |
 | `simd` | SIMD-accelerated butterfly operations and window application |
-| `gpu` | GPU-accelerated sparse FFT (CUDA/ROCm/SYCL, requires `scirs2-core` gpu) |
-| `cuda` | NVIDIA CUDA sparse FFT backend |
+| `serde` | Serialization support |
+| `wgpu` | wgpu-based GPU FFT dispatch (`fft_auto_dispatch`/`fft_batch_gpu`/`overlap_save_gpu`; auto-routes to GPU above a size threshold, falls back to CPU cleanly when no adapter is found) |
+| `cuda` | Optional pure-Rust CUDA FFT backend (via `oxicuda-*`), NVIDIA-only, runtime-probed |
 | `hip` | AMD ROCm/HIP sparse FFT backend |
 | `sycl` | Cross-platform SYCL sparse FFT backend |
+| `python` | Python bindings (via `scirs2-core/python`) |
+
+Note: this crate's own `Cargo.toml` has no standalone `gpu` feature (corrected 2026-07-15 — the previous table entry named a feature that does not exist here; `scirs2-fft` unconditionally requests `scirs2-core`'s `gpu` feature as a dependency feature, but does not expose one of its own under that name). `default = ["helper", "window", "parallel", "oxifft"]`; `helper`/`window`/`minimal`/`oxifft`/`never` are internal composition features not intended for direct end-user toggling.
 
 ## Links
 

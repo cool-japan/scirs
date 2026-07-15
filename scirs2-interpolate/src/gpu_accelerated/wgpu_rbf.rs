@@ -210,7 +210,7 @@ fn probe_gpu() -> bool {
     use wgpu::{Backends, Instance, InstanceDescriptor, PowerPreference, RequestAdapterOptions};
 
     let instance = Instance::new(InstanceDescriptor {
-        backends: Backends::all(),
+        backends: Backends::PRIMARY,
         flags: wgpu::InstanceFlags::default(),
         memory_budget_thresholds: Default::default(),
         backend_options: Default::default(),
@@ -255,7 +255,7 @@ fn acquire_device() -> Result<(wgpu::Device, wgpu::Queue), RbfGpuError> {
     };
 
     let instance = Instance::new(InstanceDescriptor {
-        backends: Backends::all(),
+        backends: Backends::PRIMARY,
         flags: wgpu::InstanceFlags::default(),
         memory_budget_thresholds: Default::default(),
         backend_options: Default::default(),

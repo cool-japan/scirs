@@ -104,7 +104,7 @@ where
 ///
 /// # Space Complexity
 /// O(n) for storing labels and temporary data structures.
-#[deprecated(note = "Use `label_propagation_result` instead")]
+#[deprecated(since = "0.1.0", note = "Use `label_propagation_result` instead")]
 #[allow(dead_code)]
 pub fn label_propagation<N, E, Ix>(
     graph: &Graph<N, E, Ix>,

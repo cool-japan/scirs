@@ -1,5 +1,9 @@
 # scirs2-fft Development TODO
 
+## Status: v0.6.1 (released, 2026-07-15)
+
+scirs2-fft's own test suite (freshly re-run 2026-07-15): 674 tests pass, 0 skipped, 0 failed with default features; 718 tests pass, 0 skipped, 0 failed with `--all-features`.
+
 ## v0.3.3 — COMPLETED
 
 ### Sparse FFT Algorithms
@@ -147,11 +151,11 @@
 ## Known Issues / Technical Debt
 
 - `spectral.rs` was deleted and replaced by the `spectral/` submodule; verify no broken re-exports remain
-- `nufft_legacy.rs` backward-compatibility shim deprecated in v0.4.0 and marked for removal in v0.4.1
+- `nufft_legacy.rs` (359 lines) was marked for removal in v0.4.1 but is still present at v0.6.1; verified 2026-07-15 that it is now fully orphaned — not declared as a module anywhere (`grep` for `mod nufft_legacy` and for any reference to `nufft_legacy` across `src/` returns nothing outside the file itself), so it is dead code not compiled into the crate at all. Safe to delete in a future source-code pass (out of scope for this docs-only update).
 - EMD cubic spline envelope may not converge for highly non-stationary signals; add iteration cap with warning
 - NTT works only for inputs whose length divides `p - 1`; document this constraint clearly
 - Lomb-Scargle FAP estimation is approximate (chi-squared); implement bootstrap alternative
-- Several spectral analysis files exceed 2000 lines; use `rslines 50` to identify split targets
+- [x] No source file currently exceeds 2000 lines (verified 2026-07-15: largest is `src/polynomial/legacy.rs` at 1989 lines); re-check with `rslines 50` if new files grow past the threshold
 - GPU sparse FFT feature flags (`cuda`, `hip`, `sycl`) depend on external hardware; CI uses mock backend
 - STFT `istft` reconstruction requires correct `noverlap`; add assertion for perfect reconstruction condition
 - Wavelet packet tree reconstruction is not yet invertible for all wavelet families; test suite should cover round-trip error

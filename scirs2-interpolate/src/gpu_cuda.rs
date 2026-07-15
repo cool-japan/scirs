@@ -138,6 +138,13 @@ pub fn cuda_rbf_solve(a: &[f64], n: usize, f: &[f64]) -> InterpolateResult<Vec<f
     )
     .map_err(solver_err)?;
 
+    // The Cholesky factor/solve run on the solver handle's
+    // `CU_STREAM_NON_BLOCKING` stream; `copy_to_host` copies on the legacy
+    // default stream, which does not implicitly wait on a non-blocking stream.
+    // Synchronise so the solution is fully written before the device-to-host
+    // copy reads it (otherwise the copy races the solve and can read zeros).
+    handle.stream().synchronize().map_err(cuda_err)?;
+
     let mut w = vec![0.0f64; n];
     d_f.copy_to_host(&mut w).map_err(cuda_err)?;
     Ok(w)
@@ -151,9 +158,11 @@ pub fn cuda_rbf_solve(a: &[f64], n: usize, f: &[f64]) -> InterpolateResult<Vec<f
 ///
 /// The multiply is routed through `oxicuda-blas`'s dense GEMM. `Phi_query` is
 /// described as a [`Layout::RowMajor`] `MatrixDesc` (`rows = n_query`,
-/// `cols = n_centers`), `weights` as a column-vector [`Layout::ColMajor`]
-/// `MatrixDesc` (`n_centers`×1), and the output as a [`Layout::ColMajor`]
-/// `MatrixDescMut` (`n_query`×1). Under [`Transpose::NoTrans`] this yields
+/// `cols = n_centers`), `weights` as a column-vector [`Layout::RowMajor`]
+/// `MatrixDesc` (`n_centers`×1), and the output as a [`Layout::RowMajor`]
+/// `MatrixDescMut` (`n_query`×1) — a single-column matrix is byte-identical
+/// under either layout tag, and `oxicuda-blas`'s GEMM dispatcher requires
+/// RowMajor on every operand. Under [`Transpose::NoTrans`] this yields
 /// `M = n_query`, `K = n_centers`, `N = 1`.
 pub fn cuda_eval_gemm(
     phi_query: &[f64],
@@ -193,9 +202,14 @@ pub fn cuda_eval_gemm(
     let a_desc =
         MatrixDesc::from_buffer(&d_phi, n_query as u32, n_centers as u32, Layout::RowMajor)
             .map_err(blas_err)?;
+    // A column vector (N x 1) is byte-identical whether tagged RowMajor or
+    // ColMajor — there is only one way to pack N elements contiguously — but
+    // oxicuda-blas's GEMM dispatcher now hard-rejects any non-RowMajor operand
+    // (its generated kernels are tight row-major only and ignore `ld`/`layout`
+    // otherwise), so both must be tagged RowMajor to satisfy that check.
     let b_desc =
-        MatrixDesc::from_buffer(&d_w, n_centers as u32, 1, Layout::ColMajor).map_err(blas_err)?;
-    let mut c_desc = MatrixDescMut::from_buffer(&mut d_c, n_query as u32, 1, Layout::ColMajor)
+        MatrixDesc::from_buffer(&d_w, n_centers as u32, 1, Layout::RowMajor).map_err(blas_err)?;
+    let mut c_desc = MatrixDescMut::from_buffer(&mut d_c, n_query as u32, 1, Layout::RowMajor)
         .map_err(blas_err)?;
 
     oxicuda_blas::level3::gemm_api::gemm::<f64>(
@@ -209,6 +223,14 @@ pub fn cuda_eval_gemm(
         &mut c_desc,
     )
     .map_err(blas_err)?;
+
+    // The GEMM runs on the BLAS handle's `CU_STREAM_NON_BLOCKING` stream, but
+    // `copy_to_host` issues its `cuMemcpyDtoH_v2` on the legacy default stream,
+    // which a non-blocking stream does NOT implicitly synchronise with. Without
+    // this wait the copy races the kernel and reads the (uninitialised / zero)
+    // output before the GEMM finishes — the longer the kernel runs (large
+    // n_centers = K), the more often it reads all-zeros. Synchronise first.
+    handle.stream().synchronize().map_err(cuda_err)?;
 
     let mut y = vec![0.0f64; n_query];
     d_c.copy_to_host(&mut y).map_err(cuda_err)?;

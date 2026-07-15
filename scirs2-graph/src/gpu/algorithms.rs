@@ -430,7 +430,7 @@ fn wgpu_bfs(
 
     // Acquire adapter and device
     let instance = Instance::new(InstanceDescriptor {
-        backends: Backends::all(),
+        backends: Backends::PRIMARY,
         flags: wgpu::InstanceFlags::default(),
         memory_budget_thresholds: Default::default(),
         backend_options: Default::default(),
@@ -735,7 +735,7 @@ fn wgpu_bellman_ford(
 
     // Acquire adapter and device
     let instance = Instance::new(InstanceDescriptor {
-        backends: Backends::all(),
+        backends: Backends::PRIMARY,
         flags: wgpu::InstanceFlags::default(),
         memory_budget_thresholds: Default::default(),
         backend_options: Default::default(),
@@ -940,7 +940,7 @@ fn wgpu_delta_stepping(
 
     // ── Acquire adapter and device ────────────────────────────────────────────
     let instance = Instance::new(InstanceDescriptor {
-        backends: Backends::all(),
+        backends: Backends::PRIMARY,
         flags: wgpu::InstanceFlags::default(),
         memory_budget_thresholds: Default::default(),
         backend_options: Default::default(),

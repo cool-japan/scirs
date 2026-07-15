@@ -147,6 +147,13 @@ pub fn waverec(coeffs: &[Vec<f64>], wavelet: Wavelet) -> SignalResult<Vec<f64>> 
         return Ok(coeffs[0].clone());
     }
 
+    // `dwt_reconstruct` (transform.rs) sizes its raw output against
+    // `filters.rec_lo.len()` (which can differ from `dec_lo.len()` for
+    // biorthogonal wavelets), so that is the length we must use below to
+    // crop each level's reconstruction back down to its canonical size.
+    let filters = wavelet.filters()?;
+    let rec_filter_len = filters.rec_lo.len();
+
     // Start with the coarsest approximation
     let mut approx = coeffs[0].clone();
 
@@ -158,8 +165,10 @@ pub fn waverec(coeffs: &[Vec<f64>], wavelet: Wavelet) -> SignalResult<Vec<f64>> 
         let detail = &coeffs[i + 1];
 
         // Adjust approximation/detail lengths if they differ slightly
-        // due to rounding in the output_len calculation
-        if approx.len() != detail.len() {
+        // due to rounding in the output_len calculation, and remember the
+        // common length actually fed into `dwt_reconstruct` below.
+        let input_len;
+        let mut reconstructed = if approx.len() != detail.len() {
             let min_len = approx.len().min(detail.len());
             if approx.len() > min_len {
                 approx.truncate(min_len);
@@ -169,40 +178,39 @@ pub fn waverec(coeffs: &[Vec<f64>], wavelet: Wavelet) -> SignalResult<Vec<f64>> 
             } else {
                 detail.clone()
             };
+            input_len = approx.len();
 
-            approx = dwt_reconstruct(&approx, &detail, wavelet)?;
+            dwt_reconstruct(&approx, &detail, wavelet)?
         } else {
-            approx = dwt_reconstruct(&approx, detail, wavelet)?;
+            input_len = approx.len();
+
+            dwt_reconstruct(&approx, detail, wavelet)?
+        };
+
+        // `dwt_reconstruct` always returns the *raw* transpose-convolution
+        // output, which is exactly `2 * input_len` samples long -- more
+        // than the true single-level reconstruction whenever the filter is
+        // longer than 2 taps (Haar is the only filter for which the two
+        // coincide, which is why this over-length never showed up there).
+        //
+        // The canonical single-level reconstruction length mirrors the
+        // encode-side formula `output_len = (n + filter_len - 1) / 2` used
+        // by `dwt_decompose`: inverting it gives
+        // `canonical_len = 2 * input_len - filter_len + 2`. This is exact
+        // whenever the pre-decomposition length `n` and `filter_len` share
+        // the same parity (true for every wavelet family here, since all
+        // built-in filter lengths are even) and is `n + 1` in the
+        // mismatched-parity case -- i.e. it never *under*-shoots the true
+        // length, so cropping to it here is always safe, and it is what
+        // lets the final (finest) reconstruction land on the original
+        // signal length even though there is no further stored coefficient
+        // array left to cross-check it against.
+        let canonical_len = (2 * input_len + 2).saturating_sub(rec_filter_len);
+        if canonical_len < reconstructed.len() {
+            reconstructed.truncate(canonical_len);
         }
 
-        // After reconstruction, trim the output to match the expected length
-        // at the next level. The next level's detail coefficients tell us
-        // what length the signal was before that level's decomposition.
-        if i + 2 < coeffs.len() {
-            let next_detail_len = coeffs[i + 2].len();
-            // The original signal length at the next level can be inferred:
-            // next_detail_len = (original_len + filter_len - 1) / 2
-            // So original_len is approximately 2 * next_detail_len
-            // We use the next detail length to compute the expected signal length
-            let filters = wavelet.filters()?;
-            let filter_len = filters.dec_lo.len();
-            // We know that: next_detail_len = (approx_expected_len + filter_len - 1) / 2
-            // So: approx_expected_len = 2 * next_detail_len - filter_len + 1
-            //   or approx_expected_len = 2 * next_detail_len - filter_len + 2 (if odd)
-            // Since we can't know exactly, just truncate to the value that
-            // gives the right coefficient count at the next level.
-            // The expected length L satisfies: (L + filter_len - 1) / 2 = next_detail_len
-            // => L = 2 * next_detail_len - filter_len + 1 (min)
-            //    L = 2 * next_detail_len - filter_len + 2 (max)
-            // We take the maximum plausible length that doesn't exceed our output
-            let expected_len_min = 2 * next_detail_len - filter_len + 1;
-            let expected_len_max = 2 * next_detail_len - filter_len + 2;
-            if approx.len() > expected_len_max {
-                approx.truncate(expected_len_max);
-            } else if approx.len() > expected_len_min && approx.len() <= expected_len_max {
-                // Already in the right range, keep as is
-            }
-        }
+        approx = reconstructed;
     }
 
     Ok(approx)

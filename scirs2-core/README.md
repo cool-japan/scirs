@@ -3,26 +3,29 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-core)](https://crates.io/crates/scirs2-core)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-core)](https://docs.rs/scirs2-core)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 **Foundation crate for the SciRS2 scientific computing ecosystem.**
 
 `scirs2-core` provides the essential utilities, abstractions, and optimizations shared by every SciRS2 module. It enforces the SciRS2 POLICY: only `scirs2-core` uses external dependencies directly; all other crates consume re-exports and abstractions from this crate.
 
+**Tests:** 3024/3025 passing (default features), 4540/4540 passing (`--all-features`) — as of 2026-07-15.
+
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-core = "0.5.1"
+scirs2-core = "0.6.1"
 ```
 
 With optional feature flags:
 
 ```toml
 [dependencies]
-scirs2-core = { version = "0.5.1", features = ["validation", "simd", "parallel", "gpu"] }
+scirs2-core = { version = "0.6.1", features = ["validation", "simd", "parallel", "gpu"] }
 ```
 
-## Features (v0.5.1)
+## Features (v0.6.1)
 
 ### Performance
 
@@ -65,7 +68,7 @@ scirs2-core = { version = "0.5.1", features = ["validation", "simd", "parallel",
 
 - Schema-based data validation with constraints
 - Config file validation (JSON/TOML/YAML compatible schemas)
-- Assertion helpers for numeric arrays (check_finite, check_positive, check_shape)
+- Assertion helpers for scalars and arrays (`check_finite`, `check_positive`, `checkarray_finite`, `checkshape`)
 - Type coercion utilities
 
 ### Scientific Infrastructure
@@ -106,35 +109,41 @@ scirs2-core = { version = "0.5.1", features = ["validation", "simd", "parallel",
 ### Basic validation
 
 ```rust
-use scirs2_core::validation::{check_finite, check_positive};
+use scirs2_core::validation::{check_positive, checkarray_finite};
 use scirs2_core::ndarray::array;
 
+// Array-level finiteness check
 let data = array![[1.0_f64, 2.0], [3.0, 4.0]];
-check_finite(&data.view(), "input")?;
-check_positive(&data.view(), "weights")?;
+checkarray_finite(&data, "input")?;
+
+// Scalar positivity check
+let weight = 0.5_f64;
+check_positive(weight, "weight")?;
 ```
 
 ### SIMD operations
 
 ```rust
-use scirs2_core::simd_ops::{simd_add_f64, simd_dot_f64};
+use scirs2_core::simd::{simd_add_f64, simd_dot_f64};
+use scirs2_core::ndarray::Array1;
 
-let a = vec![1.0_f64; 1024];
-let b = vec![2.0_f64; 1024];
+let a: Array1<f64> = Array1::from_elem(1024, 1.0);
+let b: Array1<f64> = Array1::from_elem(1024, 2.0);
 
-let sum = simd_add_f64(&a, &b);
-let dot = simd_dot_f64(&a, &b);
+let sum = simd_add_f64(&a.view(), &b.view());
+let dot = simd_dot_f64(&a.view(), &b.view());
 ```
 
 ### Parallel processing
 
 ```rust
-use scirs2_core::parallel_ops::{parallel_map, parallel_reduce};
+use scirs2_core::concurrent::parallel_iter::{parallel_map, parallel_reduce};
 
 let data: Vec<f64> = (0..1_000_000).map(|i| i as f64).collect();
 
-let squares: Vec<f64> = parallel_map(&data, |&x| x * x)?;
-let total: f64 = parallel_reduce(&data, 0.0, |acc, &x| acc + x)?;
+// Trailing arg is a worker-count hint (0 = auto-detect)
+let squares: Vec<f64> = parallel_map(&data, |&x| x * x, 0)?;
+let total: f64 = parallel_reduce(&data, 0.0, |acc, &x| acc + x, |a, b| a + b, 0)?;
 ```
 
 ### Lock-free queue
@@ -142,23 +151,26 @@ let total: f64 = parallel_reduce(&data, 0.0, |acc, &x| acc + x)?;
 ```rust
 use scirs2_core::concurrent::LockFreeQueue;
 
-let queue: LockFreeQueue<i32> = LockFreeQueue::new();
-queue.push(42);
+// Capacity is rounded up to the next power of two (minimum 2)
+let queue: LockFreeQueue<i32> = LockFreeQueue::new(4);
+assert!(queue.push(42));
 let val = queue.pop(); // Some(42)
 ```
 
 ### ML pipeline
 
 ```rust
-use scirs2_core::ml_pipeline::{Pipeline, Transformer, Predictor};
+use scirs2_core::ml_pipeline::pipeline::{linear_regression_pipeline, RegressionPipeline};
+use scirs2_core::ndarray::{Array1, Array2};
 
-// Build a pipeline: StandardScaler -> LinearModel
-let pipeline = Pipeline::builder()
-    .add_transformer(StandardScaler::new())
-    .set_predictor(LinearModel::load("model.bin")?)
-    .build();
+// Convenience constructor: StandardScaler -> LinearRegressor
+let mut pipeline: RegressionPipeline = linear_regression_pipeline();
 
-let predictions = pipeline.predict(&features)?;
+let x = Array2::from_shape_vec((4, 1), vec![1.0_f64, 2.0, 3.0, 4.0])?;
+let y = Array1::from_vec(vec![3.0_f64, 5.0, 7.0, 9.0]); // y = 2x + 1
+
+pipeline.fit(x.view(), y.view())?;
+let predictions = pipeline.predict(x.view())?;
 ```
 
 ## v0.5.0 Additions
@@ -168,38 +180,62 @@ let predictions = pipeline.predict(&features)?;
 `par_map_chunks` provides typed-result chunk-parallel mapping with NUMA locality (Linux `pthread` affinity pin; rayon fallback on Darwin/WASM):
 
 ```rust
-use scirs2_core::parallel::numa::par_map_chunks;
+use scirs2_core::par_map_chunks; // re-exported at the crate root
 
 let data = vec![1.0_f64; 4096];
+// Returns Vec<f64> directly (not a Result) — chunk order is preserved.
 let results: Vec<f64> = par_map_chunks(&data, 64, |chunk| {
     chunk.iter().map(|x| x * x).collect::<Vec<_>>()
-})?;
+});
 ```
 
 ### GpuNdarray — Native f32 Array on WebGPU
 
-`GpuNdarray<f32>` implements `ArrayProtocol` with real wgpu dispatch for 7 kernels:
+`GpuNdarray<f32>` implements `ArrayProtocol` with real wgpu dispatch for elementwise add/subtract/multiply,
+scalar multiply, sum reduction, dot product, and tiled matmul:
 
 ```rust
 use scirs2_core::array_protocol::gpu_ndarray::GpuNdarray;
 
-// GPU array operations (automatically falls back to CPU when no adapter)
-let a = GpuNdarray::from_slice(&[1.0_f32, 2.0, 3.0, 4.0], vec![2, 2]);
-let b = GpuNdarray::from_slice(&[5.0_f32, 6.0, 7.0, 8.0], vec![2, 2]);
-let c = a.add(&b)?;           // WGSL elementwise add
-let m = a.matmul(&b)?;        // WGSL tiled matmul (16×16 shared mem)
-let s = a.sum(None)?;         // WGSL two-pass reduce
-let t = a.transpose()?;       // WGSL 32×32 bank-conflict-padded transpose
-let cat = a.concat_axis(&b, 1)?;  // WGSL uniform-based stride gather (axis > 0)
-let r = a.sum(Some(0))?;     // WGSL per-output-element axis reduction (rank ≥ 3)
+// GPU array operations (construction uploads to the process-wide wgpu device;
+// falls back to an error if no adapter is available rather than silently using the CPU)
+let a = GpuNdarray::from_data(&[1.0_f32, 2.0, 3.0, 4.0], vec![2, 2])?;
+let b = GpuNdarray::from_data(&[5.0_f32, 6.0, 7.0, 8.0], vec![2, 2])?;
+let c = a.add(&b)?;         // WGSL elementwise add
+let m = a.matmul(&b)?;      // WGSL tiled matmul (16×16 shared mem)
+let s = a.sum_all()?;       // WGSL two-pass reduce
+let d = a.dot_gpu(&b)?;     // dot product (elementwise multiply + sum_all)
 ```
 
-GPU dispatch threshold: operations below ~4096 elements use CPU. SVD, inverse, and `apply_elementwise` fall back to CPU with documented rationale.
+Other array-protocol operations (transpose, axis-reductions, SVD, inverse) are provided
+generically through the `array_protocol::operations` dispatch layer rather than as
+`GpuNdarray` inherent methods, and fall back to CPU implementations.
 
 ### WGSL Kernel Registry (v0.5.0)
 
 All 13 previously-empty WGSL kernel slots are now filled in `gpu/kernels/mod.rs`:
 Adam, SGD, RMSprop, Adagrad, LAMB optimizers; memcpy, fill, reduce_sum, reduce_max; RK4 stages (rk4_1/2/3/4 + combine) and error estimate.
+
+## v0.6.1 Additions
+
+### SIMD Squared Euclidean Distance
+
+`SimdUnifiedOps` gained `simd_distance_squared_euclidean` (squared Euclidean distance, no `sqrt`), implemented for `f32`/`f64` in `src/simd/distances.rs`:
+
+```rust
+use scirs2_core::simd_ops::SimdUnifiedOps;
+use scirs2_core::ndarray::array;
+
+let a = array![1.0_f64, 2.0, 3.0];
+let b = array![4.0_f64, 5.0, 6.0];
+let d2 = f64::simd_distance_squared_euclidean(&a.view(), &b.view());
+```
+
+### Other Additions
+
+- `training_history(&self) -> &[f64]` on `NormalizingFlow`, `ScoreBasedDiffusion`, `EnergyBasedModel`, and `NeuralPosteriorEstimation` (`src/random/neural_sampling.rs`) — per-epoch average loss recorded during `train()`.
+- Real GPU runtime detection feeding `PlatformCapabilities` (`src/simd_ops/gpu_detection.rs`): CUDA is probed via dynamic `libcuda`/`nvcuda` loading plus `cuInit`/`cuDeviceGetCount`; Metal is probed via the `metal` feature or a documented platform heuristic. Replaces the previous stub.
+- `ProductionProfiler::export_data()` (`src/profiling/production.rs`) now returns a real JSON snapshot (config, resource utilization, active workload IDs) instead of a placeholder.
 
 ## Feature Flags
 
@@ -208,15 +244,21 @@ Adam, SGD, RMSprop, Adagrad, LAMB optimizers; memcpy, fill, reduce_sum, reduce_m
 | `validation` | Data validation helpers (`check_finite`, schema validation) |
 | `simd` | SIMD-accelerated array operations |
 | `parallel` | Multi-threaded parallel processing via Rayon |
-| `gpu` | GPU memory management and kernel abstractions |
-| `cuda` | NVIDIA CUDA backend (requires `gpu`) |
+| `gpu` | GPU memory management and kernel abstractions (backend-agnostic) |
+| `opencl` / `metal` / `wgpu` / `rocm` | Backend-specific GPU acceleration (each requires `gpu`) |
 | `memory_management` | Advanced memory utilities (arena, slab, pool) |
 | `array_protocol` | Extensible unified array interface |
 | `array_protocol_wgpu` | `GpuNdarray<f32>` with real wgpu dispatch (requires `array_protocol`) |
 | `logging` | Structured logging integration |
-| `profiling` | Performance profiling stubs |
+| `profiling` | Performance profiling tools (metrics, dashboards, flame graphs, OpenTelemetry/Prometheus export); GPU- and OS-hardware-counter profiling remain partially stubbed on non-Linux platforms — see Observability note above |
 | `std` | Standard library support (enabled by default; disable for `no_std`) |
 | `all` | All stable features |
+
+Note: as of 0.6.x, NVIDIA CUDA support is no longer a `scirs2-core` feature — it was decentralized into
+per-crate `oxicuda-*` backend dependencies (direct CUDA integration lives in the consuming crate, not in
+`scirs2-core`). `scirs2-core`'s own `gpu` feature stays backend-agnostic (`opencl`, `metal`, `wgpu`, `rocm`).
+`scirs2-core` exposes 70+ Cargo features in total; the table above lists the most commonly used ones — see
+`scirs2-core/Cargo.toml` `[features]` for the complete, authoritative list.
 
 ## Links
 

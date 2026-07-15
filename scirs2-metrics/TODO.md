@@ -1,6 +1,6 @@
 # scirs2-metrics TODO
 
-## Status: v0.3.4 Released (March 18, 2026) — v0.4.3 in progress (2026-05-03)
+## Status: v0.6.1 (last updated 2026-07-15)
 
 ## v0.3.3 Completed
 
@@ -14,7 +14,8 @@
 - [x] `average_precision_score`, `precision_recall_curve`
 - [x] `confusion_matrix`, `classification_report`
 - [x] `log_loss`, `brier_score_loss`
-- [x] `hinge_loss`, `hamming_loss`, `jaccard_score`
+- [x] `hamming_loss`, `jaccard_score`
+- [ ] `hinge_loss` — no function by this exact name in `classification`; the real, wired function is `sklearn_compat::hinge_loss_sklearn` (verified 2026-07-15)
 - [x] Multi-class: micro/macro/weighted/samples averaging
 - [x] `cohen_kappa_score`, `matthews_corrcoef`
 - [x] Optimal threshold: `g_means_score`, `find_optimal_threshold`
@@ -29,33 +30,34 @@
 - [x] `mean_tweedie_deviance`, Poisson/Gamma deviance
 - [x] Huber loss, quantile (pinball) loss
 - [x] Max error, relative absolute/squared error
-- [x] `regression_advanced`: interval score, coverage probability, Winkler score
+- [ ] `regression_advanced`: interval score, coverage probability, Winkler score — code exists (`src/regression_advanced/mod.rs`: `coverage_error`, `interval_width`, `winkler_score`, `continuous_ranked_probability_score`, `energy_score`) but the module is never declared in `lib.rs`, so it is dead code and unreachable from the public API (verified 2026-07-15). Needs a `pub mod regression_advanced;` wire-up, or removal if intentionally superseded.
 
 ### Clustering Metrics
 - [x] `silhouette_score`, `silhouette_samples`
 - [x] `calinski_harabasz_score` (variance ratio)
 - [x] `davies_bouldin_score`
-- [x] Dunn index, gap statistic
+- [x] Dunn index
+- [ ] Gap statistic — not found anywhere in the codebase (verified 2026-07-15); `clustering` offers `elbow_method` for choosing k instead
 - [x] `adjusted_rand_index` (ARI)
 - [x] `normalized_mutual_info_score`, `adjusted_mutual_info_score`
 - [x] `homogeneity_completeness_v_measure`
 - [x] `fowlkes_mallows_score`
-- [x] Contingency matrix, pair confusion matrix
+- [ ] Contingency matrix, pair confusion matrix — no standalone public function found (verified 2026-07-15); a contingency table is only computed as a private implementation detail inside `adjusted_rand_index`/`normalized_mutual_info_score`/`homogeneity_completeness_v_measure`/`fowlkes_mallows_score`, and `pair_confusion_matrix` does not exist anywhere in the crate
 - [x] Cluster stability, consensus scoring
 
 ### Ranking and Information Retrieval
 - [x] `ndcg_score` at k, DCG
 - [x] `mean_average_precision` (MAP), MAP@k
-- [x] `mrr_score` (MRR)
+- [ ] `mrr_score` (MRR) — no function by this exact name; the real, wired function is `ranking::mean_reciprocal_rank` (verified 2026-07-15)
 - [x] `precision_at_k`, `recall_at_k`
 - [x] Kendall's tau, Spearman's rank correlation
 - [x] Label ranking average precision (LRAP)
-- [x] `ir_metrics` module: comprehensive IR evaluation
+- [ ] `ir_metrics` module: comprehensive IR evaluation — `src/ranking/ir_metrics.rs` exists but is never declared in `lib.rs` (no `pub mod`/`mod` anywhere), so it does not compile into the crate; it is superseded by the wired `ranking/mod.rs`, which already covers NDCG/MAP/MRR/precision@k/recall@k (verified 2026-07-15)
 
 ### Object Detection Metrics (New in v0.3.1)
-- [x] `iou_score` for axis-aligned bounding boxes
-- [x] `average_precision` at IoU threshold
-- [x] `compute_map` (mAP) with configurable IoU thresholds
+- [ ] `iou_score` for axis-aligned bounding boxes — no function by this exact name; the real, wired function is `detection::iou` (tuple-based boxes) / `detection::iou_bbox` (verified 2026-07-15)
+- [ ] `average_precision` at IoU threshold — no function by this exact name; the real functions are `detection::average_precision_bbox` and `detection::coco_ap` (verified 2026-07-15)
+- [ ] `compute_map` (mAP) with configurable IoU thresholds — no function by this exact name; the real functions are `detection::mean_average_precision_detection` and `detection::mean_average_precision_per_class` (verified 2026-07-15)
 - [x] Non-Maximum Suppression (NMS) utilities
 - [x] PASCAL VOC-style evaluation
 - [x] COCO-style mAP@[0.5:0.95] evaluation
@@ -64,7 +66,7 @@
 ### Generative Model Evaluation (New in v0.3.1)
 - [x] Fréchet Inception Distance (FID)
 - [x] Inception Score (IS)
-- [x] Precision and Recall for generative models
+- [ ] Precision and Recall for generative models — not found anywhere in the codebase (verified 2026-07-15); `domains::generative_ai::gan_evaluation::GANEvaluationMetrics` only implements FID, IS, and KID
 - [x] Maximum Mean Discrepancy (MMD)
 - [x] Kernel-based evaluation metrics
 
@@ -72,8 +74,8 @@
 - [x] Pixel accuracy, mean pixel accuracy
 - [x] Per-class IoU, mean IoU (mIoU)
 - [x] Dice coefficient, Jaccard index
-- [x] Boundary F-measure
-- [x] Panoptic Quality (PQ)
+- [ ] Boundary F-measure — not found anywhere in the codebase (verified 2026-07-15)
+- [ ] Panoptic Quality (PQ) — not found anywhere in the codebase (verified 2026-07-15)
 
 ### Fairness and Bias Detection
 - [x] `demographic_parity` (difference and ratio)
@@ -86,19 +88,20 @@
 - [x] Robustness testing: performance invariance, sensitivity
 
 ### Streaming Metrics
-- [x] Memory-efficient online evaluation
-- [x] `streaming/optimization/patterns/batching.rs` - batch accumulator
-- [x] `streaming/optimization/patterns/buffering.rs` - ring-buffer streaming
-- [x] `streaming/optimization/patterns/partitioning.rs` - keyed/group metrics
-- [x] `streaming/optimization/patterns/windowing.rs` - sliding/tumbling windows
+- [x] Memory-efficient online evaluation — real implementation is `streaming::advanced::AdaptiveStreamingMetrics` (see below and Known Issues)
+- [ ] `streaming/optimization/patterns/batching.rs` - batch accumulator — file exists but `streaming/mod.rs` has no `pub mod optimization;` (and there is no `streaming/optimization/mod.rs` at all); unreachable from the public API (verified 2026-07-15)
+- [ ] `streaming/optimization/patterns/buffering.rs` - ring-buffer streaming — same as above; unreachable (verified 2026-07-15)
+- [ ] `streaming/optimization/patterns/partitioning.rs` - keyed/group metrics — same as above; unreachable (verified 2026-07-15)
+- [ ] `streaming/optimization/patterns/windowing.rs` - sliding/tumbling windows — same as above; unreachable (verified 2026-07-15)
 - [x] Online Welford variance for streaming statistics
+- [x] Adaptive windowing, concept drift detection (ADWIN/DDM/Page-Hinkley), streaming anomaly detection/alerts, performance monitoring — `streaming::advanced` (`AdaptiveStreamingMetrics`, `AdwinDetector`, `DdmDetector`, `PageHinkleyDetector`, `PerformanceMonitor`); verified 2026-07-15, not previously listed here
 
 ### Evaluation Framework
 - [x] K-fold cross-validation, stratified K-fold, leave-one-out
 - [x] Time series cross-validation
-- [x] `cross_val_score`, `cross_validate`
+- [ ] `cross_val_score`, `cross_validate` — no functions by these exact names; the real, wired functions are `evaluation::{k_fold_cross_validation, stratified_k_fold, leave_one_out_cv, grouped_k_fold, nested_cross_validation}` (verified 2026-07-15)
 - [x] Learning curve, validation curve generation
-- [x] `grid_search_cv`, `randomized_search_cv`
+- [ ] `grid_search_cv`, `randomized_search_cv` — not implemented anywhere in the crate (verified 2026-07-15); the closest available tool is `integration::optim::HyperParameterTuner::random_search`, which is a black-box search over a user-supplied eval function rather than a CV-grid search
 - [x] Bootstrap confidence intervals
 - [x] McNemar's test, Friedman test, Wilcoxon signed-rank test
 
@@ -131,9 +134,9 @@
 - [x] Training history visualization
 
 ### Optimization Integration (`optim_integration` feature)
-- [x] `MetricScheduler` (reduce-on-plateau)
+- [x] `MetricLRScheduler` (reduce-on-plateau; named `MetricScheduler` in earlier docs — real struct is `MetricLRScheduler`, verified 2026-07-15)
 - [x] `HyperParameterTuner` with random and grid search
-- [x] `MetricBasedReduceOnPlateau` optimizer wrapper
+- [ ] `MetricBasedReduceOnPlateau` optimizer wrapper — no struct/function by this name found (verified 2026-07-15); the real reduce-on-plateau scheduler is `integration::optim::MetricLRScheduler` (`step_with_metric`, patience/factor/min_lr)
 
 ## v0.4.0 Roadmap
 
@@ -195,5 +198,6 @@
 
 - `plotly_backend` feature generates HTML that requires a network connection to load Chart.js from CDN; add offline/bundled mode.
 - `dashboard_server` requires `tokio` runtime; document how to integrate with existing async applications.
-- SIMD acceleration is only available on x86/x86_64 targets; ARM NEON support is planned for v0.4.0.
-- The `generative` module (FID, IS) requires pre-computed feature vectors; it does not include the Inception network — document this clearly.
+- SIMD acceleration (`optimization/hardware.rs`) only tracks x86/x86_64 feature flags (SSE2/AVX/AVX2/AVX-512); ARM NEON is still not tracked as of 0.6.1 despite once being slated for v0.4.0.
+- GAN/generative evaluation (`domains::generative_ai::gan_evaluation::GANEvaluationMetrics`: FID, IS, KID) requires pre-computed feature vectors; it does not include the Inception network — document this clearly.
+- **Orphaned modules (verified 2026-07-15):** several source files/directories exist under `src/` but have no `pub mod` (or even private `mod`) declaration anywhere in the crate, so they do not compile into the crate and are unreachable from the public API: `generative.rs`, `segmentation.rs`, `regression_advanced/`, `distributional/` (superseded by the wired `distribution/`), `ranking/ir_metrics.rs` (superseded by the wired `ranking/mod.rs`), `fairness/advanced.rs`, `streaming/optimization/` (patterns/config/detection — also missing its own `optimization/mod.rs`), `domains/robotics/` (9 files), `integration/neural/adapter.rs` (superseded by `neural_adapter.rs`). Each needs a decision: wire in via `pub mod`, or delete as dead code.

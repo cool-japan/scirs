@@ -455,6 +455,14 @@ impl SimdUnifiedOps for f32 {
         1.0 - Self::simd_cosine_similarity(a, b)
     }
     #[cfg(feature = "simd")]
+    fn simd_distance_squared_euclidean(a: &ArrayView1<Self>, b: &ArrayView1<Self>) -> Self {
+        crate::simd::simd_distance_squared_euclidean_f32(a, b)
+    }
+    #[cfg(not(feature = "simd"))]
+    fn simd_distance_squared_euclidean(a: &ArrayView1<Self>, b: &ArrayView1<Self>) -> Self {
+        a.iter().zip(b.iter()).map(|(&x, &y)| (x - y).powi(2)).sum()
+    }
+    #[cfg(feature = "simd")]
     fn simd_weighted_sum(values: &ArrayView1<Self>, weights: &ArrayView1<Self>) -> Self {
         crate::simd::simd_weighted_sum_f32(values, weights)
     }

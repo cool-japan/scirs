@@ -76,7 +76,7 @@ mod inner {
     /// dispatch layer can fall back to the CPU path transparently.
     pub fn gpu_available() -> bool {
         let instance_desc = InstanceDescriptor {
-            backends: Backends::all(),
+            backends: Backends::PRIMARY,
             flags: wgpu::InstanceFlags::default(),
             memory_budget_thresholds: Default::default(),
             backend_options: Default::default(),
@@ -187,7 +187,7 @@ mod inner {
 
         // ── Adapter / device acquisition ──────────────────────────────────────
         let instance = Instance::new(InstanceDescriptor {
-            backends: Backends::all(),
+            backends: Backends::PRIMARY,
             flags: wgpu::InstanceFlags::default(),
             memory_budget_thresholds: Default::default(),
             backend_options: Default::default(),

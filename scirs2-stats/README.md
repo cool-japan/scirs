@@ -3,10 +3,13 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-stats.svg)](https://crates.io/crates/scirs2-stats)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-stats)](https://docs.rs/scirs2-stats)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 **Comprehensive statistical computing for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
 `scirs2-stats` is the statistical backbone of SciRS2, providing a production-ready, pure-Rust implementation of probability distributions, hypothesis testing, Bayesian inference, survival analysis, MCMC sampling, Gaussian processes, copulas, and much more. The API mirrors SciPy's `stats` module where sensible, while going considerably further in v0.5.0 with nonparametric Bayes, causal inference, sequential Monte Carlo, and advanced time-series-oriented statistics.
+
+**Tests:** 2529/2529 passing (default features), 2561/2561 passing (`--all-features`) — as of 2026-07-15.
 
 ---
 
@@ -25,7 +28,7 @@ Modern statistical workflows demand more than descriptive statistics and p-value
 
 ---
 
-## Feature List (v0.5.1)
+## Feature List (v0.6.1)
 
 ### Descriptive Statistics
 - Mean, median, trimmed mean, geometric mean, harmonic mean
@@ -143,7 +146,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.5.1"
+scirs2-stats = "0.6.1"
 ```
 
 ### Basic Descriptive Statistics
@@ -167,75 +170,83 @@ println!("mean={m:.3}, median={med:.3}, std={s:.3}, skew={sk:.3}, kurtosis={kurt
 
 ```rust
 use scirs2_core::ndarray::array;
-use scirs2_stats::{ttest_ind, multiple_testing::BenjaminiHochberg};
+use scirs2_stats::tests::ttest::Alternative;
+use scirs2_stats::{multiple_testing::benjamini_hochberg, ttest_ind};
 
 let group_a = array![5.1f64, 4.9, 6.2, 5.7, 5.5, 5.0];
 let group_b = array![4.8f64, 5.2, 5.1, 4.7, 4.9, 4.6];
 
-let result = ttest_ind(&group_a.view(), &group_b.view(), true).unwrap();
+let result = ttest_ind(&group_a.view(), &group_b.view(), true, Alternative::TwoSided, "omit").unwrap();
 println!("t = {:.4}, p = {:.4}", result.statistic, result.pvalue);
 
 // Multiple testing correction over a collection of p-values
 let p_values = vec![0.01, 0.04, 0.20, 0.003, 0.15];
-let corrected = BenjaminiHochberg::correct(&p_values, 0.05).unwrap();
-println!("BH-adjusted p-values: {corrected:?}");
+let corrected = benjamini_hochberg(&p_values, 0.05).unwrap();
+println!("BH-adjusted p-values: {:?}", corrected.pvalues_corrected);
 ```
 
 ### Sequential Monte Carlo (Particle Filter)
 
 ```rust
-use scirs2_stats::mcmc::smc::{ParticleFilter, BootstrapConfig};
+use scirs2_core::ndarray::array;
+use scirs2_core::random::rngs::SmallRng;
+use scirs2_core::random::SeedableRng;
+use scirs2_stats::mcmc::smc::{effective_sample_size, resample, ResamplingStrategy};
 
-let config = BootstrapConfig {
-    n_particles: 1000,
-    resampling_threshold: 0.5,
-    ..Default::default()
-};
+// Particle weights (e.g. from an observation likelihood update)
+let weights = array![0.4_f64, 0.3, 0.2, 0.1];
+let ess = effective_sample_size(&weights); // diagnostic: resample when ess/n < threshold
 
-let pf = ParticleFilter::new(config);
-// Feed observations and propagate particles
-let estimates = pf.filter(&observations, &transition_fn, &likelihood_fn).unwrap();
+let mut rng = SmallRng::seed_from_u64(42);
+let parent_indices = resample(&weights, ResamplingStrategy::Systematic, &mut rng).unwrap();
 ```
+
+The full `ParticleFilter<O, T, P>` struct (bootstrap/auxiliary particle filters, tempering,
+resample-move) is generic over user-supplied observation-model, transition-kernel, and prior
+types — see `scirs2_stats::mcmc::smc` on docs.rs for a complete end-to-end example.
 
 ### Survival Analysis
 
 ```rust
 use scirs2_stats::survival::{KaplanMeier, CoxPH, NelsonAalen};
 
-// Kaplan-Meier estimator
+// Kaplan-Meier estimator (events: true = event occurred, false = censored)
 let times  = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
-let events = vec![1u8,  1,   0,   1,   0,   1,   1,   0,   1  ];
+let events = vec![true, true, false, true, false, true, true, false, true];
 
 let km = KaplanMeier::fit(&times, &events).unwrap();
-println!("Median survival time: {:?}", km.median());
+println!("Median survival time: {:?}", km.median_survival());
 
-// Nelson-Aalen cumulative hazard
+// Nelson-Aalen cumulative hazard: `cumulative_hazard` is a `Vec<f64>` field
+// parallel to `times` (H(t) at each unique event time), not a callable.
 let na = NelsonAalen::fit(&times, &events).unwrap();
-println!("Cumulative hazard at t=5: {:.4}", na.cumulative_hazard(5.0));
+println!("Cumulative hazard at each event time: {:?}", na.cumulative_hazard);
 ```
 
 ### Copula Modelling
 
 ```rust
-use scirs2_stats::copula::{ClaytonCopula, VineCopula};
+use scirs2_stats::copula::ClaytonCopula;
 
-let clayton = ClaytonCopula::new(2.0);  // theta=2
+let clayton = ClaytonCopula::new(2.0).unwrap(); // theta=2; `new` validates theta > 0
 let (u, v) = (0.3f64, 0.7);
 println!("C({u},{v}) = {:.4}", clayton.cdf(u, v));
-
-let samples = clayton.sample(500).unwrap();
+println!("c({u},{v}) = {:.4}", clayton.pdf(u, v));
 ```
+
+(Vine copulas are exposed as `CVine` / `DVine` / `PairCopula` in `scirs2_stats::copula::vine`,
+not a unified `VineCopula` type.)
 
 ### Gaussian Process Regression
 
 ```rust
-use scirs2_stats::gaussian_process::{GaussianProcess, kernels::Matern52};
+use scirs2_stats::gaussian_process::{GaussianProcess, Matern52, ZeroPrior};
 
-let kernel = Matern52::new(1.0, 1.0);  // length_scale=1.0, variance=1.0
-let mut gp = GaussianProcess::new(kernel, 1e-6);
+let kernel = Matern52::new(1.0, 1.0);           // length_scale=1.0, signal_variance=1.0
+let mut gp = GaussianProcess::new(kernel, ZeroPrior, 1e-6); // (kernel, mean prior, noise)
 
 gp.fit(&x_train, &y_train).unwrap();
-let (mean_pred, std_pred) = gp.predict(&x_test).unwrap();
+let (mean_pred, std_pred) = gp.predict_with_std(&x_test).unwrap();
 ```
 
 ---
@@ -292,10 +303,17 @@ let (mean_pred, std_pred) = gp.predict(&x_test).unwrap();
 
 | Flag | Description |
 |---|---|
-| `parallel` | Enable Rayon-based parallel computation (recommended) |
-| `simd` | SIMD-accelerated inner loops via `scirs2-core` |
-| `serde` | Serialization support via `serde` / `oxicode` |
-| `python` | Python interop layer |
+| `parallel` | Enable Rayon-based parallel computation (recommended; delegates to `scirs2-core/parallel`) |
+| `memmap` | Memory-mapped file support for large datasets |
+| `python` | Python interop layer (delegates to `scirs2-core/python`) |
+| `symbolic` | Symbolic MLE via `scirs2-symbolic` — exact symbolic gradients for `mle::derive` / `mle_symbolic` |
+| `gpu` | GPU abstraction layer (delegates to `scirs2-core/gpu`) |
+| `wgpu` | Pure-Rust WebGPU compute kernels for batch distribution evaluation (requires `gpu`) |
+| `cuda` | Pure-Rust direct `oxicuda-*` CUDA path (NVIDIA-only, runtime-probed, no C/Fortran) |
+| `memory_tracking` | Real RSS-based memory tracking for the SciPy benchmark framework (opt-in) |
+
+SIMD-accelerated inner loops (via `scirs2-core`) and `serde`-based serialization are compiled in
+unconditionally — they are dependencies of this crate, not optional Cargo features of it.
 
 Default features: none (pure Rust, no C/Fortran dependencies).
 

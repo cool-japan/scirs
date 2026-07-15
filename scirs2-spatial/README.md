@@ -3,8 +3,11 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-spatial.svg)](https://crates.io/crates/scirs2-spatial)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-spatial)](https://docs.rs/scirs2-spatial)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 **scirs2-spatial** is the spatial algorithms and computational geometry crate for the [SciRS2](https://github.com/cool-japan/scirs) scientific computing library. It provides spatial data structures, distance metrics, geometric algorithms, geospatial utilities, and path planning tools modeled after SciPy's `spatial` module.
+
+Tested: 854/854 tests passing with default features, 890/890 with `--all-features` (verified 2026-07-15).
 
 ## What scirs2-spatial Provides
 
@@ -19,7 +22,7 @@ Use scirs2-spatial when you need to:
 - Plan paths in continuous space (A*, RRT)
 - Apply 3D transformations (quaternions, rigid transforms, SLERP)
 
-## Features (v0.5.1)
+## Features (v0.6.1)
 
 ### Spatial Data Structures
 - **KD-Tree**: Efficient k-nearest neighbor and radius search in any dimension
@@ -116,14 +119,14 @@ Use scirs2-spatial when you need to:
 
 ```toml
 [dependencies]
-scirs2-spatial = "0.5.1"
+scirs2-spatial = "0.6.1"
 ```
 
 For parallel processing:
 
 ```toml
 [dependencies]
-scirs2-spatial = { version = "0.5.1", features = ["parallel"] }
+scirs2-spatial = { version = "0.6.1", features = ["parallel"] }
 ```
 
 ## Quick Start
@@ -283,7 +286,12 @@ fn rtree_example() -> CoreResult<()> {
 
 | Flag | Description |
 |------|-------------|
-| `parallel` | Enable Rayon-based parallel distance matrix computation |
+| `parallel` | Enable Rayon-based parallel distance matrix computation — in `default` |
+| `async` | Async APIs via `tokio` |
+| `cuda` / `rocm` / `vulkan` | GPU **capability detection only** (nvidia-smi/rocm-smi/vulkaninfo probes in `gpu_accel.rs`); does not unlock real GPU compute, which always falls back to CPU SIMD |
+| `experimental` | Research-fringe APIs that are NOT production-ready — currently gates `SelfOptimizingAlgorithm`, which honestly returns `NotImplementedError` rather than fabricating results; excluded from `default` |
+
+Corrected 2026-07-15: table previously listed only `parallel`; the four flags above also exist in `Cargo.toml` and are now documented.
 
 ## Performance
 

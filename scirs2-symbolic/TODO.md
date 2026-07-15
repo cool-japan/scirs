@@ -8,6 +8,17 @@ This file tracks every work item from v0.4.4 onward. The item template (Why / De
 
 ---
 
+## Test status as of 2026-07-15 (v0.6.1)
+
+scirs2-symbolic's own test suite (freshly run 2026-07-15): 947 tests pass, 0 failed, 0 skipped (default
+features — the crate's default feature set is empty, so this is the pure-Rust core with no `smt`/`jit`/
+`gpu`/`cuda`/`macros`/`numa`/`serde`/`parallel` extras); 1058 tests pass, 0 failed, 0 skipped
+(`--all-features`, exercising all of the above). See "Correctness hardening — e-graph extraction
+operand-swap bug (2026-07-15)" near the end of this file for the one real bug found and fixed this
+session.
+
+---
+
 ## Status as of 2026-05-15 (v0.5.0, post Waves 59–67)
 
 - **Phase 0** (substrate): COMPLETE (13/13 items) — Wave 53
@@ -741,7 +752,7 @@ The following items are explicitly out of scope for `scirs2-symbolic`. Future ag
 
 ---
 
-*Last updated: 2026-05-15 (Waves 59–70 + plan blocks 2026-05-06). Branch: `0.5.0`. Maintainer: COOLJAPAN OU (Team Kitasan). Architecture: clean-room, SciRS2-native EML implementation. Substrate guidance: oxieml v0.1.1 (pinned in `[dev-dependencies]` for parity testing only); paper reference arXiv:2603.21852 v2 (2026-04-04). Phase 2: 15/15. Phase 3: 15/12+. Phase 4: 9/N.*
+*Last updated: 2026-07-15 (post-0.6.1 e-graph extraction correctness fix; prior update 2026-05-15, Waves 59–70 + plan blocks 2026-05-06). Branch: `0.6.1`. Maintainer: COOLJAPAN OU (Team Kitasan). Architecture: clean-room, SciRS2-native EML implementation. Substrate guidance: oxieml v0.1.1 (pinned in `[dev-dependencies]` for parity testing only); paper reference arXiv:2603.21852 v2 (2026-04-04). Phase 2: 15/15. Phase 3: 15/12+. Phase 4: 9/N.*
 
 *Note: as of 2026-05-03, oxieml's `Cargo.toml` has hardcoded absolute paths for `tensorlogic-ir`, `scirs2-core`, `oxicode` — this is an upstream oxieml issue, separate from this crate.*
 
@@ -798,3 +809,47 @@ These items remain `- [ ]` after this wave. Each has an explicit reason and targ
 - **scirs2-linalg distributed::mpi::collective::distributed_matmul SUMMA stub** (collective.rs:291). Wave 1-37 already implemented SUMMA in `distributed/algorithms/gemm.rs` — collective-level stub may be intentional layering. Verify before scheduling.
 - **scirs2-autograd source-to-source AD** (v0.4.0 Roadmap line). Requires proc-macro framework; defer.
 - **scirs2-symbolic IGA multi-patch coupling + trimmed NURBS** (existing Known Issue per Wave 73 plan).
+
+---
+
+## Correctness hardening — e-graph extraction operand-swap bug (2026-07-15)
+
+- [x] **Fixed a real soundness bug in e-graph DP term-extraction** (found and fixed 2026-07-15)
+  - **Bug:** `reconstruct` in `scirs2-symbolic/src/cas/e_graph/extract.rs` popped a binary node's
+    two already-reconstructed child results off the `results` stack in the wrong order. Children
+    are pushed onto the work stack via `children.iter().rev()` (right first, then left), so the
+    LEFT child is processed first and its result lands on `results` *before* the right child's —
+    meaning the right child's result is on top. The pre-fix code popped `left` before `right` (a
+    comment claiming "left was pushed last -> left pops first" was itself backwards), silently
+    swapping the operands of every binary node during extraction.
+  - **Impact:** Invisible for commutative operators (`Add`, `Mul`), but a genuine correctness
+    violation for non-commutative ones (`Pow`, `Sub`, `Div`): `Pow(sin(x), 2)` (i.e. `sin²(x)`)
+    could be reconstructed as `Pow(2, sin(x))` (i.e. `2^sin(x)`), which is a different function.
+    This means any CAS simplification pipeline that routed a non-commutative binary expression
+    through e-graph extraction (`canonicalize_egraph` and friends) could silently return a
+    mathematically wrong result rather than erroring — the worst class of CAS bug. This is why the
+    module-level "sound by construction" language elsewhere in this file refers specifically to the
+    SMT-certified-rewrite-rule *registration* mechanism (`cas::certified_rewrite`), not to unrelated
+    engine-internal code such as term extraction; the two are different subsystems with different
+    correctness arguments, and this bug lived in the latter.
+  - **Fix:** Swapped the pop order — pop `right` first, then `left` — matching the (already
+    correct) pop order used in `pattern::instantiate`. Added an extensive code comment at the fix
+    site tracing the push/pop order explicitly so the invariant cannot silently regress again.
+  - **Verification:** Fixed and verified with 120 consecutive passing `cargo nextest` runs of the
+    `scirs2-symbolic` test suite (catching any residual iteration-order flakiness), plus a new
+    permanent regression test `test_extract_preserves_noncommutative_operand_order` in
+    `cas/e_graph/extract.rs` covering `Pow`, `Sub`, `Div`, and a nested non-commutative case at
+    multiple tree depths simultaneously.
+  - **Secondary hardening:** `cas/e_graph/mod.rs::test_saturation_with_identity_db` had a latent
+    test-quality bug of its own — the documented "numeric fallback, defense-in-depth" check was
+    written as a second unconditional `assert!` placed *after* the primary structural-hash
+    `assert_eq!`, so it could never actually execute as a fallback (the first assertion already
+    panics on mismatch before control reaches the second). Restructured so the numeric check is
+    only — but always — reached when the structural check misses, matching the documented intent.
+  - **Files:** `scirs2-symbolic/src/cas/e_graph/extract.rs`, `scirs2-symbolic/src/cas/e_graph/mod.rs`.
+  - **Takeaway for future agents:** treat "N tests pass" and "the engine is sound" as separate
+    claims. This bug shipped with passing tests for a long time because no existing test exercised
+    extraction of a non-commutative binary node through a multi-node e-class. When adding new
+    e-graph rewrite rules or extraction paths, add an explicit operand-order assertion, not just a
+    numeric-equality assertion — numeric checks on `Pow`/`Sub`/`Div` test cases can coincidentally
+    pass for symmetric inputs even with swapped operands.

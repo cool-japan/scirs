@@ -1,6 +1,6 @@
 # scirs2-stability-tests TODO
 
-## Status: v0.4.3 Released (2026-05-03)
+## Status: v0.6.1 (2026-07-15)
 
 ## Purpose
 
@@ -38,11 +38,12 @@ Test-only workspace member (`publish = false`) providing shared infrastructure t
 ### Numerical Benchmarks (`benches/numerical.rs`)
 - [x] Criterion-based benchmarks tracking accuracy and throughput regressions
 
-## v0.4.3 Quality Gate
+## v0.6.1 Quality Gate (verified 2026-07-15)
 
-- ~132 `#[test]` functions across `src/` and `tests/`
+- 132 `#[test]` functions across `src/` and `tests/` (all passing via `cargo nextest run -p scirs2-stability-tests --all-features`); 0 doctests
+- `todo!()`/`unimplemented!()` count: 0 real occurrences (the sole string hit is inside the trybuild `core_error_non_exhaustive.stderr` fixture — expected compiler-diagnostic text, not executable code)
 - cargo check + clippy: clean
-- Trybuild compile-fail harness: 1 pre-existing skip (compile_fail_harness, documented in MEMORY.md)
+- Trybuild compile-fail harness: previously-tracked timeout/skip issue (`compile_fail_harness` vs `compile_fail_tests` nextest override collision, see MEMORY.md 2026-06-24 entry) is resolved — `.config/nextest.toml` now unions both binaries (`binary(compile_fail_tests) | binary(compile_fail_doc)`), and `compile_fail_tests` passes cleanly (~194s) with 0 skips
 - Path-based dependencies on `scirs2-core`, `scirs2-linalg`, `scirs2-stats`, `scirs2-io`, `scirs2-text`
 
 ## Notes

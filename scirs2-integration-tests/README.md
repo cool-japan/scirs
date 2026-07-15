@@ -1,6 +1,10 @@
 # SciRS2 Integration Tests
 
-Cross-crate integration test suite for the SciRS2 ecosystem, v0.5.1.
+[![Stable](https://img.shields.io/badge/status-stable-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)]()
+
+Cross-crate integration test suite for the SciRS2 ecosystem, v0.6.1.
 
 ## Purpose
 
@@ -10,7 +14,7 @@ All tests run with `--all-features` so that every optional sub-crate is exercise
 
 ---
 
-## Integration Scenarios Tested (v0.5.1)
+## Integration Scenarios Tested (v0.6.1)
 
 ### autograd + neural
 
@@ -103,15 +107,23 @@ scirs2-integration-tests/
 ├── Cargo.toml
 └── tests/
     └── integration/
-        ├── mod.rs                # Module root
-        ├── neural_optimize.rs    # autograd ↔ neural
-        ├── sparse_linalg.rs      # linalg ↔ sparse
-        ├── stats_datasets.rs     # stats ↔ optimize ↔ datasets
-        ├── fft_signal.rs         # signal ↔ fft
-        ├── ndimage_vision.rs     # vision ↔ ndimage
-        ├── performance.rs        # Cross-crate perf benchmarks (ignored by default)
-        ├── common/               # Shared helpers (array builders, timing)
-        └── fixtures/             # Test data generators
+        ├── mod.rs                    # Module root
+        ├── neural_optimize.rs        # autograd ↔ neural
+        ├── sparse_linalg.rs          # linalg ↔ sparse
+        ├── stats_datasets.rs         # stats ↔ optimize ↔ datasets
+        ├── fft_signal.rs             # signal ↔ fft
+        ├── ndimage_vision.rs         # vision ↔ ndimage
+        ├── ml_pipeline.rs            # datasets → neural → optimize → metrics
+        ├── vision_pipeline.rs        # io → ndimage → vision → metrics
+        ├── graph_pipeline.rs         # graph → neural → metrics
+        ├── scientific_pipeline.rs    # integrate → linalg → sparse
+        ├── signal_pipeline.rs        # io → signal → stats → series
+        ├── nlp_pipeline.rs           # text → neural → metrics
+        ├── numerical_crosscrate.rs   # cross-crate numerical consistency (16 tests)
+        ├── numerical_validation.rs   # numerical accuracy vs. known reference values (40 tests)
+        ├── performance.rs            # Cross-crate perf benchmarks (ignored by default)
+        ├── common/                   # Shared helpers (array builders, timing)
+        └── fixtures/                 # Test data generators
 ```
 
 ---
@@ -126,14 +138,14 @@ scirs2-integration-tests/
 
 ---
 
-## Current Status (v0.5.1, 2026-06-02)
+## Current Status (v0.6.1, verified 2026-07-15)
 
 - All five baseline integration scenarios above are implemented and passing
 - v0.4.2 Wave 42/44 added 6 additional pipeline tests: ML pipeline, signal analysis, computer vision, graph ML, scientific computing, NLP — all green
 - v0.4.2 Wave 44 added 16 numerical cross-crate consistency tests and 40 numerical validation tests
-- ~251 `#[test]` functions across the suite
-- 100% pass as part of full workspace test runs (`cargo nextest run --all-features --workspace`)
-- Performance tests in `performance.rs` remain `#[ignore]`d by default and require explicit opt-in
+- 251 `#[test]` functions across the suite (246 run + 5 intentionally `#[ignore]`d performance/opt-in benchmarks); 0 doctests; 0 `todo!()`/`unimplemented!()`
+- 246/246 pass via `cargo nextest run --all-features -p scirs2-integration-tests` (freshly re-verified 2026-07-15)
+- Performance tests in `performance.rs` (plus a few long-running perf checks in other pipeline files) remain `#[ignore]`d by default and require explicit `--ignored` opt-in
 
 ---
 

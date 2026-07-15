@@ -38,6 +38,40 @@ impl WorkspaceInfo {
 }
 
 // ---------------------------------------------------------------------------
+// Workspace path validation
+// ---------------------------------------------------------------------------
+
+/// Validate that `path` exists and is a directory.
+///
+/// This guards against a common CLI foot-gun: a typo'd or nonexistent
+/// `--workspace` path.  Without this check, [`discover_workspace`] would
+/// canonicalize-or-fall-back to the literal (nonexistent) path, its internal
+/// `fs::read_dir` calls would fail and be silently swallowed into an empty
+/// crate list, and every downstream policy check would then report a clean
+/// pass (e.g. "No policy violations found.") — a false negative that is
+/// worse than a hard failure because it produces silent false confidence.
+///
+/// This is the single shared validation entry point: [`discover_workspace`]
+/// calls it internally (covering `check`, `check-semver`, and
+/// `save-api-snapshot`), and other subcommands that operate on
+/// `--workspace` without going through [`discover_workspace`] (`dep-audit`,
+/// `version-policy`) call it directly.
+///
+/// # Errors
+///
+/// Returns `Err` with a human-readable message when `path` does not exist
+/// or is not a directory.
+pub fn validate_workspace_path(path: &Path) -> Result<(), String> {
+    if !path.is_dir() {
+        return Err(format!(
+            "workspace path does not exist or is not a directory: {}",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Workspace discovery
 // ---------------------------------------------------------------------------
 
@@ -50,7 +84,15 @@ impl WorkspaceInfo {
 ///
 /// The returned [`WorkspaceInfo`] lists crates in the order they were
 /// discovered; the order is deterministic (sorted alphabetically by path).
-pub fn discover_workspace(root: &Path) -> WorkspaceInfo {
+///
+/// # Errors
+///
+/// Returns `Err` when `root` does not exist or is not a directory (see
+/// [`validate_workspace_path`]). Callers must handle this explicitly instead
+/// of silently proceeding with an empty workspace.
+pub fn discover_workspace(root: &Path) -> Result<WorkspaceInfo, String> {
+    validate_workspace_path(root)?;
+
     let root = match root.canonicalize() {
         Ok(p) => p,
         Err(_) => root.to_path_buf(),
@@ -77,7 +119,7 @@ pub fn discover_workspace(root: &Path) -> WorkspaceInfo {
         find_crates_by_walk(&root)
     };
 
-    WorkspaceInfo { root, crates }
+    Ok(WorkspaceInfo { root, crates })
 }
 
 /// Walk all `src/**/*.rs` files in a crate directory.
@@ -329,7 +371,7 @@ mod tests {
         fs::create_dir_all(dir.join("src")).expect("src dir");
         fs::write(dir.join("src").join("lib.rs"), "").expect("lib.rs");
 
-        let ws = discover_workspace(&dir);
+        let ws = discover_workspace(&dir).expect("existing directory should discover cleanly");
         // Single-crate: no workspace members list → resolved to root as one crate
         // (or empty if members resolution fails gracefully)
         assert!(ws.root.ends_with(dir.file_name().unwrap()) || ws.root == dir);
@@ -349,7 +391,7 @@ mod tests {
         write_crate(&dir, "crate-a");
         write_crate(&dir, "crate-b");
 
-        let ws = discover_workspace(&dir);
+        let ws = discover_workspace(&dir).expect("existing directory should discover cleanly");
         assert_eq!(ws.crates.len(), 2, "Should find 2 crates");
         let names: Vec<&str> = ws.crates.iter().map(|c| c.name.as_str()).collect();
         assert!(names.contains(&"crate-a"));
@@ -369,7 +411,7 @@ mod tests {
         write_crate(&dir, "scirs2-core");
         write_crate(&dir, "scirs2-linalg");
 
-        let ws = discover_workspace(&dir);
+        let ws = discover_workspace(&dir).expect("existing directory should discover cleanly");
         let core = ws
             .crates
             .iter()
@@ -382,6 +424,75 @@ mod tests {
             .find(|c| c.name == "scirs2-linalg")
             .expect("linalg");
         assert!(!linalg.is_core, "scirs2-linalg should have is_core=false");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_discover_workspace_nonexistent_path_errors() {
+        let path = Path::new("/nonexistent/scirs2_policy_discover_test_xyz");
+        let result = discover_workspace(path);
+        assert!(
+            result.is_err(),
+            "A nonexistent --workspace path must be rejected, not silently \
+             scanned as zero crates"
+        );
+        let msg = result.expect_err("checked is_err above");
+        assert!(
+            msg.contains("does not exist"),
+            "Error message should explain the path does not exist: {msg}"
+        );
+        assert!(
+            msg.contains(&path.display().to_string()),
+            "Error message should include the offending path: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_discover_workspace_path_is_a_file_errors() {
+        let dir = temp_dir("file_not_dir");
+        let file_path = dir.join("not_a_directory.txt");
+        fs::write(&file_path, "just a regular file, not a workspace dir").expect("write file");
+
+        let result = discover_workspace(&file_path);
+        assert!(
+            result.is_err(),
+            "A path that exists but is a file (not a directory) must be rejected"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_validate_workspace_path_ok_for_existing_dir() {
+        let dir = temp_dir("validate_ok");
+        assert!(
+            validate_workspace_path(&dir).is_ok(),
+            "An existing directory should validate successfully"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_validate_workspace_path_err_for_missing_dir() {
+        let path = Path::new("/nonexistent/scirs2_policy_validate_test_xyz");
+        let result = validate_workspace_path(path);
+        assert!(result.is_err(), "A missing directory must fail validation");
+        assert!(result
+            .expect_err("checked is_err above")
+            .contains("workspace path does not exist or is not a directory"));
+    }
+
+    #[test]
+    fn test_validate_workspace_path_err_for_file() {
+        let dir = temp_dir("validate_file");
+        let file_path = dir.join("plain_file.txt");
+        fs::write(&file_path, "not a directory").expect("write file");
+
+        assert!(
+            validate_workspace_path(&file_path).is_err(),
+            "A regular file must fail directory validation"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }

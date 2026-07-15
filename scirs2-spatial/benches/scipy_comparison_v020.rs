@@ -17,8 +17,8 @@ use std::time::Duration;
 /// Generate random points for benchmarking using scirs2-core random
 fn generate_random_points(n: usize, dim: usize) -> Array2<f64> {
     let mut rng = scirs2_core::random::Random::seed(42);
-    let dist =
-        rand::distr::Uniform::new(0.0_f64, 100.0).expect("Failed to create uniform distribution");
+    let dist = scirs2_core::random::Uniform::new(0.0_f64, 100.0)
+        .expect("Failed to create uniform distribution");
     let values: Vec<f64> = rng.sample_vec(dist, n * dim);
     Array2::from_shape_vec((n, dim), values).expect("Failed to create Array2")
 }
@@ -26,7 +26,8 @@ fn generate_random_points(n: usize, dim: usize) -> Array2<f64> {
 /// Generate a random Array1 for benchmarking
 fn generate_random_array1(n: usize, low: f64, high: f64) -> Array1<f64> {
     let mut rng = scirs2_core::random::Random::seed(42);
-    let dist = rand::distr::Uniform::new(low, high).expect("Failed to create uniform distribution");
+    let dist = scirs2_core::random::Uniform::new(low, high)
+        .expect("Failed to create uniform distribution");
     let values: Vec<f64> = rng.sample_vec(dist, n);
     Array1::from_vec(values)
 }
@@ -34,7 +35,8 @@ fn generate_random_array1(n: usize, low: f64, high: f64) -> Array1<f64> {
 /// Generate a random Array2 for benchmarking
 fn generate_random_array2(rows: usize, cols: usize, low: f64, high: f64) -> Array2<f64> {
     let mut rng = scirs2_core::random::Random::seed(42);
-    let dist = rand::distr::Uniform::new(low, high).expect("Failed to create uniform distribution");
+    let dist = scirs2_core::random::Uniform::new(low, high)
+        .expect("Failed to create uniform distribution");
     let values: Vec<f64> = rng.sample_vec(dist, rows * cols);
     Array2::from_shape_vec((rows, cols), values).expect("Failed to create Array2")
 }

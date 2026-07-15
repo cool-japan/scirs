@@ -459,6 +459,12 @@ pub trait SimdUnifiedOps: Sized + Copy + PartialOrd + Zero {
     fn simd_distance_chebyshev(a: &ArrayView1<Self>, b: &ArrayView1<Self>) -> Self;
     /// Cosine distance (1 - cosine_similarity)
     fn simd_distance_cosine(a: &ArrayView1<Self>, b: &ArrayView1<Self>) -> Self;
+    /// Squared Euclidean distance between two vectors (no sqrt)
+    ///
+    /// Computes Σ(a_i - b_i)² — faster than [`simd_distance_euclidean`](Self::simd_distance_euclidean)
+    /// when only relative ordering matters (e.g. k-NN comparisons, KdTree/BallTree descent),
+    /// since it avoids the trailing `sqrt`.
+    fn simd_distance_squared_euclidean(a: &ArrayView1<Self>, b: &ArrayView1<Self>) -> Self;
     /// Weighted sum
     fn simd_weighted_sum(values: &ArrayView1<Self>, weights: &ArrayView1<Self>) -> Self;
     /// Weighted mean

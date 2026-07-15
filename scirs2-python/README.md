@@ -2,10 +2,13 @@
 
 **SciRS2**: High-performance scientific computing in Rust with Python bindings. A comprehensive, type-safe alternative to SciPy with exceptional performance for statistical analysis, linear algebra, FFT, signal processing, clustering, and more.
 
+[![Partial](https://img.shields.io/badge/status-partial-yellow)]()
 [![PyPI](https://img.shields.io/pypi/v/scirs2)](https://pypi.org/project/scirs2/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/scirs2)](https://pypi.org/project/scirs2/)
-[![Version](https://img.shields.io/badge/version-0.5.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+
+**Testing status**: the Rust-side test suite is green (39/39 `cargo nextest` tests passing as of v0.6.1). A broader Python-facing `pytest` sweep across the full test suite currently shows approximately 1,146 passed / 404 failed, concentrated in the vision, neural, sparse, pandas-compat, async, io, and text binding modules — see [TODO.md](TODO.md#known-issues) for details. This is a pre-existing binding-surface gap, not a regression; treat module-level completeness claims below as "bindings exist and are registered," not as "fully verified end-to-end."
 
 ## Overview
 

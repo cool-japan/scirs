@@ -130,6 +130,48 @@ fn cosine_py(u: PyReadonlyArray1<f64>, v: PyReadonlyArray1<f64>) -> PyResult<f64
     Ok(1.0 - dot / (norm_u * norm_v))
 }
 
+/// Hamming distance between two points
+///
+/// Returns the proportion of coordinates at which `u` and `v` differ, matching
+/// `scipy.spatial.distance.hamming`.
+///
+/// This is intentionally *not* named `hamming_py` or `hamming_distance_py` to
+/// avoid two separate naming collisions:
+/// - `hamming_py` (in the `signal` bindings) is the Hamming *window* function
+///   used in signal processing, not a distance metric (see
+///   `tests/scipy_comparison/test_spatial_vs_scipy.py`).
+/// - `hamming_distance_py` is reserved for a string/character Hamming distance
+///   over equal-length strings (backed by
+///   `scirs2_text::simd_ops::basic_ops::SimdStringOps::hamming_distance`, see
+///   `tests/test_text.py::test_hamming_distance`), which counts differing
+///   characters rather than returning a normalized proportion over arrays.
+#[pyfunction]
+fn spatial_hamming_distance_py(
+    u: PyReadonlyArray1<f64>,
+    v: PyReadonlyArray1<f64>,
+) -> PyResult<f64> {
+    let u_arr = u.as_array();
+    let v_arr = v.as_array();
+
+    if u_arr.len() != v_arr.len() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "Arrays must have same length",
+        ));
+    }
+
+    if u_arr.is_empty() {
+        return Ok(0.0);
+    }
+
+    let n_diff = u_arr
+        .iter()
+        .zip(v_arr.iter())
+        .filter(|&(a, b)| (a - b).abs() > f64::EPSILON)
+        .count();
+
+    Ok(n_diff as f64 / u_arr.len() as f64)
+}
+
 // =============================================================================
 // Pairwise Distance Matrix
 // =============================================================================
@@ -167,6 +209,20 @@ fn pdist_py(py: Python, x: PyReadonlyArray2<f64>, metric: &str) -> PyResult<Py<P
                     .zip(x_arr.row(j).iter())
                     .map(|(a, b)| (a - b).abs())
                     .fold(0.0, f64::max),
+                "hamming" => {
+                    let n_cols = x_arr.ncols();
+                    if n_cols == 0 {
+                        0.0
+                    } else {
+                        let n_diff = x_arr
+                            .row(i)
+                            .iter()
+                            .zip(x_arr.row(j).iter())
+                            .filter(|&(a, b)| (a - b).abs() > f64::EPSILON)
+                            .count();
+                        n_diff as f64 / n_cols as f64
+                    }
+                }
                 _ => x_arr
                     .row(i)
                     .iter()
@@ -226,6 +282,20 @@ fn cdist_py(
                     .zip(xb_arr.row(j).iter())
                     .map(|(a, b)| (a - b).abs())
                     .fold(0.0, f64::max),
+                "hamming" => {
+                    let n_cols = xa_arr.ncols();
+                    if n_cols == 0 {
+                        0.0
+                    } else {
+                        let n_diff = xa_arr
+                            .row(i)
+                            .iter()
+                            .zip(xb_arr.row(j).iter())
+                            .filter(|&(a, b)| (a - b).abs() > f64::EPSILON)
+                            .count();
+                        n_diff as f64 / n_cols as f64
+                    }
+                }
                 _ => xa_arr
                     .row(i)
                     .iter()
@@ -514,6 +584,7 @@ pub fn register_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(chebyshev_py, m)?)?;
     m.add_function(wrap_pyfunction!(minkowski_py, m)?)?;
     m.add_function(wrap_pyfunction!(cosine_py, m)?)?;
+    m.add_function(wrap_pyfunction!(spatial_hamming_distance_py, m)?)?;
 
     // Pairwise distances
     m.add_function(wrap_pyfunction!(pdist_py, m)?)?;

@@ -142,7 +142,7 @@ pub trait BbviModel {
     fn n_params(&self) -> usize;
 }
 
-/// Minimal RNG trait used internally, wrapping rand::Rng uniformly and normally.
+/// Minimal RNG trait used internally, wrapping `scirs2_core::random::RngExt` uniformly and normally.
 pub trait RngCore64 {
     fn next_f64(&mut self) -> f64;
     fn next_normal(&mut self) -> f64;

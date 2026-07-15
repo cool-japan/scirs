@@ -3,12 +3,13 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-special.svg)](https://crates.io/crates/scirs2-special)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-special)](https://docs.rs/scirs2-special)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
-**Special mathematical functions for the SciRS2 scientific computing library (v0.5.1).**
+**Special mathematical functions for the SciRS2 scientific computing library (v0.6.1).**
 
-`scirs2-special` provides a comprehensive collection of special mathematical functions modeled after SciPy's `special` module. Version 0.5.0 extends the classical function set with advanced additions: Mathieu functions, Coulomb wave functions, spherical harmonics with Wigner/Gaunt symbols, Jacobi theta functions, Weierstrass elliptic functions, parabolic cylinder functions, Fox H-functions, Appell hypergeometric functions, Meixner-Pollaczek polynomials, Heun functions, polylogarithm, q-analogs, number-theoretic functions, and information-theoretic functions — all as pure Rust.
+`scirs2-special` provides a comprehensive collection of special mathematical functions modeled after SciPy's `special` module. Past releases extended the classical function set with advanced additions: Mathieu functions, Coulomb wave functions, spherical harmonics with Wigner/Gaunt symbols, Jacobi theta functions, Weierstrass elliptic functions, parabolic cylinder functions, Fox H-functions, Appell hypergeometric functions, Meixner-Pollaczek polynomials, Heun functions, polylogarithm, q-analogs, number-theoretic functions, and information-theoretic functions — all as pure Rust.
 
-## Features (v0.5.1)
+## Features (v0.6.1)
 
 ### Classical Special Functions
 
@@ -192,14 +193,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-special = "0.5.1"
+scirs2-special = "0.6.1"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-special = { version = "0.5.1", features = ["parallel"] }
+scirs2-special = { version = "0.6.1", features = ["parallel"] }
 ```
 
 ### Classical functions
@@ -350,10 +351,25 @@ println!("KL(P||Q) = {}, H(P) = {}", kl, h);
 
 | Feature | Description |
 |---------|-------------|
-| `default` | All core and advanced special functions |
+| `default` | All core and advanced special functions, plus `python-interop` |
 | `parallel` | Rayon-based parallel array evaluation |
 | `simd` | SIMD-accelerated batch computation via scirs2-core |
+| `gpu` | GPU dispatch through the `scirs2-core` GPU abstraction |
+| `wgpu` | Pure-Rust `wgpu` compute kernels for special functions |
+| `cuda` | Direct oxicuda (COOLJAPAN Pure Rust CUDA) backend, NVIDIA-only, runtime-probed |
+| `cuda_kernels` | Legacy PTX-source CUDA/ROCm kernel dispatch (off by default; requires C toolchain) |
+| `high-precision` / `arbitrary_precision` | Arbitrary-precision gamma/erf/Bessel/etc. via `oxinum-float` (pure Rust, no MPFR/GMP) |
+| `plotting` | Chart rendering via `plotters` |
 | `pdf` | PDF export support via `printpdf` (default: off) |
+
+### Dependency and security hygiene
+
+- `printpdf` (used by the optional `pdf` feature) is pinned to `0.11.1`, fixing two CVEs present in `0.9.1` (a stack-overflow bug and an unmaintained-crate advisory in a transitive dependency). The upgrade required no source changes — the low-level PDF API this crate uses (`printpdf::Op` codes for lines/text) was stable across the version jump.
+- Arbitrary-precision support (`high-precision`/`arbitrary_precision`) is implemented entirely on `oxinum-float` (dashu-based), not `rug`/MPFR — no C/Fortran dependency is pulled in even at maximum precision, consistent with the workspace's Pure Rust policy.
+
+## Testing
+
+1,202 tests passing (default features) / 1,351 tests passing (all-features, `cargo nextest run -p scirs2-special --all-features`), plus doctests. 0 `todo!()`/`unimplemented!()` markers in `src/`.
 
 ## Documentation
 

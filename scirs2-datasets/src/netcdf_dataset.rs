@@ -577,7 +577,8 @@ mod tests {
 
     #[test]
     fn test_from_file_not_found() {
-        let result = NetCdfDataset::from_file("/tmp/__scirs2_nonexistent_9999.nc");
+        let result =
+            NetCdfDataset::from_file(std::env::temp_dir().join("__scirs2_nonexistent_9999.nc"));
         assert!(matches!(result, Err(DatasetsError::NotFound(_))));
     }
 

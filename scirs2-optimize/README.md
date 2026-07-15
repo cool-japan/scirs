@@ -8,6 +8,8 @@
 
 `scirs2-optimize` is a production-ready, pure-Rust optimization library providing classical numerical methods through state-of-the-art algorithms: mixed-integer programming, semidefinite and conic programming, NSGA-III multi-objective optimization, stochastic gradient methods with variance reduction, Bayesian optimization (constrained, multi-fidelity, transfer, warm-start), game-theoretic formulations, bilevel optimization, and combinatorial solvers.
 
+**Status: Stable.** 2003/2003 tests passing with default features; 2037/2037 passing with `--all-features` (both measured 2026-07-15). Zero `todo!()`/`unimplemented!()` stubs in the source tree.
+
 ---
 
 ## Overview
@@ -23,7 +25,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ---
 
-## Feature List (v0.5.1)
+## Feature List (v0.6.1)
 
 ### Unconstrained Optimization
 - Nelder-Mead simplex with adaptive parameter selection
@@ -49,13 +51,13 @@ Optimization problems appear across all of scientific computing: fitting models 
 - **Second-Order Cone Programming (SOCP)**: cone constraints via interior-point methods
 - **LP / QP interior point**: primal-dual path-following for linear and quadratic programs
 - Proximal gradient methods: gradient descent with proximal operator, ADMM, Douglas-Rachford splitting
-- Frank-Wolfe (conditional gradient) method for constrained convex problems
+- Geometric programming via log-convex reformulation and barrier method
 
 ### Mixed Integer Programming (MIP)
 - Branch and bound framework with LP relaxation at each node
-- Cutting plane methods: Gomory cuts, mixed-integer cuts
-- Branch and cut with presolve and integrality tightening
-- Heuristics: rounding, random rounding, feasibility pump
+- Cutting plane methods: Gomory (Chvátal-Gomory) cuts, lift-and-project cuts
+- Branch and cut combining LP-relaxation branching with cutting planes; CDCL-style conflict-driven branching
+- Lattice-reduction (LLL / BKZ) preprocessing for integer programs
 - MILP formulations for standard combinatorial problems (knapsack, set cover, assignment)
 
 ### Multi-Objective Optimization
@@ -64,7 +66,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 - MOEA/D: decomposition-based multi-objective EA
 - Weighted sum, Tchebycheff, and augmented Tchebycheff scalarisation
 - Epsilon-constraint with exact Pareto front enumeration
-- Pareto front approximation quality metrics (hypervolume, IGD, epsilon indicator)
+- Pareto front approximation quality metrics (hypervolume, generational distance, IGD)
 
 ### Global Optimization
 - DIRECT (Dividing RECTangles) deterministic global optimizer
@@ -75,9 +77,9 @@ Optimization problems appear across all of scientific computing: fitting models 
 - Dual Annealing (hybrid fast SA + classical SA)
 
 ### Metaheuristics
-- Differential Evolution (DE) with strategies: rand/1/bin, best/1/exp, current-to-best, JADE self-adaptation
+- Differential Evolution (DE) with strategies: rand/1/bin, best/1/exp, rand-to-best/1; jDE self-adaptive parameter control
 - Particle Swarm Optimization (PSO) with inertia weight and constriction factor variants
-- Ant Colony Optimization (ACO): AS, MMAS, ACS for combinatorial problems
+- Ant Colony Optimization (ACO): Ant System (AS) and Max-Min Ant System (MMAS) for combinatorial problems
 - Harmony Search (HS) with dynamic memory consideration and pitch adjustment rates
 - Simulated Annealing variants (fast SA, generalized SA)
 
@@ -85,8 +87,8 @@ Optimization problems appear across all of scientific computing: fitting models 
 - Gaussian Process surrogate model with SE, Matern 5/2, and ARD kernels
 - Acquisition functions: Expected Improvement (EI), Lower Confidence Bound (LCB), Probability of Improvement (PI), Thompson sampling
 - **Constrained Bayesian optimization**: handles unknown feasibility constraints via separate GP models for each constraint
-- **Multi-fidelity Bayesian optimization**: BOCA / MF-GP-UCB with fidelity-cost trade-off
-- **Transfer Bayesian optimization**: warm-starting from related tasks via task-adaptive priors (RGPE, TAF)
+- **Multi-fidelity Bayesian optimization**: AR(1) coregionalization (Kennedy & O'Hagan 2000) across fidelity levels with cost-normalized Expected Improvement
+- **Transfer Bayesian optimization**: task-similarity-weighted GP ensemble across source tasks with adaptively-weighted acquisition and warm-start injection
 - **Warm-start BO**: reuse of previous evaluations from prior runs
 - Hyperparameter optimization via marginal likelihood maximization
 - Parallel / batch acquisition (qEI, kriging believer, constant liar)
@@ -118,17 +120,16 @@ Optimization problems appear across all of scientific computing: fitting models 
 ### Least Squares Optimization
 - Levenberg-Marquardt with adaptive damping and Jacobian scaling
 - Trust Region Reflective for bounded least squares
-- Robust variants: Huber, Bisquare (Tukey), Cauchy, Arctan loss functions
+- Robust variants: Huber, Bisquare (Tukey), Cauchy loss functions
 - Weighted least squares, total least squares
 - Separable least squares (variable projection / VARPRO)
 - Bounded nonlinear least squares
 
 ### Game Theory & Equilibrium
-- Nash equilibrium computation: support enumeration (2-player zero-sum), linear complementarity (LCP), support enumeration (general sum)
-- Stackelberg equilibrium (bilevel leader-follower) via MPEC reformulation
-- Coarse correlated equilibrium (CCE) via linear programming
-- Regret minimisation (Hedge / multiplicative weights, CFR for extensive form)
-- Mechanism design utilities
+- Nash equilibrium: pure-strategy enumeration, LP-based solving for 2-player zero-sum games, support enumeration for general-sum games
+- Fictitious play, best-response dynamics, and replicator dynamics; evolutionarily stable strategy (ESS) detection
+- Cooperative game theory: Shapley value, Banzhaf power index, core membership, nucleolus, tau-value
+- Leader-follower (Stackelberg-style) problems via the generic bilevel KKT reformulation (see Bilevel Optimization)
 
 ### Bilevel Optimization
 - KKT-based reformulation of bilevel to single-level (MPEC/MPCC)
@@ -145,7 +146,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ### Minimax & Robust Optimization
 - Minimax problems: alternating gradient descent-ascent, extragradient, optimistic gradient
-- Distributionally robust optimization (DRO): Wasserstein ball, moment-based ambiguity sets
+- Distributionally robust optimization (DRO): Wasserstein-ball ambiguity sets, including a CVaR (Conditional Value-at-Risk) risk-measure formulation
 - Robust linear programming with uncertain right-hand side and constraint matrix
 - Worst-case analysis via second-order cone reformulations
 
@@ -153,30 +154,27 @@ Optimization problems appear across all of scientific computing: fitting models 
 - Branch and bound with upper bounding heuristics
 - Dynamic programming (tabulation and memoization framework)
 - Knapsack (0-1, bounded, unbounded) via DP and LP relaxation
-- Traveling salesman problem (TSP): nearest-neighbor heuristic, 2-opt, 3-opt, Lin-Kernighan
+- Traveling salesman problem (TSP): nearest-neighbor heuristic, 2-opt, 3-opt, Or-opt segment relocation, MST-based lower bound
 - Assignment problem (Hungarian algorithm)
 - Shortest path: Dijkstra, Bellman-Ford, Floyd-Warshall
-- Maximum matching (bipartite: Hungarian; general: Edmond's blossom)
+- Bipartite matching via augmenting paths and the Hungarian algorithm
 
 ### Convex Optimization (Proximal Methods)
 - Proximal gradient descent (ISTA, FISTA)
-- Accelerated proximal gradient (APG) with restart
-- Proximal operators: L1, L2, Linf, nuclear norm, indicator functions
-- Primal-dual methods: Chambolle-Pock, split Bregman
-- Frank-Wolfe with linear minimisation oracle
+- Accelerated proximal gradient (APG) with adaptive restart
+- Proximal operators: L1, L2, Linf, nuclear norm, box/simplex projection
+- Primal-dual splitting: Chambolle-Pock, Douglas-Rachford, Peaceman-Rachford
 
 ### Automatic & Numerical Differentiation
 - Forward-mode (dual numbers) for low-dimensional gradient computation
-- Reverse-mode AD via `scirs2-autograd` integration
-- Sparse numerical differentiation (Jacobian and Hessian with coloring)
-- Richardson extrapolation for high-accuracy finite differences
+- Reverse-mode AD via a self-contained computation-graph/tape (no external AD crate dependency)
+- Sparse numerical differentiation (Jacobian and Hessian with graph-coloring compression)
 - Complex-step differentiation for near-machine-precision gradients
 
 ### Surrogate Modelling
-- Radial Basis Function (RBF) surrogate model (multiquadric, inverse-multiquadric, Gaussian, linear, cubic)
-- Polynomial surrogate (full factorial and sparse grid)
+- Radial Basis Function (RBF) surrogate model (multiquadric, inverse-multiquadric, Gaussian, linear, cubic; optional polynomial tail)
 - Kriging / GP surrogate with nugget estimation
-- Trust-region surrogate management (DYCORS, SRBF)
+- Ensemble surrogate with model-selection criteria
 
 ---
 
@@ -184,7 +182,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.5.1"
+scirs2-optimize = "0.6.1"
 ```
 
 ### Unconstrained Minimisation (BFGS)
@@ -340,46 +338,46 @@ println!("Nash equilibrium: row={:?}, col={:?}", nash.strategy_row, nash.strateg
 | `global::multistart` | Clustering-based multistart |
 | `bayesian` | Gaussian Process BO with EI/LCB/PI/Thompson |
 | `bayesian::constrained_bo` | BO with unknown feasibility constraints |
-| `bayesian::multi_fidelity` | Multi-fidelity BO (BOCA/MF-GP-UCB) |
+| `bayesian::multi_fidelity` | Multi-fidelity BO (AR(1) coregionalization, cost-normalized EI) |
 | `bayesian::transfer_bo` | Transfer BO across related tasks |
 | `bayesian::warm_start` | Warm-start BO from prior evaluations |
 | `metaheuristics` | DE, PSO, SA |
 | `metaheuristics::aco` | Ant Colony Optimization |
-| `metaheuristics::de` | Differential Evolution (JADE) |
+| `metaheuristics::de` | Differential Evolution (jDE self-adaptive) |
 | `metaheuristics::sa` | Simulated Annealing variants |
 | `metaheuristics::harmony` | Harmony Search |
 | `evolution` | Evolutionary algorithms framework |
 | `stochastic` | SGD, Adam, AdamW, RMSprop, Adadelta |
 | `stochastic::new_variance_reduction` | SVRG, SARAH, SPIDER |
 | `stochastic::schedules` | LR schedules (cosine, cyclic, one-cycle) |
-| `proximal` | ISTA, FISTA, ADMM, proximal operators |
-| `convex` | Frank-Wolfe, projected gradient, Chambolle-Pock |
+| `proximal` | ISTA, FISTA, ADMM, Chambolle-Pock, Douglas-Rachford/Peaceman-Rachford splitting, proximal operators |
+| `convex` | Geometric programming (log-convex reformulation, barrier method) |
 | `decomposition` | Benders, Lagrangian relaxation, Dantzig-Wolfe |
 | `bilevel` | KKT reformulation, penalty, value function approaches |
 | `minimax` | Alternating GDA, extragradient, optimistic GD |
-| `robust` | DRO (Wasserstein, moment), robust LP/QP |
-| `game_theory` | Nash, Stackelberg, CCE, regret minimisation |
+| `robust` | DRO (Wasserstein-ball, CVaR), robust LP/QP |
+| `game_theory` | Nash (LP / support enumeration), fictitious play, cooperative games (Shapley/Banzhaf/nucleolus) |
 | `combinatorial` | Branch and bound, DP, TSP, knapsack, assignment |
-| `derivative_free` | COBYLA, BOBYQA, MADS, pattern search |
-| `surrogate` | RBF, polynomial, kriging surrogate models |
+| `derivative_free` | BOBYQA, MADS / pattern search (COBYLA lives in `constrained::cobyla`) |
+| `surrogate` | RBF, Kriging, ensemble surrogate models |
 | `hessian` | Hessian approximation and finite-difference utilities |
 | `line_search` | Wolfe, strong-Wolfe, Armijo, Hager-Zhang |
 | `least_squares` | Levenberg-Marquardt, TRR, robust variants |
-| `root_finding` | Hybrid, Broyden, Anderson acceleration, Krylov |
+| `roots`, `roots_anderson`, `roots_krylov` | Hybrid, Broyden, Anderson acceleration, Krylov-Newton (GMRES) |
 | `scalar` | Brent, golden section, bounded scalar optimisation |
 | `symbolic` | Symbolic Newton (exact gradient/Hessian via `scirs2-symbolic`), Lagrangian/KKT, L-BFGS symbolic, trust-region symbolic |
-| `wgpu` | GPU-accelerated optimizers (CG, Newton, L-BFGS) via `GpuNdarray` and wgpu dispatch |
+| `unconstrained` (`wgpu` feature) | GPU-accelerated dispatch for CG / Newton-CG / L-BFGS via `GpuNdarray`, internal to the existing solvers (see Feature Flags) |
 
-### Symbolic and GPU Optimizers (v0.5.1)
+### Symbolic and GPU Optimizers (v0.6.1)
 
-| Module | Description |
+| Path | Description |
 |---|---|
 | `symbolic::newton` | Newton optimizer with exact symbolic Hessian + gradient via `eml::grad`; Gaussian-elimination linear solve |
-| `symbolic::lagrangian` | `build_kkt` + `solve_lagrangian_symbolic`; Newton on full N×N KKT system |
-| `symbolic::lbfgs` | L-BFGS with symbolic gradient; trust-region symbolic (dogleg) |
-| `gpu::cg_gpu` | CG solver with GpuNdarray dot/direction-update; `GPU_CG_THRESHOLD=4096` |
-| `gpu::newton_gpu` | Newton with Hessian-vector matmul via GpuNdarray |
-| `gpu::lbfgs_gpu` | L-BFGS two-loop recursion via GpuNdarray; `GPU_LBFGS_THRESHOLD=4096`; f64↔f32 boundary |
+| `symbolic::build_kkt` / `symbolic::solve_lagrangian_symbolic` | KKT system construction; Newton on full N×N KKT system |
+| `symbolic::lbfgs_symbolic` / `symbolic::trust_region_symbolic` | L-BFGS with symbolic gradient; trust-region symbolic (dogleg) |
+| `unconstrained::minimize_conjugate_gradient` (internal `cg_gpu`, `wgpu` feature) | CG solver with GpuNdarray dot/direction-update; `GPU_CG_THRESHOLD=4096` |
+| `unconstrained::minimize_newton_cg` (internal `newton_gpu`, `wgpu` feature) | Newton with Hessian-vector matmul via GpuNdarray |
+| `unconstrained::minimize_lbfgs` (internal `lbfgs_gpu`, `wgpu` feature) | L-BFGS two-loop recursion via GpuNdarray; `GPU_LBFGS_THRESHOLD=4096`; f64↔f32 boundary |
 
 ---
 
@@ -387,14 +385,16 @@ println!("Nash equilibrium: row={:?}, col={:?}", nash.strategy_row, nash.strateg
 
 | Flag | Description |
 |---|---|
-| `parallel` | Rayon parallel function evaluation |
-| `simd` | SIMD-accelerated linear algebra via `scirs2-core` |
-| `async` | Async function evaluation for expensive oracles |
-| `serde` | Serialization of results and configurations |
+| `parallel` (default) | Rayon parallel function evaluation via `scirs2-core/parallel` |
+| `async` | Async function evaluation for expensive oracles (pulls in `tokio`) |
+| `python` | Python bindings support via `scirs2-core/python` |
 | `symbolic` | Symbolic Newton/Lagrangian/KKT/L-BFGS via `scirs2-symbolic` |
 | `wgpu` | GPU-accelerated CG/Newton/L-BFGS via wgpu (`scirs2-core` GpuNdarray) |
+| `cuda` | Optional NVIDIA-only CUDA Hessian-vector products via the pure-Rust `oxicuda-*` crates |
 
-Default features: none (pure Rust, no C/Fortran dependencies).
+Serialization support (`serde`) and SIMD-accelerated linear algebra are always available — they come from mandatory `scirs2-core`/`serde` dependencies rather than optional feature flags.
+
+Pure Rust with no C/Fortran dependencies; `cuda` is the sole exception, and it is gated behind the pure-Rust `oxicuda-*` crates rather than a system CUDA toolchain.
 
 ---
 

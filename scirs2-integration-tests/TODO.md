@@ -1,6 +1,6 @@
 # scirs2-integration-tests TODO
 
-## Status: v0.4.3 Released (2026-05-03)
+## Status: v0.6.1 (2026-07-15)
 
 ## Purpose
 
@@ -32,10 +32,10 @@ Cross-crate integration tests for SciRS2 ecosystem.
 
 cargo nextest run --all-features -p scirs2-integration-tests
 
-## v0.4.3 Status (2026-05-03)
+## v0.6.1 Status (verified 2026-07-15)
 
-- ~251 `#[test]` functions across baseline scenarios + Wave 42/44 pipelines
-- All tests passing on cargo check + clippy clean workspace
-- Pipelines covered: ML (`ml_pipeline.rs`), signal, computer vision (`vision_pipeline.rs`), graph ML, scientific computing, NLP
+- 251 `#[test]` functions across baseline scenarios + Wave 42/44 pipelines; 0 doctests; 0 `todo!()`/`unimplemented!()`
+- Freshly re-run via `cargo nextest run --all-features -p scirs2-integration-tests`: 246 passed, 5 skipped (0 failures). The 5 skips are all `#[ignore]`-by-design opt-in benchmarks (`neural_optimize::test_distributed_training_integration`, `performance::comprehensive_performance_benchmark`, `performance::test_cache_efficiency`, `performance::test_image_processing_pipeline_performance`, `performance::test_performance_scaling`) — not failures
+- Pipelines covered: ML (`ml_pipeline.rs`), signal (`signal_pipeline.rs`), computer vision (`vision_pipeline.rs`), graph ML (`graph_pipeline.rs`), scientific computing (`scientific_pipeline.rs`), NLP (`nlp_pipeline.rs`)
 - Cross-crate numerical: `numerical_crosscrate.rs` (16 tests), `numerical_validation.rs` (40 tests)
-- Workspace version 0.4.3 verified; all dependencies path-based via `workspace = true`
+- Workspace version 0.6.1 confirmed; all dependencies path-based via `workspace = true`

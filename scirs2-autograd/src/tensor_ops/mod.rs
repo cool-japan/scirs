@@ -1848,6 +1848,13 @@ pub(crate) use matrix_functions::{
 pub use numerical_props::{
     cond, cond_1, cond_2, cond_fro, cond_inf, logdet, matrix_rank, slogdet, ConditionType,
 };
+// Backward op dispatched by gradient.rs for `cond` (string-dispatch path
+// does not call Op::grad), plus the forward `CondOp` (needed to recover
+// which `ConditionType` was used via downcast).
+pub(crate) use numerical_props::{CondOp, CondTwoNormBackwardOp};
+// Backward op dispatched by gradient.rs for `logdet` (same reason as
+// `CondTwoNormBackwardOp` above).
+pub(crate) use numerical_props::LogDetBackwardOp;
 
 // Kronecker product
 pub use kronecker_ops::kron;

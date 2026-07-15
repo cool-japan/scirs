@@ -130,6 +130,7 @@ impl<'a, F: Float> SciRS2Data<'a, F> {
     /// **Warning**: This method is deprecated and will be removed in a future version.
     /// Use [`Self::convert_precision_with_graph`] instead, which properly handles graph lifetimes.
     #[deprecated(
+        since = "0.1.0",
         note = "Use convert_precision_with_graph instead for proper graph lifetime handling"
     )]
     pub fn convert_precision<F2: Float>(

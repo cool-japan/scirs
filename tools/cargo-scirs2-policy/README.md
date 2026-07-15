@@ -27,6 +27,8 @@ cargo scirs2-policy --help
 
 ## Subcommands
 
+> **Path and format validation**: `check`, `dep-audit`, `check-semver`, `save-api-snapshot`, and `version-policy` all validate that `--workspace` exists and is a directory *before* scanning anything, failing with exit code `1` and a clear error message on a typo'd or missing path. (Previously a bad `--workspace` path was silently scanned as zero crates, which made every one of these subcommands report a false-clean pass — e.g. `check` printing "No policy violations found." — instead of failing loudly.) Likewise, `--format` on `check` and `check-semver` is a `clap`-validated enum (`text` or `json`); an unrecognized value now fails parsing immediately with a clear clap error instead of silently falling back to the text report.
+
 ### `check` — full policy compliance scan
 
 Runs all registered rules against the workspace and reports violations.

@@ -1,6 +1,18 @@
 # cargo-nextest configuration for SciRS2
 # https://nexte.st/book/configuration.html
 
+# All `*_or_skip` tests under `gpu_cuda` modules (scirs2-datasets, -fft, -graph,
+# -interpolate, -linalg, -optimize, -special, -stats, -symbolic, -vision) probe a
+# real NVIDIA device via `oxicuda-driver` and build a CUDA primary context. nextest
+# runs each test in its own OS process, so the in-source `Mutex` those modules use
+# only serializes threads within a process — it does nothing across the concurrent
+# processes nextest spawns. Two such tests running at once race on CUDA context
+# creation/execution on the single physical GPU and corrupt each other's results
+# (observed: FFT roundtrip silently returning zeros). `max-threads = 1` makes this
+# group a global mutex across processes.
+[test-groups.cuda-gpu]
+max-threads = 1
+
 [store]
 # Directory where nextest stores its metadata
 dir = "target/.nextest"
@@ -54,6 +66,14 @@ threads-required = 1
 filter = 'test(gpu)'
 slow-timeout = { period = "180s" }
 threads-required = 1
+
+[[profile.default.overrides]]
+# Real-device CUDA tests (`*_or_skip` under `gpu_cuda` / `blas_accelerated` modules)
+# must run one-at-a-time across the whole workspace; see the `cuda-gpu` test-group
+# comment above for why the intra-process Mutex in those test modules isn't enough.
+filter = 'test(/_or_skip$/)'
+slow-timeout = { period = "180s" }
+test-group = 'cuda-gpu'
 
 [[profile.default.overrides]]
 # Large dataset tests

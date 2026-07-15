@@ -21,7 +21,10 @@ use std::hash::Hash;
 ///
 /// # Returns
 /// * A vector of community structures at different hierarchy levels
-#[deprecated(note = "Use `hierarchical_communities_result` instead")]
+#[deprecated(
+    since = "0.1.0",
+    note = "Use `hierarchical_communities_result` instead"
+)]
 #[allow(dead_code)]
 pub fn hierarchical_communities<N, E, Ix>(
     graph: &Graph<N, E, Ix>,

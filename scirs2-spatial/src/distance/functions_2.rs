@@ -35,6 +35,55 @@ pub fn jaccard<T: Float>(point1: &[T], point2: &[T]) -> T {
         (n_false_true + n_true_false) / (n_true_true + n_false_true + n_true_false)
     }
 }
+/// Compute Hamming distance between two points
+///
+/// The Hamming distance between two vectors is the proportion of coordinates
+/// at which the corresponding values differ:
+/// `count(point1\[i\] != point2\[i\] for i in 0..n) / n`. This matches SciPy's
+/// `scipy.spatial.distance.hamming` semantics.
+///
+/// Coordinates are compared with a floating-point tolerance (`T::epsilon()`)
+/// rather than exact equality, matching the tolerance-based float comparisons
+/// used elsewhere in this module (e.g. `squareform_to_condensed`'s symmetry
+/// check).
+///
+/// # Arguments
+///
+/// * `point1` - First point
+/// * `point2` - Second point
+///
+/// # Returns
+///
+/// * Hamming distance between the points (proportion of differing
+///   coordinates), or `NaN` if the points have different lengths
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_spatial::distance::hamming;
+///
+/// let point1 = &[1.0, 0.0, 1.0, 1.0, 0.0];
+/// let point2 = &[1.0, 1.0, 0.0, 1.0, 0.0];
+///
+/// // 2 of 5 coordinates differ
+/// let dist = hamming(point1, point2);
+/// assert!((dist - 0.4f64).abs() < 1e-6);
+/// ```
+pub fn hamming<T: Float>(point1: &[T], point2: &[T]) -> T {
+    if point1.len() != point2.len() {
+        return T::nan();
+    }
+    if point1.is_empty() {
+        return T::zero();
+    }
+    let mut n_diff = T::zero();
+    for i in 0..point1.len() {
+        if (point1[i] - point2[i]).abs() > T::epsilon() {
+            n_diff = n_diff + T::one();
+        }
+    }
+    n_diff / T::from(point1.len()).expect("Operation failed")
+}
 /// Compute a distance matrix between two sets of points
 ///
 /// # Arguments

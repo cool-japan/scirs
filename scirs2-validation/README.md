@@ -1,10 +1,13 @@
 # scirs2-validation
 
+[![Stable](https://img.shields.io/badge/status-stable-brightgreen)]()
 [![crates.io](https://img.shields.io/crates/v/scirs2-validation.svg)](https://crates.io/crates/scirs2-validation)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-validation)](https://docs.rs/scirs2-validation)
 
 Shared statistical validation framework for the [SciRS2](https://github.com/cool-japan/scirs) ecosystem.
+
+`publish = false` — this is an internal, workspace-only crate (v0.6.1). It ships a complete, fully-tested (25 `#[test]`s + 1 doctest, all passing; 0 stubs) reference-value framework, but as of this release it is not yet wired in as a dependency by any other workspace crate — see [TODO.md](TODO.md) for details.
 
 ## Overview
 
@@ -79,7 +82,7 @@ Enable `serde` / `serde_json` support for richer serialization workflows:
 
 ```toml
 [dependencies]
-scirs2-validation = { version = "0.5.1", features = ["serialization"] }
+scirs2-validation = { version = "0.6.1", features = ["serialization"] }
 ```
 
 ## Quick Start
@@ -88,7 +91,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-validation = "0.5.1"
+scirs2-validation = "0.6.1"
 ```
 
 ### Validating a Distribution Implementation

@@ -110,7 +110,7 @@ impl ParallelCoordinator {
         #[cfg(target_arch = "wasm32")]
         {
             // Sequential fallback: process chunks one by one in the caller's thread.
-            data.chunks(chunk_size).flat_map(|chunk| f(chunk)).collect()
+            data.chunks(chunk_size).flat_map(f).collect()
         }
     }
 
@@ -287,7 +287,7 @@ impl ParallelCoordinator {
     /// Sort `data` in-place using a parallel merge sort.
     ///
     /// On `wasm32-unknown-unknown` this falls back to `Vec::sort_by`.
-    pub fn parallel_sort(&self, data: &mut Vec<f64>) {
+    pub fn parallel_sort(&self, data: &mut [f64]) {
         if data.len() <= 1 {
             return;
         }
@@ -318,11 +318,11 @@ impl ParallelCoordinator {
                 let _ = handle.join();
             }
 
-            let mut merged: Vec<f64> = Vec::with_capacity(data.capacity());
+            let mut merged: Vec<f64> = Vec::with_capacity(data.len());
             for (_, chunk) in sorted_chunks {
                 merged = merge_sorted(merged, chunk);
             }
-            *data = merged;
+            data.copy_from_slice(&merged);
         }
 
         #[cfg(target_arch = "wasm32")]

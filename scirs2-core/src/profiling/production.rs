@@ -518,6 +518,23 @@ impl ResourceUsageTracker {
     }
 }
 
+/// Exportable snapshot of [`ProductionProfiler`] state for external analysis tooling.
+///
+/// Mirrors the shape of [`DashboardExport`](crate::profiling::dashboards::DashboardExport):
+/// it bundles the profiler configuration together with a live resource-utilization
+/// snapshot and the identifiers of workloads currently under analysis.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProductionProfilerExport {
+    /// Profiler configuration
+    pub config: ProfileConfig,
+    /// Current resource utilization snapshot
+    pub resource_utilization: ResourceUsage,
+    /// Identifiers of workloads currently being profiled
+    pub active_workload_ids: Vec<String>,
+    /// Export timestamp
+    pub exported_at: SystemTime,
+}
+
 impl ProductionProfiler {
     /// Create a new production profiler
     pub fn new(config: ProfileConfig) -> CoreResult<Self> {
@@ -942,6 +959,35 @@ impl ProductionProfiler {
         Ok(tracker.get_current_usage())
     }
 
+    /// Export the profiler's current state (configuration, resource utilization,
+    /// and active workload identifiers) as a pretty-printed JSON string.
+    ///
+    /// Mirrors [`PerformanceDashboard::export_config`](crate::profiling::dashboards::PerformanceDashboard::export_config):
+    /// it produces a serializable snapshot suitable for archiving or feeding into
+    /// external analytics/monitoring systems.
+    pub fn export_data(&self) -> CoreResult<String> {
+        let active_workload_ids: Vec<String> = self
+            .active_sessions
+            .read()
+            .map(|sessions| sessions.keys().cloned().collect())
+            .map_err(|_| {
+                CoreError::from(std::io::Error::other("Failed to read active sessions"))
+            })?;
+
+        let export = ProductionProfilerExport {
+            config: self.config.clone(),
+            resource_utilization: self.get_resource_utilization()?,
+            active_workload_ids,
+            exported_at: SystemTime::now(),
+        };
+
+        serde_json::to_string_pretty(&export).map_err(|e| {
+            CoreError::from(std::io::Error::other(format!(
+                "Failed to serialize production profiler data: {e}"
+            )))
+        })
+    }
+
     /// Export profiling data for external analysis
     pub fn generate_sessionid(&self, workloadid: &str) -> CoreResult<String> {
         {
@@ -1053,6 +1099,26 @@ mod tests {
         assert_eq!(config.samplingrate, 1.0);
         assert!(config.enable_bottleneck_detection);
         assert!(config.enable_regression_detection);
+    }
+
+    #[test]
+    fn test_export_data() {
+        let config = ProfileConfig::development();
+        let profiler = ProductionProfiler::new(config).expect("Operation failed");
+
+        let exported = profiler.export_data().expect("Operation failed");
+        assert!(!exported.is_empty());
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&exported).expect("exported data should be valid JSON");
+
+        assert!(parsed.get("config").is_some());
+        assert!(parsed.get("resource_utilization").is_some());
+        assert!(parsed.get("active_workload_ids").is_some());
+        assert!(parsed.get("exported_at").is_some());
+        assert!(parsed["active_workload_ids"].is_array());
+        assert!(parsed["config"]["samplingrate"].is_number());
+        assert!(parsed["resource_utilization"]["cpu_percent"].is_number());
     }
 
     #[test]

@@ -150,9 +150,17 @@ impl WebGPUContext {
     pub fn new() -> Result<Self, GpuError> {
         #[cfg(feature = "wgpu")]
         {
-            // Real WebGPU implementation
+            // Real WebGPU implementation.
+            //
+            // Restrict to `Backends::PRIMARY` (Vulkan/Metal/DX12/BrowserWebGpu) rather than
+            // `Backends::all()`. The secondary GL/GLES backend can appear "compatible" on hosts
+            // with a broken or missing Vulkan loader (falling back to a surfaceless EGL context),
+            // but that GL context is frequently too limited for wgpu's mandatory internal
+            // indirect-dispatch validation pipeline (missing compute/storage-buffer features),
+            // so the device comes back already lost. Restricting to PRIMARY makes adapter
+            // discovery fail cleanly instead of handing back a device that dies on first use.
             let instance_desc = InstanceDescriptor {
-                backends: Backends::all(),
+                backends: Backends::PRIMARY,
                 flags: wgpu::InstanceFlags::default(),
                 memory_budget_thresholds: Default::default(),
                 backend_options: Default::default(),
@@ -204,9 +212,10 @@ impl WebGPUContext {
     pub fn is_available() -> bool {
         #[cfg(feature = "wgpu")]
         {
-            // Real WebGPU implementation - try to create an instance and adapter
+            // Real WebGPU implementation - try to create an instance and adapter.
+            // See the comment in `new()` for why this is restricted to `Backends::PRIMARY`.
             let instance_desc = InstanceDescriptor {
-                backends: Backends::all(),
+                backends: Backends::PRIMARY,
                 flags: wgpu::InstanceFlags::default(),
                 memory_budget_thresholds: Default::default(),
                 backend_options: Default::default(),

@@ -15,7 +15,7 @@ use crate::spatial::{BallTree, KdTree};
 use scirs2_core::ndarray::{ArrayView2, Axis};
 
 #[cfg(feature = "simd")]
-use scirs2_core::ndarray::Array1;
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
@@ -66,15 +66,17 @@ impl SimdDistanceOps {
     {
         assert_eq!(a.len(), b.len(), "Vectors must have the same dimension");
 
-        // Use scalar computation to avoid stack overflow in SIMD operations
-        // TODO: Fix SIMD implementation in scirs2-core
-        a.iter()
-            .zip(b.iter())
-            .map(|(&x, &y)| {
-                let diff = x - y;
-                diff * diff
-            })
-            .fold(F::zero(), |acc, x| acc + x)
+        if F::simd_available() {
+            F::simd_distance_squared_euclidean(&ArrayView1::from(a), &ArrayView1::from(b))
+        } else {
+            a.iter()
+                .zip(b.iter())
+                .map(|(&x, &y)| {
+                    let diff = x - y;
+                    diff * diff
+                })
+                .fold(F::zero(), |acc, x| acc + x)
+        }
     }
 
     /// Enhanced batch distance computation with SIMD optimization for better memory access patterns
@@ -469,5 +471,149 @@ mod tests {
     fn test_parallel_query_processor() {
         let processor = ParallelQueryProcessor::<f64>::new(Some(4));
         assert_eq!(processor.num_workers, 4);
+    }
+
+    /// Recursively invokes `SimdDistanceOps::squared_euclidean_distance` (the SIMD-enabled
+    /// path) at real Rust call-stack recursion depth (not a loop). Exists purely to
+    /// stress-test the `#[inline(never)]` mitigation applied to the underlying SIMD leaf
+    /// kernels in scirs2-core (`simd/distances.rs`): the originally hypothesized failure
+    /// mode was that a deeply recursive caller (e.g. KdTree/BallTree descent) duplicates
+    /// the kernels' wide `__m256`/`__m256d` stack frames at every recursion level.
+    #[cfg(feature = "simd")]
+    fn recursive_squared_distance_probe<F>(depth: usize, a: &[F], b: &[F], acc: F) -> F
+    where
+        F: Float + FromPrimitive + SimdUnifiedOps,
+    {
+        let d = SimdDistanceOps::squared_euclidean_distance(a, b);
+        if depth == 0 {
+            acc + d
+        } else {
+            recursive_squared_distance_probe(depth - 1, a, b, acc + d)
+        }
+    }
+
+    /// STRESS TEST: deep, real recursion (not a token 3-level test) calling the
+    /// SIMD-enabled `squared_euclidean_distance` at every level, run inside a thread with
+    /// an explicit, bounded stack. Positively confirms no stack overflow occurs with SIMD
+    /// enabled — this is the regression guard for the `#[inline(never)]` precautionary
+    /// mitigation on `simd_distance_squared_euclidean_f32/f64`.
+    #[cfg(feature = "simd")]
+    #[test]
+    fn test_squared_euclidean_distance_deep_recursion_stress() {
+        const DEPTH: usize = 100_000;
+        const DIM: usize = 64;
+        const STACK_SIZE: usize = 64 * 1024 * 1024; // 64 MiB: explicit, deterministic budget
+
+        // f64 path
+        let a64: Vec<f64> = (0..DIM).map(|i| i as f64).collect();
+        let b64: Vec<f64> = (0..DIM).map(|i| i as f64 + 1.0).collect();
+        let handle64 = std::thread::Builder::new()
+            .name("sq-euclid-recursion-stress-f64".to_string())
+            .stack_size(STACK_SIZE)
+            .spawn(move || recursive_squared_distance_probe(DEPTH, &a64, &b64, 0.0f64))
+            .expect("failed to spawn f64 stress-test thread");
+        let total64 = handle64.join().expect(
+            "deep recursive squared_euclidean_distance (f64, SIMD-enabled) overflowed the stack",
+        );
+        let expected64 = (DEPTH as f64 + 1.0) * (DIM as f64);
+        assert!(
+            (total64 - expected64).abs() < 1e-6,
+            "f64 stress result mismatch: got {total64}, expected {expected64}"
+        );
+
+        // f32 path
+        let a32: Vec<f32> = (0..DIM).map(|i| i as f32).collect();
+        let b32: Vec<f32> = (0..DIM).map(|i| i as f32 + 1.0).collect();
+        let handle32 = std::thread::Builder::new()
+            .name("sq-euclid-recursion-stress-f32".to_string())
+            .stack_size(STACK_SIZE)
+            .spawn(move || recursive_squared_distance_probe(DEPTH, &a32, &b32, 0.0f32))
+            .expect("failed to spawn f32 stress-test thread");
+        let total32 = handle32.join().expect(
+            "deep recursive squared_euclidean_distance (f32, SIMD-enabled) overflowed the stack",
+        );
+        let expected32 = (DEPTH as f32 + 1.0) * (DIM as f32);
+        assert!(
+            (total32 - expected32).abs() < 1e-3,
+            "f32 stress result mismatch: got {total32}, expected {expected32}"
+        );
+    }
+
+    /// STRESS TEST: large-scale (>=10,000 points), realistic-depth KdTree/BallTree
+    /// build+query combined with direct `SimdDistanceOps` batch calls, complementing the
+    /// deep-recursion test above with a large, real-world-shaped workload.
+    ///
+    /// NOTE (KdTree correctness, out of scope here): while developing this test,
+    /// `KdTree::k_nearest_neighbors` was found to return a non-minimal nearest-neighbor
+    /// distance at this scale. Root cause (confirmed by inspection of
+    /// `spatial/kdtree.rs::build_subtree`, the `n_points <= self.leaf_size` branch): a
+    /// leaf node stores only `indices[0]` — the other up to `leaf_size - 1` points in
+    /// that partition are never inserted into the tree and can never be returned by any
+    /// query. Every pre-existing KdTree test uses <= 5 points (below the default
+    /// `leaf_size` of 10), so all of them take the `linear_k_nearest_neighbors` fallback
+    /// and never exercise `build_subtree`'s recursive path, which is presumably why this
+    /// has gone uncaught. This is a real, separate correctness bug outside this SIMD-
+    /// surfacing item's file list (`kdtree.rs` is not touched here) and is flagged for a
+    /// dedicated follow-up rather than fixed inline. `BallTree` does not share this bug —
+    /// its leaf nodes retain all member indices (`BallNode.indices: Vec<usize>`) and its
+    /// `search_k_nearest` iterates all of them — so only `BallTree`'s answer is
+    /// cross-checked against the brute-force SIMD minimum below. `KdTree` is still built
+    /// and queried here to confirm it does not crash/overflow the stack at this scale,
+    /// which is what this test is actually chartered to prove.
+    #[cfg(feature = "simd")]
+    #[test]
+    fn test_squared_euclidean_distance_large_kdtree_balltree_stress() {
+        use scirs2_core::ndarray::Array2;
+
+        const N_POINTS: usize = 12_000;
+        const DIM: usize = 8;
+
+        // Deterministic LCG-based point generation (matches the project's established
+        // reproducible-PRNG idiom elsewhere in this crate; avoids a `rand` dev-dependency).
+        let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+        let mut next_f64 = || -> f64 {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            ((state >> 11) as f64) / ((1u64 << 53) as f64)
+        };
+
+        let points = Array2::from_shape_fn((N_POINTS, DIM), |_| next_f64() * 100.0);
+        let query_points = Array2::from_shape_fn((32, DIM), |_| next_f64() * 100.0);
+
+        // Build both tree types at realistic depth (~log2(12_000) ~= 14 levels).
+        let kdtree = KdTree::new(points.clone()).expect("KdTree build should succeed");
+        let balltree = BallTree::new(points.clone()).expect("BallTree build should succeed");
+
+        for query in query_points.axis_iter(Axis(0)) {
+            let query_slice = query.as_slice().expect("contiguous query row");
+
+            // Exercise the real recursive tree descent at realistic depth for BOTH trees
+            // (this "does it crash/overflow" check is what this test is chartered to
+            // prove; see the KdTree correctness note on the test above for why only
+            // BallTree's *answer* is cross-checked below).
+            let kd_neighbors = kdtree
+                .k_nearest_neighbors(query_slice, 10)
+                .expect("KdTree k-NN should succeed");
+            let ball_neighbors = balltree
+                .k_nearest_neighbors(query_slice, 10)
+                .expect("BallTree k-NN should succeed");
+            assert_eq!(kd_neighbors.len(), 10);
+            assert_eq!(ball_neighbors.len(), 10);
+
+            // Exercise SimdDistanceOps::squared_euclidean_distance directly against every
+            // point at this scale (batch_distances_to_query delegates to it per-row).
+            let distances = SimdDistanceOps::batch_distances_to_query(&points.view(), query_slice);
+            assert_eq!(distances.len(), N_POINTS);
+
+            // Cross-check: BallTree's best (sqrt'd Euclidean) neighbor distance, squared,
+            // should match the minimum of the directly SIMD-computed squared distances.
+            let min_direct = distances.iter().cloned().fold(f64::INFINITY, f64::min);
+            let ball_best_dist_sq = ball_neighbors[0].1.powi(2);
+            assert!(
+                (ball_best_dist_sq - min_direct).abs() < 1e-6,
+                "BallTree best squared dist {ball_best_dist_sq} should match direct SIMD min {min_direct}"
+            );
+        }
     }
 }

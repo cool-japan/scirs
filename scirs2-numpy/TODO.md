@@ -1,6 +1,14 @@
 # scirs2-numpy TODO
 
-## Status: v0.4.3 Released (2026-05-03)
+## Status: v0.6.1 (2026-07-15)
+
+## v0.6.1 Quality Gate (verified 2026-07-15)
+
+- 98 `#[test]` functions in `src/` — all passing via `cargo nextest run -p scirs2-numpy --all-features`
+- `todo!()`/`unimplemented!()` count: 0
+- 133 `pub fn`/`struct`/`enum`/`trait` items across `src/` (API surface, incl. `npyffi` raw bindings)
+- cargo check: clean
+- Package version is `version.workspace = true` (0.6.1); no standalone Python packaging file for this crate (it is a pure Rust FFI-bindings crate consumed by `scirs2-python`, not published to PyPI itself)
 
 ## v0.3.3 Completed
 

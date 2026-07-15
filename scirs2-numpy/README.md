@@ -2,8 +2,9 @@
 
 A SciRS2-maintained fork of [rust-numpy](https://github.com/PyO3/rust-numpy) providing Rust interfaces for the [NumPy C API](https://numpy.org/doc/stable/reference/c-api) with native support for **ndarray 0.17**.
 
+[![Stable](https://img.shields.io/badge/status-stable-brightgreen)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](../LICENSE)
-[![Version](https://img.shields.io/badge/version-0.5.0-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
 
 ## What Is This Crate?
 
@@ -46,7 +47,8 @@ If you do not use SciRS2 internals and only need NumPy interop in your own PyO3 
 - **Read/write access control**: `PyReadonlyArray` and `PyReadwriteArray` for safe borrow semantics
 - **Memory layout handling**: C-order (row-major) and Fortran-order (column-major) both supported
 - **Type coercion**: `PyArrayLike` for accepting arrays with automatic type conversion
-- **nalgebra integration**: Optional `nalgebra` feature converts between NumPy arrays and `nalgebra::Matrix`
+- **nalgebra integration**: Optional `nalgebra-support` feature converts between NumPy arrays and `nalgebra::Matrix`
+- **Half-precision floats**: Optional `half-support` feature adds `f16`/`bf16` NumPy dtype support (via the `half` crate)
 - **`AllowTypeChange`/`TypeMustMatch`**: Control strictness of type checking at array boundaries
 
 ## Usage
@@ -57,8 +59,8 @@ Add to your `Cargo.toml`:
 [dependencies]
 scirs2-numpy = { path = "../scirs2-numpy" }
 # or from crates.io once published:
-# scirs2-numpy = "0.5.0"
-pyo3 = { version = "0.22", features = ["extension-module"] }
+# scirs2-numpy = "0.6.1"
+pyo3 = { version = "0.29", features = ["extension-module"] }
 ```
 
 ### Basic Example: Accepting a NumPy Array and Returning One
@@ -166,7 +168,7 @@ fn scale_inplace<'py>(
 ### nalgebra Integration (Optional Feature)
 
 ```rust
-// Cargo.toml: scirs2-numpy = { version = "0.5.0", features = ["nalgebra"] }
+// Cargo.toml: scirs2-numpy = { version = "0.6.1", features = ["nalgebra-support"] }
 use pyo3::prelude::*;
 use scirs2_numpy::{PyArray2, PyArrayMethods};
 

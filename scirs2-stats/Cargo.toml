@@ -7,6 +7,8 @@ description = "Statistical functions module for SciRS2 (scirs2-stats)"
 readme = "README.md"
 license.workspace = true
 repository.workspace = true
+homepage = "https://github.com/cool-japan/scirs"
+documentation = "https://docs.rs/scirs2-stats"
 keywords = ["statistics", "probability", "scientific", "scipy", "numerical"]
 categories = ["science", "mathematics", "algorithms"]
 
@@ -46,10 +48,9 @@ criterion = { workspace = true }
 plotters = { workspace = true, default-features = false }
 quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
-rand = { workspace = true }
 approx = { workspace = true }
 proptest = { workspace = true }
-scirs2-symbolic = { workspace = true }
+scirs2-symbolic = { path = "../scirs2-symbolic" }
 
 [features]
 default = []
@@ -68,6 +69,10 @@ gpu = ["scirs2-core/gpu"]
 wgpu = ["gpu", "dep:wgpu", "dep:pollster", "scirs2-core/wgpu"]
 # Pure-Rust direct oxicuda CUDA path (NVIDIA-only, runtime-probed; default off)
 cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-launch", "dep:oxicuda-ptx"]
+# Real resident-memory (RSS) tracking for ScipyBenchmarkFramework's MemoryComparison,
+# via scirs2-core's Pure-Rust `profiling_memory` RSS profiler (Mach task_info on macOS,
+# /proc/self/statm on Linux). Opt-in to keep the default build lean.
+memory_tracking = ["scirs2-core/profiling_memory"]
 
 [[bench]]
 name = "distributions"

@@ -34,14 +34,41 @@ fn cast_slice_to_bytes<T>(slice: &[T]) -> &[u8] {
 }
 
 /// Safe slice casting replacement for bytemuck::cast_slice (reverse)
+///
+/// # Panics
+///
+/// Panics if `bytes.len()` is not a multiple of `size_of::<T>()`, or if
+/// `bytes` is not aligned to `align_of::<T>()`. The alignment check is not
+/// optional: `slice::from_raw_parts` requires a properly aligned pointer as
+/// a precondition, and constructing the slice with a misaligned pointer is
+/// immediate undefined behavior (confirmed via Miri: "constructing invalid
+/// value of type &[T]: encountered an unaligned reference") rather than
+/// something that merely risks a slow/unaligned read.
 #[allow(dead_code)]
 fn cast_bytes_to_slice<T>(bytes: &[u8]) -> &[T] {
-    assert_eq!(bytes.len() % std::mem::size_of::<T>(), 0);
+    assert_eq!(
+        bytes.len() % std::mem::size_of::<T>(),
+        0,
+        "byte slice length ({}) is not a multiple of size_of::<T>() ({})",
+        bytes.len(),
+        std::mem::size_of::<T>()
+    );
+    assert_eq!(
+        (bytes.as_ptr() as usize) % std::mem::align_of::<T>(),
+        0,
+        "byte slice at {:p} is not aligned to align_of::<T>() ({}); \
+         constructing &[T] from it would be undefined behavior",
+        bytes.as_ptr(),
+        std::mem::align_of::<T>()
+    );
     // SAFETY: This is safe because:
     // 1. We assert that the byte length is a multiple of T's size
-    // 2. The pointer is derived from a valid slice
-    // 3. The length calculation ensures we don't exceed bounds
-    // 4. The lifetime is bounded by the input slice
+    // 2. We assert that the pointer is properly aligned for T (required by
+    //    `slice::from_raw_parts`; skipping this check is what made the
+    //    previous version of this function unsound)
+    // 3. The pointer is derived from a valid slice
+    // 4. The length calculation ensures we don't exceed bounds
+    // 5. The lifetime is bounded by the input slice
     unsafe {
         std::slice::from_raw_parts(
             bytes.as_ptr() as *const T,
@@ -1434,5 +1461,39 @@ mod tests {
                 msg
             );
         }
+    }
+
+    #[test]
+    fn test_cast_slice_bytes_round_trip_f32() {
+        let values: [f32; 4] = [1.0, -2.5, 3.25, 0.0];
+        let bytes = cast_slice_to_bytes(&values);
+        assert_eq!(bytes.len(), values.len() * std::mem::size_of::<f32>());
+        let round_tripped: &[f32] = cast_bytes_to_slice(bytes);
+        assert_eq!(round_tripped, &values);
+    }
+
+    #[test]
+    #[should_panic(expected = "is not a multiple of size_of")]
+    fn test_cast_bytes_to_slice_rejects_non_multiple_length() {
+        // 5 bytes is not a multiple of size_of::<f32>() == 4.
+        let bytes: [u8; 5] = [0; 5];
+        let _: &[f32] = cast_bytes_to_slice(&bytes);
+    }
+
+    #[test]
+    #[should_panic(expected = "is not aligned to align_of")]
+    fn test_cast_bytes_to_slice_rejects_misaligned_pointer() {
+        // Force a 16-byte aligned buffer, then slice starting 1 byte in so the
+        // resulting pointer is guaranteed misaligned for any T with
+        // align_of::<T>() > 1 (e.g. f32's align_of() == 4). This exercises
+        // exactly the Miri-caught UB ("constructing invalid value of type
+        // &[T]: encountered an unaligned reference") that the added
+        // assertion in `cast_bytes_to_slice` now guards against with a clean
+        // panic instead of undefined behavior.
+        #[repr(align(16))]
+        struct AlignedBuf([u8; 32]);
+        let buf = AlignedBuf([0u8; 32]);
+        let misaligned = &buf.0[1..17];
+        let _: &[f32] = cast_bytes_to_slice(misaligned);
     }
 }

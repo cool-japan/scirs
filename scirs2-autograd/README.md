@@ -3,13 +3,16 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-autograd.svg)](https://crates.io/crates/scirs2-autograd)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-autograd)](https://docs.rs/scirs2-autograd)
-[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 Automatic differentiation engine for Rust, part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
 ## Overview
 
 `scirs2-autograd` provides PyTorch-style automatic differentiation with lazy tensor evaluation, enabling efficient gradient computation for scientific computing and machine learning. It supports reverse-mode AD (backpropagation), forward-mode AD (JVP), higher-order derivatives, gradient checkpointing, and a rich set of differentiable mathematical operations.
+
+**Tests:** 1260/1260 passing (default features), 1345/1345 passing (`--all-features`) — as of 2026-07-15.
 
 ## Features
 
@@ -92,14 +95,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-autograd = "0.5.1"
+scirs2-autograd = "0.6.1"
 ```
 
 For OxiBLAS-accelerated matrix operations (recommended):
 
 ```toml
 [dependencies]
-scirs2-autograd = { version = "0.5.1", features = ["blas"] }
+scirs2-autograd = { version = "0.6.1", features = ["blas"] }
 ```
 
 ### Basic Differentiation
@@ -217,6 +220,8 @@ use scirs2_autograd::jvp_vjp::{jvp, vjp};
 |------|-------------|
 | `blas` | OxiBLAS-accelerated matrix operations (pure Rust BLAS) |
 | `simd` | SIMD-accelerated element-wise operations |
+| `gpu` | GPU acceleration support (delegates to `scirs2-core/gpu`) |
+| `symbolic` | `scirs2-symbolic` EML tape backend (`symbolic_backend::EmlOp`, `tape::eml_tape`) — a `Tensor` constructed from a `LoweredOp` flows gradients through the EML symbolic kernel by provenance dispatch instead of the float tape |
 
 ## Related Crates
 

@@ -1,6 +1,23 @@
 # scirs2-wasm TODO
 
-## Status: v0.4.3 Released (2026-05-03)
+## Status: v0.6.1 (current, 2026-07-15)
+
+Re-surveyed for the 2026-07-15 release: no wasm-specific changes shipped in this release. The
+`getrandom_v3` workspace-dependency promotion and clippy fixes recorded below (2026-07-07) remain
+the latest crate-specific work. 0 `todo!()`/`unimplemented!()` markers in `src/`; the `NotImplemented`
+error-code path referenced in `error.rs` is declared but never actually constructed anywhere in
+`src/` (no real gap behind it today). No silent-stub pattern found (unlike vision/text/transform this
+release — see their TODO.md files) — the two "Placeholder"-commented spots found (`random.rs`'s
+`set_random_seed`, `optimize.rs`'s `evaluate_golden_model`) are both honest about their own limits
+via their return value or doc comment, not deceptive. One documentation-only discrepancy corrected
+below: the "Advanced Modules" section previously described `linalg_advanced.rs`/`signal_enhanced.rs`/
+`stats_advanced.rs` with algorithm names (Krylov solvers, adaptive filters, bootstrap/Monte Carlo)
+that do not match their real (and substantial, working) contents.
+
+Fresh test counts (2026-07-15, `cargo nextest run -p scirs2-wasm` / `--all-features`): **205 passed,
+0 skipped**, identical in both modes (native `#[test]`s are unaffected by this crate's
+`simd`/`linalg`/`stats`/`fft`/`signal`/`integrate`/`optimize`/`interpolate`/`all-modules` feature
+gates; the large browser-only `wasm-bindgen-test` suite is not exercised by native `cargo nextest`).
 
 ## v0.3.3 Completed
 
@@ -63,9 +80,22 @@
 
 ### Advanced Modules
 - [x] SIMD-accelerated operations (`simd_ops.rs`) for supported runtimes
-- [x] Advanced linear algebra (`linalg_advanced.rs`): Krylov solvers, randomized SVD
-- [x] Enhanced signal processing (`signal_enhanced.rs`): adaptive filters
-- [x] Advanced statistics (`stats_advanced.rs`): bootstrap, Monte Carlo
+- [x] Advanced linear algebra (`linalg_advanced.rs`) — **corrected 2026-07-15**: the module's own doc
+  comment and actual exports are `wasm_matrix_solve` (direct solve, not an iterative Krylov method)
+  and `wasm_svd` (deterministic Golub-Reinsch bidiagonalisation + Householder/Givens, not a
+  *randomized* SVD). Real and correct, but "Krylov solvers, randomized SVD" as previously written
+  here does not match anything findable in `src/linalg_advanced.rs` (verified via case-insensitive
+  grep for krylov/conjugate-gradient/gmres/randomiz/lanczos — zero hits).
+- [x] Enhanced signal processing (`signal_enhanced.rs`) — **corrected 2026-07-15**: real contents are
+  `wasm_fft_real`/`wasm_ifft_real` (Cooley-Tukey radix-2), `wasm_power_spectral_density` (Welch PSD),
+  `wasm_stft`, `wasm_convolution_1d`, `wasm_moving_average_simple`, `wasm_butter_lowpass` (2nd-order
+  Butterworth IIR). "Adaptive filters" as previously written here does not match anything findable
+  (verified via case-insensitive grep for adaptive/lms/rls/kalman/wiener — zero hits).
+- [x] Advanced statistics (`stats_advanced.rs`) — **corrected 2026-07-15**: real contents are
+  `wasm_polynomial_fit`, `wasm_spearman_correlation`, `wasm_t_test_one_sample`/`_two_sample`,
+  `wasm_anova_one_way`, `wasm_pca`, `wasm_kmeans`. "Bootstrap, Monte Carlo" as previously written here
+  does not match anything findable (verified via case-insensitive grep for
+  bootstrap/monte carlo/resample/permutation — zero hits).
 
 ## v0.4.0 Roadmap
 
@@ -107,3 +137,11 @@
 - Safari SIMD support is partial; `has_simd_support()` returns `false` on affected versions.
 - WASM memory cannot be released back to the OS once grown; encourage array reuse for long-running applications.
 - WebWorker message passing copies data; zero-copy requires `SharedArrayBuffer` (v0.4.0 target).
+
+## v0.6.1 Fixes (2026-07-07)
+
+- [x] **2 wasm32-target-only clippy warnings fixed** — not caught by native `cargo clippy` because they only fire when linting the actual `wasm32-unknown-unknown` target: a redundant closure in `ParallelCoordinator`'s sequential-fallback chunk map (`data.chunks(chunk_size).flat_map(|chunk| f(chunk))` → `.flat_map(f)`), and `parallel_sort` needlessly taking an owned `&mut Vec<f64>` parameter instead of `&mut [f64]` (`clippy::ptr_arg`).
+  - Files: `src/parallel/coordinator.rs`.
+- [x] **`getrandom_v3` workspace-dependency promotion** — promoted from a per-crate `Cargo.toml` override (`{ package = "getrandom", version = "0.3", default-features = false, features = ["wasm_js"] }`) to a shared `[workspace.dependencies]` entry in the root `Cargo.toml`, consistent with how `getrandom`/`getrandom_v2` are already handled.
+  - Files: `Cargo.toml` (this crate), root `Cargo.toml`.
+  - Workspace: 196 native `--lib` tests pass (this crate's subset).

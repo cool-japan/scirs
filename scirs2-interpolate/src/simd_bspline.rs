@@ -247,13 +247,18 @@ impl SimdBSplineOps {
     where
         T: Float + SimdUnifiedOps,
     {
-        // Use scalar computation to avoid stack overflow in SIMD operations
-        // TODO: Fix SIMD implementation in scirs2-core
-        values
-            .iter()
-            .zip(weights.iter())
-            .map(|(&v, &w)| v * w)
-            .fold(T::zero(), |acc, x| acc + x)
+        if T::simd_available() {
+            // Delegate to the unified SIMD abstraction layer's bounded,
+            // remainder-safe weighted-sum kernel (scirs2-core::simd::weighted).
+            T::simd_weighted_sum(values, weights)
+        } else {
+            // Fallback to scalar computation
+            values
+                .iter()
+                .zip(weights.iter())
+                .map(|(&v, &w)| v * w)
+                .fold(T::zero(), |acc, x| acc + x)
+        }
     }
 }
 
@@ -326,5 +331,107 @@ mod tests {
         let result = SimdBSplineOps::weighted_sum(&values.view(), &weights.view());
 
         assert_relative_eq!(result, 3.0, epsilon = 1e-10);
+    }
+
+    /// Deterministic pseudo-random generator (SplitMix64) used to build
+    /// reproducible test vectors without pulling in an extra `rand`
+    /// dev-dependency. Returns a value in `(-1.0, 1.0)`.
+    #[cfg(feature = "simd")]
+    fn splitmix64_unit_interval(seed: u64) -> f64 {
+        let mut z = seed.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^= z >> 31;
+        ((z >> 11) as f64 / (1u64 << 53) as f64) * 2.0 - 1.0
+    }
+
+    /// Deterministic seeded sample at index `i`, offset by `stream` so that
+    /// independent arrays (e.g. values vs. weights) don't share the exact
+    /// same pseudo-random sequence.
+    #[cfg(feature = "simd")]
+    fn seeded_sample(stream: u64, i: usize) -> f64 {
+        splitmix64_unit_interval(stream.wrapping_add(i as u64))
+    }
+
+    /// Lengths chosen to straddle the SIMD lane widths used by the f32/f64
+    /// weighted-sum kernels (AVX2: 8-wide f32 / 4-wide f64; SSE/SSE2 and
+    /// NEON: 4-wide f32 / 2-wide f64), so both the vectorized main loop and
+    /// the scalar remainder tail are exercised, including the empty case.
+    #[cfg(feature = "simd")]
+    const WEIGHTED_SUM_TEST_LENGTHS: &[usize] = &[
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 13, 15, 16, 17, 31, 32, 33, 64, 65, 100,
+    ];
+
+    /// Directly exercises `T::simd_weighted_sum` (the real vectorized kernel
+    /// dispatched from `scirs2-core`, with intrinsics + scalar remainder
+    /// handling) against an independently hand-computed scalar dot product,
+    /// proving the two "paths" agree instead of merely asserting the SIMD
+    /// kernel doesn't crash.
+    #[cfg(feature = "simd")]
+    #[test]
+    fn test_simd_weighted_sum_kernel_matches_scalar_f64() {
+        for &len in WEIGHTED_SUM_TEST_LENGTHS {
+            let values: Array1<f64> = Array1::from_shape_fn(len, |i| seeded_sample(0x1000, i));
+            let weights: Array1<f64> = Array1::from_shape_fn(len, |i| seeded_sample(0x2000, i));
+
+            let simd_result = f64::simd_weighted_sum(&values.view(), &weights.view());
+            let scalar_result = values
+                .iter()
+                .zip(weights.iter())
+                .map(|(&v, &w)| v * w)
+                .fold(0.0_f64, |acc, x| acc + x);
+
+            assert_relative_eq!(simd_result, scalar_result, epsilon = 1e-12);
+        }
+    }
+
+    /// f32 counterpart of [`test_simd_weighted_sum_kernel_matches_scalar_f64`].
+    #[cfg(feature = "simd")]
+    #[test]
+    fn test_simd_weighted_sum_kernel_matches_scalar_f32() {
+        for &len in WEIGHTED_SUM_TEST_LENGTHS {
+            let values: Array1<f32> =
+                Array1::from_shape_fn(len, |i| seeded_sample(0x3000, i) as f32);
+            let weights: Array1<f32> =
+                Array1::from_shape_fn(len, |i| seeded_sample(0x4000, i) as f32);
+
+            let simd_result = f32::simd_weighted_sum(&values.view(), &weights.view());
+            let scalar_result = values
+                .iter()
+                .zip(weights.iter())
+                .map(|(&v, &w)| v * w)
+                .fold(0.0_f32, |acc, x| acc + x);
+
+            // f32 carries ~7 significant decimal digits, so summation-order
+            // differences between the vectorized partial-sums-plus-remainder
+            // reduction and a straight left-to-right fold can shift the
+            // last few bits. 1e-5 is comfortably above that noise floor
+            // while still being far tighter than the ~1.0 magnitude of the
+            // operands involved.
+            assert_relative_eq!(simd_result, scalar_result, epsilon = 1e-5);
+        }
+    }
+
+    /// Exercises `SimdBSplineOps::weighted_sum` end-to-end (i.e. the
+    /// `if T::simd_available() { .. } else { .. }` guarded wrapper restored
+    /// in this change) against the same hand-computed scalar dot product,
+    /// confirming the public API — not just the underlying core kernel —
+    /// now actually takes the SIMD path and returns the correct result.
+    #[cfg(feature = "simd")]
+    #[test]
+    fn test_simd_bspline_ops_weighted_sum_matches_scalar() {
+        for &len in WEIGHTED_SUM_TEST_LENGTHS {
+            let values: Array1<f64> = Array1::from_shape_fn(len, |i| seeded_sample(0x5000, i));
+            let weights: Array1<f64> = Array1::from_shape_fn(len, |i| seeded_sample(0x6000, i));
+
+            let wrapper_result = SimdBSplineOps::weighted_sum(&values.view(), &weights.view());
+            let scalar_result = values
+                .iter()
+                .zip(weights.iter())
+                .map(|(&v, &w)| v * w)
+                .fold(0.0_f64, |acc, x| acc + x);
+
+            assert_relative_eq!(wrapper_result, scalar_result, epsilon = 1e-12);
+        }
     }
 }

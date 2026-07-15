@@ -1,5 +1,9 @@
 # scirs2-io TODO
 
+## Status: v0.6.1 (2026-07-15)
+
+Zero `todo!()`/`unimplemented!()` stubs in `src/`. Freshly measured test counts: `cargo nextest run -p scirs2-io` → 1294 tests run, 1294 passed, 0 skipped, 0 failed; `--all-features` → 1405 tests run, 1405 passed, 0 skipped, 0 failed. The OpenCL GPU-compression header now reports the adapter's real compute-unit count instead of a hardcoded placeholder (`gpu/compression.rs:305-310`, covered by `test_compress_opencl_header_uses_real_compute_units`). `src/hdf5/` and `src/advanced_coordinator/` were split into per-file module directories (all files under 2000 lines) via SplitRS, re-exports preserved. `zarr` v2/v3 confirmed publicly exported and non-stub. This pass re-verified every "v0.4.0 Roadmap" item below against `src/`: all are real, but several are scoped more narrowly than their one-line description implies (in-memory-only Kafka/Arrow Flight/MQTT-broker protocol simulations with no live network I/O; "-inspired" TileDB/Lance formats and a "simplified" Iceberg that are not byte-compatible with the reference ecosystem tools; cloud S3/GCS/Azure backends that build real config/state-machine/URL-signing logic but never make a live HTTP call, even with their feature flags enabled). Given the breadth of explicit off-by-default stub features (`postgres`/`mysql`/`mongodb`/`redis`, live cloud HTTP, Azure SAS signing), the status badge is **Partial** rather than Stable, even though the always-on default surface is solid and 100% green. See `README.md` for the precise, per-feature caveats.
+
 ## v0.3.3 Completed
 
 ### Classic Scientific Formats
@@ -64,16 +68,16 @@
 ## v0.4.0 Roadmap
 
 ### New Formats
-- [x] Zarr v2/v3 format: chunked, compressed, N-dimensional arrays; compatible with Zarr-Python — Implemented in v0.4.0 (`zarr/` module)
-- [x] TileDB integration: dense and sparse multi-dimensional arrays for analytics — Implemented in v0.4.0 (`tiledb.rs` module)
-- [x] Lance format: modern columnar format for ML datasets — Implemented in v0.4.0 (`lance/` module)
-- [x] Delta Lake log-based table format reader — Implemented in v0.4.0 (`delta.rs` module)
-- [x] Iceberg table format support — implemented in v0.4.2 (`iceberg.rs`)
+- [x] Zarr v2/v3 format: chunked, compressed, N-dimensional arrays; compatible with Zarr-Python — Implemented in v0.4.0 (`zarr/` module); re-verified 2026-07-15, `pub mod zarr;` confirmed non-stub
+- [x] TileDB integration: dense and sparse multi-dimensional arrays for analytics — Implemented in v0.4.0 (`tiledb/` module, own doc comment says "TileDB-inspired"); pure-Rust array storage inspired by TileDB's design, not a client for real TileDB arrays
+- [x] Lance format: modern columnar format for ML datasets — Implemented in v0.4.0 (`lance/` module, own doc comment says "Lance-inspired ... pure Rust, in-process"); not binary-compatible with the reference Lance format
+- [x] Delta Lake log-based table format reader — Implemented in v0.4.0 (`delta/` module: `log.rs`/`table.rs`/`types.rs`); real JSON `_delta_log/` transaction log with commit/checkpoint/replay/time-travel
+- [x] Iceberg table format support — implemented in v0.4.2 (`iceberg.rs`, own doc comment says "simplified pure-Rust implementation"); in-memory table abstraction with snapshot versioning, not a full Iceberg catalog/REST client
 
 ### Transport Protocols
-- [x] Apache Arrow Flight protocol: high-throughput gRPC-based data transfer — Implemented in v0.4.0 (`protocols/arrow_flight.rs`)
-- [x] Apache Kafka consumer/producer for streaming scientific data — Implemented in v0.4.0 (`protocols/kafka.rs`)
-- [x] MQTT topic-based streaming for IoT/sensor data ingestion — Implemented in v0.4.0 (`mqtt_broker/` module)
+- [x] Apache Arrow Flight protocol: high-throughput gRPC-based data transfer — Implemented in v0.4.0 (`protocols/arrow_flight.rs`, own doc comment says "pure-Rust in-memory simulation"); does not open a real gRPC/network connection
+- [x] Apache Kafka consumer/producer for streaming scientific data — Implemented in v0.4.0 (`protocols/kafka.rs`, own doc comment says "pure-Rust in-memory broker simulation"); does not connect to a real Kafka broker over the network
+- [x] MQTT topic-based streaming for IoT/sensor data ingestion — Implemented in v0.4.0 (`mqtt_broker/` module, own doc comment says "No network, no external crates — everything runs in-process"); real network MQTT client connectivity is separately provided by the `mqtt` feature (`rumqttc`, wired up in `realtime.rs`)
 
 ### Compression and Encoding
 - [x] Columnar-aware compression: dictionary encoding, RLE, delta encoding per column — Implemented in v0.4.0 (`columnar/dictionary.rs`, `columnar/rle.rs`, `columnar/delta.rs`)
@@ -107,8 +111,8 @@
 
 ## Known Issues
 
-- Large HDF5 files with deeply nested groups may be slow on the pure-Rust hdf5-lite reader; the system-library `hdf5` feature should be preferred for those workloads.
-- The ORC reader does not yet support all column encodings (RLE v2, dictionary, DIRECT_V2); unsupported columns fall back to raw bytes.
-- Arrow IPC streaming does not yet validate all IPC message types; unknown message types are silently skipped.
-- Cloud connector framework provides the interface only; actual HTTP signing and chunked transfer require activating the `reqwest` feature and providing credentials at runtime.
-- BSON serialization of f32 arrays upcasts to f64 to conform with the BSON type system.
+- Large HDF5 files with deeply nested groups may be slow on the pure-Rust hdf5-lite reader; the system-library `hdf5` feature should be preferred for those workloads. (Not independently re-benchmarked this pass; left as-is.)
+- **[Corrected 2026-07-15]** ~~The ORC reader does not yet support all column encodings (RLE v2, dictionary, DIRECT_V2); unsupported columns fall back to raw bytes.~~ Verified stale: both `formats::orc` and `formats::orc_lite` implement RLE v2 integer encoding (direct/delta/variable-length modes), dictionary string encoding, and bit-packed boolean RLE (`orc.rs::decode_i64`/`decode_dict_strings`/`decode_bool_rle`, `orc_lite.rs::IntRleV2`). Remaining caveat: neither format reads/writes third-party `.orc` files produced by Hive/Spark/etc. — both use their own magic bytes and framing (`ORCEXT\0\0` / `ORCLITE\0`) rather than the real Apache ORC Protobuf postscript/footer, so they are ORC-inspired pure-Rust formats, not Apache-ORC-file-compatible readers.
+- **[Corrected 2026-07-15]** ~~Arrow IPC streaming does not yet validate all IPC message types; unknown message types are silently skipped.~~ Verified stale: `arrow_ipc::read_message`/`read_batches` and `arrow_streaming::read_message` now return `IoError::FormatError` ("Unexpected/unexpected message type ...") on any unrecognized message tag instead of skipping it silently.
+- **[Refined 2026-07-15]** Cloud connector framework (`cloud`, `network::cloud`, `s3_multipart`) provides the interface, config/URL-signing types, and simulated multipart/resumable-upload state machines only. Verified: even with `aws-sdk-s3` / `google-cloud-storage` / `azure-storage-blobs` enabled, `ObjectStore::put/get/delete/list/head` on the S3/GCS/Azure backends unconditionally return a "real HTTP implementation not yet complete" error (`cloud/mod.rs`) — no live network call is made under any current feature combination, so simply "activating `reqwest`" is not sufficient to get real cloud I/O. Separately, Azure SAS token generation (`cloud/azure_sas.rs`) signs with a deterministic placeholder (`mock_sign`, explicitly documented as "NOT cryptographically secure"), not HMAC-SHA256 — do not use for production Azure authentication.
+- BSON serialization of f32 arrays upcasts to f64 to conform with the BSON type system (confirmed: `BsonValue` has no dedicated `Float32` variant, only `Double(f64)`).

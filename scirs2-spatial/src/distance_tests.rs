@@ -120,6 +120,31 @@ fn test_jaccard_distance() {
 }
 
 #[test]
+fn test_hamming_distance() {
+    let point1 = &[1.0, 0.0, 1.0, 1.0, 0.0];
+    let point2 = &[1.0, 1.0, 0.0, 1.0, 0.0];
+
+    // 2 of 5 coordinates differ = 0.4
+    assert_relative_eq!(hamming(point1, point2), 0.4, epsilon = 1e-6);
+
+    // Identical vectors should have distance 0
+    let point3 = &[1.0, 1.0, 0.0];
+    let point4 = &[1.0, 1.0, 0.0];
+    assert_relative_eq!(hamming(point3, point4), 0.0, epsilon = 1e-6);
+
+    // Completely different vectors should have distance 1
+    let point5 = &[1.0, 1.0, 1.0];
+    let point6 = &[0.0, 0.0, 0.0];
+    assert_relative_eq!(hamming(point5, point6), 1.0, epsilon = 1e-6);
+
+    // Mismatched lengths should yield NaN
+    let point7 = &[1.0, 0.0];
+    let point8 = &[1.0, 0.0, 1.0];
+    let mismatched_dist: f64 = hamming(point7, point8);
+    assert!(mismatched_dist.is_nan());
+}
+
+#[test]
 fn test_pdist() {
     let points = arr2(&[[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]);
 

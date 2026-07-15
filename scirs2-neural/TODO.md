@@ -1,6 +1,14 @@
 # scirs2-neural TODO
 
-## Status: v0.4.3 Released (May 3, 2026)
+## Status: v0.6.1 (2026-07-15)
+
+### v0.6.1 Verification (2026-07-15)
+
+- `cargo nextest run -p scirs2-neural` (default features): **1814 tests run: 1814 passed (4 slow), 0 skipped**
+- `cargo nextest run -p scirs2-neural --all-features`: **1863 tests run: 1863 passed, 0 skipped**
+- `todo!()`/`unimplemented!()` macros in `src/`: 0
+- `scirs2_metrics` usage: real, gated behind the non-default `metrics_integration` feature (`src/callbacks/metrics/scirs_metrics.rs::ScirsMetricsCallback`); not exercised with default features, so `cargo-udeps`' "possibly unused" flag on the `scirs2-metrics` dependency is expected with default features and not a bug
+- The `scirs2-autograd` dev-dependency uses a `path = "../scirs2-autograd"` reference instead of `workspace = true` (packaging fix, no functional change)
 
 ## v0.3.3 Completed
 
@@ -10,7 +18,6 @@
 - Linear attention
 - Efficient attention
 - Sparse attention
-- Multi-head latent attention
 
 ### Mixture of Experts
 - Top-k routing with load balancing
@@ -93,8 +100,8 @@
 
 ### Wave 44 Additions (v0.4.2)
 - [x] NAS module repaired and re-enabled in lib.rs (74 tests)
-- [x] CMA-ES optimizer (10 tests)
-- [x] Enhanced BPE tokenizer + chat templates (14 tests)
+- [ ] CMA-ES optimizer — not found under this name anywhere in `scirs2-neural/src/` (checked `optimizers/` and full-crate grep); likely a cross-crate mix-up with `scirs2-optimize`, which does have a real CMA-ES optimizer. Unverified for this crate as of 2026-07-15.
+- [x] Enhanced BPE tokenizer (`src/nlp/tokenizer.rs::BpeTokenizer`) — verified. "+ chat templates" could not be verified: no `ChatTemplate`/`chat_template` symbol found anywhere in `src/`; removed from the claim pending re-verification.
 - [x] Pipeline parallelism + tensor parallelism wired into training infrastructure
 - [x] Numerical validation tests (40)
 - [x] Cross-crate consistency tests (16)
@@ -139,6 +146,7 @@
 
 ## Known Issues / Technical Debt
 
-- Some doc tests are marked `#[ignore]` pending API stabilization
 - WASM target requires additional feature gating for large model weights
-- GPU acceleration stubs exist in `hardware/` but require `scirs2-core::gpu` completion
+- `gpu.rs` (feature `gpu`) does real device detection/dispatch via `scirs2-core::gpu`; a few narrow gaps remain in `hardware/` — `accelerator.rs` has a placeholder comment for generic (non-matmul/conv) kernel execution, and `model_partitioning.rs` returns a runtime error (not a panic) for custom partitioning strategies
+- `serving/packager.rs` intentionally returns "not yet implemented" errors for `PackageFormat::WebAssembly`, `AndroidAAR`, `IOSFramework`, and `PythonWheel` (only `Native`, `CSharedLibrary`, and `Docker` packaging are implemented)
+- Verified 2026-07-15: no `#[ignore]`-marked tests remain anywhere in `src/`, `tests/`, `examples/`, or `benches/`; 0 `todo!()`/`unimplemented!()` macros in `src/`

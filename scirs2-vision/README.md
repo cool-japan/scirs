@@ -3,7 +3,8 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-vision.svg)](https://crates.io/crates/scirs2-vision)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-vision)](https://docs.rs/scirs2-vision)
-[![Version](https://img.shields.io/badge/version-0.5.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
 **scirs2-vision** is the computer vision crate for the [SciRS2](https://github.com/cool-japan/scirs) scientific computing library. It provides comprehensive tools for feature detection, image segmentation, geometric transformations, stereo vision, 3D reconstruction, object detection, video processing, and camera calibration with APIs familiar to users of OpenCV and scikit-image. Recent waves added Neural Radiance Fields (NeRF) with Instant-NGP hash-grid acceleration, monocular and sparse-LiDAR depth completion, and temporal action segmentation primitives.
 
@@ -19,7 +20,7 @@ Use scirs2-vision when you need to:
 - Perform object detection and face detection
 - Apply style transfer or image quality enhancement
 
-## Features (v0.5.1)
+## Features (v0.6.1)
 
 ### Feature Detection and Description
 - **Edge Detection**: Sobel, Canny, Prewitt, Laplacian, Laplacian of Gaussian (LoG)
@@ -49,10 +50,10 @@ Use scirs2-vision when you need to:
 - **ICP (Iterative Closest Point)**: Point cloud registration and alignment
 - **RANSAC Registration**: Robust point cloud alignment with outlier rejection
 - **Point Cloud I/O**: Load/save PLY, XYZ formats
-- **3D Reconstruction Pipeline**: Multi-view stereo foundations
+- **3D Reconstruction Pipeline**: Multi-view stereo foundations; `structure_from_motion()` currently returns an empty point cloud unconditionally (real feature extraction/matching/pose estimation/triangulation is not yet wired in) — see Known Issues in `TODO.md`
 
 ### Video Processing
-- **Frame Extraction**: Extract frames from video streams
+- **Frame Extraction**: Extract frames from image-sequence directories (`VideoStreamReader::from_source(VideoSource::ImageSequence(...))`); direct video-container decoding (mp4/avi) and live camera capture are not yet implemented — see Known Issues in `TODO.md`
 - **Dense Optical Flow**: Farneback algorithm, Lucas-Kanade dense flow
 - **Video Stabilization**: Feature-based and mesh-based stabilization
 - **Motion Detection**: Frame differencing, background subtraction
@@ -119,14 +120,14 @@ Use scirs2-vision when you need to:
 
 ```toml
 [dependencies]
-scirs2-vision = "0.5.1"
+scirs2-vision = "0.6.1"
 ```
 
-For parallel processing:
+Parallel (Rayon-based) processing is provided unconditionally via `scirs2-core` — there is no separate `parallel` feature to enable. For GPU-accelerated kernels:
 
 ```toml
 [dependencies]
-scirs2-vision = { version = "0.5.1", features = ["parallel"] }
+scirs2-vision = { version = "0.6.1", features = ["wgpu"] }
 ```
 
 ## Quick Start
@@ -292,7 +293,10 @@ fn segmentation_example() -> Result<(), Box<dyn std::error::Error>> {
 
 | Flag | Description |
 |------|-------------|
-| `parallel` | Enable Rayon-based multi-threaded processing |
+| `wgpu` | Real GPU (WebGPU/wgpu) execution for accelerated vision kernels; without it, kernel dispatch transparently falls back to CPU/SIMD |
+| `cuda` | Direct oxicuda (COOLJAPAN Pure Rust CUDA) backend |
+
+Rayon-based parallel processing is always compiled in via `scirs2-core` and is not a separate opt-in feature.
 
 ## Performance
 
@@ -301,16 +305,23 @@ fn segmentation_example() -> Result<(), Box<dyn std::error::Error>> {
 - Memory-efficient streaming for video and large image sequences
 - Benchmarked against OpenCV and scikit-image reference implementations
 
+## Testing
+
+1,341 tests passing (default features) / 1,345 tests passing (all-features, `cargo nextest run -p scirs2-vision --all-features`), plus doctests. 0 `todo!()`/`unimplemented!()` markers in `src/` — see Known Issues in `TODO.md` for the silent-stub findings that keep this crate at "Partial" status despite the clean test run.
+
 ## Documentation
 
 Full API reference: [docs.rs/scirs2-vision](https://docs.rs/scirs2-vision)
 
 ## Dependencies
 
-- `scirs2-core`: Core SciRS2 abstractions (error handling, array types, random)
-- `scirs2-ndimage`: N-dimensional image processing primitives
+- `scirs2-core`: Core SciRS2 abstractions (error handling, array types, parallel, random, GPU)
+- `scirs2-linalg`: Linear algebra (used by pose/stereo/registration solvers)
 - `image`: Rust image loading and format support
-- `num-traits`, `num-complex`: Numerical type traits
+- `statrs`, `ordered-float`: Statistical distributions and total-order float wrappers
+- `oxicuda-driver` / `oxicuda-memory` / `oxicuda-dnn` (optional, `cuda` feature): COOLJAPAN Pure Rust CUDA backend
+
+Note: `scirs2-ndimage` is not currently a dependency (commented out in `Cargo.toml`; not referenced anywhere in `src/`), and `num-traits`/`num-complex` are not direct dependencies either — numeric traits are used via `scirs2-core` re-exports.
 
 ## License
 

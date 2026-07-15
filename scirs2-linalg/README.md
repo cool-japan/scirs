@@ -3,26 +3,29 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-linalg)](https://crates.io/crates/scirs2-linalg)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-linalg)](https://docs.rs/scirs2-linalg)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 **High-performance linear algebra for Rust, modeled after SciPy/NumPy linalg.**
 
 `scirs2-linalg` provides a comprehensive linear algebra library with SciPy-compatible APIs, pure-Rust BLAS/LAPACK via OxiBLAS (no C or Fortran dependencies), SIMD acceleration, randomized methods, tensor decompositions, and iterative solvers suitable for large-scale scientific computing and machine learning.
 
+**Tests:** 2018/2018 passing (default features), 2248/2248 passing (`--all-features`) — as of 2026-07-15.
+
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-linalg = "0.5.1"
+scirs2-linalg = "0.6.1"
 ```
 
 With optional acceleration:
 
 ```toml
 [dependencies]
-scirs2-linalg = { version = "0.5.1", features = ["simd", "parallel"] }
+scirs2-linalg = { version = "0.6.1", features = ["simd", "parallel"] }
 ```
 
-## Features (v0.5.1)
+## Features (v0.6.1)
 
 ### Core Decompositions
 - LU (with partial/rook/complete pivoting), QR, SVD, Cholesky, LDL^T
@@ -119,64 +122,85 @@ let (eigenvals, eigenvecs) = eigh(&a.view(), None)?;
 ### Iterative solvers
 
 ```rust
-use scirs2_linalg::iterative::{gmres, pcg, bicgstab};
+use scirs2_core::ndarray::array;
+use scirs2_linalg::iterative::{bicgstab, conjugate_gradient, gmres};
 
-// GMRES for a general non-symmetric system
-let x = gmres(&a.view(), &b.view(), None, Some(30), Some(200), Some(1e-10))?;
+// GMRES for a general non-symmetric system: args are (a, b, x0, tol, max_iter, restart)
+let a = array![[3.0_f64, 1.0], [1.0, 4.0]];
+let b = array![5.0_f64, 6.0];
+let result = gmres(&a, &b.view(), None, 1e-12, 50, 10)?;
 
-// PCG for symmetric positive definite
-let x = pcg(&a_spd.view(), &b.view(), None, Some(500), Some(1e-12))?;
+// Conjugate Gradient for symmetric positive definite (optionally preconditioned via
+// the trailing `Option`): args are (a, b, x0, tol, max_iter, preconditioner)
+let a_spd = array![[4.0_f64, 1.0], [1.0, 3.0]];
+let b_spd = array![1.0_f64, 2.0];
+let result = conjugate_gradient(&a_spd, &b_spd.view(), None, 1e-12, 100, None)?;
 
-// BiCGStab for non-symmetric
-let x = bicgstab(&a.view(), &b.view(), None, Some(500), Some(1e-10))?;
+// BiCGStab for non-symmetric: args are (a, b, x0, tol, max_iter)
+let result = bicgstab(&a, &b.view(), None, 1e-12, 100)?;
 ```
+
+All three return an `IterativeSolveResult<F>` bundling the solution vector with `iterations`,
+`residual_norm`, and a `converged` flag.
 
 ### Matrix functions
 
 ```rust
 use scirs2_linalg::matrix_functions::{expm, logm, sqrtm};
 
-let exp_a = expm(&a.view())?;
+let exp_a = expm(&a.view(), None)?;       // workers: Option<usize>
 let log_a = logm(&a.view())?;
-let sqrt_a = sqrtm(&a.view())?;
+let sqrt_a = sqrtm(&a.view(), 20, 1e-10)?; // max_iter, tol (Denman-Beavers iteration)
 ```
 
 ### Tensor decompositions
 
 ```rust
-use scirs2_linalg::tensor::{cp_als, tucker_hooi};
+use scirs2_linalg::tensor::core::Tensor;
+use scirs2_linalg::tensor::{cp_als, hooi, CPConfig};
 
-// CP decomposition with 5 components, 200 ALS iterations
-let cp = cp_als(&tensor, 5, Some(200), Some(1e-8))?;
+let data: Vec<f64> = (0..24).map(|x| x as f64 + 1.0).collect();
+let tensor = Tensor::new(data, vec![2, 3, 4])?;
 
-// Tucker decomposition with rank [3, 3, 3]
-let tucker = tucker_hooi(&tensor, &[3, 3, 3], Some(100), Some(1e-8))?;
+// CP decomposition with 3 components, up to 200 ALS iterations
+let cfg = CPConfig { max_iter: 200, ..Default::default() };
+let cp = cp_als(&tensor, 3, &cfg)?;
+
+// Tucker decomposition (HOOI) targeting multilinear rank [2, 2, 3]
+let tucker = hooi(&tensor, &[2, 2, 3], 100)?;
 ```
 
 ### Control theory
 
 ```rust
-use scirs2_linalg::control::{solve_care, solve_dare, solve_lyapunov};
+use scirs2_linalg::control::{care_solve, dare_solve, lyapunov_continuous};
 
 // Continuous algebraic Riccati equation: A^T X + X A - X B R^{-1} B^T X + Q = 0
-let x = solve_care(&a.view(), &b.view(), &q.view(), &r.view())?;
+let p = care_solve(&a.view(), &b.view(), &q.view(), &r.view())?;
 
 // Discrete algebraic Riccati equation
-let x = solve_dare(&a.view(), &b.view(), &q.view(), &r.view())?;
+let p_d = dare_solve(&a.view(), &b.view(), &q.view(), &r.view())?;
 
-// Lyapunov equation: A X + X A^T + Q = 0
-let x = solve_lyapunov(&a.view(), &q.view())?;
+// Lyapunov equation: A X + X A^T = -Q
+let x = lyapunov_continuous(&a.view(), &q.view())?;
 ```
 
 ## Feature Flags
 
 | Feature | Description |
 |---------|-------------|
-| `simd` | SIMD-accelerated kernels (AVX/AVX2/AVX-512/NEON) |
+| `linalg` | OxiBLAS pure-Rust BLAS/LAPACK backend (on by default) |
+| `simd` | SIMD-accelerated kernels (AVX/AVX2/AVX-512/NEON) (on by default) |
 | `parallel` | Multi-threaded operations via Rayon |
-| `gpu` | GPU acceleration (requires `scirs2-core` gpu feature) |
-| `linalg` | Enable OxiBLAS pure-Rust BLAS/LAPACK backend |
-| `serde` | Serialization for matrix types |
+| `gpu` | GPU abstraction layer (delegates to `scirs2-core/gpu`) |
+| `cuda` | Pure-Rust direct `oxicuda-*` CUDA path (NVIDIA-only, experimental) |
+| `opencl` / `rocm` / `metal` / `vulkan` | Backend-specific GPU acceleration (experimental; each requires `gpu`) |
+| `autograd` | Cross-crate integration with `scirs2-autograd` (n×n factorization backward passes: Cholesky/LU/QR/sqrtm/logm) |
+| `symbolic` | Cross-crate integration with `scirs2-symbolic` (`det_symbolic`, `eigenvalues_symbolic_2x2`, `condition_number_symbolic`) |
+| `python` | Python bindings (delegates to `scirs2-core/python`) |
+
+`serde` is compiled in unconditionally as a dependency (not an optional Cargo feature of this crate).
+Default features: `linalg` + `simd`.
 
 ## Links
 

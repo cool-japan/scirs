@@ -133,14 +133,17 @@ impl SABRParameters {
 }
 
 // Deprecated placeholder functions for backward compatibility
-#[deprecated(note = "Use SABRParameters::implied_volatility instead")]
+#[deprecated(
+    since = "0.1.0",
+    note = "Use SABRParameters::implied_volatility instead"
+)]
 pub fn interpolate_smile() -> Result<()> {
     Err(IntegrateError::ValueError(
         "Use SABRParameters for smile interpolation".to_string(),
     ))
 }
 
-#[deprecated(note = "Arbitrage checking not yet implemented")]
+#[deprecated(since = "0.1.0", note = "Arbitrage checking not yet implemented")]
 pub fn vol_surface_arbitrage_free() -> Result<()> {
     Err(IntegrateError::ValueError(
         "Arbitrage-free surface checking not yet implemented".to_string(),

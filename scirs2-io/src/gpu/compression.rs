@@ -298,8 +298,16 @@ impl GpuCompressionProcessor {
         // OpenCL header: magic + version + device info + chunk count
         result.extend_from_slice(b"OPCL"); // Magic number for OpenCL compression
         result.extend_from_slice(&1u32.to_le_bytes()); // Version
-                                                       // TODO: Add compute units when available in PlatformCapabilities
-        result.extend_from_slice(&32u32.to_le_bytes()); // Default compute units placeholder
+
+        // Real compute-unit count queried from the backend, mirroring the
+        // pattern used by `get_performance_stats`. Falls back to a
+        // conservative default only if the underlying device query fails.
+        let compute_units = self
+            .gpu_processor
+            .get_backend_capabilities()
+            .map(|c| c.compute_units as u32)
+            .unwrap_or(32);
+        result.extend_from_slice(&compute_units.to_le_bytes());
         result.extend_from_slice(&(chunks.len() as u32).to_le_bytes());
 
         // Write chunk metadata optimized for OpenCL kernel processing
@@ -609,5 +617,40 @@ mod tests {
         // Should fail due to size threshold
         let result = processor.compress_gpu(&small_data.view(), CompressionAlgorithm::Lz4, None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_compress_opencl_header_uses_real_compute_units() {
+        let processor = GpuCompressionProcessor::default();
+        let data = arr1(&[1.0f32; 1024]);
+
+        // Call the OpenCL-specific path directly (bypasses the size-threshold
+        // gate in `compress_gpu`, which only routes by backend + data size).
+        let compressed = processor
+            .compress_opencl(&data.view(), CompressionAlgorithm::Lz4, None)
+            .expect("compress_opencl should succeed for well-formed input");
+
+        // OpenCL header layout:
+        // magic(4) + version(4) + compute_units(4) + chunk_count(4) + ...
+        assert_eq!(&compressed[0..4], b"OPCL");
+        let version =
+            u32::from_le_bytes([compressed[4], compressed[5], compressed[6], compressed[7]]);
+        assert_eq!(version, 1);
+
+        let compute_units_in_header =
+            u32::from_le_bytes([compressed[8], compressed[9], compressed[10], compressed[11]]);
+
+        // The header must carry the *real* compute-unit count sourced from
+        // backend capabilities (matching the same query `compress_opencl`
+        // performs), not the old hardcoded `32` placeholder that was written
+        // unconditionally regardless of what the backend actually reports.
+        let expected_compute_units = processor
+            .gpu_processor
+            .get_backend_capabilities()
+            .map(|c| c.compute_units as u32)
+            .unwrap_or(32);
+
+        assert_eq!(compute_units_in_header, expected_compute_units);
+        assert!(compute_units_in_header > 0);
     }
 }

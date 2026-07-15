@@ -836,9 +836,22 @@ pub fn simd_add_aligned_ultra(
                     *result_ptr.add(i) = *a_ptr.add(i) + *b_ptr.add(i);
                     i += 1;
                 }
-
-                result.set_len(len);
+            } else {
+                // Scalar fallback: this x86_64 CPU does not report AVX2 at
+                // runtime (e.g. pre-Haswell, or a VM/CI runner with AVX2
+                // masked out of CPUID). Previously this branch was entirely
+                // absent, so `result.set_len(len)` below was skipped too --
+                // the function silently returned a *correctly-typed but
+                // empty* `AlignedVec` (len 0, capacity `len`) instead of the
+                // element-wise sum, a silent-data-loss bug for any non-AVX2
+                // x86_64 caller. Every element must be written here so the
+                // unconditional `set_len(len)` after this if/else is sound.
+                for i in 0..len {
+                    *result_ptr.add(i) = *a_ptr.add(i) + *b_ptr.add(i);
+                }
             }
+
+            result.set_len(len);
         }
 
         #[cfg(not(target_arch = "x86_64"))]

@@ -3,12 +3,15 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-cluster.svg)](https://crates.io/crates/scirs2-cluster)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-cluster)](https://docs.rs/scirs2-cluster)
+[![Status](https://img.shields.io/badge/status-stable-brightgreen.svg)]()
 
 Comprehensive clustering algorithms for unsupervised learning in Rust, part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
 ## Overview
 
-`scirs2-cluster` provides production-ready implementations of classical and modern clustering algorithms with SciPy/scikit-learn compatible APIs. v0.5.0 significantly expands beyond the core algorithms with Gaussian Mixture Models, Self-Organizing Maps, topological clustering, streaming/online methods, fuzzy clustering, deep clustering, Bayesian nonparametric methods, and advanced validation tools.
+`scirs2-cluster` provides production-ready implementations of classical and modern clustering algorithms with SciPy/scikit-learn compatible APIs. Since v0.5.0, it has significantly expanded beyond the core algorithms with Gaussian Mixture Models, Self-Organizing Maps, topological clustering, streaming/online methods, fuzzy clustering, deep clustering, Bayesian nonparametric methods, and advanced validation tools. Current release: v0.6.1.
+
+Validated by `cargo nextest`: 962/962 tests passing with default features, 1061/1061 passing with all features enabled (0 failures either way).
 
 ## Features
 
@@ -42,7 +45,7 @@ Comprehensive clustering algorithms for unsupervised learning in Rust, part of t
 ### Prototype-Based and Competitive Learning
 - Self-Organizing Maps (SOM) with hexagonal and rectangular topologies
 - Competitive learning networks
-- Prototype-enhanced clustering with medoid refinement
+- Prototype-enhanced clustering (Neural Gas, Growing Neural Gas, LVQ/GLVQ)
 - Leader algorithm (single-pass with hierarchical tree)
 
 ### Spectral and Graph-Based
@@ -54,7 +57,7 @@ Comprehensive clustering algorithms for unsupervised learning in Rust, part of t
 ### Subspace Clustering
 - Subspace clustering for high-dimensional data
 - Projected clustering and axis-aligned subspace search
-- Advanced subspace methods (`subspace_advanced/`)
+- Advanced subspace methods: Sparse Subspace Clustering (SSC), Low-Rank Subspace Clustering (`subspace_enhanced.rs`)
 
 ### Fuzzy and Soft Clustering
 - Fuzzy c-means (FCM) with membership degree outputs
@@ -75,7 +78,6 @@ Comprehensive clustering algorithms for unsupervised learning in Rust, part of t
 ### Time Series Clustering
 - DTW-based distance for time series k-means
 - Temporal pattern clustering
-- Phase-space clustering
 
 ### Ensemble and Consensus
 - Consensus clustering via co-association matrices
@@ -86,7 +88,6 @@ Comprehensive clustering algorithms for unsupervised learning in Rust, part of t
 ### Deep Clustering
 - Deep embedding via autoencoder
 - DEC (Deep Embedded Clustering)
-- Deep adversarial clustering
 - Transformer-based cluster embeddings
 
 ### Biclustering and Co-clustering
@@ -109,14 +110,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-cluster = "0.5.1"
+scirs2-cluster = "0.6.1"
 ```
 
-With parallel processing:
+Rayon-based parallel processing (parallel K-means, parallel linkage, etc.) is included by default — no extra feature flag is required. To additionally enable SIMD-accelerated distance computations:
 
 ```toml
 [dependencies]
-scirs2-cluster = { version = "0.5.1", features = ["parallel"] }
+scirs2-cluster = { version = "0.6.1", features = ["simd"] }
 ```
 
 ### K-means Clustering
@@ -142,7 +143,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Hierarchical Clustering
 
 ```rust
-use scirs2_cluster::hierarchy::{linkage, fcluster, LinkageMethod};
+use scirs2_cluster::hierarchy::{linkage, fcluster, LinkageMethod, Metric};
 use scirs2_core::ndarray::Array2;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -151,7 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         3.7, 4.2,  3.9, 3.9,  4.2, 4.1,
     ])?;
 
-    let z = linkage(data.view(), LinkageMethod::Ward, None)?;
+    let z = linkage(data.view(), LinkageMethod::Ward, Metric::Euclidean)?;
     let labels = fcluster(&z, 2, None)?;
 
     println!("Cluster assignments: {:?}", labels);
@@ -182,14 +183,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Gaussian Mixture Model
 
 ```rust
-use scirs2_cluster::probabilistic::GaussianMixtureModel;
+use scirs2_cluster::soft_clustering::GaussianMixtureModel;
 use scirs2_core::ndarray::Array2;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data = Array2::<f64>::zeros((100, 2)); // replace with real data
 
-    let mut gmm = GaussianMixtureModel::new(3, 100, 1e-6, 42)?;
-    gmm.fit(data.view())?;
+    // fit(data, n_components, max_iter, tol)
+    let gmm = GaussianMixtureModel::fit(data.view(), 3, 100, 1e-6)?;
 
     let labels = gmm.predict(data.view())?;
     let responsibilities = gmm.predict_proba(data.view())?;
@@ -208,7 +209,7 @@ use scirs2_core::ndarray::{Array2, Array1};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data = Array2::<f64>::zeros((100, 5));
-    let labels = Array1::<usize>::zeros(100);
+    let labels = Array1::<i32>::zeros(100);
 
     let sil = silhouette_score(data.view(), labels.view())?;
     let db  = davies_bouldin_score(data.view(), labels.view())?;
@@ -225,8 +226,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Flag | Description |
 |------|-------------|
-| `parallel` | Enable Rayon-based multi-threaded distance computation and fitting |
 | `simd` | SIMD-accelerated distance computations |
+
+Rayon-based parallel processing is always compiled in (via `scirs2-core`); there is no separate `parallel` opt-in flag.
 
 ## Related Crates
 

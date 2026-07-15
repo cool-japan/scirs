@@ -1,10 +1,11 @@
 [package]
 name = "scirs2-symbolic-wasm"
-version = "0.1.0"
+version = "0.6.1"
 edition = "2021"
 authors = ["COOLJAPAN OU (Team Kitasan)"]
 description = "WebAssembly playground bindings for scirs2-symbolic CAS"
 license = "Apache-2.0"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -18,6 +19,12 @@ wasm-bindgen = "0.2.120"
 serde_json = "1"
 scirs2-symbolic = { path = ".." }
 
+# Force the `wasm_js` feature on `getrandom` 0.3.x, which `ahash` (a transitive
+# dependency pulled in via scirs2-symbolic) needs enabled to compile for
+# wasm32-unknown-unknown. Same fix scirs2-wasm applies via its `getrandom_v3`
+# workspace-dependency entry (see ../../Cargo.toml).
+getrandom = { version = "0.3", default-features = false, features = ["wasm_js"] }
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 
@@ -25,3 +32,8 @@ wasm-bindgen-test = "0.3"
 opt-level = 'z'
 lto = true
 codegen-units = 1
+
+[package.metadata.cargo-machete]
+# getrandom exists solely to activate the wasm_js feature on the transitive
+# getrandom 0.3.x pulled in by ahash; it is never imported directly.
+ignored = ["getrandom"]

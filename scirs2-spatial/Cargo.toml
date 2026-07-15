@@ -26,9 +26,6 @@ num-traits = { workspace = true }
 statrs = { workspace = true }
 approx = { workspace = true }
 
-# Temporary: rand needed for compatibility during migration to scirs2_core::random
-rand = { workspace = true }
-
 # System dependencies for NUMA
 libc = { workspace = true }
 
@@ -67,7 +64,6 @@ plotters = { workspace = true, default-features = false }
 num_cpus = { workspace = true }
 tokio-test = { workspace = true }
 proptest = { workspace = true }
-rand = { workspace = true }
 
 [[bench]]
 name = "spatial_benchmarks"

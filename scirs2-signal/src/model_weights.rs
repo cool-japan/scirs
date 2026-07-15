@@ -433,8 +433,9 @@ mod tests {
 
     #[test]
     fn test_load_nonexistent_file_returns_error() {
-        let result =
-            SignalWeightStore::load("/tmp/no_such_file_xyzzy.ox", SignalWeightFormat::Oxicode);
+        let path = tmp_path("no_such_file_xyzzy.ox");
+        let path_str = path.to_str().expect("UTF-8");
+        let result = SignalWeightStore::load(path_str, SignalWeightFormat::Oxicode);
         assert!(result.is_err(), "should fail on missing file");
     }
 

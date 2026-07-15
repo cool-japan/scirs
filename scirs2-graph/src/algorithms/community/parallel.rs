@@ -31,6 +31,7 @@ use scirs2_core::parallel_ops::*;
 /// O(n + t) where t is the number of threads, for storing community assignments
 /// and thread-local data structures for parallel processing.
 #[deprecated(
+    since = "0.1.0",
     note = "Use `parallel_louvain_communities_result` instead for standardized community detection API"
 )]
 #[allow(dead_code)]
