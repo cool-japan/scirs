@@ -12,7 +12,7 @@
 //! - CSV (with configurable delimiter/header)
 //! - Arrow IPC (columnar binary)
 //! - NetCDF Classic (via `netcdf_lite`)
-//! - HDF5 lite (pure Rust reader)
+//! - HDF5 (pure Rust, via `oxih5`)
 //! - NPY/NPZ (NumPy binary)
 //! - Matrix Market (sparse/dense)
 //! - JSON (array of objects)
@@ -797,77 +797,222 @@ fn read_mtx_to_table(path: &Path, opts: &ReadOptions) -> Result<DataTable> {
     Ok(table)
 }
 
-/// Read HDF5 (lite) into DataTable
+/// Read HDF5 into a [`DataTable`], one column per dataset.
+///
+/// Backed by [`oxih5`], the pure-Rust HDF5 implementation. This reaches strictly
+/// further than the `hdf5_lite` reader it replaces: superblock v2/v3, version-2
+/// B-trees, fractal heaps, new-style link-message groups, extensible/fixed array
+/// chunk indices and szip-compressed datasets all resolve here, where the old
+/// reader reported a format error.
+///
+/// Enumeration errors propagate; a dataset that lists but cannot be decoded is
+/// skipped, so one unreadable dataset does not lose the rest of the file. That
+/// split matches the old `list_all()?` / `if let Ok(dataset)` behaviour.
 fn read_hdf5_to_table(path: &Path, opts: &ReadOptions) -> Result<DataTable> {
-    let reader = crate::hdf5_lite::Hdf5Reader::open(path)?;
+    let file = oxih5::File::open(path)
+        .map_err(|e| IoError::FormatError(format!("Failed to open HDF5 file: {e}")))?;
 
     let mut table = DataTable::new(DataFormat::Hdf5);
     table.set_metadata("source_file", &path.display().to_string());
-    table.set_metadata(
-        "superblock_version",
-        &reader.superblock().version.to_string(),
-    );
+    let info = file
+        .info()
+        .map_err(|e| IoError::FormatError(format!("Failed to read HDF5 superblock: {e}")))?;
+    table.set_metadata("superblock_version", &info.superblock_version.to_string());
 
-    // If a specific dataset is requested, read just that
+    // If a specific dataset is requested, read just that.
     if let Some(ref ds_path) = opts.hdf5_dataset {
-        let dataset = reader.read_dataset(ds_path)?;
-        let col = hdf5_value_to_column(&dataset.data);
-        table.add_column(&dataset.name, col);
+        let dataset = file.dataset(ds_path).map_err(|e| {
+            IoError::FormatError(format!("Failed to read dataset '{ds_path}': {e}"))
+        })?;
+        // The leaf name, matching what the previous reader put in `Hdf5Dataset::name`.
+        // Empty segments are filtered so a trailing slash does not yield "".
+        let name = ds_path
+            .split('/')
+            .rfind(|s| !s.is_empty())
+            .unwrap_or(ds_path)
+            .to_string();
+        table.add_column(&name, hdf5_dataset_to_column(&file, ds_path, &dataset)?);
         table.set_metadata("dataset_path", ds_path);
         table.set_metadata("shape", &format!("{:?}", dataset.shape));
 
-        for (key, attr) in &dataset.attributes {
-            let attr_str = match &attr.value {
-                crate::hdf5_lite::Hdf5Value::Strings(s) => s.join(", "),
-                v => format!("{:?}", v),
-            };
-            table.set_metadata(&format!("attr_{key}"), &attr_str);
+        let views = file.attr_views(ds_path).map_err(|e| {
+            IoError::FormatError(format!(
+                "Failed to read attributes of dataset '{ds_path}': {e}"
+            ))
+        })?;
+        for view in &views {
+            table.set_metadata(
+                &format!("attr_{}", view.name()),
+                &hdf5_attr_to_string(view, ds_path),
+            );
         }
         return Ok(table);
     }
 
-    // Otherwise, list all datasets and read each
-    let nodes = reader.list_all()?;
-    for node in &nodes {
-        if node.node_type == crate::hdf5_lite::Hdf5NodeType::Dataset {
-            if let Ok(dataset) = reader.read_dataset(&node.path) {
-                let col = hdf5_value_to_column(&dataset.data);
-                table.add_column(&node.path, col);
-            }
-        }
-    }
+    // Otherwise walk the whole tree and read every dataset.
+    //
+    // Explicit recursion rather than `File::walk`: `walk` swallows the error
+    // from descending into an unreadable sub-group, which would silently yield
+    // a partial table with nothing to say so.
+    let root = file
+        .root()
+        .map_err(|e| IoError::FormatError(format!("Failed to open HDF5 root group: {e}")))?;
+    collect_hdf5_datasets(&file, &root, "", &mut table)?;
 
     Ok(table)
 }
 
-/// Convert HDF5 value to DataColumn
-fn hdf5_value_to_column(value: &crate::hdf5_lite::Hdf5Value) -> DataColumn {
-    match value {
-        crate::hdf5_lite::Hdf5Value::Int8(v) => {
-            DataColumn::Int32(v.iter().map(|x| *x as i32).collect())
+/// Add every dataset at or below `group` to `table`, keyed by full path.
+fn collect_hdf5_datasets(
+    file: &oxih5::File,
+    group: &oxih5::Group,
+    prefix: &str,
+    table: &mut DataTable,
+) -> Result<()> {
+    let names = group.datasets().map_err(|e| {
+        IoError::FormatError(format!("Failed to list datasets of '{prefix}/': {e}"))
+    })?;
+    for name in names {
+        let full_path = format!("{prefix}/{name}");
+        // A dataset whose datatype has no column representation is skipped
+        // rather than failing the whole read.
+        if let Ok(dataset) = group.dataset(&name) {
+            if let Ok(col) = hdf5_dataset_to_column(file, &full_path, &dataset) {
+                table.add_column(&full_path, col);
+            }
         }
-        crate::hdf5_lite::Hdf5Value::Int16(v) => {
-            DataColumn::Int32(v.iter().map(|x| *x as i32).collect())
-        }
-        crate::hdf5_lite::Hdf5Value::Int32(v) => DataColumn::Int32(v.clone()),
-        crate::hdf5_lite::Hdf5Value::Int64(v) => DataColumn::Int64(v.clone()),
-        crate::hdf5_lite::Hdf5Value::UInt8(v) => {
-            DataColumn::Int32(v.iter().map(|x| *x as i32).collect())
-        }
-        crate::hdf5_lite::Hdf5Value::UInt16(v) => {
-            DataColumn::Int32(v.iter().map(|x| *x as i32).collect())
-        }
-        crate::hdf5_lite::Hdf5Value::UInt32(v) => {
-            DataColumn::Int64(v.iter().map(|x| *x as i64).collect())
-        }
-        crate::hdf5_lite::Hdf5Value::UInt64(v) => {
-            DataColumn::Int64(v.iter().map(|x| *x as i64).collect())
-        }
-        crate::hdf5_lite::Hdf5Value::Float32(v) => DataColumn::Float32(v.clone()),
-        crate::hdf5_lite::Hdf5Value::Float64(v) => DataColumn::Float64(v.clone()),
-        crate::hdf5_lite::Hdf5Value::Strings(v) => DataColumn::String(v.clone()),
-        crate::hdf5_lite::Hdf5Value::Raw(v) => DataColumn::Bytes(vec![v.clone()]),
     }
+
+    let group_names = group
+        .groups()
+        .map_err(|e| IoError::FormatError(format!("Failed to list groups of '{prefix}/': {e}")))?;
+    for name in group_names {
+        let full_path = format!("{prefix}/{name}");
+        let child = group.group(&name).map_err(|e| {
+            IoError::FormatError(format!("Failed to open group '{full_path}': {e}"))
+        })?;
+        collect_hdf5_datasets(file, &child, &full_path, table)?;
+    }
+
+    Ok(())
+}
+
+/// Convert one oxih5 dataset into a [`DataColumn`].
+///
+/// Numeric payloads route through the widening helpers in [`crate::hdf5::convert`]
+/// rather than oxih5's accessors directly: `Dataset::as_f64` matches only
+/// `Float { size: 8 }`, so calling it here would narrow the universal reader to
+/// f64-only datasets. The column width chosen for each datatype reproduces what
+/// the `hdf5_lite` reader produced, so existing `DataColumn` matches keep working:
+/// 1/2/4-byte signed and 1/2-byte unsigned integers become `Int32`, wider
+/// integers `Int64`, f16/f32 become `Float32` and f64 `Float64`.
+fn hdf5_dataset_to_column(
+    file: &oxih5::File,
+    path: &str,
+    dataset: &oxih5::Dataset,
+) -> Result<DataColumn> {
+    use crate::hdf5::convert::{dataset_to_f64, dataset_to_i64, is_floating, is_integral};
+    use oxih5::Dtype;
+
+    match &dataset.dtype {
+        // `dataset_strings` handles fixed-length *and* variable-length strings;
+        // `Dataset::as_string` returns NotImplemented for vlen, whose elements
+        // are global-heap references that need the file bytes to resolve.
+        Dtype::String { .. } => {
+            let strings = file.dataset_strings(path).map_err(|e| {
+                IoError::FormatError(format!("Failed to read string dataset '{path}': {e}"))
+            })?;
+            Ok(DataColumn::String(strings))
+        }
+        dtype if is_floating(dtype) => {
+            let values = dataset_to_f64(dataset)?;
+            if matches!(dtype, Dtype::Float { size: 8, .. }) {
+                Ok(DataColumn::Float64(values))
+            } else {
+                // f16 and f32 are both exactly representable in f32.
+                Ok(DataColumn::Float32(
+                    values.into_iter().map(|v| v as f32).collect(),
+                ))
+            }
+        }
+        dtype if is_integral(dtype) => {
+            let values = dataset_to_i64(dataset)?;
+            if hdf5_fits_i32(dtype) {
+                // The source width guarantees every value fits, so this narrowing
+                // is lossless.
+                Ok(DataColumn::Int32(
+                    values.into_iter().map(|v| v as i32).collect(),
+                ))
+            } else {
+                Ok(DataColumn::Int64(values))
+            }
+        }
+        // Compounds, arrays, opaque blobs and references have no column
+        // representation; their bytes are kept verbatim, as `Hdf5Value::Raw` was.
+        _ => Ok(DataColumn::Bytes(vec![dataset.data.clone()])),
+    }
+}
+
+/// Whether every value of `dtype` is representable in `i32`.
+///
+/// Mirrors the width mapping the `hdf5_lite` reader used, so column types do not
+/// change under the migration. `Enum` and `Bitfield` follow their integer base.
+fn hdf5_fits_i32(dtype: &oxih5::Dtype) -> bool {
+    use oxih5::Dtype;
+    match dtype {
+        Dtype::Int { size, signed, .. } => {
+            if *signed {
+                matches!(size, 1 | 2 | 4)
+            } else {
+                matches!(size, 1 | 2)
+            }
+        }
+        Dtype::Bitfield { size, .. } => matches!(size, 1 | 2),
+        Dtype::Enum { base, .. } => hdf5_fits_i32(base),
+        _ => false,
+    }
+}
+
+/// Render an attribute as the metadata string the table exposes.
+///
+/// Strings join with ", ", exactly as the `hdf5_lite` path did. Numeric values
+/// previously fell through to a `{:?}` of the typed value enum, which printed
+/// Rust syntax such as `Float64([1.0, 2.0])`; they now render as plain
+/// comma-separated values. Array-valued attributes keep their contents rather
+/// than collapsing to a type name — only datatypes with no numeric or textual
+/// reading at all (compounds, references, opaque blobs) fall back to that.
+fn hdf5_attr_to_string(view: &oxih5::AttrView<'_>, path: &str) -> String {
+    use crate::hdf5::convert::{dataset_to_f64, dataset_to_i64, is_floating, is_integral};
+
+    if let Ok(strings) = view.as_strings() {
+        return strings.join(", ");
+    }
+
+    // Scalars decode straight off the view; arrays need the payload re-presented
+    // as a dataset so the widening decoders apply to every element.
+    let dtype = view.dtype();
+    let decoded = if is_floating(dtype) {
+        crate::hdf5::HDF5File::attribute_as_dataset(view, path)
+            .and_then(|ds| dataset_to_f64(&ds))
+            .map(|v| join_display(&v))
+    } else if is_integral(dtype) {
+        crate::hdf5::HDF5File::attribute_as_dataset(view, path)
+            .and_then(|ds| dataset_to_i64(&ds))
+            .map(|v| join_display(&v))
+    } else {
+        return format!("<{dtype}>");
+    };
+
+    decoded.unwrap_or_else(|_| format!("<{dtype}>"))
+}
+
+/// Render values as a comma-separated list.
+fn join_display<T: std::fmt::Display>(values: &[T]) -> String {
+    values
+        .iter()
+        .map(T::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// Read NetCDF into DataTable

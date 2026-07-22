@@ -189,33 +189,191 @@ impl Default for NumaTopology {
 }
 
 impl NumaTopology {
-    /// Detect NUMA topology
+    /// Detect the NUMA topology of the running system.
+    ///
+    /// On Linux the node count, per-node core counts, per-node memory size and
+    /// the inter-node distance matrix are all read from
+    /// `/sys/devices/system/node/`. The distance matrix comes from the
+    /// firmware-provided ACPI SLIT table exposed as `node<N>/distance`, so it
+    /// reflects the real relative access costs of the machine rather than an
+    /// assumed local/remote split.
+    ///
+    /// When the topology cannot be read (non-Linux platforms, a kernel built
+    /// without `CONFIG_NUMA`, or a sandbox without `sysfs`), a single-node
+    /// fallback derived from the available parallelism is returned instead of
+    /// an invented multi-node layout.
     pub fn detect() -> Self {
-        // In a real implementation, this would query the system for NUMA information
-        // using libraries like hwloc or reading /sys/devices/system/node/
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(topology) = Self::detect_linux() {
+                return topology;
+            }
+        }
 
-        let num_cpus = thread::available_parallelism()
+        Self::single_node_fallback()
+    }
+
+    /// Single-node fallback derived from available parallelism. This does not
+    /// fabricate a NUMA layout; it honestly reports one node spanning all
+    /// detected logical CPUs. Memory size is reported as `0` because it is not
+    /// knowable here rather than being guessed.
+    fn single_node_fallback() -> Self {
+        let logical_cpus = thread::available_parallelism()
             .map(|n| n.get())
-            .unwrap_or(4);
-        let num_nodes = (num_cpus / 8).max(1); // Estimate: 8 cores per NUMA node
+            .unwrap_or(1)
+            .max(1);
 
         Self {
-            num_nodes,
-            cores_per_node: vec![num_cpus / num_nodes; num_nodes],
-            memory_per_node: vec![1024 * 1024 * 1024; num_nodes], // 1GB per node (estimate)
-            distance_matrix: Self::create_default_distance_matrix(num_nodes),
+            num_nodes: 1,
+            cores_per_node: vec![logical_cpus],
+            memory_per_node: vec![0], // unknown: not measured
+            distance_matrix: Self::create_default_distance_matrix(1),
         }
     }
 
+    /// Read the NUMA topology from Linux `sysfs`.
+    ///
+    /// Returns `None` when `/sys/devices/system/node/` is unreadable or exposes
+    /// no `node<N>` directories, so that the caller can fall back to the honest
+    /// single-node layout.
+    #[cfg(target_os = "linux")]
+    fn detect_linux() -> Option<Self> {
+        let node_root = std::path::Path::new("/sys/devices/system/node");
+        let entries = std::fs::read_dir(node_root).ok()?;
+
+        // Collect node ids from directories named `node<N>`.
+        let mut node_ids: Vec<usize> = entries
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| {
+                let name = entry.file_name();
+                let name = name.to_str()?;
+                name.strip_prefix("node")
+                    .and_then(|suffix| suffix.parse::<usize>().ok())
+            })
+            .collect();
+        node_ids.sort_unstable();
+
+        if node_ids.is_empty() {
+            return None;
+        }
+
+        let num_nodes = node_ids.len();
+        let mut cores_per_node = Vec::with_capacity(num_nodes);
+        let mut memory_per_node = Vec::with_capacity(num_nodes);
+
+        for &node_id in &node_ids {
+            // `cpulist` is a compact range list such as `"0-15"` or `"0-3,8-11"`.
+            // Clamp to at least one core: `optimal_threads_per_node` hands this
+            // value straight back as a thread count, and a zero-sized node
+            // would be a degenerate answer if the read ever failed.
+            let cpulist_path = node_root.join(format!("node{node_id}/cpulist"));
+            let core_count = std::fs::read_to_string(&cpulist_path)
+                .ok()
+                .map(|list| Self::count_cpus_in_list(list.trim()))
+                .unwrap_or(0)
+                .max(1);
+            cores_per_node.push(core_count);
+
+            // `MemTotal:` in the per-node meminfo is reported in kibibytes,
+            // while this struct stores bytes.
+            let meminfo_path = node_root.join(format!("node{node_id}/meminfo"));
+            let memory_bytes = std::fs::read_to_string(&meminfo_path)
+                .ok()
+                .and_then(|content| {
+                    content.lines().find_map(|line| {
+                        if line.contains("MemTotal:") {
+                            line.split_whitespace()
+                                .rev()
+                                .nth(1)
+                                .and_then(|kib| kib.parse::<usize>().ok())
+                                .map(|kib| kib.saturating_mul(1024))
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .unwrap_or(0); // unknown: not reported by the kernel
+            memory_per_node.push(memory_bytes);
+        }
+
+        let distance_matrix = Self::read_distance_matrix(node_root, &node_ids)
+            .unwrap_or_else(|| Self::create_default_distance_matrix(num_nodes));
+
+        Some(Self {
+            num_nodes,
+            cores_per_node,
+            memory_per_node,
+            distance_matrix,
+        })
+    }
+
+    /// Read the firmware ACPI SLIT distances from `node<N>/distance`.
+    ///
+    /// Each file holds one whitespace-separated `u32` per node in node-id
+    /// order, where `10` conventionally denotes local access. Returns `None`
+    /// if any row is unreadable, unparsable, or does not have exactly one entry
+    /// per detected node (which happens when offline nodes make the ids
+    /// non-contiguous), letting the caller fall back to the synthetic matrix.
+    #[cfg(target_os = "linux")]
+    fn read_distance_matrix(
+        node_root: &std::path::Path,
+        node_ids: &[usize],
+    ) -> Option<Vec<Vec<u32>>> {
+        let num_nodes = node_ids.len();
+        let mut matrix = Vec::with_capacity(num_nodes);
+
+        for &node_id in node_ids {
+            let distance_path = node_root.join(format!("node{node_id}/distance"));
+            let contents = std::fs::read_to_string(&distance_path).ok()?;
+            let row: Vec<u32> = contents
+                .split_whitespace()
+                .map(|value| value.parse::<u32>().ok())
+                .collect::<Option<Vec<u32>>>()?;
+
+            if row.len() != num_nodes {
+                return None;
+            }
+            matrix.push(row);
+        }
+
+        Some(matrix)
+    }
+
+    /// Count the CPUs described by a Linux cpulist string such as
+    /// `"0-3,8,10-11"`.
+    #[cfg(target_os = "linux")]
+    fn count_cpus_in_list(list: &str) -> usize {
+        if list.is_empty() {
+            return 0;
+        }
+
+        let mut count = 0usize;
+        for part in list.split(',') {
+            if let Some((start, end)) = part.split_once('-') {
+                if let (Ok(start), Ok(end)) = (start.parse::<usize>(), end.parse::<usize>()) {
+                    if end >= start {
+                        count += end - start + 1;
+                    }
+                }
+            } else if part.parse::<usize>().is_ok() {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Synthetic distance matrix used only when the real ACPI SLIT values are
+    /// unavailable. The `10` local / `20` remote pair mirrors the conventional
+    /// SLIT encoding and is an estimate, not a measurement.
     #[allow(clippy::needless_range_loop)]
-    fn create_default_distance_matrix(_numnodes: usize) -> Vec<Vec<u32>> {
-        let mut matrix = vec![vec![0; _numnodes]; _numnodes];
-        for i in 0.._numnodes {
-            for j in 0.._numnodes {
+    fn create_default_distance_matrix(num_nodes: usize) -> Vec<Vec<u32>> {
+        let mut matrix = vec![vec![0; num_nodes]; num_nodes];
+        for i in 0..num_nodes {
+            for j in 0..num_nodes {
                 if i == j {
-                    matrix[i][j] = 10; // Local access cost
+                    matrix[i][j] = 10; // Local access cost (estimate)
                 } else {
-                    matrix[i][j] = 20; // Remote access cost
+                    matrix[i][j] = 20; // Remote access cost (estimate)
                 }
             }
         }
@@ -1513,7 +1671,12 @@ mod tests {
         let processor = processor.expect("Operation failed");
         let stats = processor.statistics();
         assert_eq!(stats.num_threads, 1);
-        assert_eq!(stats.numa_nodes, 1);
+
+        // The node count is hardware dependent (1 on a single-socket desktop,
+        // more on a multi-socket server), so assert the real invariant: the
+        // pool reports a usable node count matching detected topology.
+        assert!(stats.numa_nodes > 0);
+        assert_eq!(stats.numa_nodes, NumaTopology::detect().num_nodes);
     }
 
     #[test]

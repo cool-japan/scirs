@@ -22,7 +22,7 @@ Use scirs2-spatial when you need to:
 - Plan paths in continuous space (A*, RRT)
 - Apply 3D transformations (quaternions, rigid transforms, SLERP)
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Spatial Data Structures
 - **KD-Tree**: Efficient k-nearest neighbor and radius search in any dimension
@@ -119,14 +119,14 @@ Use scirs2-spatial when you need to:
 
 ```toml
 [dependencies]
-scirs2-spatial = "0.6.1"
+scirs2-spatial = "0.6.2"
 ```
 
 For parallel processing:
 
 ```toml
 [dependencies]
-scirs2-spatial = { version = "0.6.1", features = ["parallel"] }
+scirs2-spatial = { version = "0.6.2", features = ["parallel"] }
 ```
 
 ## Quick Start

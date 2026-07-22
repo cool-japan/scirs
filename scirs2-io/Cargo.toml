@@ -17,8 +17,8 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.cargo-machete]
-# kamadak-exif's lib name is `exif` (machete misses the rename); oxih5-* are staged noffi-migration placeholders
-ignored = ["kamadak-exif", "oxih5-core", "oxih5-format"]
+# kamadak-exif's lib name is `exif` (machete misses the rename)
+ignored = ["kamadak-exif"]
 
 
 [dependencies]
@@ -43,10 +43,10 @@ tempfile = { workspace = true }
 regex = { workspace = true }
 netcdf3 = { workspace = true }
 kamadak-exif = { workspace = true, optional = true }
-hdf5 = { workspace = true, optional = true }
-# Pure-Rust HDF5 reader (noffi migration; read-only at M1)
-oxih5-core = { workspace = true, optional = true }
-oxih5-format = { workspace = true, optional = true }
+# Pure-Rust HDF5 (COOLJAPAN Pure Rust Policy). Non-optional: HDF5 support is
+# unconditional now that no C library is linked.
+oxih5 = { workspace = true }
+oxih5-core = { workspace = true }
 # rayon = { workspace = true }  # Now use scirs2-core parallel abstractions
 thiserror = { workspace = true }
 tokio = { workspace = true, optional = true, features = ["fs", "io-util", "time", "rt", "rt-multi-thread"] }
@@ -57,6 +57,12 @@ async-trait = { workspace = true, optional = true }
 memmap2 = { workspace = true }
 bytemuck = { workspace = true }
 reqwest = { workspace = true, optional = true }
+# Pure-Rust rustls CryptoProvider (OxiTLS, `oxitls-rustcrypto-provider` resolved under the
+# `rustls-rustcrypto` name -- see the "PURE RUST BLOCKER (reqwest)" note in the workspace root
+# Cargo.toml). Installed as the process-default provider by src/tls.rs right before every eager
+# reqwest client construction, unless the application already installed a provider of its own.
+rustls = { workspace = true, optional = true }
+rustls-rustcrypto = { workspace = true, optional = true }
 num_cpus = { workspace = true }
 statrs = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
@@ -94,12 +100,13 @@ csv = []
 # Default compression uses 100% Pure Rust libraries (COOLJAPAN Policy)
 compression = []
 validation = []
-hdf5 = ["dep:hdf5", "dep:oxih5-core", "dep:oxih5-format"]
-# Keep the C-linked hdf5 crate available for write paths until oxih5 write support ships (M2+)
-hdf5-legacy = ["dep:hdf5"]
+# No-op alias. HDF5 support is now unconditional (pure-Rust oxih5, no C library),
+# so this gates nothing. Retained for one release so downstream manifests that list
+# `features = ["hdf5"]` keep resolving; remove in the release after this one.
+hdf5 = []
 parquet = ["dep:parquet", "dep:arrow"]
 async = ["dep:tokio", "dep:futures", "dep:futures-util", "dep:async-trait"]
-reqwest = ["dep:reqwest", "dep:log"]
+reqwest = ["dep:reqwest", "dep:log", "dep:rustls", "dep:rustls-rustcrypto", "async"]  # HTTP client; pulls `async` because HttpClient/NetworkClient download/upload are async fns gated on the async feature (reqwest alone fails to compile: E0599 on HttpClient::download/upload); rustls + rustls-rustcrypto: OxiTLS provider auto-installed by src/tls.rs
 aws-sdk-s3 = []
 google-cloud-storage = []
 azure-storage-blobs = []
@@ -127,7 +134,6 @@ all = ["csv", "compression", "validation", "image_io", "hdf5", "async", "reqwest
 [[example]]
 name = "hdf5_example"
 path = "examples/hdf5_example.rs"
-required-features = ["hdf5"]
 
 [[example]]
 name = "async_io_example"

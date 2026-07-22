@@ -1,6 +1,8 @@
 # scirs2-datasets TODO
 
-## Status: v0.3.4 Released (March 18, 2026) — v0.6.1 Released (2026-07-15)
+## Status: v0.3.4 Released (March 18, 2026) — v0.6.2 Released (2026-07-22)
+
+**0.6.2**: `hdf5_dataset.rs` now reads through the new oxih5-backed HDF5 module (see scirs2-io's `[0.6.2]` CHANGELOG entry for the underlying backend change) instead of the old `hdf5_lite`/C-`hdf5` paths. New `tls.rs` installs the pure-Rust `oxitls-rustcrypto-provider` TLS crypto provider before this crate's HTTP/HTTPS requests (`ExternalClient`, cache downloads) — needed because the workspace `reqwest`/`ureq` dependencies now build with `rustls-no-provider` instead of the C `aws-lc-rs`/`ring` backends.
 
 `AdvancedGpuOptimizer` now performs real wgpu/GpuNdarray GPU dispatch instead of a simulated mock (`BenchmarkResult.gpu_time_ms`/`.speedup` are now `Option<f64>` — `None` whenever no real GPU dispatch ran, never a fabricated number; regression-tested by `test_benchmark_performance_reports_real_measurements_not_fabricated_speedup` in `src/gpu_optimization.rs`).
 

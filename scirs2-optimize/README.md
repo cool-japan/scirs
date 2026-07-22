@@ -8,7 +8,7 @@
 
 `scirs2-optimize` is a production-ready, pure-Rust optimization library providing classical numerical methods through state-of-the-art algorithms: mixed-integer programming, semidefinite and conic programming, NSGA-III multi-objective optimization, stochastic gradient methods with variance reduction, Bayesian optimization (constrained, multi-fidelity, transfer, warm-start), game-theoretic formulations, bilevel optimization, and combinatorial solvers.
 
-**Status: Stable.** 2003/2003 tests passing with default features; 2037/2037 passing with `--all-features` (both measured 2026-07-15). Zero `todo!()`/`unimplemented!()` stubs in the source tree.
+**Status: Stable.** 2003/2003 tests passing with default features; 2037/2037 passing with `--all-features` (both measured 2026-07-22). Zero `todo!()`/`unimplemented!()` stubs in the source tree.
 
 ---
 
@@ -25,7 +25,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ---
 
-## Feature List (v0.6.1)
+## Feature List (v0.6.2)
 
 ### Unconstrained Optimization
 - Nelder-Mead simplex with adaptive parameter selection
@@ -182,7 +182,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.6.1"
+scirs2-optimize = "0.6.2"
 ```
 
 ### Unconstrained Minimisation (BFGS)
@@ -368,7 +368,7 @@ println!("Nash equilibrium: row={:?}, col={:?}", nash.strategy_row, nash.strateg
 | `symbolic` | Symbolic Newton (exact gradient/Hessian via `scirs2-symbolic`), Lagrangian/KKT, L-BFGS symbolic, trust-region symbolic |
 | `unconstrained` (`wgpu` feature) | GPU-accelerated dispatch for CG / Newton-CG / L-BFGS via `GpuNdarray`, internal to the existing solvers (see Feature Flags) |
 
-### Symbolic and GPU Optimizers (v0.6.1)
+### Symbolic and GPU Optimizers (v0.6.2)
 
 | Path | Description |
 |---|---|

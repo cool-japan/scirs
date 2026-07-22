@@ -44,7 +44,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-special = "0.6.1"
+//! scirs2-special = "0.6.2"
 //! ```
 //!
 //!
@@ -96,8 +96,8 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.6.1
-//! - **Release Date**: March 27, 2026
+//! - **Version**: 0.6.2
+//! - **Release Date**: July 16, 2026
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
 
 // Export error types

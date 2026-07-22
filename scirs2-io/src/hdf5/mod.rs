@@ -15,28 +15,36 @@
 //! - Extended data type support including complex numbers and boolean types
 //! - Performance optimizations for large datasets
 //!
-//! # noffi migration status
+//! # Backend
 //!
-//! TODO(noffi-migration): Replace `hdf5` with `oxih5-core` / `oxih5-format` (Pure Rust HDF5).
+//! This module is backed by [`oxih5`], a pure-Rust HDF5 implementation — no
+//! `libhdf5`, no C toolchain, no `-sys` crate (COOLJAPAN Pure Rust Policy).
+//! HDF5 support is therefore unconditional; the `hdf5` Cargo feature is a
+//! retained no-op alias and gates nothing.
 //!
-//! **Read operations** can map to the `oxih5` API:
-//! - `hdf5::File::open(path)` → `oxih5::File::open(path)` (returns `oxih5::File`)
-//! - `file.dataset(name)` → `file.dataset(name)` (returns `oxih5_core::Dataset`)
-//! - `Dataset::read_raw::<T>()` → `Dataset.data` field (pre-typed `Vec<T>`)
-//! - Attribute reads → `Dataset.attributes` field (`Vec<oxih5_core::Attribute>`)
+//! Numeric reads are routed through the widening helpers in the private
+//! `convert` submodule, which reproduce the implicit conversion the C crate
+//! performed inside `Dataset::read_raw::<T>()`. oxih5's own accessors match one
+//! exact datatype each, so calling them directly would restrict SciRS2 to
+//! reading only datasets already stored in the requested type.
 //!
-//! **Blockers for full migration (remaining after M1):**
-//! - `file.datasets()` / `file.groups()` tree enumeration: oxih5 exposes `file.root()?`
-//!   then `Group::datasets()` / `Group::groups()`, but the internal `Group` type in oxih5
-//!   uses a different traversal model — needs adapter code.
-//! - `TypeDescriptor` / `Datatype::from_descriptor`: oxih5 uses `oxih5_core::Dtype` enum
-//!   instead. The `convert_hdf5_datatype` and `read_dataset_data` helpers need rewriting
-//!   against `Dtype` variants.
-//! - `hdf5::types::VarLenUnicode` / `VarLenAscii`: no equivalent in oxih5 (pure byte slices).
-//! - **Write operations** (`File::create`, `new_dataset`, `new_attr`, `write_raw`, etc.):
-//!   oxih5 is read-only at M1. Keep under `#[cfg(feature = "hdf5")]` until M2+ ships.
-//!   See `~/work/noffi/oxih5/` for reference API.
+//! ## Writer limitations
+//!
+//! Groups nest to any depth, attributes attach to groups and datasets alike,
+//! and scalar and array attributes are both supported. Two gaps remain:
+//!
+//! - **Multi-dimensional string datasets.** [`HDF5File`](crate::hdf5::HDF5File)`::write` returns
+//!   [`crate::error::IoError::UnsupportedFormat`] naming the dataset; oxih5 lays
+//!   variable-length strings out along a single axis.
+//! - **Compression.** [`DatasetOptions`](crate::hdf5::DatasetOptions) is recorded but not applied — oxih5's
+//!   writer emits contiguous, uncompressed storage. This predates the migration;
+//!   the C-backed writer ignored these options too. See the `enhanced` module
+//!   for the compression-aware paths.
 
+// `pub(crate)` rather than private: `crate::universal_reader` reads HDF5 through
+// the same widening helpers, and duplicating them there would let the two paths
+// drift apart on which datatypes they accept.
+pub(crate) mod convert;
 pub mod functions;
 pub mod types;
 pub mod types_2;

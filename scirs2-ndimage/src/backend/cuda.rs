@@ -2,17 +2,38 @@
 //!
 //! This module provides CUDA-specific implementations for GPU-accelerated
 //! image processing operations.
-
-// Allow unused unsafe blocks for CUDA fallback functions
-#![allow(unused_unsafe)]
+//!
+//! # Pure-Rust / zero build-time CUDA SDK dependency (COOLJAPAN policy)
+//!
+//! No CUDA SDK, headers, or link stubs are required to **build** this crate.
+//! The CUDA driver, device memory, and kernel-launch operations are provided by
+//! the pure-Rust `oxicuda` ecosystem (`oxicuda-driver`, `oxicuda-memory`), which
+//! loads `libcuda` at **runtime** via `dlopen`. There is no `#[link]`
+//! attribute and no `build.rs`.
+//!
+//! CUDA-C kernel JIT compilation (the historical NVRTC path) is provided by the
+//! pure-Rust `oxicuda-nvrtc` crate: [`compile_kernel`](CudaContext::compile_kernel)
+//! resolves the NVRTC runtime library (`libnvrtc`) lazily at process runtime via
+//! `dlopen` — zero build-time CUDA SDK, no `#[link]` attribute, no `build.rs`,
+//! and no `-lnvrtc`. When neither a CUDA driver nor `libnvrtc` is present (as on
+//! a CUDA-less host) every entry point degrades to a typed [`NdimageError`]
+//! rather than panicking, including in every `Drop` (device resources are
+//! RAII-managed by `oxicuda` and log rather than panic on failure).
 
 use crate::backend::kernels::{GpuBuffer, GpuKernelExecutor, KernelInfo};
 use crate::error::{NdimageError, NdimageResult};
-use scirs2_core::ndarray::{Array, ArrayView2, Dimension};
+use scirs2_core::ndarray::{Array, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
-use std::ffi::{c_char, c_void, CStr, CString};
+use std::ffi::c_void;
 use std::fmt::Debug;
+use std::marker::PhantomData;
+use std::sync::{Arc, Mutex};
+
+use oxicuda_driver::ffi::{CUdeviceptr, CUstream};
+use oxicuda_driver::loader::try_driver;
+use oxicuda_driver::{Context, Device, Function, Module};
+use oxicuda_memory::DeviceBuffer;
 
 /// GPU context trait for different GPU backends
 pub trait GpuContext: Send + Sync {
@@ -22,406 +43,67 @@ pub trait GpuContext: Send + Sync {
     fn memory_info(&self) -> (usize, usize); // (used, total)
 }
 
-use std::ptr;
-use std::sync::{Arc, Mutex};
-
-// CUDA FFI bindings - only link on supported platforms with CUDA feature
-#[cfg(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-))]
-#[link(name = "cuda")]
-#[link(name = "cudart")]
-#[link(name = "nvrtc")]
-extern "C" {
-    // CUDA Runtime API
-    fn cudaMalloc(devPtr: *mut *mut c_void, size: usize) -> i32;
-    fn cudaFree(devPtr: *mut c_void) -> i32;
-    fn cudaMemcpy(dst: *mut c_void, src: *const c_void, count: usize, kind: i32) -> i32;
-    fn cudaMemcpyAsync(
-        dst: *mut c_void,
-        src: *const c_void,
-        count: usize,
-        kind: i32,
-        stream: *mut c_void,
-    ) -> i32;
-    fn cudaGetDeviceCount(count: *mut i32) -> i32;
-    fn cudaSetDevice(device: i32) -> i32;
-    fn cudaGetDevice(device: *mut i32) -> i32;
-    fn cudaMemGetInfo(free: *mut usize, total: *mut usize) -> i32;
-    fn cudaStreamCreate(stream: *mut *mut c_void) -> i32;
-    fn cudaStreamDestroy(stream: *mut c_void) -> i32;
-    fn cudaStreamSynchronize(stream: *mut c_void) -> i32;
-    fn cudaDeviceSynchronize() -> i32;
-    fn cudaGetLastError() -> i32;
-    fn cudaGetErrorString(error: i32) -> *const c_char;
-
-    // CUDA Driver API for kernel launch
-    fn cuModuleLoadData(module: *mut *mut c_void, image: *const c_void) -> i32;
-    fn cuModuleGetFunction(hfunc: *mut *mut c_void, hmod: *mut c_void, name: *const c_char) -> i32;
-    fn cuLaunchKernel(
-        f: *mut c_void,
-        grid_dim_x: u32,
-        grid_dim_y: u32,
-        grid_dim_z: u32,
-        block_dim_x: u32,
-        block_dim_y: u32,
-        block_dim_z: u32,
-        shared_mem_bytes: u32,
-        stream: *mut c_void,
-        kernel_params: *mut *mut c_void,
-        extra: *mut *mut c_void,
-    ) -> i32;
-
-    // NVRTC API for runtime compilation
-    fn nvrtcCreateProgram(
-        prog: *mut *mut c_void,
-        src: *const c_char,
-        name: *const c_char,
-        num_headers: i32,
-        headers: *const *const c_char,
-        include_names: *const *const c_char,
-    ) -> i32;
-    fn nvrtcDestroyProgram(prog: *mut *mut c_void) -> i32;
-    fn nvrtcCompileProgram(
-        prog: *mut c_void,
-        num_options: i32,
-        options: *const *const c_char,
-    ) -> i32;
-    fn nvrtcGetPTXSize(_prog: *mut c_void, ptxsize: *mut usize) -> i32;
-    fn nvrtcGetPTX(prog: *mut c_void, ptx: *mut c_char) -> i32;
-    fn nvrtcGetProgramLogSize(_prog: *mut c_void, logsize: *mut usize) -> i32;
-    fn nvrtcGetProgramLog(prog: *mut c_void, log: *mut c_char) -> i32;
+/// Map an `oxicuda` CUDA driver error into an [`NdimageError`].
+fn cuda_err(context: &str, error: oxicuda_driver::CudaError) -> NdimageError {
+    NdimageError::ComputationError(format!("{context}: {error}"))
 }
 
-// Fallback function declarations for non-CUDA platforms
-// These function names must match CUDA API exactly
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaMalloc(_dev_ptr: *mut *mut c_void, _size: usize) -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaFree(_dev_ptr: *mut c_void) -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaMemcpyAsync(
-    _dst: *mut c_void,
-    _src: *const c_void,
-    _count: usize,
-    _kind: i32,
-    _stream: *mut c_void,
-) -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaStreamCreate(_stream: *mut *mut c_void) -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaGetLastError() -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaGetErrorString(_error: i32) -> *const c_char {
-    b"No error (fallback)\0".as_ptr() as *const c_char
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaGetDeviceCount(_count: *mut i32) -> i32 {
-    unsafe {
-        *_count = 1; // Simulate 1 device
-    }
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaMemGetInfo(_free: *mut usize, _total: *mut usize) -> i32 {
-    unsafe {
-        *_free = 1024 * 1024 * 1024; // 1GB free
-        *_total = 2 * 1024 * 1024 * 1024; // 2GB total
-    }
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaStreamDestroy(_stream: *mut c_void) -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaStreamSynchronize(_stream: *mut c_void) -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn nvrtcCreateProgram(
-    _prog: *mut *mut c_void,
-    _src: *const c_char,
-    _name: *const c_char,
-    _num_headers: i32,
-    _headers: *const *const c_char,
-    _include_names: *const *const c_char,
-) -> i32 {
-    unsafe {
-        *_prog = 0x1 as *mut c_void; // Dummy program pointer
-    }
-    NVRTC_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn nvrtcCompileProgram(
-    _prog: *mut c_void,
-    _num_options: i32,
-    _options: *const *const c_char,
-) -> i32 {
-    NVRTC_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn nvrtcGetProgramLogSize(_prog: *mut c_void, logsize: *mut usize) -> i32 {
-    unsafe {
-        *logsize = 1; // Empty log
-    }
-    NVRTC_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn nvrtcGetProgramLog(_prog: *mut c_void, _log: *mut c_char) -> i32 {
-    NVRTC_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn nvrtcDestroyProgram(_prog: *mut *mut c_void) -> i32 {
-    NVRTC_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn nvrtcGetPTXSize(_prog: *mut c_void, ptxsize: *mut usize) -> i32 {
-    unsafe {
-        *ptxsize = 100; // Dummy PTX size
-    }
-    NVRTC_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn nvrtcGetPTX(_prog: *mut c_void, _ptx: *mut c_char) -> i32 {
-    NVRTC_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cuModuleLoadData(_module: *mut *mut c_void, _image: *const c_void) -> i32 {
-    unsafe {
-        *_module = 0x2 as *mut c_void; // Dummy module pointer
-    }
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cuModuleGetFunction(_hfunc: *mut *mut c_void, _hmod: *mut c_void, _name: *const c_char) -> i32 {
-    unsafe {
-        *_hfunc = 0x3 as *mut c_void; // Dummy function pointer
-    }
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cuLaunchKernel(
-    _f: *mut c_void,
-    _grid_dim_x: u32,
-    _grid_dim_y: u32,
-    _grid_dim_z: u32,
-    _block_dim_x: u32,
-    _block_dim_y: u32,
-    _block_dim_z: u32,
-    _shared_mem_bytes: u32,
-    _stream: *mut c_void,
-    _kernel_params: *mut *mut c_void,
-    _extra: *mut *mut c_void,
-) -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaMemcpy(_dst: *mut c_void, _src: *const c_void, _count: usize, _kind: i32) -> i32 {
-    CUDA_SUCCESS
-}
-
-#[cfg(not(all(
-    feature = "cuda",
-    target_arch = "x86_64",
-    any(target_os = "linux", target_os = "windows")
-)))]
-#[allow(non_snake_case)]
-fn cudaSetDevice(_device: i32) -> i32 {
-    CUDA_SUCCESS
-}
-
-// CUDA memory copy kinds
-const CUDA_MEMCPY_HOST_TO_DEVICE: i32 = 1;
-const CUDA_MEMCPY_DEVICE_TO_HOST: i32 = 2;
-const CUDA_MEMCPY_DEVICE_TO_DEVICE: i32 = 3;
-
-// CUDA error codes
-const CUDA_SUCCESS: i32 = 0;
-const NVRTC_SUCCESS: i32 = 0;
-
-// Helper function to get CUDA error string
-#[allow(dead_code)]
-fn cuda_error_string(error: i32) -> String {
-    unsafe {
-        let error_ptr = cudaGetErrorString(error);
-        if error_ptr.is_null() {
-            format!("Unknown CUDA error: {error}")
-        } else {
-            CStr::from_ptr(error_ptr).to_string_lossy().into_owned()
+/// Map an [`oxicuda_nvrtc::NvrtcError`] into an [`NdimageError`], preserving the
+/// backend's historical error semantics: a missing NVRTC runtime is a typed
+/// "not implemented on this host" condition, a CUDA-C compilation failure
+/// carries the full NVRTC build log, and every other failure is reported as a
+/// computation error.
+fn nvrtc_err(error: oxicuda_nvrtc::NvrtcError) -> NdimageError {
+    match error {
+        oxicuda_nvrtc::NvrtcError::Unavailable { .. } => NdimageError::NotImplementedError(
+            "CUDA kernel JIT compilation requires the NVRTC runtime library (libnvrtc), \
+             which is not available on this system. oxicuda-ptx provides pure-Rust PTX \
+             generation but not CUDA-C runtime compilation."
+                .into(),
+        ),
+        oxicuda_nvrtc::NvrtcError::Compilation { code, msg, log } => {
+            NdimageError::ComputationError(format!(
+                "CUDA kernel compilation failed (nvrtc error {code}: {msg}):\n{log}"
+            ))
+        }
+        other => {
+            NdimageError::ComputationError(format!("CUDA kernel JIT compilation failed: {other}"))
         }
     }
 }
 
-/// CUDA-specific GPU buffer implementation
+/// CUDA-specific GPU buffer implementation.
+///
+/// Backed by an `oxicuda-memory` [`DeviceBuffer<u8>`], which owns its device
+/// allocation and frees it on drop (logging rather than panicking on failure).
 pub struct CudaBuffer<T>
 where
     T: Send + Sync,
 {
-    device_ptr: *mut c_void,
+    buffer: DeviceBuffer<u8>,
     size: usize,
-    phantom: std::marker::PhantomData<T>,
+    phantom: PhantomData<T>,
 }
-
-// CUDA device pointers are thread-safe as long as the CUDA context is properly managed
-unsafe impl<T: Send + Sync> Send for CudaBuffer<T> {}
-unsafe impl<T: Send + Sync> Sync for CudaBuffer<T> {}
 
 impl<T: Send + Sync + 'static> CudaBuffer<T> {
     pub fn new(size: usize) -> NdimageResult<Self> {
-        let mut device_ptr: *mut c_void = ptr::null_mut();
-        let byte_size = size * std::mem::size_of::<T>();
+        let byte_size = size
+            .checked_mul(std::mem::size_of::<T>())
+            .ok_or_else(|| NdimageError::ComputationError("CUDA buffer size overflow".into()))?;
 
-        unsafe {
-            let result = cudaMalloc(&mut device_ptr, byte_size);
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA malloc failed with error code: {result}"
-                )));
-            }
-        }
+        let buffer = if byte_size == 0 {
+            // Zero-length placeholder view: never dereferenced and non-owning,
+            // so its drop is a no-op and requires no CUDA driver.
+            // SAFETY: length is zero and the pointer is never dereferenced.
+            unsafe { DeviceBuffer::<u8>::from_raw(0, 0) }
+        } else {
+            DeviceBuffer::<u8>::alloc(byte_size).map_err(|e| cuda_err("CUDA malloc failed", e))?
+        };
 
         Ok(Self {
-            device_ptr,
+            buffer,
             size,
-            phantom: std::marker::PhantomData,
+            phantom: PhantomData,
         })
     }
 
@@ -430,15 +112,10 @@ impl<T: Send + Sync + 'static> CudaBuffer<T> {
         buffer.copy_from_host(data)?;
         Ok(buffer)
     }
-}
 
-impl<T: Send + Sync> Drop for CudaBuffer<T> {
-    fn drop(&mut self) {
-        unsafe {
-            if !self.device_ptr.is_null() {
-                cudaFree(self.device_ptr);
-            }
-        }
+    /// Raw device pointer of this buffer, for kernel-launch argument lists.
+    fn device_ptr(&self) -> CUdeviceptr {
+        self.buffer.as_device_ptr()
     }
 }
 
@@ -459,164 +136,129 @@ impl<T: Send + Sync + 'static> GpuBuffer<T> for CudaBuffer<T> {
         if data.len() != self.size {
             return Err(NdimageError::InvalidInput("Data size mismatch".to_string()));
         }
-
-        let byte_size = self.size * std::mem::size_of::<T>();
-        unsafe {
-            let result = cudaMemcpy(
-                self.device_ptr,
-                data.as_ptr() as *const c_void,
-                byte_size,
-                CUDA_MEMCPY_HOST_TO_DEVICE,
-            );
-
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA memcpy failed with error code: {result}"
-                )));
-            }
+        if self.size == 0 {
+            return Ok(());
         }
-
-        Ok(())
+        // Reinterpret the typed host slice as raw bytes for the device copy,
+        // exactly as a `cudaMemcpy` of the underlying storage would.
+        // SAFETY: `data` is valid for `size_of_val(data)` bytes and the device
+        // buffer holds exactly that many bytes.
+        let bytes = unsafe {
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, std::mem::size_of_val(data))
+        };
+        self.buffer
+            .copy_from_host(bytes)
+            .map_err(|e| cuda_err("CUDA memcpy failed", e))
     }
 
     fn copy_to_host(&self, data: &mut [T]) -> NdimageResult<()> {
         if data.len() != self.size {
             return Err(NdimageError::InvalidInput("Data size mismatch".to_string()));
         }
-
-        let byte_size = self.size * std::mem::size_of::<T>();
-        unsafe {
-            let result = cudaMemcpy(
-                data.as_mut_ptr() as *mut c_void,
-                self.device_ptr,
-                byte_size,
-                CUDA_MEMCPY_DEVICE_TO_HOST,
-            );
-
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA memcpy failed with error code: {result}"
-                )));
-            }
+        if self.size == 0 {
+            return Ok(());
         }
-
-        Ok(())
+        let byte_len = std::mem::size_of_val(data);
+        // SAFETY: `data` is valid for `byte_len` bytes and the device buffer
+        // holds exactly that many bytes.
+        let bytes =
+            unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut u8, byte_len) };
+        self.buffer
+            .copy_to_host(bytes)
+            .map_err(|e| cuda_err("CUDA memcpy failed", e))
     }
 }
 
-/// CUDA context implementation
+/// CUDA context implementation.
+///
+/// Owns an `oxicuda-driver` [`Context`] (kept alive for the lifetime of the
+/// backend) that binds device `device_id` on the creating thread.
 pub struct CudaContext {
     device_id: i32,
     compute_capability: (i32, i32),
     max_threads_per_block: i32,
     max_shared_memory: usize,
+    context: Arc<Context>,
 }
 
 impl CudaContext {
-    pub fn new(_deviceid: Option<usize>) -> NdimageResult<Self> {
-        let device_id = _deviceid.unwrap_or(0) as i32;
+    pub fn new(deviceid: Option<usize>) -> NdimageResult<Self> {
+        let device_id = deviceid.unwrap_or(0) as i32;
 
-        // Check if device exists
-        let mut device_count: i32 = 0;
-        unsafe {
-            let result = cudaGetDeviceCount(&mut device_count);
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "Failed to get CUDA device count: {result}"
-                )));
-            }
+        oxicuda_driver::init().map_err(|e| cuda_err("Failed to initialize CUDA driver", e))?;
 
-            if device_id >= device_count {
-                return Err(NdimageError::InvalidInput(format!(
-                    "CUDA device {device_id} not found. Only {device_count} devices available"
-                )));
-            }
-
-            // Set the device
-            let result = cudaSetDevice(device_id);
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "Failed to set CUDA device: {result}"
-                )));
-            }
+        let device_count =
+            Device::count().map_err(|e| cuda_err("Failed to get CUDA device count", e))?;
+        if device_id >= device_count {
+            return Err(NdimageError::InvalidInput(format!(
+                "CUDA device {device_id} not found. Only {device_count} devices available"
+            )));
         }
 
-        // Get device properties
-        let (compute_capability, max_threads_per_block, max_shared_memory) =
-            Self::get_device_properties(device_id)?;
+        let device =
+            Device::get(device_id).map_err(|e| cuda_err("Failed to get CUDA device", e))?;
+        let context = Arc::new(
+            Context::new(&device).map_err(|e| cuda_err("Failed to create CUDA context", e))?,
+        );
+
+        // Query real device properties; fall back to sensible defaults if a
+        // particular attribute cannot be read (never panics).
+        let compute_capability = device.compute_capability().unwrap_or((7, 5));
+        let max_threads_per_block = device.max_threads_per_block().unwrap_or(1024);
+        let max_shared_memory = device
+            .max_shared_memory_per_block()
+            .map(|v| v as usize)
+            .unwrap_or(49_152);
 
         Ok(Self {
             device_id,
             compute_capability,
             max_threads_per_block,
             max_shared_memory,
+            context,
         })
     }
 
-    /// Get device properties for the specified CUDA device
-    fn get_device_properties(_deviceid: i32) -> NdimageResult<((i32, i32), i32, usize)> {
-        // For now, return sensible defaults based on common GPU architectures
-        // In a full implementation, this would query actual device properties
-        let compute_capability = match _deviceid {
-            0 => (7, 5), // Assume Turing architecture for first device
-            1 => (8, 0), // Assume Ampere architecture for second device
-            _ => (7, 0), // Default to Volta for others
-        };
-
-        let max_threads_per_block = match compute_capability {
-            (8, _) => 1024, // Ampere
-            (7, _) => 1024, // Turing/Volta
-            _ => 512,       // Older architectures
-        };
-
-        let max_shared_memory = match compute_capability {
-            (8, _) => 99328, // Ampere: 96KB + 3KB
-            (7, 5) => 65536, // Turing: 64KB
-            (7, _) => 49152, // Volta: 48KB
-            _ => 32768,      // Older: 32KB
-        };
-
-        Ok((compute_capability, max_threads_per_block, max_shared_memory))
+    /// Compute capability `(major, minor)` of the bound device.
+    pub fn compute_capability(&self) -> (i32, i32) {
+        self.compute_capability
     }
 
-    /// Get optimal kernel compilation options based on compute capability
-    fn get_compilation_options(&self) -> NdimageResult<Vec<CString>> {
-        let arch_option = format!(
-            "--gpu-architecture=compute_{}{}",
-            self.compute_capability.0, self.compute_capability.1
-        );
+    /// Maximum threads per block reported by the bound device.
+    pub fn max_threads_per_block(&self) -> i32 {
+        self.max_threads_per_block
+    }
 
+    /// Maximum shared memory per block (bytes) reported by the bound device.
+    pub fn max_shared_memory(&self) -> usize {
+        self.max_shared_memory
+    }
+
+    /// Get optimal kernel compilation options based on compute capability.
+    ///
+    /// Plain `String`s are sufficient here: `oxicuda-nvrtc` performs the C-ABI
+    /// conversion itself (rejecting interior NUL bytes before any FFI call).
+    fn get_compilation_options(&self) -> Vec<String> {
         let mut options = vec![
-            CString::new(arch_option).map_err(|_| {
-                NdimageError::ComputationError(
-                    "Failed to create compute architecture option".into(),
-                )
-            })?,
-            CString::new("--fmad=true").map_err(|_| {
-                NdimageError::ComputationError("Failed to create fmad option".into())
-            })?,
-            CString::new("--use_fast_math").map_err(|_| {
-                NdimageError::ComputationError("Failed to create fast math option".into())
-            })?,
-            CString::new("--restrict").map_err(|_| {
-                NdimageError::ComputationError("Failed to create restrict option".into())
-            })?,
+            format!(
+                "--gpu-architecture=compute_{}{}",
+                self.compute_capability.0, self.compute_capability.1
+            ),
+            "--fmad=true".to_string(),
+            "--use_fast_math".to_string(),
+            "--restrict".to_string(),
         ];
 
         // Add optimization options based on compute capability
         if self.compute_capability >= (7, 0) {
-            options.push(CString::new("--extra-device-vectorization").map_err(|_| {
-                NdimageError::ComputationError("Failed to create vectorization option".into())
-            })?);
+            options.push("--extra-device-vectorization".to_string());
         }
 
         if self.compute_capability >= (8, 0) {
-            options.push(CString::new("--allow-unsupported-compiler").map_err(|_| {
-                NdimageError::ComputationError("Failed to create compiler option".into())
-            })?);
+            options.push("--allow-unsupported-compiler".to_string());
         }
 
-        Ok(options)
+        options
     }
 
     pub fn compile_kernel(&self, source: &str, kernelname: &str) -> NdimageResult<CudaKernel> {
@@ -626,125 +268,49 @@ impl CudaContext {
                 NdimageError::ComputationError("Failed to acquire kernel cache lock".into())
             })?;
             if let Some(kernel) = cache.get(kernelname) {
-                return Ok(CudaKernel {
-                    name: kernel.name.clone(),
-                    module: kernel.module,
-                    function: kernel.function,
-                    ptx_code: kernel.ptx_code.clone(),
-                });
+                return Ok(kernel.clone());
             }
         }
 
         // Convert OpenCL-style kernel to CUDA
         let cuda_source = convert_opencl_to_cuda(source);
-        let c_source = CString::new(cuda_source).map_err(|_| {
-            NdimageError::ComputationError("Failed to create C string for kernel source".into())
-        })?;
-        let c_name = CString::new(kernelname).map_err(|_| {
-            NdimageError::ComputationError("Failed to create C string for kernel _name".into())
-        })?;
 
-        unsafe {
-            // Create NVRTC program
-            let mut prog: *mut c_void = ptr::null_mut();
-            let result = nvrtcCreateProgram(
-                &mut prog,
-                c_source.as_ptr(),
-                c_name.as_ptr(),
-                0,
-                ptr::null(),
-                ptr::null(),
-            );
+        // JIT-compile CUDA-C to PTX through `oxicuda-nvrtc` (libnvrtc is
+        // resolved lazily at runtime; no build-time dependency). A host without
+        // the NVRTC runtime yields a typed `NotImplementedError` via
+        // [`nvrtc_err`], never a panic.
+        let options = self.get_compilation_options();
+        let option_refs: Vec<&str> = options.iter().map(String::as_str).collect();
+        let ptx = oxicuda_nvrtc::compile_to_ptx(&cuda_source, kernelname, &option_refs)
+            .map_err(nvrtc_err)?;
 
-            if result != NVRTC_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "Failed to create NVRTC program: {result}"
-                )));
-            }
+        // Load the PTX module and look up the kernel through oxicuda-driver.
+        // `Ptx::as_str` is the UTF-8 PTX text without its trailing NUL, exactly
+        // what `Module::from_ptx` expects.
+        let module = Module::from_ptx(ptx.as_str())
+            .map_err(|e| cuda_err("Failed to load CUDA module", e))?;
+        let function = module
+            .get_function(kernelname)
+            .map_err(|e| cuda_err(&format!("Failed to get CUDA function '{kernelname}'"), e))?;
 
-            // Compile program with appropriate options based on compute capability
-            let options = self.get_compilation_options()?;
-            let option_ptrs: Vec<*const c_char> = options.iter().map(|s| s.as_ptr()).collect();
+        let kernel = CudaKernel {
+            name: kernelname.to_string(),
+            module: Arc::new(module),
+            function,
+            ptx_code: ptx.as_str().as_bytes().to_vec(),
+        };
 
-            let compile_result =
-                nvrtcCompileProgram(prog, option_ptrs.len() as i32, option_ptrs.as_ptr());
-
-            // Get compilation log
-            if compile_result != NVRTC_SUCCESS {
-                let mut log_size: usize = 0;
-                nvrtcGetProgramLogSize(prog, &mut log_size);
-
-                if log_size > 0 {
-                    let mut log = vec![0u8; log_size];
-                    nvrtcGetProgramLog(prog, log.as_mut_ptr() as *mut c_char);
-                    let log_str = String::from_utf8_lossy(&log[..log_size - 1]);
-
-                    nvrtcDestroyProgram(&mut prog);
-                    return Err(NdimageError::ComputationError(format!(
-                        "CUDA compilation failed:\n{log_str}"
-                    )));
-                }
-            }
-
-            // Get PTX code
-            let mut ptx_size: usize = 0;
-            nvrtcGetPTXSize(prog, &mut ptx_size);
-
-            let mut ptx_code = vec![0u8; ptx_size];
-            nvrtcGetPTX(prog, ptx_code.as_mut_ptr() as *mut c_char);
-
-            // Clean up NVRTC program
-            nvrtcDestroyProgram(&mut prog);
-
-            // Load PTX module
-            let mut module: *mut c_void = ptr::null_mut();
-            let load_result = cuModuleLoadData(&mut module, ptx_code.as_ptr() as *const c_void);
-
-            if load_result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "Failed to load CUDA module: {}",
-                    cuda_error_string(load_result)
-                )));
-            }
-
-            // Get function from module
-            let mut function: *mut c_void = ptr::null_mut();
-            let func_result = cuModuleGetFunction(&mut function, module, c_name.as_ptr());
-
-            if func_result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "Failed to get CUDA function: {}",
-                    cuda_error_string(func_result)
-                )));
-            }
-
-            let kernel = CudaKernel {
-                name: kernelname.to_string(),
-                module,
-                function,
-                ptx_code: ptx_code[..ptx_size - 1].to_vec(), // Remove null terminator
-            };
-
-            // Cache the compiled kernel
-            {
-                let mut cache = KERNEL_CACHE.lock().map_err(|_| {
-                    NdimageError::ComputationError(
-                        "Failed to acquire kernel cache lock for insertion".into(),
-                    )
-                })?;
-                cache.insert(
-                    kernelname.to_string(),
-                    CudaKernel {
-                        name: kernel.name.clone(),
-                        module: kernel.module,
-                        function: kernel.function,
-                        ptx_code: kernel.ptx_code.clone(),
-                    },
-                );
-            }
-
-            Ok(kernel)
+        // Cache the compiled kernel
+        {
+            let mut cache = KERNEL_CACHE.lock().map_err(|_| {
+                NdimageError::ComputationError(
+                    "Failed to acquire kernel cache lock for insertion".into(),
+                )
+            })?;
+            cache.insert(kernelname.to_string(), kernel.clone());
         }
+
+        Ok(kernel)
     }
 }
 
@@ -754,11 +320,7 @@ impl GpuContext for CudaContext {
     }
 
     fn device_count(&self) -> usize {
-        let mut count: i32 = 0;
-        unsafe {
-            cudaGetDeviceCount(&mut count);
-        }
-        count as usize
+        Device::count().map(|c| c as usize).unwrap_or(0)
     }
 
     fn current_device(&self) -> usize {
@@ -766,67 +328,44 @@ impl GpuContext for CudaContext {
     }
 
     fn memory_info(&self) -> (usize, usize) {
-        let mut free: usize = 0;
-        let mut total: usize = 0;
-        unsafe {
-            cudaMemGetInfo(&mut free, &mut total);
-        }
-        (total - free, total)
+        oxicuda_memory::memory_info()
+            .map(|m| (m.used(), m.total))
+            .unwrap_or((0, 0))
     }
 }
 
-/// CUDA kernel handle
+/// CUDA kernel handle.
+///
+/// Holds the owning [`Module`] via `Arc` so the module stays loaded for as long
+/// as any clone of this kernel (including the cache entry) is alive; the raw
+/// [`Function`] handle is a lightweight copy that borrows from that module.
+#[derive(Clone)]
 pub struct CudaKernel {
     name: String,
-    module: *mut c_void,
-    function: *mut c_void,
+    module: Arc<Module>,
+    function: Function,
     ptx_code: Vec<u8>,
 }
-
-// SAFETY: CudaKernel's raw pointers are managed by CUDA runtime
-// and the kernel cache is only accessed through proper synchronization
-unsafe impl Send for CudaKernel {}
-unsafe impl Sync for CudaKernel {}
-
-// SAFETY: CudaExecutor's raw pointers are managed by CUDA runtime
-// and access is properly synchronized
-unsafe impl Send for CudaExecutor {}
-unsafe impl Sync for CudaExecutor {}
 
 // Kernel cache to avoid recompilation
 lazy_static::lazy_static! {
     static ref KERNEL_CACHE: Arc<Mutex<HashMap<String, CudaKernel>>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
-/// CUDA kernel executor implementation
+/// CUDA kernel executor implementation.
+///
+/// Owns an `oxicuda-driver` [`Stream`](oxicuda_driver::Stream) bound to the
+/// context; the stream is destroyed via RAII on drop (logging, never panicking).
 pub struct CudaExecutor {
     context: Arc<CudaContext>,
-    stream: *mut c_void,
+    stream: oxicuda_driver::Stream,
 }
 
 impl CudaExecutor {
     pub fn new(context: Arc<CudaContext>) -> NdimageResult<Self> {
-        let mut stream: *mut c_void = ptr::null_mut();
-        unsafe {
-            let result = cudaStreamCreate(&mut stream);
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "Failed to create CUDA stream: {result}"
-                )));
-            }
-        }
-
+        let stream = oxicuda_driver::Stream::new(&context.context)
+            .map_err(|e| cuda_err("Failed to create CUDA stream", e))?;
         Ok(Self { context, stream })
-    }
-}
-
-impl Drop for CudaExecutor {
-    fn drop(&mut self) {
-        unsafe {
-            if !self.stream.is_null() {
-                cudaStreamDestroy(self.stream);
-            }
-        }
     }
 }
 
@@ -850,37 +389,45 @@ where
         // Calculate grid and block dimensions
         let (grid_dim, block_dim) = calculate_launch_config(work_size, kernel.work_dimensions);
 
-        // Prepare kernel arguments
-        let mut kernel_args: Vec<*mut c_void> = Vec::new();
-
-        // Add input buffers
+        // Collect device pointers into a stable buffer that outlives the launch,
+        // then build the pointer-to-argument list the driver expects.
+        let mut dev_ptrs: Vec<CUdeviceptr> = Vec::with_capacity(inputs.len() + outputs.len());
         for input in inputs {
             let cuda_buf = input
                 .as_any()
                 .downcast_ref::<CudaBuffer<T>>()
                 .ok_or_else(|| NdimageError::InvalidInput("Expected CUDA buffer".into()))?;
-            kernel_args.push(&cuda_buf.device_ptr as *const _ as *mut c_void);
+            dev_ptrs.push(cuda_buf.device_ptr());
         }
-
-        // Add output buffers
         for output in outputs {
             let cuda_buf = output
                 .as_any()
                 .downcast_ref::<CudaBuffer<T>>()
                 .ok_or_else(|| NdimageError::InvalidInput("Expected CUDA buffer".into()))?;
-            kernel_args.push(&cuda_buf.device_ptr as *const _ as *mut c_void);
+            dev_ptrs.push(cuda_buf.device_ptr());
         }
 
-        // Add scalar parameters
         let mut param_storage: Vec<T> = params.to_vec();
+
+        // Each kernel argument entry is a pointer to the value being passed:
+        // a `CUdeviceptr` for buffers, and a `T` for scalar parameters.
+        let mut kernel_args: Vec<*mut c_void> =
+            Vec::with_capacity(dev_ptrs.len() + param_storage.len());
+        for dp in &mut dev_ptrs {
+            kernel_args.push(dp as *mut CUdeviceptr as *mut c_void);
+        }
         for param in &mut param_storage {
             kernel_args.push(param as *mut T as *mut c_void);
         }
 
-        // Launch kernel
-        unsafe {
-            let result = cuLaunchKernel(
-                cuda_kernel.function,
+        let api = try_driver().map_err(|e| cuda_err("CUDA driver unavailable", e))?;
+
+        // SAFETY: `cuda_kernel.function` belongs to a live module (held via
+        // `Arc` in `cuda_kernel`), `self.stream` is a live stream, and
+        // `kernel_args` points to values that outlive this call.
+        let launch_rc = unsafe {
+            (api.cu_launch_kernel)(
+                cuda_kernel.function.raw(),
                 grid_dim.0,
                 grid_dim.1,
                 grid_dim.2,
@@ -888,36 +435,17 @@ where
                 block_dim.1,
                 block_dim.2,
                 0, // shared memory
-                self.stream,
+                self.stream.raw(),
                 kernel_args.as_mut_ptr(),
-                ptr::null_mut(),
-            );
+                std::ptr::null_mut(),
+            )
+        };
+        oxicuda_driver::check(launch_rc).map_err(|e| cuda_err("CUDA kernel launch failed", e))?;
 
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA kernel launch failed: {}",
-                    cuda_error_string(result)
-                )));
-            }
-
-            // Synchronize stream
-            let sync_result = cudaStreamSynchronize(self.stream);
-            if sync_result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA stream sync failed: {}",
-                    cuda_error_string(sync_result)
-                )));
-            }
-
-            // Check for kernel errors
-            let error = cudaGetLastError();
-            if error != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA kernel execution error: {}",
-                    cuda_error_string(error)
-                )));
-            }
-        }
+        // Synchronize stream (surfaces any asynchronous kernel error).
+        // SAFETY: `self.stream` is a live stream handle.
+        let sync_rc = unsafe { (api.cu_stream_synchronize)(self.stream.raw()) };
+        oxicuda_driver::check(sync_rc).map_err(|e| cuda_err("CUDA stream sync failed", e))?;
 
         Ok(())
     }
@@ -930,11 +458,16 @@ pub struct CudaOperations {
 }
 
 impl CudaOperations {
-    pub fn new(_deviceid: Option<usize>) -> NdimageResult<Self> {
-        let context = Arc::new(CudaContext::new(_deviceid)?);
+    pub fn new(deviceid: Option<usize>) -> NdimageResult<Self> {
+        let context = Arc::new(CudaContext::new(deviceid)?);
         let executor = CudaExecutor::new(context.clone())?;
 
         Ok(Self { context, executor })
+    }
+
+    /// Access the underlying CUDA context.
+    pub fn context(&self) -> &Arc<CudaContext> {
+        &self.context
     }
 
     /// GPU-accelerated Gaussian filter
@@ -1004,9 +537,13 @@ where
     Ok(Box::new(CudaBuffer::<T>::new(size)?))
 }
 
-/// Advanced CUDA memory manager with buffer pooling
+/// Advanced CUDA memory manager with buffer pooling.
+///
+/// Pools hold raw `oxicuda-driver` device pointers ([`CUdeviceptr`]); the
+/// `*mut c_void` values in the public API are the same device addresses viewed
+/// as opaque pointers.
 pub struct CudaMemoryManager {
-    buffer_pools: std::collections::HashMap<usize, Vec<*mut c_void>>,
+    buffer_pools: HashMap<usize, Vec<CUdeviceptr>>,
     total_allocated: usize,
     max_pool_size: usize,
 }
@@ -1014,7 +551,7 @@ pub struct CudaMemoryManager {
 impl CudaMemoryManager {
     pub fn new(_max_poolsize: usize) -> Self {
         Self {
-            buffer_pools: std::collections::HashMap::new(),
+            buffer_pools: HashMap::new(),
             total_allocated: 0,
             max_pool_size: _max_poolsize,
         }
@@ -1024,45 +561,37 @@ impl CudaMemoryManager {
     pub fn allocate_buffer(&mut self, size: usize) -> NdimageResult<*mut c_void> {
         // Try to reuse a buffer from the pool
         if let Some(pool) = self.buffer_pools.get_mut(&size) {
-            if let Some(ptr) = pool.pop() {
-                return Ok(ptr);
+            if let Some(dptr) = pool.pop() {
+                return Ok(dptr as usize as *mut c_void);
             }
         }
 
-        // Allocate a new buffer
-        let mut device_ptr: *mut c_void = std::ptr::null_mut();
-        unsafe {
-            let result = cudaMalloc(&mut device_ptr, size);
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA malloc failed: {}",
-                    cuda_error_string(result)
-                )));
-            }
-        }
+        // Allocate a new buffer via the CUDA driver.
+        let api = try_driver().map_err(|e| cuda_err("CUDA driver unavailable", e))?;
+        let mut dptr: CUdeviceptr = 0;
+        // SAFETY: `dptr` is a valid out-pointer; `cu_mem_alloc_v2` writes a
+        // device pointer on success.
+        let rc = unsafe { (api.cu_mem_alloc_v2)(&mut dptr, size) };
+        oxicuda_driver::check(rc).map_err(|e| cuda_err("CUDA malloc failed", e))?;
 
         self.total_allocated += size;
-        Ok(device_ptr)
+        Ok(dptr as usize as *mut c_void)
     }
 
     /// Return a buffer to the pool for reuse
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn deallocate_buffer(&mut self, ptr: *mut c_void, size: usize) -> NdimageResult<()> {
-        let pool = self.buffer_pools.entry(size).or_insert_with(Vec::new);
+        let dptr = ptr as usize as CUdeviceptr;
+        let pool = self.buffer_pools.entry(size).or_default();
 
         if pool.len() < self.max_pool_size {
-            pool.push(ptr);
+            pool.push(dptr);
         } else {
             // Pool is full, actually free the memory
-            unsafe {
-                let result = cudaFree(ptr);
-                if result != CUDA_SUCCESS {
-                    return Err(NdimageError::ComputationError(format!(
-                        "CUDA free failed: {}",
-                        cuda_error_string(result)
-                    )));
-                }
-            }
+            let api = try_driver().map_err(|e| cuda_err("CUDA driver unavailable", e))?;
+            // SAFETY: `dptr` was allocated by `cu_mem_alloc_v2` and not yet freed.
+            let rc = unsafe { (api.cu_mem_free_v2)(dptr) };
+            oxicuda_driver::check(rc).map_err(|e| cuda_err("CUDA free failed", e))?;
             self.total_allocated = self.total_allocated.saturating_sub(size);
         }
 
@@ -1081,16 +610,16 @@ impl CudaMemoryManager {
 
     /// Clear all pools and free memory
     pub fn clear_pools(&mut self) -> NdimageResult<()> {
+        // If the driver is unavailable there is nothing to free at the device
+        // level; simply drop the tracked pointers.
+        let api = try_driver().ok();
         for (size, pool) in self.buffer_pools.drain() {
-            for ptr in pool {
-                unsafe {
-                    let result = cudaFree(ptr);
-                    if result != CUDA_SUCCESS {
-                        return Err(NdimageError::ComputationError(format!(
-                            "CUDA free failed during pool clear: {}",
-                            cuda_error_string(result)
-                        )));
-                    }
+            for dptr in pool {
+                if let Some(api) = api {
+                    // SAFETY: `dptr` was allocated by `cu_mem_alloc_v2`.
+                    let rc = unsafe { (api.cu_mem_free_v2)(dptr) };
+                    oxicuda_driver::check(rc)
+                        .map_err(|e| cuda_err("CUDA free failed during pool clear", e))?;
                 }
                 self.total_allocated = self.total_allocated.saturating_sub(size);
             }
@@ -1101,7 +630,7 @@ impl CudaMemoryManager {
 
 impl Drop for CudaMemoryManager {
     fn drop(&mut self) {
-        // Best effort cleanup - ignore errors during drop
+        // Best effort cleanup - ignore errors during drop.
         let _ = self.clear_pools();
     }
 }
@@ -1109,9 +638,9 @@ impl Drop for CudaMemoryManager {
 /// Advanced CUDA execution context with profiling and optimization
 pub struct AdvancedCudaExecutor {
     context: Arc<CudaContext>,
-    stream: *mut c_void,
-    memory_manager: std::sync::Mutex<CudaMemoryManager>,
-    execution_stats: std::sync::Mutex<ExecutionStats>,
+    stream: oxicuda_driver::Stream,
+    memory_manager: Mutex<CudaMemoryManager>,
+    execution_stats: Mutex<ExecutionStats>,
 }
 
 #[derive(Default)]
@@ -1124,22 +653,25 @@ struct ExecutionStats {
 
 impl AdvancedCudaExecutor {
     pub fn new(context: Arc<CudaContext>) -> NdimageResult<Self> {
-        let mut stream: *mut c_void = std::ptr::null_mut();
-        unsafe {
-            let result = cudaStreamCreate(&mut stream);
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "Failed to create CUDA stream: {result}"
-                )));
-            }
-        }
+        let stream = oxicuda_driver::Stream::new(&context.context)
+            .map_err(|e| cuda_err("Failed to create CUDA stream", e))?;
 
         Ok(Self {
             context,
             stream,
-            memory_manager: std::sync::Mutex::new(CudaMemoryManager::new(10)), // Pool up to 10 buffers per size
-            execution_stats: std::sync::Mutex::new(ExecutionStats::default()),
+            memory_manager: Mutex::new(CudaMemoryManager::new(10)), // Pool up to 10 buffers per size
+            execution_stats: Mutex::new(ExecutionStats::default()),
         })
+    }
+
+    /// Access the underlying CUDA context.
+    pub fn context(&self) -> &Arc<CudaContext> {
+        &self.context
+    }
+
+    /// Raw stream handle (as an opaque pointer) for async buffer transfers.
+    pub fn stream(&self) -> *mut c_void {
+        self.stream.raw().0
     }
 
     /// Get execution statistics
@@ -1177,7 +709,7 @@ impl AdvancedCudaExecutor {
             device_ptr,
             size,
             byte_size,
-            phantom: std::marker::PhantomData,
+            phantom: PhantomData,
         })
     }
 }
@@ -1187,7 +719,7 @@ pub struct CudaManagedBuffer<T> {
     device_ptr: *mut c_void,
     size: usize,
     byte_size: usize,
-    phantom: std::marker::PhantomData<T>,
+    phantom: PhantomData<T>,
 }
 
 impl<T> CudaManagedBuffer<T> {
@@ -1197,24 +729,20 @@ impl<T> CudaManagedBuffer<T> {
             return Err(NdimageError::InvalidInput("Data size mismatch".to_string()));
         }
 
-        unsafe {
-            let result = cudaMemcpyAsync(
-                self.device_ptr,
+        let api = try_driver().map_err(|e| cuda_err("CUDA driver unavailable", e))?;
+        let dptr = self.device_ptr as usize as CUdeviceptr;
+        // SAFETY: `dptr` addresses `self.byte_size` device bytes, `data` is a
+        // valid host slice of the same byte size, and `stream` is a CUDA stream
+        // handle supplied by the caller.
+        let rc = unsafe {
+            (api.cu_memcpy_htod_async_v2)(
+                dptr,
                 data.as_ptr() as *const c_void,
                 self.byte_size,
-                CUDA_MEMCPY_HOST_TO_DEVICE,
-                stream,
-            );
-
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA async memcpy failed: {}",
-                    cuda_error_string(result)
-                )));
-            }
-        }
-
-        Ok(())
+                CUstream(stream),
+            )
+        };
+        oxicuda_driver::check(rc).map_err(|e| cuda_err("CUDA async memcpy failed", e))
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -1223,24 +751,20 @@ impl<T> CudaManagedBuffer<T> {
             return Err(NdimageError::InvalidInput("Data size mismatch".to_string()));
         }
 
-        unsafe {
-            let result = cudaMemcpyAsync(
+        let api = try_driver().map_err(|e| cuda_err("CUDA driver unavailable", e))?;
+        let dptr = self.device_ptr as usize as CUdeviceptr;
+        // SAFETY: `dptr` addresses `self.byte_size` device bytes, `data` is a
+        // valid, writable host slice of the same byte size, and `stream` is a
+        // CUDA stream handle supplied by the caller.
+        let rc = unsafe {
+            (api.cu_memcpy_dtoh_async_v2)(
                 data.as_mut_ptr() as *mut c_void,
-                self.device_ptr,
+                dptr,
                 self.byte_size,
-                CUDA_MEMCPY_DEVICE_TO_HOST,
-                stream,
-            );
-
-            if result != CUDA_SUCCESS {
-                return Err(NdimageError::ComputationError(format!(
-                    "CUDA async memcpy failed: {}",
-                    cuda_error_string(result)
-                )));
-            }
-        }
-
-        Ok(())
+                CUstream(stream),
+            )
+        };
+        oxicuda_driver::check(rc).map_err(|e| cuda_err("CUDA async memcpy failed", e))
     }
 }
 
@@ -1301,8 +825,7 @@ fn convert_opencl_to_cuda(source: &str) -> String {
     // Add common CUDA includes if not present
     if !cuda_source.contains("#include") {
         cuda_source = format!(
-            "#include <cuda_runtime.h>\n#include <device_launch_parameters.h>\n\n{}",
-            cuda_source
+            "#include <cuda_runtime.h>\n#include <device_launch_parameters.h>\n\n{cuda_source}"
         );
     }
 
@@ -1434,5 +957,47 @@ mod tests {
         if let Ok(buf) = buffer {
             assert_eq!(buf.size(), 1024);
         }
+    }
+
+    #[test]
+    fn convert_opencl_to_cuda_translates_qualifiers() {
+        let src = "__kernel void k(__global float* a) { int i = get_global_id(0); a[i] = 0.0f; }";
+        let out = convert_opencl_to_cuda(src);
+        assert!(out.contains("extern \"C\" __global__"));
+        assert!(out.contains("blockIdx.x * blockDim.x + threadIdx.x"));
+        assert!(out.contains("#include <cuda_runtime.h>"));
+    }
+
+    #[test]
+    fn launch_config_covers_work_items() {
+        let (grid, block) = calculate_launch_config(&[1024, 768], 2);
+        assert!(block.0 >= 1 && block.1 >= 1 && block.2 == 1);
+        assert!(grid.0 >= 1 && grid.1 >= 1);
+
+        let (grid1, block1) = calculate_launch_config(&[4096], 1);
+        assert_eq!(block1.1, 1);
+        assert_eq!(block1.2, 1);
+        assert!(grid1.0 >= 1);
+    }
+
+    #[test]
+    fn nvrtc_probe_never_panics() {
+        // Probing for libnvrtc must not panic whether or not it is installed.
+        let _ = oxicuda_nvrtc::is_available();
+    }
+
+    #[test]
+    fn cuda_context_creation_never_panics_without_gpu() {
+        // On a machine without a CUDA driver this returns an error; on one with
+        // a driver it may succeed. Either way it must not panic.
+        let _ = CudaContext::new(None);
+    }
+
+    #[test]
+    fn allocate_gpu_buffer_degrades_without_gpu() {
+        // Allocation without a CUDA driver returns a typed error rather than
+        // panicking.
+        let _ = allocate_gpu_buffer::<f32>(&[1.0_f32, 2.0, 3.0]);
+        let _ = allocate_gpu_buffer_empty::<f32>(16);
     }
 }

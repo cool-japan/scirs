@@ -53,6 +53,21 @@ impl Default for ExternalConfig {
 pub type ProgressCallback = Box<dyn Fn(u64, u64) + Send + Sync>;
 
 /// External data source client
+///
+/// # TLS crypto provider
+///
+/// When built with the `download` feature, [`ExternalClient::new`] / [`ExternalClient::with_config`]
+/// construct a [`reqwest::Client`] eagerly, which builds its rustls `ClientConfig` inside
+/// `.build()` even for a client that never issues an HTTPS request. Since the workspace's
+/// `reqwest` dependency uses `rustls-no-provider` (no aws-lc-rs/ring bundled -- see the
+/// "PURE RUST BLOCKER (reqwest)" note in the workspace root `Cargo.toml`), this crate installs
+/// the pure-Rust OxiTLS provider (`oxitls-rustcrypto-provider`, COOLJAPAN's RUSTSEC-2026-0104-fixed
+/// fork of the abandoned upstream `rustls-rustcrypto` 0.0.2-alpha, resolved under the
+/// `rustls-rustcrypto` name) as the process-default rustls `CryptoProvider` automatically,
+/// right before the first client is constructed -- unless the application has already installed
+/// a provider of its own. Applications that want a different provider (e.g. a C-linked
+/// aws-lc-rs/ring one) simply call `rustls::crypto::CryptoProvider::install_default(...)`
+/// before the first use of SciRS2 networking; an existing process default is never overridden.
 pub struct ExternalClient {
     config: ExternalConfig,
     cache: DatasetCache,
@@ -72,6 +87,7 @@ impl ExternalClient {
 
         #[cfg(feature = "download")]
         let client = {
+            crate::tls::ensure_default_tls_provider();
             let mut builder = reqwest::Client::builder()
                 .timeout(Duration::from_secs(config.timeout_seconds))
                 .user_agent(&config.user_agent);
@@ -187,6 +203,9 @@ impl ExternalClient {
             }
         }
 
+        // Ensure a process-default rustls CryptoProvider exists first: ureq panics on
+        // HTTPS connections without one.
+        crate::tls::ensure_default_tls_provider();
         let mut request = ureq::get(url).header("User-Agent", &self.config.user_agent);
 
         // Add custom headers

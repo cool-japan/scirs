@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-signal)](https://docs.rs/scirs2-signal)
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
 
 **Production-ready signal processing for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
@@ -20,7 +20,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ---
 
-## Feature List (v0.6.1)
+## Feature List (v0.6.2)
 
 ### Filter Design & Application
 - **IIR filters**: Butterworth, Chebyshev I/II, Elliptic, Bessel — analog prototype design and digital transformation
@@ -185,7 +185,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ```toml
 [dependencies]
-scirs2-signal = "0.6.1"
+scirs2-signal = "0.6.2"
 ```
 
 ### Butterworth Low-Pass Filter

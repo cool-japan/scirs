@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-ndimage.svg)](https://crates.io/crates/scirs2-ndimage)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-ndimage)](https://docs.rs/scirs2-ndimage)
-[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 [![Tests](https://img.shields.io/badge/tests-1199%20passing-brightgreen)]()
 
@@ -24,7 +24,7 @@ Use scirs2-ndimage when you need to:
 - Detect features (corners, edges, SIFT descriptors, HOG)
 - Perform atlas-based segmentation
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Image Filtering
 - **Gaussian Filters**: `gaussian_filter`, `gaussian_filter1d`, `gaussian_gradient_magnitude`, `gaussian_laplace`
@@ -122,14 +122,14 @@ Use scirs2-ndimage when you need to:
 
 ```toml
 [dependencies]
-scirs2-ndimage = "0.6.1"
+scirs2-ndimage = "0.6.2"
 ```
 
 For parallel processing and SIMD:
 
 ```toml
 [dependencies]
-scirs2-ndimage = { version = "0.6.1", features = ["parallel", "simd"] }
+scirs2-ndimage = { version = "0.6.2", features = ["parallel", "simd"] }
 ```
 
 ## Feature Flags
@@ -139,7 +139,7 @@ scirs2-ndimage = { version = "0.6.1", features = ["parallel", "simd"] }
 | `parallel` | Enable Rayon-based multi-core parallel processing (recommended for arrays >10K elements) |
 | `simd` | Enable SIMD vectorization for filters and morphological operations |
 | `gpu` | GPU backend abstraction layer (device detection, buffer management). Does not auto-enable a specific backend |
-| `cuda` | CUDA backend scaffolding (`backend/cuda.rs`); experimental, no external CUDA toolkit dependency |
+| `cuda` | CUDA backend (`backend/cuda.rs`); kernel JIT compiles CUDA-C to PTX via the pure-Rust `oxicuda-nvrtc` crate (runtime `dlopen` of `libnvrtc`, zero build-time CUDA SDK dependency); experimental |
 | `opencl` | OpenCL backend scaffolding; experimental |
 | `metal` | Metal backend scaffolding (macOS only); experimental |
 | `compression` | Pure-Rust compression for streaming/out-of-core I/O via `oxiarc-deflate`/`oxiarc-zstd`/`oxiarc-lz4` |

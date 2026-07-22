@@ -9,7 +9,7 @@
 
 `scirs2-stats` is the statistical backbone of SciRS2, providing a production-ready, pure-Rust implementation of probability distributions, hypothesis testing, Bayesian inference, survival analysis, MCMC sampling, Gaussian processes, copulas, and much more. The API mirrors SciPy's `stats` module where sensible, while going considerably further in v0.5.0 with nonparametric Bayes, causal inference, sequential Monte Carlo, and advanced time-series-oriented statistics.
 
-**Tests:** 2529/2529 passing (default features), 2561/2561 passing (`--all-features`) — as of 2026-07-15.
+**Tests:** 2529/2529 passing (default features), 2561/2561 passing (`--all-features`) — as of 2026-07-22.
 
 ---
 
@@ -28,7 +28,7 @@ Modern statistical workflows demand more than descriptive statistics and p-value
 
 ---
 
-## Feature List (v0.6.1)
+## Feature List (v0.6.2)
 
 ### Descriptive Statistics
 - Mean, median, trimmed mean, geometric mean, harmonic mean
@@ -146,7 +146,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.6.1"
+scirs2-stats = "0.6.2"
 ```
 
 ### Basic Descriptive Statistics

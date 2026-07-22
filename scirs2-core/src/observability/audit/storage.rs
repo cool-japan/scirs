@@ -586,7 +586,7 @@ impl LogFileManager {
     ///
     /// Returns an error if disk space cannot be determined.
     pub fn get_available_disk_space(&self, path: &std::path::Path) -> Result<u64, CoreError> {
-        #[cfg(feature = "libc")]
+        #[cfg(all(feature = "libc", unix))]
         {
             use std::ffi::CString;
             use std::mem;
@@ -612,11 +612,21 @@ impl LogFileManager {
             }
         }
 
-        #[cfg(not(feature = "libc"))]
+        #[cfg(not(all(feature = "libc", unix)))]
         {
-            // Fallback for platforms without libc support
+            // `statvfs` is Unix-only and there is no portable replacement here yet
+            // (see TODO.md: implement via `sysinfo::Disks` for Windows).
+            //
+            // Report "unknown" rather than fabricating a value: callers treat `Err`
+            // as "skip the disk-space check", whereas a made-up figure would either
+            // silently disable emergency cleanup or, if `min_free_space` exceeded it,
+            // trigger unbounded deletion of audit logs.
             let _ = path; // Acknowledge unused parameter
-            Ok(1024 * 1024 * 1024 * 10) // 10GB fallback
+            Err(CoreError::ComputationError(
+                crate::error::ErrorContext::new(
+                    "Available disk space is not determinable on this platform".to_string(),
+                ),
+            ))
         }
     }
 }

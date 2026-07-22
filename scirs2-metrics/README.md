@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-metrics.svg)](https://crates.io/crates/scirs2-metrics)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-metrics)](https://docs.rs/scirs2-metrics)
-[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 Comprehensive machine learning evaluation metrics for the SciRS2 scientific computing ecosystem. Covers classification, regression, clustering, ranking, object detection, information retrieval, generative model evaluation, fairness, segmentation, and streaming/online metrics — with SIMD acceleration and parallel processing throughout.
@@ -106,14 +106,14 @@ Comprehensive machine learning evaluation metrics for the SciRS2 scientific comp
 
 ```toml
 [dependencies]
-scirs2-metrics = "0.6.1"
+scirs2-metrics = "0.6.2"
 ```
 
 Selective features:
 
 ```toml
 [dependencies]
-scirs2-metrics = { version = "0.6.1", features = ["neural_common", "plotters_backend"] }
+scirs2-metrics = { version = "0.6.2", features = ["neural_common", "plotters_backend"] }
 ```
 
 Available features:
@@ -341,7 +341,7 @@ let result = tuner.random_search(|p| train_and_evaluate(p))?;
 - **SIMD acceleration** with automatic hardware detection (SSE2, AVX2, AVX-512)
 - **Parallel processing** via Rayon for batch metric computation
 - **Memory-efficient streaming** algorithms for large-scale evaluation
-- **1,032 tests passing** (default features), **1,043 passing** with `--all-features` (4 skipped in each run) — numerical precision validated via `cargo nextest`, 2026-07-15
+- **1,032 tests passing** (default features), **1,043 passing** with `--all-features` (4 skipped in each run) — numerical precision validated via `cargo nextest`, 2026-07-22
 - **Zero-warning** builds
 
 ## License

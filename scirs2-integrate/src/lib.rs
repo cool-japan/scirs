@@ -50,7 +50,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-integrate = "0.6.1"
+//! scirs2-integrate = "0.6.2"
 //! ```
 
 //!
@@ -232,8 +232,8 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.6.1
-//! - **Release Date**: March 27, 2026
+//! - **Version**: 0.6.2
+//! - **Release Date**: July 16, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-integrate](https://docs.rs/scirs2-integrate)
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)

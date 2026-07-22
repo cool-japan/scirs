@@ -1,8 +1,8 @@
 # scirs2-sparse Development TODO
 
-## Status: v0.6.1 (released, 2026-07-15)
+## Status: v0.6.2 (released, 2026-07-22)
 
-scirs2-sparse's own test suite (freshly re-run 2026-07-15): 1093 tests pass, 3 skipped, 0 failed with default features; 1093 tests pass, 3 skipped, 0 failed with `--all-features`.
+scirs2-sparse's own test suite (freshly re-run 2026-07-22): 1093 tests pass, 3 skipped, 0 failed with default features; 1093 tests pass, 3 skipped, 0 failed with `--all-features`.
 
 ## v0.3.3 — COMPLETED
 

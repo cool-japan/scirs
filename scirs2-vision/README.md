@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-vision.svg)](https://crates.io/crates/scirs2-vision)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-vision)](https://docs.rs/scirs2-vision)
-[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
 **scirs2-vision** is the computer vision crate for the [SciRS2](https://github.com/cool-japan/scirs) scientific computing library. It provides comprehensive tools for feature detection, image segmentation, geometric transformations, stereo vision, 3D reconstruction, object detection, video processing, and camera calibration with APIs familiar to users of OpenCV and scikit-image. Recent waves added Neural Radiance Fields (NeRF) with Instant-NGP hash-grid acceleration, monocular and sparse-LiDAR depth completion, and temporal action segmentation primitives.
@@ -20,7 +20,7 @@ Use scirs2-vision when you need to:
 - Perform object detection and face detection
 - Apply style transfer or image quality enhancement
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Feature Detection and Description
 - **Edge Detection**: Sobel, Canny, Prewitt, Laplacian, Laplacian of Gaussian (LoG)
@@ -120,14 +120,14 @@ Use scirs2-vision when you need to:
 
 ```toml
 [dependencies]
-scirs2-vision = "0.6.1"
+scirs2-vision = "0.6.2"
 ```
 
 Parallel (Rayon-based) processing is provided unconditionally via `scirs2-core` — there is no separate `parallel` feature to enable. For GPU-accelerated kernels:
 
 ```toml
 [dependencies]
-scirs2-vision = { version = "0.6.1", features = ["wgpu"] }
+scirs2-vision = { version = "0.6.2", features = ["wgpu"] }
 ```
 
 ## Quick Start

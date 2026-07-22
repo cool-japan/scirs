@@ -199,3 +199,362 @@ mod legacy_tests {
         }
     }
 }
+
+/// Round-trip tests against the real HDF5 byte format via the pure-Rust
+/// `oxih5` backend.
+///
+/// The pre-existing `legacy_tests` above only ever touch the in-memory model,
+/// so none of them would notice if `write()` produced nothing, produced a JSON
+/// sidecar, or silently dropped every non-f64 dataset. These do.
+#[cfg(test)]
+mod oxih5_backend_tests {
+    use super::*;
+    use crate::error::IoError;
+
+    /// HDF5 signature — the first 8 bytes of every conforming file.
+    const HDF5_MAGIC: &[u8] = b"\x89HDF\r\n\x1a\n";
+
+    /// A scratch path under the system temp directory, cleared before use.
+    fn temp_path(name: &str) -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(name);
+        let _ = std::fs::remove_file(&path);
+        path
+    }
+
+    /// A dataset written through `HDF5File` must come back with the same shape,
+    /// dtype and values — and the file on disk must actually be HDF5.
+    #[test]
+    fn test_root_dataset_round_trip_through_real_file() {
+        let path = temp_path("scirs2_hdf5_root_round_trip.h5");
+        let mut file = HDF5File::create(&path).expect("create");
+        let array = ArrayD::from_shape_vec(IxDyn(&[2, 3]), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("array");
+        file.create_dataset_from_array("values", &array, None)
+            .expect("create dataset");
+        file.write().expect("write");
+
+        let bytes = std::fs::read(&path).expect("read back");
+        assert_eq!(
+            bytes.get(..8),
+            Some(HDF5_MAGIC),
+            "write() must emit a real HDF5 file"
+        );
+
+        let reopened = HDF5File::open(&path, FileMode::ReadOnly).expect("open");
+        let dataset = reopened.get_dataset("values").expect("dataset");
+        assert_eq!(dataset.shape, vec![2, 3]);
+        assert_eq!(dataset.dtype, HDF5DataType::Float { size: 8 });
+        assert_eq!(
+            dataset.as_float_vec().expect("floats"),
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Groups nest to arbitrary depth and carry their own attributes.
+    #[test]
+    fn test_nested_groups_and_attributes_round_trip() {
+        let path = temp_path("scirs2_hdf5_nested_round_trip.h5");
+        let mut file = HDF5File::create(&path).expect("create");
+        file.root_mut()
+            .set_attribute("file_version", AttributeValue::String("1.0".to_string()));
+        {
+            let experiment = file.root_mut().create_group("experiment");
+            experiment.set_attribute("experiment_id", AttributeValue::Integer(12345));
+            experiment.set_attribute("temperature", AttributeValue::Float(25.5));
+            let measurements = experiment.create_group("measurements");
+            measurements
+                .set_attribute("sensor_type", AttributeValue::String("thermal".to_string()));
+        }
+        let temps = ArrayD::from_shape_vec(IxDyn(&[3]), vec![25.1, 25.3, 25.2]).expect("array");
+        file.create_dataset_from_array("experiment/measurements/temperature", &temps, None)
+            .expect("create dataset");
+        file.write().expect("write");
+
+        let reopened = HDF5File::open(&path, FileMode::ReadOnly).expect("open");
+        let root = reopened.root();
+        assert!(
+            matches!(root.get_attribute("file_version"), Some(AttributeValue::String(v)) if v == "1.0"),
+            "root attribute lost: {:?}",
+            root.get_attribute("file_version")
+        );
+
+        let experiment = root.get_group("experiment").expect("experiment group");
+        assert!(
+            matches!(
+                experiment.get_attribute("experiment_id"),
+                Some(AttributeValue::Integer(12345))
+            ),
+            "group attribute lost: {:?}",
+            experiment.get_attribute("experiment_id")
+        );
+        assert!(
+            matches!(experiment.get_attribute("temperature"), Some(AttributeValue::Float(v)) if (*v - 25.5).abs() < 1e-12)
+        );
+
+        let measurements = experiment
+            .get_group("measurements")
+            .expect("second-level group");
+        assert!(
+            matches!(measurements.get_attribute("sensor_type"), Some(AttributeValue::String(v)) if v == "thermal")
+        );
+        let dataset = measurements.get_dataset("temperature").expect("dataset");
+        assert_eq!(
+            dataset.as_float_vec().expect("floats"),
+            vec![25.1, 25.3, 25.2]
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The migration's central regression: oxih5's accessors each match one
+    /// exact datatype, so a literal port would have narrowed SciRS2 to reading
+    /// f64 datasets only. Every existing fixture is f64, so nothing else here
+    /// would catch it.
+    #[test]
+    fn test_non_f64_dataset_is_widened_on_read() {
+        let path = temp_path("scirs2_hdf5_widening.h5");
+        oxih5::FileWriter::new()
+            .write_dataset_i32("counts", &[10, 20, 30], &[3])
+            .expect("seed i32 dataset")
+            .build(&path)
+            .expect("build");
+
+        let file = HDF5File::open(&path, FileMode::ReadOnly).expect("open");
+        let dataset = file.get_dataset("counts").expect("dataset");
+        assert_eq!(
+            dataset.dtype,
+            HDF5DataType::Integer {
+                size: 4,
+                signed: true
+            },
+            "dtype must report the on-disk width"
+        );
+        assert_eq!(dataset.as_integer_vec().expect("ints"), vec![10, 20, 30]);
+
+        let widened: Vec<f64> = file
+            .read_dataset("counts")
+            .expect("an i32 dataset must still be readable as f64")
+            .iter()
+            .copied()
+            .collect();
+        assert_eq!(widened, vec![10.0, 20.0, 30.0]);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// `FileWriter::build` rewrites its target from scratch, so a write through
+    /// a read-only handle would destroy the source. It must be refused, and
+    /// `close()` must not perform one.
+    #[test]
+    fn test_write_through_readonly_handle_is_refused() {
+        let path = temp_path("scirs2_hdf5_readonly_guard.h5");
+        oxih5::FileWriter::new()
+            .write_dataset_f64("d", &[1.0, 2.0], &[2])
+            .expect("seed dataset")
+            .build(&path)
+            .expect("build");
+        let before = std::fs::read(&path).expect("read seed");
+
+        let file = HDF5File::open(&path, FileMode::ReadOnly).expect("open");
+        assert!(
+            file.write().is_err(),
+            "writing through a read-only handle must fail"
+        );
+        file.close()
+            .expect("closing a read-only handle must succeed");
+
+        let after = std::fs::read(&path).expect("read after close");
+        assert_eq!(
+            before, after,
+            "a read-only open/close cycle must leave the file byte-identical"
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Variable-length string datasets survive a round trip.
+    #[test]
+    fn test_string_dataset_round_trip() {
+        let path = temp_path("scirs2_hdf5_strings.h5");
+        let mut file = HDF5File::create(&path).expect("create");
+        file.root_mut().datasets.insert(
+            "labels".to_string(),
+            Dataset::new(
+                "labels".to_string(),
+                HDF5DataType::String {
+                    encoding: StringEncoding::UTF8,
+                },
+                vec![3],
+                DataArray::String(vec![
+                    "alpha".to_string(),
+                    "beta".to_string(),
+                    "gamma".to_string(),
+                ]),
+                DatasetOptions::default(),
+            ),
+        );
+        file.write().expect("write");
+
+        let reopened = HDF5File::open(&path, FileMode::ReadOnly).expect("open");
+        let dataset = reopened.get_dataset("labels").expect("dataset");
+        assert_eq!(
+            dataset.as_string_vec().expect("strings"),
+            vec!["alpha", "beta", "gamma"]
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Scalar and array attributes both round-trip, and an attribute's
+    /// object-header padding is not decoded as extra elements.
+    #[test]
+    fn test_dataset_attributes_round_trip() {
+        let path = temp_path("scirs2_hdf5_attrs.h5");
+        let mut file = HDF5File::create(&path).expect("create");
+        let array = ArrayD::from_shape_vec(IxDyn(&[2]), vec![1.0, 2.0]).expect("array");
+        file.create_dataset_from_array("series", &array, None)
+            .expect("create dataset");
+        if let Some(dataset) = file.root_mut().get_dataset_mut("series") {
+            dataset.set_attribute("units", AttributeValue::String("celsius".to_string()));
+            dataset.set_attribute("count", AttributeValue::Integer(2));
+            dataset.set_attribute("scale", AttributeValue::Float(0.5));
+            dataset.set_attribute("bounds", AttributeValue::FloatArray(vec![-1.5, 2.5]));
+            dataset.set_attribute("ids", AttributeValue::IntegerArray(vec![7, 8, 9]));
+        }
+        file.write().expect("write");
+
+        let reopened = HDF5File::open(&path, FileMode::ReadOnly).expect("open");
+        let dataset = reopened.get_dataset("series").expect("dataset");
+        assert!(
+            matches!(dataset.get_attribute("units"), Some(AttributeValue::String(v)) if v == "celsius")
+        );
+        assert!(matches!(
+            dataset.get_attribute("count"),
+            Some(AttributeValue::Integer(2))
+        ));
+        assert!(
+            matches!(dataset.get_attribute("scale"), Some(AttributeValue::Float(v)) if (*v - 0.5).abs() < 1e-12)
+        );
+        match dataset.get_attribute("bounds") {
+            Some(AttributeValue::FloatArray(v)) => assert_eq!(v, &vec![-1.5, 2.5]),
+            other => panic!("expected FloatArray for 'bounds', got {other:?}"),
+        }
+        match dataset.get_attribute("ids") {
+            Some(AttributeValue::IntegerArray(v)) => assert_eq!(v, &vec![7, 8, 9]),
+            other => panic!("expected IntegerArray for 'ids', got {other:?}"),
+        }
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The one construct the writer still cannot express must be named in the
+    /// error, never dropped.
+    #[test]
+    fn test_multidimensional_string_dataset_is_reported() {
+        let path = temp_path("scirs2_hdf5_2d_strings.h5");
+        let mut file = HDF5File::create(&path).expect("create");
+        file.root_mut().datasets.insert(
+            "grid".to_string(),
+            Dataset::new(
+                "grid".to_string(),
+                HDF5DataType::String {
+                    encoding: StringEncoding::UTF8,
+                },
+                vec![2, 2],
+                DataArray::String(vec![
+                    "a".to_string(),
+                    "b".to_string(),
+                    "c".to_string(),
+                    "d".to_string(),
+                ]),
+                DatasetOptions::default(),
+            ),
+        );
+        let err = file
+            .write()
+            .expect_err("2-D string datasets are not writable yet");
+        assert!(
+            matches!(err, IoError::UnsupportedFormat(_)),
+            "expected UnsupportedFormat, got {err:?}"
+        );
+        assert!(
+            format!("{err}").contains("2-D string dataset"),
+            "the error must name the construct: {err}"
+        );
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// `close()` must flush. The previous implementation discarded the write
+    /// result, so a failed flush was indistinguishable from a clean close, and
+    /// the no-feature build never wrote HDF5 at all.
+    #[test]
+    fn test_close_flushes_to_disk() {
+        let path = temp_path("scirs2_hdf5_close_flush.h5");
+        let mut file = HDF5File::create(&path).expect("create");
+        let array = ArrayD::from_shape_vec(IxDyn(&[2]), vec![3.5, 4.5]).expect("array");
+        file.create_dataset_from_array("d", &array, None)
+            .expect("create dataset");
+        file.close().expect("close must flush");
+
+        assert!(path.exists(), "close() must have written the file");
+        let reopened = HDF5File::open(&path, FileMode::ReadOnly).expect("open");
+        assert_eq!(
+            reopened
+                .get_dataset("d")
+                .expect("dataset")
+                .as_float_vec()
+                .expect("floats"),
+            vec![3.5, 4.5]
+        );
+        // No JSON sidecar: the old no-feature fallback wrote `{path}.json`
+        // instead of HDF5, which silently produced unreadable output.
+        let sidecar = std::path::PathBuf::from(format!("{}.json", path.display()));
+        assert!(!sidecar.exists(), "no JSON sidecar may be produced");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The free functions `scirs2-datasets::formats` calls must round-trip,
+    /// including the group-per-path form `write_hdf5` accepts.
+    #[test]
+    fn test_write_hdf5_read_hdf5_round_trip() {
+        let path = temp_path("scirs2_hdf5_free_functions.h5");
+        let mut datasets = HashMap::new();
+        datasets.insert(
+            "mydata".to_string(),
+            ArrayD::from_shape_vec(IxDyn(&[2, 2]), vec![1.0, 2.0, 3.0, 4.0]).expect("array"),
+        );
+        datasets.insert(
+            "data/temperature".to_string(),
+            ArrayD::from_shape_vec(IxDyn(&[3]), vec![9.0, 8.0, 7.0]).expect("array"),
+        );
+        write_hdf5(&path, datasets).expect("write_hdf5");
+
+        let root = read_hdf5(&path).expect("read_hdf5");
+        let flat = root.get_dataset("mydata").expect("root dataset");
+        assert_eq!(flat.shape, vec![2, 2]);
+        assert_eq!(
+            flat.as_float_vec().expect("floats"),
+            vec![1.0, 2.0, 3.0, 4.0]
+        );
+
+        let nested = root
+            .get_group("data")
+            .and_then(|g| g.get_dataset("temperature"))
+            .expect("grouped dataset");
+        assert_eq!(nested.as_float_vec().expect("floats"), vec![9.0, 8.0, 7.0]);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// `create_dataset_from_array` must convert exactly. The previous
+    /// implementation round-tripped each element through `format!("{:?}")` and
+    /// `parse::<f64>()`, yielding 0.0 for anything that did not parse.
+    #[test]
+    fn test_create_dataset_from_array_converts_exactly() {
+        let mut file = HDF5File::create(temp_path("scirs2_hdf5_exact_convert.h5")).expect("create");
+        let array = ArrayD::from_shape_vec(IxDyn(&[3]), vec![-7i32, 0, 42]).expect("array");
+        file.create_dataset_from_array("ints", &array, None)
+            .expect("create dataset");
+        let values = file
+            .root()
+            .get_dataset("ints")
+            .and_then(Dataset::as_float_vec)
+            .expect("floats");
+        assert_eq!(values, vec![-7.0, 0.0, 42.0]);
+    }
+}

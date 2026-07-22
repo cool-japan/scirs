@@ -28,25 +28,35 @@ cargo build --release
 ⚡ **Ultra-Fast**: 10-100x performance improvements through SIMD optimization
 🔒 **Memory Safe**: Rust's ownership system prevents memory leaks and data races
 🌍 **Cross-Platform**: Linux, macOS, Windows, WebAssembly - identical behavior
-🧪 **Battle-Tested**: 37,402 tests (all-features) / 35,632 (default-features) + 5,001 doc-tests — workspace-wide via `cargo nextest` — plus 3.9M+ lines of Rust code, 29 workspace crates
+🧪 **Battle-Tested**: 37,442 tests (all-features) / 35,668 (default-features) + 5,000 doc-tests — workspace-wide via `cargo nextest` — plus 3.9M+ lines of Rust code, 29 workspace crates
 📊 **Comprehensive**: Linear algebra, statistics, ML, FFT, signal processing, computer vision, and more
 
 ## Project Overview
 
 SciRS2 provides a complete ecosystem for scientific computing, data analysis, and machine learning in Rust, with production-grade quality and performance that rivals or exceeds traditional C/Fortran-based libraries.
 
-## 🎉 Release Status: v0.6.1 (2026-07-15)
+## 🎉 Release Status: v0.6.2 (2026-07-22)
 
-**Latest Stable Release** - v0.6.1 (July 15, 2026) 🚀
+**Latest Stable Release** - v0.6.2 (July 22, 2026) 🚀
 
-- ✅ **37,402 Tests (all-features) / 35,632 (default-features) + 5,001 Doc-Tests**: Full workspace-wide test suite via `cargo nextest`, across 29 workspace crates
+- ✅ **37,442 Tests (all-features) / 35,668 (default-features) + 5,000 Doc-Tests**: Full workspace-wide test suite via `cargo nextest`, across 29 workspace crates
 - ✅ **3.9M+ Lines of Rust Code**: Comprehensive coverage of scientific computing and AI/ML
 - ✅ **29 Workspace Crates**: Specialized modules for every scientific computing domain
 - ✅ **80,800+ Public API Items**: Extensive, well-documented API surface
 - ✅ **Near-complete implementation**: Minimal stubs remaining across all modules
 - ✅ **Pure Rust by Default**: OxiBLAS, OxiFFT, oxiarc-* - zero C/Fortran dependencies
 - ✅ **Zero Warnings Policy**: Clean build with 0 compilation errors, 0 clippy warnings, 0 rustdoc warnings
-- 📅 **Release Date**: July 15, 2026
+- 📅 **Release Date**: July 22, 2026
+
+**What's New in 0.6.2** — Pure Rust Hardening: HDF5, Tracy, NUMA & OpenCL:
+
+- **Real pure-Rust HDF5 backend**: MAT v7.3 (HDF5-based) support is now available in **default builds** — `EnhancedMatFile`/`V73MatFile` no longer require a system `libhdf5`. The in-tree `hdf5_lite` reader (2,697 lines) is retired in favor of `oxih5`, which widens format coverage (superblock v2/v3, fractal heaps, extensible arrays, virtual datasets, szip) and fixes a critical silent-data-loss bug where compressed-dataset writes were silently dropped, plus a mis-parsed version-2 dataspace header that had been self-concealed by a buggy test fixture.
+- **C/C++ dependencies removed**: `hdf5` (C-linked), `libnuma`, `tracy-client` (C++) and `opencl3` are all gone from the dependency graph. `scirs2-core`'s Tracy profiling is now a pure-Rust Chrome-Trace-Event exporter; NUMA topology discovery reads real `/sys` data instead of estimating "8 cores per node"; OpenCL support now runtime-`dlopen`s the system ICD instead of linking at build time. `scirs2-spatial`'s `NumaTopology::detect()` had the same fabricated-data problem (hardcoded core/memory estimates) — it now reads the real Linux `sysfs` topology, with an honest single-node fallback elsewhere.
+- **BREAKING (TLS)**: `reqwest`/`ureq` now build with `rustls-no-provider`, dropping the C `aws-lc-rs`/`ring` backends; SciRS2 auto-installs a pure-Rust `oxitls-rustcrypto-provider` on first use unless the application already installed its own `CryptoProvider`.
+- **scirs2-ndimage**: CUDA kernel JIT now compiles through the pure-Rust `oxicuda-nvrtc` crate (runtime `dlopen`, zero build-time CUDA SDK dependency).
+- **Dependency bumps**: `oxih5`/`oxih5-core` 0.1.3→0.2.2, `oxisql-*` 0.3.2→0.4.0, `oxiz` 0.2.3→0.2.4, `oxicuda-*` 0.5.0→0.5.1 (+new `oxicuda-nvrtc`), Cranelift 0.133→0.134 (fixes a `memmap2` unsound advisory, RUSTSEC-2026-0186).
+
+See [CHANGELOG.md](CHANGELOG.md) `[0.6.2]` for the complete list.
 
 **What's New in 0.6.1** — Real Codegen, DLPack Safety & GPU-Dispatch Honesty:
 
@@ -420,7 +430,7 @@ Profiler::global().lock().unwrap().print_report();
 
 Each module has its own README with detailed documentation and is available on crates.io.
 
-### Complete Crate Reference (v0.6.1)
+### Complete Crate Reference (v0.6.2)
 
 | Crate | Description | docs.rs |
 |-------|-------------|---------|
@@ -580,7 +590,7 @@ SciRS2 follows the COOLJAPAN Pure Rust Policy. All default dependencies are 100%
 
 ### System Dependencies
 
-**v0.6.1 uses Pure Rust dependencies only - No system libraries required!** 🎉
+**v0.6.2 uses Pure Rust dependencies only - No system libraries required!** 🎉
 
 SciRS2 is **100% Pure Rust** with OxiBLAS (Pure Rust BLAS/LAPACK implementation). You don't need to install:
 - ❌ OpenBLAS
@@ -602,7 +612,7 @@ SciRS2 and all its modules are available on [crates.io](https://crates.io/crates
 ```toml
 # Add the main integration crate for all functionality
 [dependencies]
-scirs2 = "0.6.1"
+scirs2 = "0.6.2"
 ```
 
 Or include only the specific modules you need:
@@ -610,16 +620,16 @@ Or include only the specific modules you need:
 ```toml
 [dependencies]
 # Core utilities
-scirs2-core = "0.6.1"
+scirs2-core = "0.6.2"
 
 # Scientific computing modules
-scirs2-linalg = "0.6.1"
-scirs2-stats = "0.6.1"
-scirs2-optimize = "0.6.1"
+scirs2-linalg = "0.6.2"
+scirs2-stats = "0.6.2"
+scirs2-optimize = "0.6.2"
 
 # AI/ML modules
-scirs2-neural = "0.6.1"
-scirs2-autograd = "0.6.1"
+scirs2-neural = "0.6.2"
+scirs2-autograd = "0.6.2"
 # Note: For ML optimization algorithms, use the independent OptiRS project
 ```
 
@@ -737,7 +747,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Platform Compatibility
 
-SciRS2 v0.6.1 (July 15, 2026) has been tested on the following platforms:
+SciRS2 v0.6.2 (July 22, 2026) has been tested on the following platforms:
 
 ### ✅ Fully Supported Platforms
 
@@ -784,7 +794,7 @@ cargo install cargo-nextest
 cargo nextest run --nff --all-features
 ```
 
-## Current Status (v0.6.1 - Released July 15, 2026)
+## Current Status (v0.6.2 - Released July 22, 2026)
 
 ### 🎉 Production-Ready Features
 
@@ -813,7 +823,7 @@ cargo nextest run --nff --all-features
   - Clustering (K-means, hierarchical, DBSCAN)
 - **AI/ML Infrastructure**: Automatic differentiation (with fixed optimizers), neural networks, graph processing, computer vision, time series
 - **Data I/O**: MATLAB, HDF5, NetCDF, Parquet, Arrow, CSV, image formats
-- **Production Quality**: 37,402 tests (all-features) / 35,632 (default-features) + 5,001 doc-tests, zero warnings policy, comprehensive error handling
+- **Production Quality**: 37,442 tests (all-features) / 35,668 (default-features) + 5,000 doc-tests, zero warnings policy, comprehensive error handling
 
 #### New in v0.4.0
 - ✨ **Massive Feature Expansion**: 39 waves of development adding 200+ major features
@@ -825,9 +835,9 @@ cargo nextest run --nff --all-features
 - ✨ **Statistics**: Conformal prediction (CQR/RAPS/Mondrian), Bayesian NNs, INLA, ADVI/Laplace/SWAG
 - ✨ **Zero Warnings**: 60+ clippy warnings fixed, 0 errors, 0 warnings, 0 rustdoc warnings
 
-### Stable Modules (Production Ready — v0.6.1)
+### Stable Modules (Production Ready — v0.6.2)
 
-All 29 workspace crates are production-ready with comprehensive test coverage (37,402 tests all-features, 35,632 default-features, + 5,001 doc-tests).
+All 29 workspace crates are production-ready with comprehensive test coverage (37,442 tests all-features, 35,668 default-features, + 5,000 doc-tests).
 
 #### Core Scientific Computing Modules
 - **Linear Algebra** (`scirs2-linalg`): Full decompositions, iterative solvers (GMRES/PCG/BiCGStab/MINRES), tensor decompositions, matrix functions, control theory
@@ -884,10 +894,10 @@ All SciRS2 modules are available on crates.io. Add the modules you need to your 
 
 ```toml
 [dependencies]
-scirs2 = "0.6.1"  # Core library with all modules
+scirs2 = "0.6.2"  # Core library with all modules
 # Or individual modules:
-scirs2-linalg = "0.6.1"  # Linear algebra
-scirs2-stats = "0.6.1"   # Statistics
+scirs2-linalg = "0.6.2"  # Linear algebra
+scirs2-stats = "0.6.2"   # Statistics
 # ... and more
 ```
 
@@ -962,9 +972,9 @@ For detailed development plans, upcoming features, and contribution opportunitie
 
 ## Development Branch Status
 
-**Current Branch**: `0.6.1` (July 15, 2026)
+**Current Branch**: `0.6.2` (July 22, 2026)
 
-**Release Status**: All major features through v0.6.1 have been implemented and tested (Waves 53–78, plus the 0.6.0 CUDA-decentralization and 0.6.1 hardening cycles):
+**Release Status**: All major features through v0.6.2 have been implemented and tested (Waves 53–78, plus the 0.6.0 CUDA-decentralization, 0.6.1 hardening, and 0.6.2 Pure-Rust dependency-elimination cycles):
 - ✅ 29 workspace crates fully implemented
 - ✅ 78 waves of development completed
 - ✅ Flash Attention 2, QAT, ONNX export, LoRA/DoRA/GPTQ in neural
@@ -973,8 +983,8 @@ For detailed development plans, upcoming features, and contribution opportunitie
 - ✅ NUMA-aware `par_map_chunks`, lock-free data structures, GpuNdarray<f32>
 - ✅ WebGPU/WASM backend, conformal prediction, Bayesian NNs
 - ✅ Complete EML-IR CAS: canonicalize, e-graphs, SMT (OxiZ), JIT, GPU eval, diffgeom, ALiBi
-- ✅ Pure-Rust `oxicuda-*` CUDA backend across 10 crates (0.6.0), real model-serving codegen + DLPack safety fixes (0.6.1)
-- ✅ 37,402 tests (all-features) / 35,632 (default-features) + 5,001 doc-tests passing
+- ✅ Pure-Rust `oxicuda-*` CUDA backend across 10 crates (0.6.0), real model-serving codegen + DLPack safety fixes (0.6.1), hdf5/tracy/libnuma/opencl3 C-dependency removal (0.6.2)
+- ✅ 37,442 tests (all-features) / 35,668 (default-features) + 5,000 doc-tests passing
 - ✅ Zero warnings policy maintained (clippy, rustdoc, compilation)
 - ✅ 80,800+ public API items documented
 
@@ -1316,7 +1326,7 @@ If you use SciRS2 in your research, please cite:
   author = {{COOLJAPAN OU (Team KitaSan)}},
   year = {2026},
   url = {https://github.com/cool-japan/scirs},
-  version = {0.6.1}
+  version = {0.6.2}
 }
 ```
 

@@ -121,7 +121,8 @@ impl MmapDataset {
             })?
         };
 
-        // Prefetch if enabled
+        // Prefetch if enabled (madvise is Unix-only; no-op elsewhere)
+        #[cfg(unix)]
         if config.prefetch {
             let _ = mmap.advise(memmap2::Advice::WillNeed);
         }

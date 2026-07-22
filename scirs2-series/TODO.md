@@ -1,6 +1,6 @@
 # scirs2-series TODO
 
-## Status: v0.6.1 — Documentation Audit (July 15, 2026)
+## Status: v0.6.2 — Documentation Audit (July 15, 2026)
 
 A README/TODO accuracy pass was done directly against `src/` (grep + `Read`, not just skimming
 doc comments). Headline findings:

@@ -1,6 +1,6 @@
 # scirs2-stats TODO
 
-## Status: v0.6.1 (released 2026-07-15; last reviewed 2026-07-15)
+## Status: v0.6.2 (released 2026-07-22; last reviewed 2026-07-22)
 
 scirs2-stats's own test suite (freshly run 2026-07-15): 2529 tests pass, 0 failed, 24 skipped (default features); 2561 tests pass, 0 failed, 24 skipped (`--all-features`, matching the previous review's count). Added the missing F-distribution `ppf()` (inverse CDF); removed a dead/orphaned `advanced_stubs.rs` (unused stub types); added real peak/average RSS memory tracking to the SciPy benchmark framework via a new opt-in `memory_tracking` feature. This session also migrated `mcmc/smc.rs` and `variational/bbvi.rs` off a direct `rand` crate dependency onto `scirs2_core::random`, and converted the `scirs2-symbolic` dev-dependency from `workspace=true` to `path=` (packaging fix, no functional change).
 

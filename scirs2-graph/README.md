@@ -7,7 +7,7 @@
 
 **scirs2-graph** is the graph theory and network analysis crate for the [SciRS2](https://github.com/cool-japan/scirs) scientific computing library. It provides a comprehensive suite of graph algorithms, data structures, graph neural networks, embeddings, and visualization tools for scientific computing, machine learning, and network science applications.
 
-**Status (2026-07-15, v0.6.1)**: Stable. No `todo!()`/`unimplemented!()` stubs found anywhere in `src/`. Test suite: 1418/1418 passing with default features (8 skipped), 1479/1479 passing with `--all-features` (8 skipped, including GPU-dispatch smoke tests under the `wgpu` feature) — 0 failures in either configuration.
+**Status (2026-07-22, v0.6.2)**: Stable. No `todo!()`/`unimplemented!()` stubs found anywhere in `src/`. Test suite: 1418/1418 passing with default features (8 skipped), 1479/1479 passing with `--all-features` (8 skipped, including GPU-dispatch smoke tests under the `wgpu` feature) — 0 failures in either configuration.
 
 ## What scirs2-graph Provides
 
@@ -22,7 +22,7 @@ Use scirs2-graph when you need to:
 - Visualize graphs as SVG or DOT output
 - Detect graph isomorphism or subgraph patterns
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Core Graph Representations
 - Directed and undirected graphs with efficient adjacency storage
@@ -170,14 +170,14 @@ Use scirs2-graph when you need to:
 
 ```toml
 [dependencies]
-scirs2-graph = "0.6.1"
+scirs2-graph = "0.6.2"
 ```
 
 For parallel processing support:
 
 ```toml
 [dependencies]
-scirs2-graph = { version = "0.6.1", features = ["parallel"] }
+scirs2-graph = { version = "0.6.2", features = ["parallel"] }
 ```
 
 ## Quick Start

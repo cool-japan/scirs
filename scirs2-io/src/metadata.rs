@@ -1238,6 +1238,9 @@ pub struct MetadataRepository {
 #[cfg(feature = "reqwest")]
 impl MetadataRepository {
     pub fn new(url: impl Into<String>) -> Self {
+        // `reqwest::blocking::Client::new()` builds the client eagerly and panics without a
+        // process-default rustls CryptoProvider -- install the pure-Rust OxiTLS one if needed.
+        crate::tls::ensure_default_tls_provider();
         Self {
             url: url.into(),
             cache: Arc::new(RwLock::new(HashMap::new())),

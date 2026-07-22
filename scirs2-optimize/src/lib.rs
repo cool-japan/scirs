@@ -43,7 +43,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-optimize = "0.6.1"
+//! scirs2-optimize = "0.6.2"
 //! ```
 //!
 //! ### Unconstrained Minimization (Rosenbrock Function)

@@ -1,6 +1,6 @@
 # scirs2-vision TODO
 
-## Status: v0.6.1 (current, 2026-07-15) — reassessed Stable → Partial
+## Status: v0.6.2 (current, 2026-07-22) — reassessed Stable → Partial
 
 Untouched by this release's fix work (no vision-specific changes shipped in 0.6.1); this is a fresh
 implementation-status survey. 0 `todo!()`/`unimplemented!()` markers in `src/` — but a targeted sweep

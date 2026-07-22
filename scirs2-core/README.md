@@ -15,17 +15,17 @@
 
 ```toml
 [dependencies]
-scirs2-core = "0.6.1"
+scirs2-core = "0.6.2"
 ```
 
 With optional feature flags:
 
 ```toml
 [dependencies]
-scirs2-core = { version = "0.6.1", features = ["validation", "simd", "parallel", "gpu"] }
+scirs2-core = { version = "0.6.2", features = ["validation", "simd", "parallel", "gpu"] }
 ```
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Performance
 
@@ -236,6 +236,31 @@ let d2 = f64::simd_distance_squared_euclidean(&a.view(), &b.view());
 - `training_history(&self) -> &[f64]` on `NormalizingFlow`, `ScoreBasedDiffusion`, `EnergyBasedModel`, and `NeuralPosteriorEstimation` (`src/random/neural_sampling.rs`) — per-epoch average loss recorded during `train()`.
 - Real GPU runtime detection feeding `PlatformCapabilities` (`src/simd_ops/gpu_detection.rs`): CUDA is probed via dynamic `libcuda`/`nvcuda` loading plus `cuInit`/`cuDeviceGetCount`; Metal is probed via the `metal` feature or a documented platform heuristic. Replaces the previous stub.
 - `ProductionProfiler::export_data()` (`src/profiling/production.rs`) now returns a real JSON snapshot (config, resource utilization, active workload IDs) instead of a placeholder.
+
+## v0.6.2 — Pure Rust Dependency Removals
+
+Three C/C++ dependencies were removed from `scirs2-core`'s default and optional feature builds:
+
+- **`libnuma` (C) removed** — the `extern "C"` FFI block backing `NumaTopology::discover()` is gone; Linux NUMA topology discovery is now handled unconditionally by the existing pure-Rust `sysfs` (`/sys`) parser, which also filters out CPU-less/memory-only nodes to match `libnuma`'s prior behavior. The `libnuma` Cargo feature name is kept as an inert no-op alias so existing `features = ["libnuma"]` declarations keep resolving.
+- **`tracy-client` (C++) removed** — the `tracy` feature is now implemented entirely in pure Rust. `TracyClient` gained `export_chrome_trace(path)`, writing recorded spans/frame-marks/messages out as a Chrome Trace Event Format (Perfetto-compatible) JSON document viewable at `ui.perfetto.dev` or `chrome://tracing`; the `TracyClient`/`TracySpan`/`tracy_span!` API is otherwise unchanged:
+
+```rust
+use scirs2_core::profiling::tracy::TracyClient;
+
+let client = TracyClient::new();
+if client.is_active() {
+    client.message("profiling enabled");
+}
+{
+    let _span = client.span("my_operation");
+    // work here
+} // span ends on drop
+
+// Valid even when the `tracy` feature is disabled -- writes an empty-but-valid trace document.
+let _ = client.export_chrome_trace(std::env::temp_dir().join("trace.json"));
+```
+
+- **`opencl3` removed** — OpenCL support now resolves `libOpenCL.so.1`/`libOpenCL.so`/`OpenCL` via a runtime `dlopen` loader instead of linking at build time; the public `OpenCLContext` API is unchanged, and code paths still fall back gracefully to wgpu/CPU when no OpenCL ICD is present. `gpu/backends/opencl.rs` was split into `opencl/{mod.rs, ffi.rs, memory_pool.rs}`.
 
 ## Feature Flags
 

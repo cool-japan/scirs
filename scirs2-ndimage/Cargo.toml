@@ -37,11 +37,21 @@ oxiarc-zstd = { workspace = true, optional = true }
 oxiarc-lz4 = { workspace = true, optional = true }
 statrs.workspace = true
 
+# OxiCUDA pure-Rust CUDA backend (optional, `cuda` feature only). oxicuda-driver
+# loads libcuda at runtime (zero build-time CUDA SDK dependency), and libnvrtc is
+# resolved at runtime by oxicuda-nvrtc for CUDA-C -> PTX kernel JIT compilation.
+oxicuda-driver = { workspace = true, optional = true }
+oxicuda-memory = { workspace = true, optional = true }
+oxicuda-nvrtc = { workspace = true, optional = true }
+
 [features]
 default = []
 simd = ["scirs2-core/simd"]
 parallel = ["scirs2-core/parallel"]
-cuda = []  # ndimage has its own backend (backend/cuda.rs); scirs2-core's cudarc backend was retired in 0.6.x
+# ndimage has its own backend (backend/cuda.rs) built on the pure-Rust oxicuda
+# ecosystem (runtime libcuda via oxicuda-driver, runtime libnvrtc via
+# oxicuda-nvrtc); no build-time CUDA SDK needed.
+cuda = ["dep:oxicuda-driver", "dep:oxicuda-memory", "dep:oxicuda-nvrtc"]
 opencl = []
 metal = []
 gpu = []  # GPU abstraction layer - does NOT auto-enable specific backends

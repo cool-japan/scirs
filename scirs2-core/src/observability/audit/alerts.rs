@@ -165,6 +165,9 @@ impl AlertManager {
         let mut payload = HashMap::new();
         payload.insert("text", message);
 
+        // `Client::new()` builds the client eagerly and panics without a process-default
+        // rustls CryptoProvider -- install the pure-Rust OxiTLS one if needed.
+        crate::observability::ensure_default_tls_provider();
         let client = Client::new();
         client
             .post(webhook_url)

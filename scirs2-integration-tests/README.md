@@ -1,10 +1,10 @@
 # SciRS2 Integration Tests
 
 [![Stable](https://img.shields.io/badge/status-stable-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)]()
 
-Cross-crate integration test suite for the SciRS2 ecosystem, v0.6.1.
+Cross-crate integration test suite for the SciRS2 ecosystem, v0.6.2.
 
 ## Purpose
 
@@ -14,7 +14,7 @@ All tests run with `--all-features` so that every optional sub-crate is exercise
 
 ---
 
-## Integration Scenarios Tested (v0.6.1)
+## Integration Scenarios Tested (v0.6.2)
 
 ### autograd + neural
 
@@ -138,13 +138,13 @@ scirs2-integration-tests/
 
 ---
 
-## Current Status (v0.6.1, verified 2026-07-15)
+## Current Status (v0.6.2, verified 2026-07-22)
 
 - All five baseline integration scenarios above are implemented and passing
 - v0.4.2 Wave 42/44 added 6 additional pipeline tests: ML pipeline, signal analysis, computer vision, graph ML, scientific computing, NLP — all green
 - v0.4.2 Wave 44 added 16 numerical cross-crate consistency tests and 40 numerical validation tests
 - 251 `#[test]` functions across the suite (246 run + 5 intentionally `#[ignore]`d performance/opt-in benchmarks); 0 doctests; 0 `todo!()`/`unimplemented!()`
-- 246/246 pass via `cargo nextest run --all-features -p scirs2-integration-tests` (freshly re-verified 2026-07-15)
+- 246/246 pass via `cargo nextest run --all-features -p scirs2-integration-tests` (freshly re-verified 2026-07-22, as part of the 0.6.2 workspace-wide all-features run)
 - Performance tests in `performance.rs` (plus a few long-running perf checks in other pipeline files) remain `#[ignore]`d by default and require explicit `--ignored` opt-in
 
 ---

@@ -5,10 +5,10 @@
 version = 2
 ignore = [
     "RUSTSEC-2024-0436", # paste - unmaintained but widely used, no replacement yet
-    { id = "RUSTSEC-2026-0049", reason = "rustls-webpki vulnerability via rumqttc 0.25.1; no upstream fix available yet" },
-    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile 2.2.0 unmaintained, pulled in by rumqttc 0.25.1; no upstream fix available" },
-    { id = "RUSTSEC-2024-0384", reason = "instant 0.1.13 unmaintained, pulled in by hdf5 0.8.1; no upstream fix available" },
-    { id = "RUSTSEC-2026-0097", reason = "SciRS2 does not use custom loggers with rand::rng(); unsoundness is not exploitable in our use case. Affects rand 0.8.5 (via statrs), 0.9.2 (via tungstenite), 0.10.0 (via scirs2-transform). No patched version available yet." },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml DoS via wayland-scanner's build-time Wayland protocol XML codegen (not runtime/attacker-controlled input) <- smithay-client-toolkit <- winit <- egui/eframe (optional GUI feature). egui/eframe 0.35.0 is latest; no newer release bumps this yet." },
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml quadratic runtime, same wayland-scanner build-time-only codegen path as RUSTSEC-2026-0195; not reachable with attacker-controlled XML." },
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained (not an active vuln) via ab_glyph <- sctk-adwaita <- winit (GUI) and ab_glyph <- plotters <- criterion (dev-only benches); blocked on upstream migrating to skrifa or bumping past it." },
+    { id = "RUSTSEC-2023-0071", reason = "rsa Marvin Attack (PKCS#1v1.5 decryption timing side-channel) via oxitls-rustcrypto-provider. Verified (docs.rs) the provider only implements TLS_ECDHE_* cipher suites; RSA is used solely for certificate signature verify/sign, never the static-RSA decryption path Marvin targets. No fixed rsa release exists upstream." },
 ]
 
 [licenses]

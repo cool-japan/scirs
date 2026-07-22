@@ -10,8 +10,11 @@
 #   "RUSTSEC-2021-0145"  # atty: not reachable in our binary surfaces
 ignore = [
     "RUSTSEC-2024-0436", # paste - unmaintained but widely used, no replacement yet
-    "RUSTSEC-2024-0384", # instant 0.1.13 unmaintained, pulled in by hdf5 0.8.1; no upstream fix available
     "RUSTSEC-2026-0097", # rand unsoundness with custom logger; SciRS2 does not use custom loggers with rand::rng(), not exploitable in our use case
+    "RUSTSEC-2026-0195", # quick-xml DoS via wayland-scanner (build-time Wayland protocol XML codegen, not runtime/attacker-controlled input) <- smithay-client-toolkit <- winit <- egui/eframe (optional GUI feature). egui/eframe 0.35.0 is latest; no newer release bumps this yet
+    "RUSTSEC-2026-0194", # quick-xml quadratic runtime, same wayland-scanner build-time-only codegen path as RUSTSEC-2026-0195; not reachable with attacker-controlled XML
+    "RUSTSEC-2026-0192", # ttf-parser unmaintained (not an active vuln) via ab_glyph <- sctk-adwaita <- winit (GUI) and ab_glyph <- plotters <- criterion (dev-only benches); blocked on upstream migrating to skrifa or bumping past it
+    "RUSTSEC-2023-0071", # rsa Marvin Attack (PKCS#1v1.5 decryption timing side-channel) via oxitls-rustcrypto-provider. Verified (docs.rs) that provider only implements TLS_ECDHE_* cipher suites; RSA is used solely for certificate signature verify/sign, never the static-RSA decryption path Marvin targets. No fixed rsa release exists upstream
 ]
 
 [output]

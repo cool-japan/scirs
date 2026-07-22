@@ -1,9 +1,9 @@
 # SciRS2 Development Roadmap
 
-**Current Version**: 0.6.1
-**Status**: Production Ready — v0.6.0 released 2026-07-01 (pure-Rust `oxicuda-*` CUDA stack as a direct, per-crate NVIDIA performance backend across 10 crates, decentralizing GPU out of `scirs2-core`; wgpu/WebGPU portability features standardized under a single `wgpu` name across the ecosystem); v0.6.1 released 2026-07-15 (real model-serving codegen, critical DLPack SIGBUS/stride fixes, honest GPU-dispatch and hardware-detection reporting, wgpu adapter discovery restricted to `Backends::PRIMARY`, F-distribution ppf, spatial hamming distance, finance facades, and dependency hardening (oxiarc-archive 0.3.6, oxicuda-* 0.5.0) — see CHANGELOG.md `[0.6.1]`)
-**Scale**: ~4.2M lines total, ~3.89M Rust SLoC, ~8,149 source files, ~29 workspace crates
-**Last Updated**: 2026-07-15
+**Current Version**: 0.6.2
+**Status**: Production Ready — v0.6.0 released 2026-07-01 (pure-Rust `oxicuda-*` CUDA stack as a direct, per-crate NVIDIA performance backend across 10 crates, decentralizing GPU out of `scirs2-core`; wgpu/WebGPU portability features standardized under a single `wgpu` name across the ecosystem); v0.6.1 released 2026-07-15 (real model-serving codegen, critical DLPack SIGBUS/stride fixes, honest GPU-dispatch and hardware-detection reporting, wgpu adapter discovery restricted to `Backends::PRIMARY`, F-distribution ppf, spatial hamming distance, finance facades, and dependency hardening (oxiarc-archive 0.3.6, oxicuda-* 0.5.0) — see CHANGELOG.md `[0.6.1]`); v0.6.2 released 2026-07-22 (Pure Rust hardening — real oxih5-backed HDF5 replacing the C-linked `hdf5` crate and the in-tree `hdf5_lite` reader, with a critical silent-data-loss fix; removed `libnuma`/`tracy-client`/`opencl3` C dependencies; honest `NumaTopology::detect()` in scirs2-spatial replacing a fabricated estimate; BREAKING TLS hardening (`rustls-no-provider` + auto-installed pure-Rust `oxitls-rustcrypto-provider`); Cranelift 0.134 bump fixing a `memmap2` unsound advisory — see CHANGELOG.md `[0.6.2]`)
+**Scale**: ~4.2M lines total, ~3.87M Rust SLoC, ~8,134 source files, ~29 workspace crates
+**Last Updated**: 2026-07-22
 
 This document tracks the development roadmap for SciRS2. Completed items in v0.3.4 are documented here for historical reference; the active roadmap is the v0.4.0 section.
 
@@ -525,7 +525,7 @@ These are pulled in by external crates we depend on — not direct violations, b
 - [x] scirs2-core: Unified memory allocator (CPU+GPU shared pages)
 - [x] scirs2-core: Persistent vector (RRB-tree) with structural sharing
 - [x] scirs2-core: Tracy profiler integration (feature-gated)
-- [x] scirs2-core: NUMA-local allocator with libnuma feature gate
+- [x] scirs2-core: NUMA-local allocator (Pure Rust sysfs topology discovery; `libnuma` feature is now an inert no-op alias)
 - [x] scirs2-signal: GPU-accelerated spectrogram computation (GpuSpectrogram)
 - [x] scirs2-signal: GPU matched filter bank (MatchedFilterBank)
 - [x] scirs2-linalg: Auto mixed-precision selection by condition number
@@ -802,9 +802,9 @@ All development must adhere to the following policies:
 
 ---
 
-**Last Updated**: 2026-07-15
-**Branch**: 0.6.1
-**Status**: v0.6.1 (current) — the 0.6.x series introduces the pure-Rust `oxicuda-*` CUDA stack as a direct, per-crate NVIDIA performance backend across 10 crates (fft/symbolic/interpolate/special/stats/graph/linalg/optimize/datasets/vision), decentralizing GPU out of `scirs2-core`. Two GPU stories now stand side by side: wgpu/WebGPU portability (retained in core as `GpuNdarray`/`WebGPUContext`) and `oxicuda-*` performance (NVIDIA-only, f64-capable, real CUDA PTX→driver JIT). Standardized every real wgpu portability feature across the ecosystem under a single `wgpu` name; retired core's cudarc-based CUDA backend entirely (Pure-Rust win). See CHANGELOG.md `[0.6.0]` for the CUDA-decentralization release notes, and `[0.6.1]` (2026-07-15) for the follow-up hardening pass — real model-serving codegen, a critical DLPack SIGBUS fix, and honest GPU-dispatch reporting.
+**Last Updated**: 2026-07-22
+**Branch**: 0.6.2
+**Status**: v0.6.2 (current) — the 0.6.x series introduces the pure-Rust `oxicuda-*` CUDA stack as a direct, per-crate NVIDIA performance backend across 10 crates (fft/symbolic/interpolate/special/stats/graph/linalg/optimize/datasets/vision), decentralizing GPU out of `scirs2-core`. Two GPU stories now stand side by side: wgpu/WebGPU portability (retained in core as `GpuNdarray`/`WebGPUContext`) and `oxicuda-*` performance (NVIDIA-only, f64-capable, real CUDA PTX→driver JIT). Standardized every real wgpu portability feature across the ecosystem under a single `wgpu` name; retired core's cudarc-based CUDA backend entirely (Pure-Rust win). See CHANGELOG.md `[0.6.0]` for the CUDA-decentralization release notes, `[0.6.1]` (2026-07-15) for the follow-up hardening pass — real model-serving codegen, a critical DLPack SIGBUS fix, and honest GPU-dispatch reporting — and `[0.6.2]` (2026-07-22) for the Pure Rust hardening pass: real oxih5-backed HDF5, removal of the `libnuma`/`tracy-client`/`opencl3` C dependencies, honest NUMA topology detection, and BREAKING TLS-provider hardening.
 
 ---
 

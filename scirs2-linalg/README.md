@@ -9,23 +9,23 @@
 
 `scirs2-linalg` provides a comprehensive linear algebra library with SciPy-compatible APIs, pure-Rust BLAS/LAPACK via OxiBLAS (no C or Fortran dependencies), SIMD acceleration, randomized methods, tensor decompositions, and iterative solvers suitable for large-scale scientific computing and machine learning.
 
-**Tests:** 2018/2018 passing (default features), 2248/2248 passing (`--all-features`) — as of 2026-07-15.
+**Tests:** 2018/2018 passing (default features), 2248/2248 passing (`--all-features`) — as of 2026-07-22.
 
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-linalg = "0.6.1"
+scirs2-linalg = "0.6.2"
 ```
 
 With optional acceleration:
 
 ```toml
 [dependencies]
-scirs2-linalg = { version = "0.6.1", features = ["simd", "parallel"] }
+scirs2-linalg = { version = "0.6.2", features = ["simd", "parallel"] }
 ```
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Core Decompositions
 - LU (with partial/rook/complete pivoting), QR, SVD, Cholesky, LDL^T

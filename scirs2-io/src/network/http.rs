@@ -57,6 +57,21 @@ pub struct HttpResponse {
 pub type ProgressCallback = Box<dyn Fn(u64, Option<u64>) + Send + Sync>;
 
 /// HTTP client for network operations
+///
+/// # TLS crypto provider
+///
+/// When built with the `reqwest` feature, [`HttpClient::new`] auto-calls [`HttpClient::init`],
+/// which builds a [`reqwest::Client`] eagerly -- this constructs rustls' `ClientConfig` inside
+/// `.build()` even for a client that never issues an HTTPS request. Since the workspace's
+/// `reqwest` dependency uses `rustls-no-provider` (no aws-lc-rs/ring bundled -- see the
+/// "PURE RUST BLOCKER (reqwest)" note in the workspace root `Cargo.toml`), this crate installs
+/// the pure-Rust OxiTLS provider (`oxitls-rustcrypto-provider`, COOLJAPAN's RUSTSEC-2026-0104-fixed
+/// fork of the abandoned upstream `rustls-rustcrypto` 0.0.2-alpha, resolved under the
+/// `rustls-rustcrypto` name) as the process-default rustls `CryptoProvider` automatically,
+/// right before the first client is constructed -- unless the application has already installed
+/// a provider of its own. Applications that want a different provider (e.g. a C-linked
+/// aws-lc-rs/ring one) simply call `rustls::crypto::CryptoProvider::install_default(...)`
+/// before the first use of SciRS2 networking; an existing process default is never overridden.
 #[derive(Debug)]
 pub struct HttpClient {
     #[allow(dead_code)]
@@ -86,6 +101,7 @@ impl HttpClient {
     /// Initialize the HTTP client (creates underlying reqwest client)
     #[cfg(feature = "reqwest")]
     pub fn init(&mut self) -> Result<()> {
+        crate::tls::ensure_default_tls_provider();
         let mut client_builder = reqwest::Client::builder()
             .connect_timeout(self.config.connect_timeout)
             .timeout(self.config.read_timeout)

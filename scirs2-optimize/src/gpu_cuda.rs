@@ -86,7 +86,7 @@ fn build_context() -> OptimizeResult<std::sync::Arc<oxicuda_driver::Context>> {
 ///
 /// Layout correctness (cannot be runtime-checked on a non-NVIDIA host): ndarray
 /// is row-major. We materialize a contiguous row-major copy of `H` via
-/// [`as_standard_layout`](scirs2_core::ndarray::ArrayBase::as_standard_layout)
+/// `as_standard_layout`
 /// and describe it as a [`Layout::RowMajor`] `MatrixDesc` (`n`×`n`). Mirroring
 /// the proven interpolate `cuda_eval_gemm` matrix×vector layout, `v` is
 /// described as a column-vector [`Layout::RowMajor`] `MatrixDesc` (`n`×1) and

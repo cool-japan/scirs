@@ -58,7 +58,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-io = "0.6.1"
+//! scirs2-io = "0.6.2"
 //! ```
 //!
 //! ```rust,no_run
@@ -73,7 +73,7 @@
 //! let (headers, data) = read_csv("data.csv", Some(config)).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.6.1 (March 27, 2026)
+//! ## 🔒 Version: 0.6.2 (July 16, 2026)
 //!
 //! ## Modules
 //!
@@ -234,8 +234,6 @@ pub mod harwell_boeing;
 /// - Chunking and compression options
 /// - Integration with ndarray for efficient array operations
 pub mod hdf5;
-/// Lightweight pure-Rust HDF5 format reader
-pub mod hdf5_lite;
 /// IDL (Interactive Data Language) save file format module
 ///
 /// Provides functionality for reading and writing IDL save files (.sav):
@@ -364,6 +362,8 @@ pub mod netcdf_lite;
 /// println!("Network client created for file operations");
 /// ```
 pub mod network;
+// Crate-private TLS provider bootstrap: installs the pure-Rust OxiTLS CryptoProvider as the
+// process default before any eager reqwest client construction (see src/tls.rs).
 /// Neural-adaptive I/O optimization with advanced-level intelligence
 ///
 /// Provides AI-driven adaptive optimization for I/O operations:
@@ -535,6 +535,8 @@ pub mod streaming;
 /// - Configurable thread counts and queue sizes
 /// - Global thread pool for convenience
 pub mod thread_pool;
+#[cfg(feature = "reqwest")]
+mod tls;
 /// Data validation and integrity checking module
 ///
 /// Provides functionality for validating data integrity through checksums,

@@ -3,7 +3,7 @@
 High-performance scientific computing for JavaScript and TypeScript environments, powered by Rust compiled to WebAssembly. Part of the [SciRS2](https://github.com/cool-japan/scirs) ecosystem.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](../LICENSE)
-[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 ## Overview

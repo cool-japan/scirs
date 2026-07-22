@@ -1,6 +1,6 @@
 # scirs2-validation TODO
 
-## Status: v0.6.1 (2026-07-15)
+## Status: v0.6.2 (2026-07-22)
 
 ## Purpose
 
@@ -50,4 +50,4 @@ Shared statistical validation framework providing pre-computed analytical refere
 - Crate is `publish = false` — designed for internal use by the SciRS2 ecosystem.
 - All reference values are derived analytically and verifiable by hand (no external numerical tools).
 - Wave 8 distribution accuracy fixes (Beta CDF Lentz fraction, F-dist via regularized beta, ChiSquare even-df Poisson sum, Normal PPF Acklam, Pareto PDF strict boundary) were validated through this framework during their development.
-- **Known gap**: despite being designed as the shared reference-value source for `scirs2-stats`, `scirs2-stability-tests`, and sibling ecosystem crates, as of v0.6.1 no other workspace crate (and no other `~/work/*` COOLJAPAN project) actually depends on `scirs2-validation` — a workspace-wide search finds zero `scirs2-validation` Cargo dependencies and zero `scirs2_validation::` imports outside this crate itself. The earlier claim in this file that the suite was "consumed by `scirs2-stability-tests` and downstream crates" was not accurate and has been removed. Wiring this framework into an actual consumer (most naturally `scirs2-stats`'s own test suite) remains open future work.
+- **Known gap**: despite being designed as the shared reference-value source for `scirs2-stats`, `scirs2-stability-tests`, and sibling ecosystem crates, as of v0.6.2 no other workspace crate (and no other `~/work/*` COOLJAPAN project) actually depends on `scirs2-validation` — a workspace-wide search (re-verified 2026-07-22) still finds zero `scirs2-validation` Cargo dependencies and zero `scirs2_validation::` imports outside this crate itself. The earlier claim in this file that the suite was "consumed by `scirs2-stability-tests` and downstream crates" was not accurate and has been removed. Wiring this framework into an actual consumer (most naturally `scirs2-stats`'s own test suite) remains open future work.

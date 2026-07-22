@@ -5,18 +5,18 @@
 [![Documentation](https://img.shields.io/docsrs/scirs2-io)](https://docs.rs/scirs2-io)
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
-**Scientific data input/output for the SciRS2 scientific computing library (v0.6.1).**
+**Scientific data input/output for the SciRS2 scientific computing library (v0.6.2).**
 
-`scirs2-io` provides comprehensive, high-performance file I/O for scientific and numerical workloads. It covers everything from classic scientific formats (MATLAB, NetCDF, HDF5, WAV, NumPy, Fortran unformatted, IDL) through domain-specific formats (FITS/VOTable, FASTA/FASTQ/SAM/BAM/VCF, GeoTIFF/Shapefile/GeoJSON/KML), modern columnar and lakehouse formats (Parquet, Arrow IPC, Zarr, Delta Lake, Iceberg), to cloud storage, ETL pipelines, data catalogs, and lineage tracking — all as pure Rust with no required C/Fortran dependencies (a few optional interop paths, such as the system `hdf5` library binding, are feature-gated and off by default).
+`scirs2-io` provides comprehensive, high-performance file I/O for scientific and numerical workloads. It covers everything from classic scientific formats (MATLAB, NetCDF, HDF5, WAV, NumPy, Fortran unformatted, IDL) through domain-specific formats (FITS/VOTable, FASTA/FASTQ/SAM/BAM/VCF, GeoTIFF/Shapefile/GeoJSON/KML), modern columnar and lakehouse formats (Parquet, Arrow IPC, Zarr, Delta Lake, Iceberg), to cloud storage, ETL pipelines, data catalogs, and lineage tracking — all as pure Rust with no required C/Fortran dependencies.
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Classic Scientific Formats
-- **MATLAB (.mat)**: `.mat` v4/v5 read/write with structures and cell arrays
+- **MATLAB (.mat)**: `.mat` v4/v5 read/write with structures and cell arrays, plus v7.3 (HDF5-based) read/write — `EnhancedMatFile`, `V73MatFile`, `PartialIoSupport` — now available in default builds via the pure-Rust `oxih5` backend; no `hdf5` Cargo feature or system `libhdf5` required
 - **WAV**: Professional-grade WAV audio read/write
 - **ARFF**: Complete Weka Attribute-Relation File Format support
 - **NetCDF**: Hand-rolled, pure-Rust NetCDF3 Classic and NetCDF4/HDF5 reader/writer with unlimited dimensions and chunking (`netcdf/`, 1300+ lines; does **not** wrap the external `netcdf3` crate — that dependency is currently unused dead weight in `Cargo.toml`)
-- **HDF5-lite**: Pure-Rust, read-only hierarchical data format reader (v0/v1 superblocks, B-tree group navigation, contiguous/chunked datasets, attributes); the optional `hdf5` feature additionally binds the system C `hdf5` library for write support and advanced layouts
+- **HDF5**: Pure-Rust hierarchical data format read/write via [`oxih5`](https://crates.io/crates/oxih5) — no `libhdf5`, no C toolchain, and no feature flag to enable. Covers superblocks v0–v3, version-1 and version-2 B-trees, fractal heaps, symbol-table and link-message groups, contiguous/chunked/compact layouts, extensible and fixed array chunk indices, virtual datasets, hyperslab selections, deflate and szip decompression, memory-mapped reads, and attributes on groups and datasets
 - **NumPy (.npy/.npz)**: NumPy binary array format and ZIP-of-arrays archives
 - **Fortran unformatted files**: Read/write support for Fortran sequential unformatted records, common in physics/weather/engineering codes
 - **IDL save files (.sav)**: Reader/writer for Interactive Data Language save files used in astronomy and remote sensing
@@ -125,14 +125,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.6.1"
+scirs2-io = "0.6.2"
 ```
 
 To enable optional feature groups:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.6.1", features = ["async", "parquet"] }
+scirs2-io = { version = "0.6.2", features = ["async", "parquet"] }
 ```
 
 ### Reading a CSV file
@@ -217,11 +217,10 @@ println!(
 
 | Module | Purpose |
 |--------|---------|
-| `matlab` | `.mat` file read/write |
+| `matlab` | `.mat` v4/v5/v7.3 (HDF5-based, via `oxih5`) file read/write |
 | `wavfile` | WAV audio read/write |
 | `netcdf` | NetCDF3/4 (hand-rolled, does not use the `netcdf3` crate) |
-| `hdf5_lite` | Pure-Rust HDF5 reader (read-only) |
-| `hdf5` | System-library HDF5 binding (optional feature) |
+| `hdf5` | Pure-Rust HDF5 read/write via `oxih5` (always available) |
 | `npy` | NumPy `.npy`/`.npz` read/write |
 | `fortran` | Fortran unformatted file read/write |
 | `idl` | IDL `.sav` save file read/write |
@@ -297,8 +296,7 @@ println!(
 | `validation` | Checksums and schema validation |
 | `image_io` | PNG/JPEG/BMP/TIFF via the `image` crate, plus EXIF metadata |
 | `exif` | Alias enabling `image_io` for EXIF metadata access |
-| `hdf5` | Enables the system-library HDF5 binding alongside the always-available `hdf5_lite` reader |
-| `hdf5-legacy` | Keeps the C-linked `hdf5` crate available for write paths pending pure-Rust `oxih5` write support |
+| `hdf5` | No-op alias, retained so existing manifests keep resolving — HDF5 is unconditional (pure-Rust `oxih5`) |
 | `parquet` | Real Apache Arrow/Parquet reader/writer (`dep:parquet`, `dep:arrow`) |
 | `async` | Async I/O via `tokio` |
 | `reqwest` | HTTP/HTTPS network I/O |

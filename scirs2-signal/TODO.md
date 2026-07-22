@@ -1,6 +1,6 @@
 # scirs2-signal TODO
 
-## Status: v0.6.1 (released, 2026-07-15)
+## Status: v0.6.2 (released, 2026-07-22)
 
 scirs2-signal's own test suite (freshly re-run 2026-07-15): 1489 tests pass, 2 skipped, 0 failed with default features; 1489 tests pass, 2 skipped, 0 failed with `--all-features`. Fixed a real `waverec` bug (`dwt/multiscale.rs`): it was reconstructing to 2x the correct length for wavelet filters with more than 2 taps; the DWT round-trip test now asserts genuine perfect reconstruction instead of just checking non-empty output.
 

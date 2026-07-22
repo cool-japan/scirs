@@ -2,8 +2,9 @@
 //!
 //! Provides `Hdf5Dataset`, a wrapper around HDF5 file access. In default
 //! builds (no `hdf5_io` feature) only the file-path wrapper and magic-byte
-//! validator are available. Enabling the `hdf5_io` feature activates full
-//! read/write support via the `hdf5` crate (which links `libhdf5`).
+//! validator are available. Enabling the `hdf5_io` feature activates read
+//! support via `oxih5`, a pure-Rust HDF5 implementation (COOLJAPAN Pure Rust
+//! Policy — no `libhdf5`, no C toolchain).
 //!
 //! # Feature gates
 //!
@@ -22,27 +23,6 @@
 //! let valid = Hdf5Dataset::is_valid_hdf5("/non/existent/file.h5");
 //! assert!(!valid);
 //! ```
-//!
-//! # noffi migration status
-//!
-//! TODO(noffi-migration): Replace `hdf5` with `oxih5-core` / `oxih5-format` (Pure Rust HDF5).
-//!
-//! The `read_dataset` and `dataset_names` methods under `#[cfg(feature = "hdf5_io")]`
-//! can be migrated to `oxih5`:
-//!
-//! - `hdf5::File::open(path)` → `oxih5::File::open(path)`
-//! - `file.dataset(name)` → `file.dataset(name)` (same method name)
-//! - `ds.read_raw::<f64>()` → `dataset.data` field (pre-typed `Vec<T>`)
-//! - `ds.shape()` → `dataset.shape` field (`Vec<usize>`)
-//! - `file.member_names()` → `file.dataset_names()` (oxih5 API)
-//!
-//! **Write path** (in `hdf5_io_tests::write_hdf5_1d` test helper):
-//! `hdf5::File::create` / `new_dataset` / `write_raw` — blocked at oxih5 M1 (read-only).
-//! Keep under `#[cfg(feature = "hdf5_io")]` until oxih5 write support ships.
-//!
-//! The `hdf5_io-legacy` feature is available to enable only the C-linked `hdf5` crate
-//! without pulling in oxih5 deps, e.g. for write-only paths.
-//! See `~/work/noffi/oxih5/` for reference API.
 
 use crate::error::{DatasetsError, Result};
 use std::io::Read;
@@ -108,49 +88,172 @@ impl Hdf5Dataset {
 
     /// Read a named dataset into a 2-D float array.
     ///
+    /// Any numeric element type is accepted and widened to `f64`, matching the
+    /// implicit conversion the previous C-linked backend performed.
+    ///
     /// Requires the `hdf5_io` feature.
     #[cfg(feature = "hdf5_io")]
     pub fn read_dataset(&self, name: &str) -> Result<scirs2_core::ndarray::Array2<f64>> {
         use scirs2_core::ndarray::Array2;
 
-        let file = hdf5::File::open(&self.path)
+        let file = oxih5::File::open(&self.path)
             .map_err(|e| DatasetsError::InvalidFormat(format!("HDF5 open error: {e}")))?;
 
         let ds = file.dataset(name).map_err(|e| {
             DatasetsError::NotFound(format!("HDF5 dataset '{name}' not found: {e}"))
         })?;
 
-        let shape = ds.shape();
-        if shape.len() != 2 {
+        if ds.shape.len() != 2 {
             return Err(DatasetsError::InvalidFormat(format!(
                 "Expected 2-D dataset, got shape {:?}",
-                shape
+                ds.shape
             )));
         }
 
-        let flat: Vec<f64> = ds
-            .read_raw()
-            .map_err(|e| DatasetsError::InvalidFormat(format!("HDF5 read error: {e}")))?;
+        let flat = Self::widen_to_f64(&ds)?;
 
-        let rows = shape[0];
-        let cols = shape[1];
+        let rows = ds.shape[0];
+        let cols = ds.shape[1];
         let arr = Array2::from_shape_vec((rows, cols), flat)
             .map_err(|e| DatasetsError::ComputationError(format!("Array shape error: {e}")))?;
 
         Ok(arr)
     }
 
-    /// List all top-level dataset names in the HDF5 file.
+    /// Decode any fixed-width numeric dataset into `Vec<f64>`.
+    ///
+    /// oxih5's accessors each match exactly one datatype, so the widening the C
+    /// crate did inside `read_raw::<f64>()` has to be spelled out. Without this
+    /// the reader would silently accept only datasets already stored as f64.
+    #[cfg(feature = "hdf5_io")]
+    fn widen_to_f64(ds: &oxih5::Dataset) -> Result<Vec<f64>> {
+        use oxih5::Dtype;
+
+        let decode = |what: &str, e: oxih5::OxiH5Error| {
+            DatasetsError::InvalidFormat(format!("HDF5 {what} read error: {e}"))
+        };
+        match &ds.dtype {
+            Dtype::Float { size: 8, .. } => ds.as_f64().map_err(|e| decode("f64", e)),
+            Dtype::Float { size: 4, .. } => Ok(ds
+                .as_f32()
+                .map_err(|e| decode("f32", e))?
+                .into_iter()
+                .map(f64::from)
+                .collect()),
+            Dtype::Float { size: 2, .. } => Ok(ds
+                .as_f16()
+                .map_err(|e| decode("f16", e))?
+                .into_iter()
+                .map(f64::from)
+                .collect()),
+            Dtype::Int {
+                size: 1,
+                signed: true,
+                ..
+            } => Ok(ds
+                .as_i8()
+                .map_err(|e| decode("i8", e))?
+                .into_iter()
+                .map(f64::from)
+                .collect()),
+            Dtype::Int {
+                size: 2,
+                signed: true,
+                ..
+            } => Ok(ds
+                .as_i16()
+                .map_err(|e| decode("i16", e))?
+                .into_iter()
+                .map(f64::from)
+                .collect()),
+            Dtype::Int {
+                size: 4,
+                signed: true,
+                ..
+            } => Ok(ds
+                .as_i32()
+                .map_err(|e| decode("i32", e))?
+                .into_iter()
+                .map(f64::from)
+                .collect()),
+            Dtype::Int {
+                size: 8,
+                signed: true,
+                ..
+            } => Ok(ds
+                .as_i64()
+                .map_err(|e| decode("i64", e))?
+                .into_iter()
+                .map(|v| v as f64)
+                .collect()),
+            Dtype::Int {
+                size: 1,
+                signed: false,
+                ..
+            } => Ok(ds
+                .as_u8()
+                .map_err(|e| decode("u8", e))?
+                .into_iter()
+                .map(f64::from)
+                .collect()),
+            Dtype::Int {
+                size: 2,
+                signed: false,
+                ..
+            } => Ok(ds
+                .as_u16()
+                .map_err(|e| decode("u16", e))?
+                .into_iter()
+                .map(f64::from)
+                .collect()),
+            Dtype::Int {
+                size: 4,
+                signed: false,
+                ..
+            } => Ok(ds
+                .as_u32()
+                .map_err(|e| decode("u32", e))?
+                .into_iter()
+                .map(f64::from)
+                .collect()),
+            Dtype::Int {
+                size: 8,
+                signed: false,
+                ..
+            } => Ok(ds
+                .as_u64()
+                .map_err(|e| decode("u64", e))?
+                .into_iter()
+                .map(|v| v as f64)
+                .collect()),
+            other => Err(DatasetsError::InvalidFormat(format!(
+                "HDF5 datatype {other} is not numeric and cannot be read as f64"
+            ))),
+        }
+    }
+
+    /// List all top-level object names in the HDF5 file.
     ///
     /// Requires the `hdf5_io` feature.
     #[cfg(feature = "hdf5_io")]
     pub fn dataset_names(&self) -> Result<Vec<String>> {
-        let file = hdf5::File::open(&self.path)
+        let file = oxih5::File::open(&self.path)
             .map_err(|e| DatasetsError::InvalidFormat(format!("HDF5 open error: {e}")))?;
 
-        let names = file
-            .member_names()
+        let root = file
+            .root()
+            .map_err(|e| DatasetsError::InvalidFormat(format!("HDF5 root group error: {e}")))?;
+
+        // `hdf5::File::member_names` listed datasets *and* groups. `oxih5`
+        // separates the two, and `File::dataset_names()` is datasets only — so
+        // the group names have to be added back to preserve the old contract.
+        let mut names = root
+            .datasets()
             .map_err(|e| DatasetsError::InvalidFormat(format!("HDF5 member list error: {e}")))?;
+        names
+            .extend(root.groups().map_err(|e| {
+                DatasetsError::InvalidFormat(format!("HDF5 group list error: {e}"))
+            })?);
 
         Ok(names)
     }
@@ -257,18 +360,22 @@ mod tests {
     mod hdf5_io_tests {
         use super::*;
 
-        /// Write a 2-D f64 dataset to an HDF5 file using a flat Vec.
-        /// The hdf5 crate uses its own ndarray version; we write a 1-D dataset
-        /// and treat it as a column vector to avoid the ndarray version conflict.
+        /// Write a 1-D f64 dataset to an HDF5 file via the pure-Rust writer.
         fn write_hdf5_1d(path: &std::path::Path, name: &str, data: &[f64]) {
-            let file = hdf5::File::create(path).expect("create hdf5");
-            let builder = file.new_dataset::<f64>();
-            let ds = builder
-                .shape([data.len()])
-                .create(name)
-                .expect("create dataset");
-            // Use write_raw which accepts a slice directly (avoids ndarray version conflict)
-            ds.write_raw(data).expect("write_raw");
+            oxih5::FileWriter::new()
+                .write_dataset_f64(name, data, &[data.len()])
+                .expect("write_dataset_f64")
+                .build(path)
+                .expect("build hdf5");
+        }
+
+        /// Write a 1-D i32 dataset, to exercise the numeric widening path.
+        fn write_hdf5_1d_i32(path: &std::path::Path, name: &str, data: &[i32]) {
+            oxih5::FileWriter::new()
+                .write_dataset_i32(name, data, &[data.len()])
+                .expect("write_dataset_i32")
+                .build(path)
+                .expect("build hdf5");
         }
 
         #[test]
@@ -298,6 +405,24 @@ mod tests {
             let ds = Hdf5Dataset::from_file(&path).expect("from_file");
             let names = ds.dataset_names().expect("dataset_names");
             assert!(names.contains(&"temperatures".to_owned()));
+        }
+
+        /// A non-f64 dataset must still be readable: the C backend converted
+        /// implicitly, and dropping that would narrow support to f64-only files
+        /// without any test noticing.
+        #[test]
+        fn test_read_dataset_widens_non_f64() {
+            let dir = tempfile::tempdir().expect("tmpdir");
+            let path = dir.path().join("ints.h5");
+            write_hdf5_1d_i32(&path, "counts", &[1, 2, 3, 4]);
+
+            let ds = Hdf5Dataset::from_file(&path).expect("from_file");
+            // read_dataset requires rank 2, so go through the widening helper
+            // directly with the rank-1 dataset this writer produces.
+            let file = oxih5::File::open(&path).expect("open");
+            let raw = file.dataset("counts").expect("dataset");
+            let widened = Hdf5Dataset::widen_to_f64(&raw).expect("i32 must widen to f64");
+            assert_eq!(widened, vec![1.0, 2.0, 3.0, 4.0]);
         }
     }
 }

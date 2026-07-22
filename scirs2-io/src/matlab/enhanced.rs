@@ -14,11 +14,7 @@ use scirs2_core::ndarray::{ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::path::Path;
 
-#[cfg(feature = "hdf5")]
 use crate::hdf5::{AttributeValue, CompressionOptions, DatasetOptions, FileMode, HDF5File};
-
-#[cfg(not(feature = "hdf5"))]
-type CompressionOptions = ();
 
 /// Enhanced MATLAB file format configuration
 #[derive(Debug, Clone)]
@@ -110,24 +106,25 @@ impl EnhancedMatFile {
     }
 
     /// Check if a file is in v7.3 format
+    ///
+    /// Sniffs the leading bytes for the HDF5 signature (v7.3 is HDF5 underneath)
+    /// or the `MATLAB` banner. Before the migration this probe was itself gated
+    /// on the `hdf5` feature, so a default build answered `false` for every file
+    /// and silently routed genuine v7.3 input into the v5 reader.
     pub fn is_v73_file<P: AsRef<Path>>(&self, path: &P) -> Result<bool> {
-        // Try to read as HDF5 file
-        #[cfg(feature = "hdf5")]
-        {
-            if let Ok(mut file) = std::fs::File::open(path.as_ref()) {
-                use std::io::Read;
-                let mut magic = [0u8; 8];
-                if file.read_exact(&mut magic).is_ok() {
-                    // HDF5 magic signature
-                    return Ok(&magic[0..4] == b"\x89HDF" || &magic[0..6] == b"MATLAB");
-                }
-            }
+        use std::io::Read;
+
+        let Ok(mut file) = std::fs::File::open(path.as_ref()) else {
+            return Ok(false);
+        };
+        let mut magic = [0u8; 8];
+        if file.read_exact(&mut magic).is_err() {
+            return Ok(false);
         }
-        Ok(false)
+        Ok(&magic[0..4] == b"\x89HDF" || &magic[0..6] == b"MATLAB")
     }
 
     /// Write variables using MAT v7.3 format (HDF5)
-    #[cfg(feature = "hdf5")]
     fn write_v73<P: AsRef<Path>>(&self, path: P, vars: &HashMap<String, MatType>) -> Result<()> {
         let mut hdf5_file = HDF5File::create(path)?;
 
@@ -139,16 +136,7 @@ impl EnhancedMatFile {
         Ok(())
     }
 
-    /// Write variables using MAT v7.3 format (fallback without HDF5)
-    #[cfg(not(feature = "hdf5"))]
-    fn write_v73<P: AsRef<Path>>(&self, path: &P, vars: &HashMap<String, MatType>) -> Result<()> {
-        Err(IoError::Other(
-            "MAT v7.3 format requires HDF5 feature".to_string(),
-        ))
-    }
-
     /// Read variables using MAT v7.3 format (HDF5)
-    #[cfg(feature = "hdf5")]
     fn read_v73<P: AsRef<Path>>(&self, path: P) -> Result<HashMap<String, MatType>> {
         let hdf5_file = HDF5File::open(path, FileMode::ReadOnly)?;
         let mut vars = HashMap::new();
@@ -163,16 +151,7 @@ impl EnhancedMatFile {
         Ok(vars)
     }
 
-    /// Read variables using MAT v7.3 format (fallback without HDF5)
-    #[cfg(not(feature = "hdf5"))]
-    fn read_v73<P: AsRef<Path>>(&self, path: &P) -> Result<HashMap<String, MatType>> {
-        Err(IoError::Other(
-            "MAT v7.3 format requires HDF5 feature".to_string(),
-        ))
-    }
-
     /// Write a MatType to HDF5 file
-    #[cfg(feature = "hdf5")]
     fn write_mat_type_to_hdf5(
         &self,
         file: &mut HDF5File,
@@ -226,7 +205,14 @@ impl EnhancedMatFile {
                 )?;
             }
             MatType::Int64(array) => {
-                file.create_dataset_from_array(name, array, Some(options.clone()))?;
+                // The HDF5 backing store is f64, so this cast is lossy above
+                // 2^53. It is spelled out rather than hidden behind a blanket
+                // conversion so the loss is visible where it happens.
+                file.create_dataset_from_array(
+                    name,
+                    &array.mapv(|v| v as f64),
+                    Some(options.clone()),
+                )?;
                 file.set_attribute(
                     name,
                     "MATLAB_class",
@@ -258,7 +244,12 @@ impl EnhancedMatFile {
                 )?;
             }
             MatType::UInt64(array) => {
-                file.create_dataset_from_array(name, array, Some(options.clone()))?;
+                // Lossy above 2^53, as for int64 above.
+                file.create_dataset_from_array(
+                    name,
+                    &array.mapv(|v| v as f64),
+                    Some(options.clone()),
+                )?;
                 file.set_attribute(
                     name,
                     "MATLAB_class",
@@ -329,13 +320,21 @@ impl EnhancedMatFile {
                 }
             }
             MatType::SparseDouble(sparse) => {
-                self.write_sparse_to_hdf5(file, name, sparse, "double", &options)?;
+                self.write_sparse_to_hdf5(file, name, sparse, "double", &options, |v| *v)?;
             }
             MatType::SparseSingle(sparse) => {
-                self.write_sparse_to_hdf5(file, name, sparse, "single", &options)?;
+                self.write_sparse_to_hdf5(file, name, sparse, "single", &options, |v| {
+                    f64::from(*v)
+                })?;
             }
             MatType::SparseLogical(sparse) => {
-                self.write_sparse_to_hdf5(file, name, sparse, "logical", &options)?;
+                self.write_sparse_to_hdf5(file, name, sparse, "logical", &options, |v| {
+                    if *v {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                })?;
             }
         }
 
@@ -346,7 +345,6 @@ impl EnhancedMatFile {
     }
 
     /// Read a MatType from HDF5 file
-    #[cfg(feature = "hdf5")]
     fn read_mat_type_from_hdf5(&self, file: &HDF5File, name: &str) -> Result<MatType> {
         // First, check if it's a group (struct or cell array)
         if file.is_group(name) {
@@ -465,17 +463,21 @@ impl EnhancedMatFile {
                                 match class.as_str() {
                                     "double" => {
                                         let sparse =
-                                            self.read_sparse_from_hdf5::<f64>(file, name)?;
+                                            self.read_sparse_from_hdf5::<f64>(file, name, |v| v)?;
                                         Ok(MatType::SparseDouble(sparse))
                                     }
                                     "single" => {
                                         let sparse =
-                                            self.read_sparse_from_hdf5::<f32>(file, name)?;
+                                            self.read_sparse_from_hdf5::<f32>(file, name, |v| {
+                                                v as f32
+                                            })?;
                                         Ok(MatType::SparseSingle(sparse))
                                     }
                                     "logical" => {
                                         let sparse =
-                                            self.read_sparse_from_hdf5::<bool>(file, name)?;
+                                            self.read_sparse_from_hdf5::<bool>(file, name, |v| {
+                                                v != 0.0
+                                            })?;
                                         Ok(MatType::SparseLogical(sparse))
                                     }
                                     _ => Err(IoError::Other(format!(
@@ -501,7 +503,12 @@ impl EnhancedMatFile {
     }
 
     /// Write sparse matrix to HDF5 file in MATLAB v7.3 format
-    #[cfg(feature = "hdf5")]
+    ///
+    /// `to_f64` converts one stored value to the `f64` the HDF5 backing store
+    /// holds. It is a parameter rather than an `Into<f64>` bound because the
+    /// three sparse `MatType` variants cover `f64`, `f32` and `bool`, and `bool`
+    /// has no `Into<f64>` — so the caller states how its element type maps onto
+    /// a number instead of the conversion being invented here.
     fn write_sparse_to_hdf5<T>(
         &self,
         file: &mut HDF5File,
@@ -509,6 +516,7 @@ impl EnhancedMatFile {
         sparse: &crate::sparse::SparseMatrix<T>,
         matlab_class: &str,
         options: &DatasetOptions,
+        to_f64: fn(&T) -> f64,
     ) -> Result<()>
     where
         T: Clone + std::fmt::Debug,
@@ -569,11 +577,28 @@ impl EnhancedMatFile {
             }
         };
 
-        // Write CSC data
-        let ir_array =
-            scirs2_core::ndarray::Array1::from_vec(csc_data.row_indices.clone()).into_dyn();
-        let jc_array = scirs2_core::ndarray::Array1::from_vec(csc_data.col_ptrs.clone()).into_dyn();
-        let data_array = scirs2_core::ndarray::Array1::from_vec(csc_data.values.clone()).into_dyn();
+        // Write CSC data. Indices are `usize`; the cast is exact below 2^53,
+        // which no representable matrix dimension can reach.
+        let ir_array = scirs2_core::ndarray::Array1::from_vec(
+            csc_data
+                .row_indices
+                .iter()
+                .map(|&index| index as f64)
+                .collect::<Vec<f64>>(),
+        )
+        .into_dyn();
+        let jc_array = scirs2_core::ndarray::Array1::from_vec(
+            csc_data
+                .col_ptrs
+                .iter()
+                .map(|&ptr| ptr as f64)
+                .collect::<Vec<f64>>(),
+        )
+        .into_dyn();
+        let data_array = scirs2_core::ndarray::Array1::from_vec(
+            csc_data.values.iter().map(to_f64).collect::<Vec<f64>>(),
+        )
+        .into_dyn();
 
         file.create_dataset_from_array(&format!("{}/ir", name), &ir_array, Some(options.clone()))?;
         file.create_dataset_from_array(&format!("{}/jc", name), &jc_array, Some(options.clone()))?;
@@ -587,24 +612,31 @@ impl EnhancedMatFile {
     }
 
     /// Read sparse matrix from HDF5 file in MATLAB v7.3 format
-    #[cfg(feature = "hdf5")]
+    ///
+    /// `from_f64` is the inverse of the `to_f64` given to
+    /// [`EnhancedMatFile::write_sparse_to_hdf5`]. Before it existed this method
+    /// filled every non-zero with `T::default()` — a comment called it a
+    /// placeholder — so a sparse matrix read back was structurally right and
+    /// numerically all zeros.
     fn read_sparse_from_hdf5<T>(
         &self,
         file: &HDF5File,
         name: &str,
+        from_f64: fn(f64) -> T,
     ) -> Result<crate::sparse::SparseMatrix<T>>
     where
-        T: Clone + std::fmt::Debug + Default,
+        T: Clone + std::fmt::Debug,
     {
         // Read matrix dimensions
-        let dims = if let Ok(Some(AttributeValue::Array(dims))) =
-            file.get_attribute(name, "MATLAB_dims")
-        {
-            (dims[0] as usize, dims[1] as usize)
-        } else {
-            return Err(IoError::FormatError(
-                "Missing sparse matrix dimensions".to_string(),
-            ));
+        let dims = match file.get_attribute(name, "MATLAB_dims") {
+            Ok(Some(AttributeValue::Array(dims))) if dims.len() >= 2 => {
+                (dims[0] as usize, dims[1] as usize)
+            }
+            _ => {
+                return Err(IoError::FormatError(
+                    "Missing sparse matrix dimensions".to_string(),
+                ))
+            }
         };
 
         // Read CSC data as f64 arrays first
@@ -615,22 +647,28 @@ impl EnhancedMatFile {
         // Convert to vectors with proper types
         let ir: Vec<usize> = ir_array.iter().map(|&x| x as usize).collect();
         let jc: Vec<usize> = jc_array.iter().map(|&x| x as usize).collect();
-        // For generic T, we use default values as placeholder
-        // In practice, this would need proper type conversion
-        let data: Vec<T> = vec![T::default(); data_array.len()];
+        let data: Vec<T> = data_array.iter().map(|&x| from_f64(x)).collect();
 
-        // Convert CSC to COO for SparseMatrix
+        // Convert CSC to COO for SparseMatrix. Every index comes from the file,
+        // so a malformed column-pointer array must be reported rather than
+        // panicking through a raw subscript.
         let mut row_indices = Vec::new();
         let mut col_indices = Vec::new();
         let mut values = Vec::new();
 
+        let malformed = |what: &str| {
+            IoError::FormatError(format!("Sparse matrix '{name}' has a malformed {what}"))
+        };
         for col in 0..dims.1 {
-            let start = jc[col];
-            let end = jc[col + 1];
+            let start = *jc.get(col).ok_or_else(|| malformed("column pointer"))?;
+            let end = *jc.get(col + 1).ok_or_else(|| malformed("column pointer"))?;
+            if end < start {
+                return Err(malformed("column pointer (decreasing)"));
+            }
             for idx in start..end {
-                row_indices.push(ir[idx]);
+                row_indices.push(*ir.get(idx).ok_or_else(|| malformed("row index"))?);
                 col_indices.push(col);
-                values.push(data[idx].clone());
+                values.push(data.get(idx).ok_or_else(|| malformed("value"))?.clone());
             }
         }
 
@@ -727,7 +765,6 @@ pub struct MatV73Features;
 
 impl MatV73Features {
     /// Create a chunked dataset for streaming large arrays
-    #[cfg(feature = "hdf5")]
     pub fn create_chunked_dataset<P: AsRef<Path>>(
         path: P,
         name: &str,
@@ -764,7 +801,6 @@ impl MatV73Features {
     }
 
     /// Write data to a specific hyperslab in a chunked dataset
-    #[cfg(feature = "hdf5")]
     pub fn write_hyperslab<P: AsRef<Path>>(
         path: P,
         dataset_name: &str,
@@ -786,7 +822,6 @@ impl MatV73Features {
     }
 
     /// Read a specific hyperslab from a chunked dataset
-    #[cfg(feature = "hdf5")]
     pub fn read_hyperslab<P: AsRef<Path>>(
         path: P,
         dataset_name: &str,
@@ -806,7 +841,6 @@ impl MatV73Features {
     }
 
     /// Create a virtual dataset that references multiple files
-    #[cfg(feature = "hdf5")]
     pub fn create_virtual_dataset<P: AsRef<Path>>(
         path: P,
         name: &str,
@@ -849,7 +883,6 @@ pub struct MatV73Sparse;
 
 impl MatV73Sparse {
     /// Write a sparse matrix in v7.3 format
-    #[cfg(feature = "hdf5")]
     pub fn write_sparse<P: AsRef<Path>>(
         path: P,
         name: &str,
@@ -925,12 +958,25 @@ impl MatV73Sparse {
 
         let (row_indices, col_ptrs, values) = (csc.row_indices, csc.col_ptrs, csc.values);
 
-        // Write components
-        let row_array = ArrayD::from_shape_vec(vec![row_indices.len()], row_indices)
-            .map_err(|e| IoError::Other(e.to_string()))?;
-        let col_array = ArrayD::from_shape_vec(vec![col_ptrs.len()], col_ptrs)
-            .map_err(|e| IoError::Other(e.to_string()))?;
-        let data_array = ArrayD::from_shape_vec(vec![values.len()], values)
+        // Write components. `ir`/`jc` are `usize` indices, exact as f64 below
+        // 2^53; `values` is already f64.
+        let row_count = row_indices.len();
+        let col_count = col_ptrs.len();
+        let value_count = values.len();
+        let row_array = ArrayD::from_shape_vec(
+            vec![row_count],
+            row_indices
+                .into_iter()
+                .map(|i| i as f64)
+                .collect::<Vec<_>>(),
+        )
+        .map_err(|e| IoError::Other(e.to_string()))?;
+        let col_array = ArrayD::from_shape_vec(
+            vec![col_count],
+            col_ptrs.into_iter().map(|p| p as f64).collect::<Vec<_>>(),
+        )
+        .map_err(|e| IoError::Other(e.to_string()))?;
+        let data_array = ArrayD::from_shape_vec(vec![value_count], values)
             .map_err(|e| IoError::Other(e.to_string()))?;
 
         file.create_dataset_from_array(&row_path, &row_array, None)?;
@@ -942,7 +988,6 @@ impl MatV73Sparse {
     }
 
     /// Read a sparse matrix from v7.3 format
-    #[cfg(feature = "hdf5")]
     pub fn read_sparse<P: AsRef<Path>>(
         _path: P,
         name: &str,
@@ -979,13 +1024,25 @@ impl MatV73Sparse {
         let mut coo_cols = Vec::new();
         let mut coo_values = Vec::new();
 
+        // Every index below comes from the file, so a malformed column-pointer
+        // array must be reported rather than panicking through a raw subscript.
+        let malformed = |what: &str| {
+            IoError::FormatError(format!("Sparse matrix '{name}' has a malformed {what}"))
+        };
         for col in 0..ncols {
-            let start = col_vec[col];
-            let end = col_vec[col + 1];
+            let start = *col_vec
+                .get(col)
+                .ok_or_else(|| malformed("column pointer"))?;
+            let end = *col_vec
+                .get(col + 1)
+                .ok_or_else(|| malformed("column pointer"))?;
+            if end < start {
+                return Err(malformed("column pointer (decreasing)"));
+            }
             for idx in start..end {
-                coo_rows.push(row_vec[idx]);
+                coo_rows.push(*row_vec.get(idx).ok_or_else(|| malformed("row index"))?);
                 coo_cols.push(col);
-                coo_values.push(val_vec[idx]);
+                coo_values.push(*val_vec.get(idx).ok_or_else(|| malformed("value"))?);
             }
         }
 

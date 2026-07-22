@@ -8,6 +8,12 @@ This file tracks every work item from v0.4.4 onward. The item template (Why / De
 
 ---
 
+## Test status as of 2026-07-22 (v0.6.2)
+
+**Dependency hardening, not a new feature:** the `jit` feature's Cranelift dependency was bumped `0.133` → `0.134` to fix a `memmap2` unsoundness advisory (RUSTSEC-2026-0186). This required one source change — `FunctionBuilder::finalize()` gained a required argument in the new Cranelift API — already applied in `compile::to_jit`. Verified: 21/21 JIT tests pass under the `jit` feature. No other functional changes to `scirs2-symbolic` landed in the 0.6.2 release; see the workspace `CHANGELOG.md` `[0.6.2]` entry for the release-wide picture.
+
+---
+
 ## Test status as of 2026-07-15 (v0.6.1)
 
 scirs2-symbolic's own test suite (freshly run 2026-07-15): 947 tests pass, 0 failed, 0 skipped (default
@@ -752,7 +758,7 @@ The following items are explicitly out of scope for `scirs2-symbolic`. Future ag
 
 ---
 
-*Last updated: 2026-07-15 (post-0.6.1 e-graph extraction correctness fix; prior update 2026-05-15, Waves 59–70 + plan blocks 2026-05-06). Branch: `0.6.1`. Maintainer: COOLJAPAN OU (Team Kitasan). Architecture: clean-room, SciRS2-native EML implementation. Substrate guidance: oxieml v0.1.1 (pinned in `[dev-dependencies]` for parity testing only); paper reference arXiv:2603.21852 v2 (2026-04-04). Phase 2: 15/15. Phase 3: 15/12+. Phase 4: 9/N.*
+*Last updated: 2026-07-22 (0.6.2 dependency hardening: Cranelift 0.133 → 0.134 bump for RUSTSEC-2026-0186; prior update 2026-07-15, post-0.6.1 e-graph extraction correctness fix; prior update 2026-05-15, Waves 59–70 + plan blocks 2026-05-06). Branch: `0.6.2`. Maintainer: COOLJAPAN OU (Team Kitasan). Architecture: clean-room, SciRS2-native EML implementation. Substrate guidance: oxieml v0.1.1 (pinned in `[dev-dependencies]` for parity testing only); paper reference arXiv:2603.21852 v2 (2026-04-04). Phase 2: 15/15. Phase 3: 15/12+. Phase 4: 9/N.*
 
 *Note: as of 2026-05-03, oxieml's `Cargo.toml` has hardcoded absolute paths for `tensorlogic-ir`, `scirs2-core`, `oxicode` — this is an upstream oxieml issue, separate from this crate.*
 

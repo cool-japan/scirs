@@ -59,6 +59,27 @@ pub use tracing::{
 #[cfg(feature = "observability")]
 pub use tracing::integrate_with_metrics_system;
 
+/// Install the pure-Rust OxiTLS CryptoProvider (oxitls-rustcrypto-provider)
+/// as the process-default rustls provider if the application has not
+/// already installed one. Applications that want a different provider
+/// simply install it before first use of SciRS2 networking.
+///
+/// Called immediately before every eager `reqwest` client construction in this crate
+/// ([`tracing::HttpExporter::new`] and the `audit` webhook alerter): the workspace `reqwest`
+/// dependency is built with `rustls-no-provider` (see the "PURE RUST BLOCKER (reqwest)" note
+/// in the workspace root `Cargo.toml`), so client construction panics without a
+/// process-default provider.
+#[cfg(feature = "reqwest")]
+pub(crate) fn ensure_default_tls_provider() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        if rustls::crypto::CryptoProvider::get_default().is_none() {
+            // A racing install elsewhere is fine -- ignore the Err.
+            let _ = rustls::crypto::CryptoProvider::install_default(rustls_rustcrypto::provider());
+        }
+    });
+}
+
 pub use audit::{
     AlertingConfig, AuditConfig, AuditEvent, AuditEventBuilder, AuditLogger, AuditStatistics,
     ComplianceMode, ComplianceReport, DataClassification, EventCategory, EventOutcome,

@@ -1,29 +1,61 @@
-//! Enhanced HDF5 functionality with compression, parallel I/O, and extended data type support
+//! Enhanced HDF5 functionality with compression accounting, parallel reads, and
+//! extended data type support
 //!
 //! This module extends the basic HDF5 functionality with:
-//! - Full compression support (gzip, szip, lzf, shuffle, fletcher32)
-//! - Parallel I/O capabilities for high-performance computing
+//! - Compression option modelling (gzip, szip, lzf, shuffle, fletcher32)
+//! - Chunk-parallel reads backed by oxih5's hyperslab selection
 //! - Extended data type support (all primitive types, compound types)
 //! - Proper group hierarchy navigation
 //! - Thread-safe operations
 //! - Advanced chunking strategies
-
-#![allow(dead_code)]
-#![allow(missing_docs)]
+//!
+//! # Backend
+//!
+//! Everything here runs on `oxih5`, the pure-Rust HDF5 implementation, and is
+//! compiled unconditionally — the `hdf5` Cargo feature is a retained no-op alias
+//! (see the [parent module](super)).
+//!
+//! Until this migration the module carried a second, feature-gated "native" path
+//! that took priority whenever a `libhdf5` handle existed. That path created the
+//! dataset but never wrote its data, so turning the feature on silently discarded
+//! everything handed to [`EnhancedHDF5File::create_dataset_with_compression`].
+//! It has been deleted, and the path that actually stores data is now the only
+//! path.
 
 use crate::error::{IoError, Result};
 use crate::hdf5::{CompressionOptions, DatasetOptions, FileMode, HDF5File};
-#[cfg(feature = "hdf5")]
-use scirs2_core::ndarray::IxDyn;
-use scirs2_core::ndarray::{ArrayBase, ArrayD};
+use scirs2_core::ndarray::{ArrayBase, ArrayD, IxDyn};
 use std::collections::HashMap;
+use std::ops::Range;
 use std::path::Path;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::thread;
 use std::time::Instant;
 
-#[cfg(feature = "hdf5")]
-use hdf5::File;
+use super::convert::dataset_to_f64;
+
+/// Take a lock, recovering the guard if a previous holder panicked.
+///
+/// The state behind every lock in this module is accumulated statistics, never
+/// an invariant a panic could leave half-updated, so poisoning carries no
+/// information worth propagating — and `unwrap()`/`expect()` on a lock is
+/// exactly the panic-on-panic pattern the no-unwrap policy exists to remove.
+fn lock_mutex<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Shared-read counterpart of [`lock_mutex`].
+fn lock_read<T>(lock: &RwLock<T>) -> RwLockReadGuard<'_, T> {
+    lock.read().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Exclusive-write counterpart of [`lock_mutex`].
+fn lock_write<T>(lock: &RwLock<T>) -> RwLockWriteGuard<'_, T> {
+    lock.write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 /// Extended data type support for HDF5
 #[derive(Debug, Clone, PartialEq)]
@@ -93,7 +125,6 @@ pub struct EnhancedHDF5File {
     /// Parallel configuration
     parallel_config: Option<ParallelConfig>,
     /// Thread-safe access
-    #[allow(dead_code)]
     file_lock: Arc<RwLock<()>>,
     /// Compression statistics
     compression_stats: Arc<Mutex<CompressionStats>>,
@@ -144,7 +175,26 @@ impl EnhancedHDF5File {
         })
     }
 
-    /// Create a dataset with full compression and chunking support
+    /// Create a dataset from `array`, storing every element.
+    ///
+    /// Elements are widened to `f64` through the `Into<f64>` bound and handed to
+    /// [`HDF5File::create_dataset_from_array`]. `options` — chunking,
+    /// compression, fletcher32 — is recorded on the dataset; oxih5's writer
+    /// currently emits contiguous, uncompressed storage, so those settings do not
+    /// yet change the bytes on disk, and
+    /// [`EnhancedHDF5File::get_compression_stats`] measures the real ratio rather
+    /// than assuming one.
+    ///
+    /// A chunk shape whose rank disagrees with the array is replaced by
+    /// the private `calculate_optimal_chunks` helper instead of being recorded
+    /// as given.
+    ///
+    /// Until the oxih5 migration this method preferred a `libhdf5`-backed branch
+    /// whenever the `hdf5` feature was on, and that branch created the dataset
+    /// and then wrote nothing. The storing branch — this one — was therefore
+    /// skipped in exactly the configuration users enabled in order to get
+    /// compression. `test_create_dataset_with_compression_round_trips_values`
+    /// pins the repaired behaviour.
     pub fn create_dataset_with_compression<A, D>(
         &mut self,
         path: &str,
@@ -157,203 +207,35 @@ impl EnhancedHDF5File {
         A::Elem: Clone + Into<f64> + std::fmt::Debug,
         D: scirs2_core::ndarray::Dimension,
     {
-        let _lock = self.file_lock.write().expect("Operation failed");
-        let _start_time = Instant::now();
-
-        #[cfg(feature = "hdf5")]
-        {
-            if let Some(native_file) = self.base_file.native_file() {
-                // Clone necessary data to avoid borrowing issues
-                let native_file_clone = native_file.clone();
-                drop(_lock); // Release lock before calling methods that need &mut self
-                return self.create_native_dataset_with_compression(
-                    &native_file_clone,
-                    path,
-                    array,
-                    _data_type,
-                    options,
-                    _start_time,
-                );
-            }
-        }
-
-        // Release lock before calling fallback
-        drop(_lock);
-        // Fallback to base implementation
-        self.create_fallback_dataset(path, array, options)
-    }
-
-    /// Create native HDF5 dataset with full compression support
-    #[cfg(feature = "hdf5")]
-    fn create_native_dataset_with_compression<A, D>(
-        &mut self,
-        file: &File,
-        path: &str,
-        array: &ArrayBase<A, D>,
-        data_type: ExtendedDataType,
-        options: DatasetOptions,
-        start_time: Instant,
-    ) -> Result<()>
-    where
-        A: scirs2_core::ndarray::Data,
-        A::Elem: Clone,
-        D: scirs2_core::ndarray::Dimension,
-    {
-        // Navigate to the correct group and create the dataset
-        let (grouppath, dataset_name) = self.split_path(path)?;
-
-        // Create groups if they don't exist
-        self.ensure_groups_exist(file, &grouppath)?;
-
-        // Get the target group
-        let group = if grouppath.is_empty() {
-            match file.as_group() {
-                Ok(g) => g,
-                Err(e) => {
-                    return Err(IoError::FormatError(format!(
-                        "Failed to access root group: {}",
-                        e
-                    )))
-                }
-            }
-        } else {
-            match file.group(&grouppath) {
-                Ok(g) => g,
-                Err(e) => {
-                    return Err(IoError::FormatError(format!(
-                        "Failed to access group {}: {}",
-                        grouppath, e
-                    )))
-                }
-            }
-        };
-
-        // Create the dataset with proper data _type
+        let start_time = Instant::now();
         let shape: Vec<usize> = array.shape().to_vec();
-        let total_elements: usize = shape.iter().product();
+        let payload_bytes = array.len() * std::mem::size_of::<f64>();
 
-        let builder = match data_type {
-            ExtendedDataType::Float32 => group.new_dataset::<f32>(),
-            ExtendedDataType::Float64 => group.new_dataset::<f64>(),
-            ExtendedDataType::Int32 => group.new_dataset::<i32>(),
-            ExtendedDataType::Int64 => group.new_dataset::<i64>(),
-            ExtendedDataType::UInt32 => group.new_dataset::<u32>(),
-            ExtendedDataType::UInt64 => group.new_dataset::<u64>(),
-            ExtendedDataType::Int8 => group.new_dataset::<i8>(),
-            ExtendedDataType::UInt8 => group.new_dataset::<u8>(),
-            ExtendedDataType::Int16 => group.new_dataset::<i16>(),
-            ExtendedDataType::UInt16 => group.new_dataset::<u16>(),
-            _ => {
-                return Err(IoError::FormatError(format!(
-                    "Unsupported data type: {:?}",
-                    data_type
-                )))
-            }
-        };
-
-        // Configure dataset with shape and chunking
-        let mut dataset_builder = builder.shape(&shape);
-
-        // Apply chunking if specified
-        if let Some(ref chunk_size) = options.chunk_size {
-            if chunk_size.len() == shape.len() {
-                dataset_builder = dataset_builder.chunk(chunk_size);
-            } else {
-                // Auto-calculate optimal chunk size
-                let optimal_chunks = self.calculate_optimal_chunks(&shape, total_elements);
-                dataset_builder = dataset_builder.chunk(&optimal_chunks);
-            }
+        let mut options = options;
+        if options
+            .chunk_size
+            .as_ref()
+            .is_some_and(|chunks| chunks.len() != shape.len())
+        {
+            options.chunk_size = Some(self.calculate_optimal_chunks(&shape, array.len()));
         }
-
-        // Apply compression filters
-        // Skip compression filters for now due to API compatibility issues
-        // dataset_builder = self.apply_compression_filters(dataset_builder, &options.compression)?;
-
-        // Apply other options
-        if options.fletcher32 {
-            dataset_builder = dataset_builder.fletcher32();
-        }
-
-        // Create the dataset
-        let _dataset = dataset_builder.create(dataset_name.as_str()).map_err(|e| {
-            IoError::FormatError(format!("Failed to create dataset {dataset_name}: {e}"))
-        })?;
-
-        // Write data based on _type with proper _type handling
-        // Note: For full _type safety, we'd need to refactor the API to accept specific types
-        // For now, we convert the generic array to the appropriate _type and delegate to base file
-        match data_type {
-            ExtendedDataType::Float64 => {
-                // For production use, implement direct HDF5 dataset writing here
-                // The actual writing would need to handle type conversion or
-                // verify that A::Elem is f64
-                let _data_size = array.len();
-            }
-            ExtendedDataType::Float32 => {
-                // Similar approach for f32
-                let _data_size = array.len();
-            }
-            ExtendedDataType::Int32 => {
-                let _data_size = array.len();
-            }
-            ExtendedDataType::Int64 => {
-                let _data_size = array.len();
-            }
-            _ => {
-                // For other types, use fallback
-                let _data_size = array.len();
-            }
-        }
-
-        // Note: Actual dataset.write() calls would go here in a full implementation
-        // The current HDF5 API requires specific _type handling that would need
-        // more significant refactoring to implement properly
-
-        // Update compression statistics
-        let compression_time = start_time.elapsed().as_millis() as f64;
-        let original_size = total_elements * std::mem::size_of::<f64>(); // Estimate
 
         {
-            let mut stats = self.compression_stats.lock().expect("Operation failed");
-            stats.original_size += original_size;
-            stats.compression_time_ms += compression_time;
-            // Compressed size would need to be queried from HDF5
-            stats.compression_ratio = if stats.compressed_size > 0 {
-                stats.original_size as f64 / stats.compressed_size as f64
-            } else {
-                1.0
-            };
+            // The handle is cloned so the guard borrows the local `Arc` and
+            // leaves `self` free for the `&mut` call underneath it.
+            let file_lock = Arc::clone(&self.file_lock);
+            let _guard = lock_write(&file_lock);
+            self.base_file
+                .create_dataset_from_array(path, array, Some(options))?;
         }
 
+        let mut stats = lock_mutex(&self.compression_stats);
+        stats.original_size += payload_bytes;
+        stats.compression_time_ms += start_time.elapsed().as_secs_f64() * 1000.0;
         Ok(())
     }
 
-    /// Apply compression filters to dataset builder
-    #[cfg(feature = "hdf5")]
-    #[allow(dead_code)]
-    fn apply_compression_filters(
-        &self,
-        mut builder: hdf5::DatasetBuilder,
-        compression: &CompressionOptions,
-    ) -> Result<hdf5::DatasetBuilder> {
-        // Apply deflate (gzip) compression
-        if let Some(level) = compression.gzip {
-            builder = builder.deflate(level);
-        }
-
-        // Apply shuffle filter (improves compression)
-        if compression.shuffle {
-            builder = builder.shuffle();
-        }
-
-        // Note: szip and lzf are not directly supported in current hdf5 crate version
-        // We focus on deflate and shuffle which are most commonly used
-
-        Ok(builder)
-    }
-
     /// Calculate optimal chunk sizes based on data shape and size
-    #[allow(dead_code)]
     fn calculate_optimal_chunks(&self, shape: &[usize], _totalelements: usize) -> Vec<usize> {
         const TARGET_CHUNK_SIZE: usize = 64 * 1024; // 64KB target
         const MIN_CHUNK_SIZE: usize = 1024; // 1KB minimum
@@ -379,278 +261,225 @@ impl EnhancedHDF5File {
         chunks
     }
 
-    /// Ensure all groups in the path exist
-    #[cfg(feature = "hdf5")]
-    fn ensure_groups_exist(&self, file: &File, grouppath: &str) -> Result<()> {
-        if grouppath.is_empty() {
-            return Ok(());
-        }
-
-        let parts: Vec<&str> = grouppath.split('/').filter(|s| !s.is_empty()).collect();
-        let mut current_path = String::new();
-
-        for part in parts {
-            if !current_path.is_empty() {
-                current_path.push('/');
-            }
-            current_path.push_str(part);
-
-            // Check if group exists, create if it doesn't
-            if file.group(&current_path).is_err() {
-                let parent_group = if current_path.contains('/') {
-                    let parent_path = current_path.rsplit_once('/').map(|x| x.0).unwrap_or("");
-                    if parent_path.is_empty() {
-                        match file.as_group() {
-                            Ok(g) => g,
-                            Err(e) => {
-                                return Err(IoError::FormatError(format!(
-                                    "Failed to access root group: {}",
-                                    e
-                                )))
-                            }
-                        }
-                    } else {
-                        match file.group(parent_path) {
-                            Ok(g) => g,
-                            Err(e) => {
-                                return Err(IoError::FormatError(format!(
-                                    "Failed to access parent group {}: {}",
-                                    parent_path, e
-                                )))
-                            }
-                        }
-                    }
-                } else {
-                    match file.as_group() {
-                        Ok(g) => g,
-                        Err(e) => {
-                            return Err(IoError::FormatError(format!(
-                                "Failed to access root group: {}",
-                                e
-                            )))
-                        }
-                    }
-                };
-
-                parent_group.create_group(part).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create group {part}: {e}"))
-                })?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Split path into group path and dataset name
-    #[allow(dead_code)]
-    fn split_path(&self, path: &str) -> Result<(String, String)> {
-        let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() {
-            return Err(IoError::FormatError("Invalid dataset path".to_string()));
-        }
-
-        let dataset_name = parts.last().expect("Operation failed").to_string();
-        let grouppath = if parts.len() > 1 {
-            parts[..parts.len() - 1].join("/")
-        } else {
-            String::new()
-        };
-
-        Ok((grouppath, dataset_name))
-    }
-
-    /// Fallback dataset creation for when HDF5 feature is not enabled
-    fn create_fallback_dataset<A, D>(
-        &mut self,
-        path: &str,
-        array: &ArrayBase<A, D>,
-        options: DatasetOptions,
-    ) -> Result<()>
-    where
-        A: scirs2_core::ndarray::Data,
-        A::Elem: Clone + Into<f64> + std::fmt::Debug,
-        D: scirs2_core::ndarray::Dimension,
-    {
-        // For now, delegate to the base implementation
-        // In the future, this could implement a pure Rust HDF5 writer
-        self.base_file
-            .create_dataset_from_array(path, array, Some(options))
-    }
-
-    /// Read dataset with parallel I/O if configured
+    /// Read a dataset, using chunk-parallel hyperslab reads where they pay off.
+    ///
+    /// Without a [`ParallelConfig`] this is plain [`HDF5File::read_dataset`].
+    ///
+    /// # What banding buys, and when
+    ///
+    /// [`HDF5File::open`] materialises the whole file eagerly, so a read-only
+    /// handle already holds every payload in memory. Going back to disk is only
+    /// worth it for datasets oxih5 can serve a band of without touching the rest,
+    /// which means the *chunked* ones: a hyperslab there decompresses only the
+    /// chunks it overlaps, while a **contiguous** dataset is a single flat run of
+    /// bytes that oxih5 reads whole and then slices — so banding one across N
+    /// threads would do N times the I/O.
+    ///
+    /// The previous implementation did precisely that, and worse: every thread
+    /// called `read_raw` over the *entire* dataset and then `copy_from_slice`d
+    /// into a differently-sized window, which panics on any length mismatch. The
+    /// layout is now probed up front and banding happens only when it removes
+    /// work.
     pub fn read_dataset_parallel(&self, path: &str) -> Result<ArrayD<f64>> {
-        let _lock = self.file_lock.read().expect("Operation failed");
+        let _guard = lock_read(&self.file_lock);
 
-        if let Some(ref parallel_config) = self.parallel_config {
-            self.read_dataset_parallel_impl(path, parallel_config)
-        } else {
-            self.base_file.read_dataset(path)
+        match self.parallel_config.as_ref() {
+            Some(config) => self.read_dataset_parallel_impl(path, config),
+            None => self.base_file.read_dataset(path),
         }
     }
 
-    /// Parallel dataset reading implementation
+    /// Choose between a banded on-disk read and the in-memory copy.
     fn read_dataset_parallel_impl(
         &self,
         path: &str,
-        _parallel_config: &ParallelConfig,
-    ) -> Result<ArrayD<f64>> {
-        #[cfg(feature = "hdf5")]
-        {
-            if let Some(file) = self.base_file.native_file() {
-                return self.read_dataset_parallel_native(file, path, _parallel_config);
-            }
-        }
-
-        // Fallback to sequential reading
-        self.base_file.read_dataset(path)
-    }
-
-    /// Native parallel dataset reading
-    #[cfg(feature = "hdf5")]
-    fn read_dataset_parallel_native(
-        &self,
-        file: &File,
-        path: &str,
         parallel_config: &ParallelConfig,
     ) -> Result<ArrayD<f64>> {
-        let (grouppath, dataset_name) = self.split_path(path)?;
+        // Only a read-only handle is guaranteed to agree with the file on disk.
+        // Any other mode may hold in-memory edits that were never flushed, and
+        // reading the file back would silently discard them.
+        if self.base_file.mode != FileMode::ReadOnly {
+            return self.base_file.read_dataset(path);
+        }
 
-        let dataset = if grouppath.is_empty() {
-            file.dataset(&dataset_name)
+        let file_path = self.base_file.path.clone();
+        let dataset_path = path.trim_start_matches('/').to_string();
+
+        // `dataset_data_extent` succeeds for exactly one shape of dataset:
+        // contiguous, unfiltered and fixed-size — a flat run of bytes that a
+        // single pass already reads optimally. Everything it rejects (chunked,
+        // filtered) is where per-band reads and parallel decompression earn
+        // their keep.
+        if oxih5::dataset_data_extent(&file_path, &dataset_path).is_ok() {
+            return self.base_file.read_dataset(path);
+        }
+
+        let shape = self.base_file.get_dataset(path)?.shape.clone();
+        let bands = Self::split_into_bands(&shape, parallel_config);
+        if bands.len() < 2 {
+            return self.base_file.read_dataset(path);
+        }
+
+        Self::read_bands_parallel(&file_path, &dataset_path, &shape, &bands)
+    }
+
+    /// Partition the leading axis into one contiguous row band per worker.
+    ///
+    /// Bands are first sized so each carries about `chunk_size` elements, then
+    /// the count is capped at `num_workers` so no more threads are spawned than
+    /// were asked for. A dataset small enough for a single band comes back as one
+    /// band, which the caller reads sequentially.
+    fn split_into_bands(shape: &[usize], config: &ParallelConfig) -> Vec<Range<usize>> {
+        let Some(&rows) = shape.first() else {
+            return Vec::new();
+        };
+        if rows == 0 {
+            return Vec::new();
+        }
+        // Elements in one row of the leading axis (1 for a 1-D dataset).
+        let row_len: usize = shape[1..].iter().product::<usize>().max(1);
+        let rows_per_band = config.chunk_size.div_ceil(row_len).max(1);
+        let band_count = rows
+            .div_ceil(rows_per_band)
+            .min(config.num_workers.max(1))
+            .max(1);
+        let rows_per_band = rows.div_ceil(band_count);
+
+        (0..band_count)
+            .map(|i| (i * rows_per_band).min(rows)..((i + 1) * rows_per_band).min(rows))
+            .filter(|band| !band.is_empty())
+            .collect()
+    }
+
+    /// Read every band concurrently and stitch the results back together.
+    ///
+    /// Each worker maps the file itself — a read-only mapping costs page-table
+    /// entries rather than I/O — and asks oxih5 for just its own band. Values
+    /// arrive through [`super::convert::dataset_to_f64`], so an f32 or integer
+    /// dataset widens instead of failing the way oxih5's exact-match `as_f64()`
+    /// would.
+    fn read_bands_parallel(
+        file_path: &str,
+        dataset_path: &str,
+        shape: &[usize],
+        bands: &[Range<usize>],
+    ) -> Result<ArrayD<f64>> {
+        let row_len: usize = shape[1..].iter().product::<usize>().max(1);
+        let total: usize = shape.iter().product();
+
+        let collected: Vec<Result<(usize, Vec<f64>)>> = thread::scope(|scope| {
+            let handles: Vec<_> = bands
+                .iter()
+                .map(|band| {
+                    let band = band.clone();
+                    scope.spawn(move || -> Result<(usize, Vec<f64>)> {
+                        let file = oxih5::File::open_mmap(file_path).map_err(|e| {
+                            IoError::FormatError(format!(
+                                "Failed to map '{file_path}' for a parallel read: {e}"
+                            ))
+                        })?;
+                        let mut ranges: Vec<Range<usize>> = Vec::with_capacity(shape.len());
+                        ranges.push(band.clone());
+                        ranges.extend(shape[1..].iter().map(|&len| 0..len));
+                        let slice = file.dataset_slice(dataset_path, &ranges).map_err(|e| {
+                            IoError::FormatError(format!(
+                                "Failed to read rows {}..{} of '{dataset_path}': {e}",
+                                band.start, band.end
+                            ))
+                        })?;
+                        Ok((band.start * row_len, dataset_to_f64(&slice)?))
+                    })
+                })
+                .collect();
+
+            handles
+                .into_iter()
+                .map(|handle| {
+                    handle.join().unwrap_or_else(|_| {
+                        Err(IoError::Other(
+                            "a parallel HDF5 read worker panicked".to_string(),
+                        ))
+                    })
+                })
+                .collect()
+        });
+
+        let mut full = vec![0.0f64; total];
+        let mut written = 0usize;
+        for outcome in collected {
+            let (offset, values) = outcome?;
+            let end = offset
+                .checked_add(values.len())
+                .filter(|&end| end <= total)
+                .ok_or_else(|| {
+                    IoError::FormatError(format!(
+                        "a band starting at element {offset} returned {} values, past the \
+                         {total} the dataset holds",
+                        values.len()
+                    ))
+                })?;
+            full[offset..end].copy_from_slice(&values);
+            written += values.len();
+        }
+        if written != total {
+            return Err(IoError::FormatError(format!(
+                "parallel read of '{dataset_path}' covered {written} of {total} elements"
+            )));
+        }
+
+        ArrayD::from_shape_vec(IxDyn(shape), full).map_err(|e| IoError::FormatError(e.to_string()))
+    }
+
+    /// Measure the stored payload against the file it serialises to.
+    ///
+    /// `original_size` and `compression_time_ms` are accumulated by
+    /// [`EnhancedHDF5File::create_dataset_with_compression`]. `compressed_size`
+    /// is obtained by serialising the current tree with oxih5's `FileWriter` and
+    /// measuring the result, so it is a real byte count. The previous
+    /// implementation never queried it: it left `compressed_size` at zero,
+    /// hard-coded the ratio to `1.0`, and derived `original_size` from an
+    /// element count it assumed was `f64`-shaped.
+    ///
+    /// oxih5's writer emits contiguous, uncompressed storage, so a ratio below
+    /// `1.0` is the expected and honest answer — the file also carries the
+    /// superblock, object headers and group structures that the raw payload does
+    /// not.
+    ///
+    /// # Errors
+    ///
+    /// Propagates any failure to lay the file out, exactly as
+    /// [`HDF5File::write`] would report it.
+    pub fn get_compression_stats(&self) -> Result<CompressionStats> {
+        let serialized = self.base_file.serialized_len()?;
+        let mut stats = lock_mutex(&self.compression_stats);
+        stats.compressed_size = serialized;
+        stats.compression_ratio = if serialized > 0 {
+            stats.original_size as f64 / serialized as f64
         } else {
-            let group = file.group(&grouppath).map_err(|e| {
-                IoError::FormatError(format!("Failed to access group {grouppath}: {e}"))
-            })?;
-            group.dataset(&dataset_name)
-        }
-        .map_err(|e| {
-            IoError::FormatError(format!("Failed to access dataset {dataset_name}: {e}"))
-        })?;
-
-        let shape = dataset.shape();
-        let total_elements: usize = shape.iter().product();
-
-        // If dataset is small, read sequentially
-        if total_elements < parallel_config.chunk_size * 2 {
-            let data: Vec<f64> = dataset
-                .read_raw()
-                .map_err(|e| IoError::FormatError(format!("Failed to read dataset: {e}")))?;
-            let ndarrayshape = IxDyn(&shape);
-            return ArrayD::from_shape_vec(ndarrayshape, data)
-                .map_err(|e| IoError::FormatError(e.to_string()));
-        }
-
-        // Parallel reading for large datasets
-        let chunk_size = parallel_config.chunk_size;
-        let num_workers = parallel_config
-            .num_workers
-            .min((total_elements + chunk_size - 1) / chunk_size);
-
-        let mut handles = vec![];
-        let chunks_per_worker = (total_elements + chunk_size - 1) / chunk_size / num_workers;
-
-        for worker_id in 0..num_workers {
-            let start_chunk = worker_id * chunks_per_worker;
-            let end_chunk = ((worker_id + 1) * chunks_per_worker)
-                .min((total_elements + chunk_size - 1) / chunk_size);
-
-            if start_chunk >= end_chunk {
-                break;
-            }
-
-            let start_element = start_chunk * chunk_size;
-            let end_element = (end_chunk * chunk_size).min(total_elements);
-
-            // Clone necessary data for the thread
-            let dataset_clone = dataset.clone();
-
-            let handle = thread::spawn(move || {
-                let slice_size = end_element - start_element;
-                let mut data = vec![0.0f64; slice_size];
-
-                // Read the slice - simplified to use basic read for now
-                // Note: The original read_slice_1d API has changed in the hdf5 crate
-                // For now, we'll read the entire dataset and slice it in memory
-                // In a production implementation, you would use proper HDF5 hyperslab selection
-                match dataset_clone.read_raw::<f64>() {
-                    Ok(full_data) => {
-                        let slice_end = (start_element + slice_size).min(full_data.len());
-                        data.copy_from_slice(&full_data[start_element..slice_end]);
-                    }
-                    Err(e) => {
-                        return Err(IoError::FormatError(format!("Failed to read slice: {e}")));
-                    }
-                }
-
-                Ok((start_element, data))
-            });
-
-            handles.push(handle);
-        }
-
-        // Collect results
-        let mut full_data = vec![0.0f64; total_elements];
-        for handle in handles {
-            let (start_element, data) = handle
-                .join()
-                .map_err(|_| IoError::FormatError("Thread join failed".to_string()))??;
-
-            full_data[start_element..start_element + data.len()].copy_from_slice(&data);
-        }
-
-        let ndarrayshape = IxDyn(&shape);
-        ArrayD::from_shape_vec(ndarrayshape, full_data)
-            .map_err(|e| IoError::FormatError(e.to_string()))
+            0.0
+        };
+        Ok(stats.clone())
     }
 
-    /// Get compression statistics
-    pub fn get_compression_stats(&self) -> CompressionStats {
-        self.compression_stats
-            .lock()
-            .expect("Operation failed")
-            .clone()
-    }
-
-    /// Write multiple datasets in parallel
+    /// Write several datasets into the file.
+    ///
+    /// The name is historical: an [`HDF5File`] is a single in-memory tree, so
+    /// concurrent writers would serialise on the same lock and gain nothing.
+    /// Every entry goes through
+    /// [`EnhancedHDF5File::create_dataset_with_compression`], so every entry is
+    /// stored. Datasets are written in name order because `HashMap` iteration
+    /// order varies between runs, which would otherwise make the bytes of an
+    /// identical output file differ run to run.
     pub fn write_datasets_parallel(
         &mut self,
         datasets: HashMap<String, (ArrayD<f64>, ExtendedDataType, DatasetOptions)>,
     ) -> Result<()> {
-        let _lock = self.file_lock.write().expect("Operation failed");
-        let parallel_config_clone = self.parallel_config.clone();
-        drop(_lock); // Release lock before calling methods that need &mut self
-
-        if let Some(ref parallel_config) = parallel_config_clone {
-            self.write_datasets_parallel_impl(datasets, parallel_config)
-        } else {
-            // Sequential writing
-            for (path, (array, data_type, options)) in datasets {
-                self.create_dataset_with_compression(&path, &array, data_type, options)?;
-            }
-            Ok(())
-        }
-    }
-
-    /// Parallel datasets writing implementation
-    fn write_datasets_parallel_impl(
-        &mut self,
-        datasets: HashMap<String, (ArrayD<f64>, ExtendedDataType, DatasetOptions)>,
-        _parallel_config: &ParallelConfig,
-    ) -> Result<()> {
-        // For now, implement sequential writing with proper error handling
-        // Full parallel writing would require more complex synchronization
-        for (path, (array, data_type, options)) in datasets {
+        let mut ordered: Vec<_> = datasets.into_iter().collect();
+        ordered.sort_by(|a, b| a.0.cmp(&b.0));
+        for (path, (array, data_type, options)) in ordered {
             self.create_dataset_with_compression(&path, &array, data_type, options)?;
         }
         Ok(())
-    }
-
-    /// Helper methods for type conversion - simplified for now
-    /// In a production implementation, these would handle proper type conversions
-    #[allow(dead_code)]
-    fn _placeholder_convert_methods(&self) {
-        // Placeholder - type conversion methods removed for simplicity
-        // Direct conversion is done inline where needed
     }
 
     /// Close the enhanced file
@@ -660,7 +489,6 @@ impl EnhancedHDF5File {
 }
 
 /// Enhanced write function with compression and parallel I/O
-#[allow(dead_code)]
 pub fn write_hdf5_enhanced<P: AsRef<Path>>(
     path: P,
     datasets: HashMap<String, (ArrayD<f64>, ExtendedDataType, DatasetOptions)>,
@@ -673,7 +501,6 @@ pub fn write_hdf5_enhanced<P: AsRef<Path>>(
 }
 
 /// Enhanced read function with parallel I/O
-#[allow(dead_code)]
 pub fn read_hdf5_enhanced<P: AsRef<Path>>(
     path: P,
     parallel_config: Option<ParallelConfig>,
@@ -682,7 +509,6 @@ pub fn read_hdf5_enhanced<P: AsRef<Path>>(
 }
 
 /// Utility function to create optimal compression options
-#[allow(dead_code)]
 pub fn create_optimal_compression_options(
     data_type: &ExtendedDataType,
     estimated_size: usize,
@@ -714,6 +540,19 @@ pub fn create_optimal_compression_options(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scirs2_core::ndarray::{Array, Array2};
+
+    /// A unique path under the system temp dir, so concurrently running tests
+    /// never collide on a filename.
+    fn temp_path(tag: &str) -> std::path::PathBuf {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        std::env::temp_dir().join(format!(
+            "scirs2_io_enhanced_{tag}_{}_{}.h5",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ))
+    }
 
     #[test]
     fn test_enhanced_compression_options() {
@@ -725,13 +564,8 @@ mod tests {
 
     #[test]
     fn test_optimal_chunks_calculation() {
-        let temp_dir = std::env::temp_dir();
-        let test_file = temp_dir.join(format!("test_optimal_chunks_{}.h5", std::process::id()));
-        let file = EnhancedHDF5File::create(
-            test_file.to_str().expect("path should be valid UTF-8"),
-            None,
-        )
-        .expect("Operation failed");
+        let path = temp_path("chunks");
+        let file = EnhancedHDF5File::create(&path, None).expect("create in-memory handle");
         let shape = vec![1000, 1000];
         let total_elements = 1_000_000;
 
@@ -743,31 +577,7 @@ mod tests {
         assert!(chunk_elements <= 1024 * 1024 / 8); // Should fit in reasonable memory
 
         drop(file);
-        let _ = std::fs::remove_file(test_file);
-    }
-
-    #[test]
-    fn test_path_splitting() {
-        let temp_dir = std::env::temp_dir();
-        let test_file = temp_dir.join(format!("test_path_splitting_{}.h5", std::process::id()));
-        let file = EnhancedHDF5File::create(
-            test_file.to_str().expect("path should be valid UTF-8"),
-            None,
-        )
-        .expect("Operation failed");
-
-        let (grouppath, dataset_name) = file
-            .split_path("/group1/group2/dataset")
-            .expect("Operation failed");
-        assert_eq!(grouppath, "group1/group2");
-        assert_eq!(dataset_name, "dataset");
-
-        let (grouppath, dataset_name) = file.split_path("dataset").expect("Operation failed");
-        assert_eq!(grouppath, "");
-        assert_eq!(dataset_name, "dataset");
-
-        drop(file);
-        let _ = std::fs::remove_file(test_file);
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]
@@ -776,6 +586,224 @@ mod tests {
         assert!(config.num_workers > 0);
         assert!(config.chunk_size > 0);
         assert!(config.buffer_size > 0);
+    }
+
+    /// The regression this whole repair exists for.
+    ///
+    /// `create_dataset_with_compression` used to hand off to a native branch
+    /// that created the dataset and wrote no data, so turning the `hdf5` feature
+    /// on silently discarded everything. No test exercised the path with real
+    /// bytes, so the loss was invisible.
+    #[test]
+    fn test_create_dataset_with_compression_round_trips_values() {
+        let path = temp_path("round_trip");
+        let values = Array2::from_shape_vec((2, 3), vec![1.5, -2.5, 3.0, 4.25, 5.0, -6.75])
+            .expect("2x3 literal");
+
+        let mut file = EnhancedHDF5File::create(&path, None).expect("create");
+        file.create_dataset_with_compression(
+            "measurements",
+            &values,
+            ExtendedDataType::Float64,
+            DatasetOptions::default(),
+        )
+        .expect("write dataset");
+        file.close().expect("flush to disk");
+
+        let reopened = EnhancedHDF5File::open(&path, FileMode::ReadOnly, None).expect("reopen");
+        let read_back = reopened
+            .read_dataset_parallel("measurements")
+            .expect("read dataset");
+
+        assert_eq!(read_back.shape(), &[2, 3]);
+        assert_eq!(
+            read_back.iter().copied().collect::<Vec<f64>>(),
+            values.iter().copied().collect::<Vec<f64>>(),
+            "every element must survive the write/read round trip"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Integer input must reach disk as its real value. The `Into<f64>` bound
+    /// replaced an implementation that round-tripped each element through
+    /// `format!("{:?}")` and `parse::<f64>()`, silently yielding `0.0` for
+    /// anything that did not print as a bare float literal.
+    #[test]
+    fn test_create_dataset_with_compression_widens_integers() {
+        let path = temp_path("widen");
+        let values = Array::from_vec(vec![-7i32, 0, 42]).into_dyn();
+
+        let mut file = EnhancedHDF5File::create(&path, None).expect("create");
+        file.create_dataset_with_compression(
+            "counts",
+            &values,
+            ExtendedDataType::Int32,
+            DatasetOptions::default(),
+        )
+        .expect("write dataset");
+        file.close().expect("flush to disk");
+
+        let reopened = EnhancedHDF5File::open(&path, FileMode::ReadOnly, None).expect("reopen");
+        let read_back = reopened.base_file.read_dataset("counts").expect("read");
+        assert_eq!(
+            read_back.iter().copied().collect::<Vec<f64>>(),
+            vec![-7.0, 0.0, 42.0]
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// `write_datasets_parallel` funnelled into the same discarding branch, so
+    /// `write_hdf5_enhanced` produced files with datasets but no contents.
+    #[test]
+    fn test_write_datasets_parallel_stores_every_dataset() {
+        let path = temp_path("multi");
+        let mut datasets = HashMap::new();
+        datasets.insert(
+            "alpha".to_string(),
+            (
+                Array::from_vec(vec![1.0, 2.0]).into_dyn(),
+                ExtendedDataType::Float64,
+                DatasetOptions::default(),
+            ),
+        );
+        datasets.insert(
+            "beta".to_string(),
+            (
+                Array::from_vec(vec![3.0, 4.0, 5.0]).into_dyn(),
+                ExtendedDataType::Float64,
+                DatasetOptions::default(),
+            ),
+        );
+
+        write_hdf5_enhanced(&path, datasets, None).expect("write");
+
+        let reopened = EnhancedHDF5File::open(&path, FileMode::ReadOnly, None).expect("reopen");
+        let alpha = reopened.base_file.read_dataset("alpha").expect("alpha");
+        let beta = reopened.base_file.read_dataset("beta").expect("beta");
+        assert_eq!(alpha.iter().copied().collect::<Vec<f64>>(), vec![1.0, 2.0]);
+        assert_eq!(
+            beta.iter().copied().collect::<Vec<f64>>(),
+            vec![3.0, 4.0, 5.0]
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// The statistics used to be invented: `compressed_size` stayed at zero and
+    /// the ratio was hard-coded to `1.0`.
+    #[test]
+    fn test_compression_stats_are_measured_not_assumed() {
+        let path = temp_path("stats");
+        let values = Array::from_vec(vec![0.0f64; 512]).into_dyn();
+
+        let mut file = EnhancedHDF5File::create(&path, None).expect("create");
+        file.create_dataset_with_compression(
+            "bulk",
+            &values,
+            ExtendedDataType::Float64,
+            DatasetOptions::default(),
+        )
+        .expect("write dataset");
+
+        let stats = file.get_compression_stats().expect("measure stats");
+        assert_eq!(
+            stats.original_size,
+            512 * 8,
+            "the raw payload is counted exactly"
+        );
+        assert!(
+            stats.compressed_size > 0,
+            "the serialised size must be queried, not left at zero"
+        );
+        assert!(
+            stats.compressed_size >= stats.original_size,
+            "uncompressed storage plus HDF5 metadata cannot be smaller than the payload"
+        );
+        let expected_ratio = stats.original_size as f64 / stats.compressed_size as f64;
+        assert!(
+            (stats.compression_ratio - expected_ratio).abs() < f64::EPSILON,
+            "the ratio must be derived from the two measured sizes"
+        );
+
+        file.close().expect("flush");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// A configured parallel read must return exactly what a sequential read
+    /// returns. The old implementation could not: every worker read the whole
+    /// dataset and then `copy_from_slice`d a window of a different length, which
+    /// panics rather than returning a wrong answer.
+    #[test]
+    fn test_read_dataset_parallel_matches_sequential() {
+        let path = temp_path("parallel");
+        let values: Vec<f64> = (0..256).map(|i| f64::from(i) * 0.5).collect();
+        let array = Array2::from_shape_vec((32, 8), values.clone()).expect("32x8");
+
+        let mut file = EnhancedHDF5File::create(&path, None).expect("create");
+        file.create_dataset_with_compression(
+            "grid",
+            &array,
+            ExtendedDataType::Float64,
+            DatasetOptions::default(),
+        )
+        .expect("write dataset");
+        file.close().expect("flush");
+
+        let config = ParallelConfig {
+            num_workers: 4,
+            chunk_size: 16,
+            collective_io: false,
+            buffer_size: 1024,
+        };
+        let parallel = EnhancedHDF5File::open(&path, FileMode::ReadOnly, Some(config))
+            .expect("reopen with a parallel config");
+        let read_back = parallel
+            .read_dataset_parallel("grid")
+            .expect("parallel read");
+
+        assert_eq!(read_back.shape(), &[32, 8]);
+        assert_eq!(read_back.iter().copied().collect::<Vec<f64>>(), values);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_split_into_bands_tiles_the_leading_axis() {
+        let config = ParallelConfig {
+            num_workers: 4,
+            chunk_size: 8,
+            collective_io: false,
+            buffer_size: 0,
+        };
+        let bands = EnhancedHDF5File::split_into_bands(&[10, 4], &config);
+
+        assert!(!bands.is_empty());
+        assert_eq!(bands.first().map(|band| band.start), Some(0));
+        assert_eq!(bands.last().map(|band| band.end), Some(10));
+        assert!(
+            bands.len() <= config.num_workers,
+            "never more bands than workers were asked for"
+        );
+        for pair in bands.windows(2) {
+            assert_eq!(
+                pair[0].end, pair[1].start,
+                "bands must tile the axis with no gap and no overlap"
+            );
+        }
+    }
+
+    #[test]
+    fn test_split_into_bands_handles_degenerate_shapes() {
+        let config = ParallelConfig::default();
+        assert!(EnhancedHDF5File::split_into_bands(&[], &config).is_empty());
+        assert!(EnhancedHDF5File::split_into_bands(&[0, 5], &config).is_empty());
+        // A single row cannot be split, so the caller reads it sequentially.
+        assert_eq!(
+            EnhancedHDF5File::split_into_bands(&[1, 5], &config).len(),
+            1
+        );
     }
 }
 
@@ -916,6 +944,7 @@ pub struct HDF5PerformanceMonitor {
     pub compression_efficiency: Vec<CompressionStats>,
 }
 
+/// Bytes moved and how fast they moved, accumulated per direction.
 #[derive(Debug, Clone, Default)]
 pub struct TransferStats {
     /// Total bytes read
@@ -932,6 +961,7 @@ pub struct TransferStats {
     pub avg_write_speed: f64,
 }
 
+/// Allocation counters and high-water mark for a monitored session.
 #[derive(Debug, Clone, Default)]
 pub struct MemoryStats {
     /// Peak memory usage
@@ -1045,11 +1075,16 @@ pub enum LayoutOptimization {
     Chunked(Vec<usize>),
     /// Tiled layout for 2D data
     Tiled {
+        /// Tile extent along the fastest-varying axis
         tile_width: usize,
+        /// Tile extent along the slowest-varying axis
         tile_height: usize,
     },
     /// Strip layout for 1D-like access patterns
-    Striped { strip_size: usize },
+    Striped {
+        /// Number of elements in one strip
+        strip_size: usize,
+    },
 }
 
 /// Access pattern analysis
@@ -1061,6 +1096,7 @@ pub struct AccessPatternAnalyzer {
     recommendations: Vec<LayoutOptimization>,
 }
 
+/// One recorded access, and how often that exact access has been seen.
 #[derive(Debug, Clone)]
 pub struct AccessPattern {
     /// Operation type (read/write)
@@ -1268,7 +1304,7 @@ impl OptimizedHDF5File {
     ) -> Result<()> {
         // Cache the metadata
         {
-            let mut cache = self.metadata_cache.write().expect("Operation failed");
+            let mut cache = lock_write(&self.metadata_cache);
             cache.insert(dataset_path.to_string(), metadata.clone());
         }
 
@@ -1279,31 +1315,31 @@ impl OptimizedHDF5File {
 
     /// Get scientific metadata for a dataset
     pub fn get_scientific_metadata(&self, datasetpath: &str) -> Option<ScientificMetadata> {
-        let cache = self.metadata_cache.read().expect("Operation failed");
+        let cache = lock_read(&self.metadata_cache);
         cache.get(datasetpath).cloned()
     }
 
     /// Get performance report
     pub fn get_performance_report(&self) -> PerformanceSummary {
-        let monitor = self.performance_monitor.lock().expect("Operation failed");
+        let monitor = lock_mutex(&self.performance_monitor);
         monitor.get_summary()
     }
 
     /// Get layout optimization recommendations
     pub fn get_layout_recommendations(&self) -> Vec<LayoutOptimization> {
-        let mut analyzer = self.access_analyzer.lock().expect("Operation failed");
+        let mut analyzer = lock_mutex(&self.access_analyzer);
         analyzer.analyze().clone()
     }
 
     /// Record a data access for optimization analysis
     pub fn record_access(&self, operation: &str, region: Vec<(usize, usize)>) {
-        let mut analyzer = self.access_analyzer.lock().expect("Operation failed");
+        let mut analyzer = lock_mutex(&self.access_analyzer);
         analyzer.record_access(operation.to_string(), region);
     }
 
     /// Get access pattern statistics
     pub fn get_access_statistics(&self) -> AccessPatternStats {
-        let analyzer = self.access_analyzer.lock().expect("Operation failed");
+        let analyzer = lock_mutex(&self.access_analyzer);
         analyzer.get_statistics()
     }
 
@@ -1317,7 +1353,7 @@ impl OptimizedHDF5File {
         let duration = start_time.elapsed().as_secs_f64() * 1000.0;
 
         {
-            let mut monitor = self.performance_monitor.lock().expect("Operation failed");
+            let mut monitor = lock_mutex(&self.performance_monitor);
             monitor.record_timing(operationname, duration);
         }
 

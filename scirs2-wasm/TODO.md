@@ -1,6 +1,6 @@
 # scirs2-wasm TODO
 
-## Status: v0.6.1 (current, 2026-07-15)
+## Status: v0.6.2 (current, 2026-07-22)
 
 Re-surveyed for the 2026-07-15 release: no wasm-specific changes shipped in this release. The
 `getrandom_v3` workspace-dependency promotion and clippy fixes recorded below (2026-07-07) remain

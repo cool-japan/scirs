@@ -6,7 +6,7 @@ Proc-macro DSL for `scirs2-symbolic` pattern-matching rewrite rules.
 
 | Field      | Value                                       |
 |------------|---------------------------------------------|
-| Version    | 0.5.1                                       |
+| Version    | 0.6.2                                       |
 | License    | Apache-2.0                                  |
 | Repository | <https://github.com/cool-japan/scirs>       |
 | Authors    | COOLJAPAN OU (Team KitaSan)                 |
@@ -47,8 +47,8 @@ Add the crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-symbolic = "0.5.1"
-scirs2-symbolic-macros = "0.5.1"
+scirs2-symbolic = "0.6.2"
+scirs2-symbolic-macros = "0.6.2"
 ```
 
 Define a rewrite rule with the DSL macros:

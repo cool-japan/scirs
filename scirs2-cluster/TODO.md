@@ -1,6 +1,6 @@
 # scirs2-cluster TODO
 
-## Status: v0.6.1 (reviewed 2026-07-15)
+## Status: v0.6.2 (reviewed 2026-07-15)
 
 Reviewed against the real `src/` implementation and a full `cargo nextest` run on 2026-07-15:
 default-features 962/962 tests passing (3 skipped, 0 failed); all-features 1061/1061 tests
@@ -105,7 +105,7 @@ README.md for the current full feature list.
 - Training metrics tracking (time, memory, CPU)
 - [ ] Cryptographic integrity hashing — NOT actually implemented: `ModelMetadata::integrity_hash` (`src/serialization/core.rs`) is never assigned a real computed hash anywhere in the module (stays `String::new()`), and the only "validation" is `!integrity_hash.is_empty()` (comment on that line: "Simple validation - in practice this would check the hash"). No crypto-hash crate is even a dependency of this crate. Un-checked here since it was previously listed as done
 
-## Roadmap Status (re-verified 2026-07-15 against src/, crate now at v0.6.1)
+## Roadmap Status (re-verified 2026-07-15 against src/, crate now at v0.6.2)
 
 ### GPU Acceleration — scaffolding real, hardware dispatch still placeholder
 - [x] GPU device/memory/backend abstraction and `GpuKMeans` (`src/gpu/`) — device selection, memory pooling, tensor-core config types are all implemented

@@ -1,0 +1,20 @@
+[package]
+name = "alloca"
+version = "0.4.0"
+edition = "2021"
+description = "Pure-Rust drop-in replacement for alloca (heap-backed, no cc-compiled C)"
+readme = false
+license = "MIT"
+repository = "https://github.com/playXE/alloca-rs"
+
+# NOTE: upstream 0.4.0 has an unconditional [build-dependencies.cc] entry and a build.rs that
+# compiles alloca.c via cc::Build with no feature gate to opt out. This patch intentionally has
+# NO build.rs and NO cc/cmake build-dependency -- see src/lib.rs for the COOLJAPAN Pure Rust
+# Policy rationale and the (heap vs. stack) semantic difference from upstream.
+
+[features]
+# Additive no-op kept for API/feature-flag compatibility with upstream: upstream uses this to
+# pass an extra `-fstack-clash-protection` flag to its C compiler invocation. There is no C
+# compilation here, so enabling it has no effect, but downstream Cargo.toml entries that request
+# `alloca = { features = ["stack-clash-protection"] }` still resolve without error.
+stack-clash-protection = []

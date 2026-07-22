@@ -9,23 +9,23 @@
 
 `scirs2-fft` provides a comprehensive suite of frequency-domain algorithms — FFT, RFFT, DCT/DST, STFT, NUFFT, sparse FFT, fractional FFT, wavelet packets, polyphase filter banks, and more — all in pure Rust using OxiFFT as the core FFT engine.
 
-Tested: 674/674 tests passing with default features, 718/718 with `--all-features` (verified 2026-07-15).
+Tested: 674/674 tests passing with default features, 718/718 with `--all-features` (verified 2026-07-22).
 
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-fft = "0.6.1"
+scirs2-fft = "0.6.2"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-fft = { version = "0.6.1", features = ["parallel"] }
+scirs2-fft = { version = "0.6.2", features = ["parallel"] }
 ```
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Core Transforms
 

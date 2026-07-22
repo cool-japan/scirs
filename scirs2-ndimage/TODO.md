@@ -1,8 +1,10 @@
 # scirs2-ndimage TODO
 
-## Status: v0.6.1 (2026-07-15) — re-verified against src/
+## Status: v0.6.2 (2026-07-22)
 
-Fresh source survey: 0 `todo!()`/`unimplemented!()` macros in `src/`; ~1765 public
+**0.6.2:** the CUDA backend's kernel JIT (`backend/cuda.rs`) now compiles CUDA-C to PTX via the pure-Rust `oxicuda-nvrtc` crate (runtime `dlopen` of `libnvrtc`, zero build-time CUDA SDK dependency) instead of an embedded NVRTC loader; `libloading` is no longer a direct dependency of the crate. The `cuda` feature remains off-by-default, NVIDIA-only, and experimental. See `CHANGELOG.md` `[0.6.2]` for detail.
+
+Source survey re-verified against `src/` 2026-07-15 (predates the 0.6.2 change above): 0 `todo!()`/`unimplemented!()` macros in `src/`; ~1765 public
 `fn`/`struct`/`enum`/`trait` items. The core SciPy-equivalent surface (filters, morphology,
 measurements, segmentation, interpolation, feature detection, texture/co-occurrence, medical
 and hyperspectral helpers) is real, non-stub code. Freshly measured via `cargo nextest run

@@ -169,7 +169,9 @@ pub fn fetch_data(
     let tempdir = tempfile::tempdir().map_err(|e| format!("Failed to create temp dir: {e}"))?;
     let temp_file = tempdir.path().join(filename);
 
-    // Download the file
+    // Download the file (ensure a process-default rustls CryptoProvider exists first:
+    // ureq panics on HTTPS connections without one)
+    crate::tls::ensure_default_tls_provider();
     let response = ureq::get(entry.url)
         .call()
         .map_err(|e| format!("Failed to download {filename}: {e}"))?;
@@ -669,7 +671,9 @@ pub fn download_data(_url: &str, force_download: bool) -> Result<Vec<u8>> {
         return cache.read_cached(&cache_key);
     }
 
-    // Download the data
+    // Download the data (ensure a process-default rustls CryptoProvider exists first:
+    // `reqwest::blocking::get` builds a Client eagerly, which panics without one)
+    crate::tls::ensure_default_tls_provider();
     let response = reqwest::blocking::get(_url).map_err(|e| {
         DatasetsError::DownloadError(format!("Failed to download from {_url}: {e}"))
     })?;

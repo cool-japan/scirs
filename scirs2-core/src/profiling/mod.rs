@@ -78,7 +78,9 @@ pub mod perf_integration;
 pub mod prometheus_metrics;
 pub mod tracing_framework;
 
-// v0.4.2 Tracy profiler integration (feature-gated: enable with `tracy` feature)
+// v0.4.2 Tracy-API-compatible profiler integration (feature-gated: enable with
+// `tracy` feature). Backend is a Pure Rust Chrome/Perfetto trace-event JSON
+// exporter -- no C++ Tracy client dependency.
 pub mod tracy;
 
 // Re-exports for backward compatibility and convenient access

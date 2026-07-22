@@ -84,12 +84,18 @@ async-trait = { workspace = true, optional = true }  # For object-safe async tra
 # GPU backend dependencies
 # Note: metal and objc2-metal-performance-shaders are macOS-specific, moved to target-specific section
 # Note: CUDA was retired from scirs2-core in 0.6.x — CUDA acceleration now lives in the per-crate oxicuda-* backends (no cudarc here)
-opencl3 = { workspace = true, optional = true }  # OpenCL runtime
 wgpu = { workspace = true, optional = true }  # WebGPU runtime
 pollster = { workspace = true, optional = true }  # Async runtime for WebGPU
 
 # Production-level feature dependencies
 reqwest = { workspace = true, optional = true }  # HTTP client for tracing export
+# Pure-Rust rustls CryptoProvider (OxiTLS, `oxitls-rustcrypto-provider` resolved under the
+# `rustls-rustcrypto` name -- see the "PURE RUST BLOCKER (reqwest)" note in the workspace root
+# Cargo.toml). Installed as the process-default provider by observability's
+# ensure_default_tls_provider() right before every eager reqwest client construction, unless
+# the application already installed a provider of its own.
+rustls = { workspace = true, optional = true }
+rustls-rustcrypto = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }  # Cryptographic hash functions
 
 # Tracing and observability dependencies
@@ -106,9 +112,6 @@ opentelemetry-otlp = { workspace = true, optional = true }  # OTLP exporter
 prometheus = { workspace = true, optional = true }  # Prometheus metrics
 
 # Memory profiling uses Pure Rust OS APIs (libc on Unix, windows-sys on Windows)
-
-# Tracy profiler integration (C dep, feature-gated — never in default or `all` features)
-tracy-client = { workspace = true, optional = true }
 
 # Testing and validation dependencies
 statrs = { workspace = true, optional = true }  # Statistical functions for validation
@@ -144,6 +147,7 @@ uuid = { workspace = true, features = ["serde", "js"] }
 # macOS: Use Accelerate framework ONLY (system BLAS, no source build)
 [target.'cfg(target_os = "macos")'.dependencies]
 # macOS uses Accelerate framework - NO openblas-src dependency
+libloading = { workspace = true }  # Runtime OpenCL ICD loader for the opencl feature (detection/dispatch only; no build-time OpenCL library)
 # Metal GPU dependencies (macOS only)
 metal = { workspace = true, optional = true }  # Metal GPU backend for macOS
 objc2 = { workspace = true, optional = true }  # Objective-C runtime for Metal
@@ -157,7 +161,6 @@ objc2-metal-performance-shaders-graph = { workspace = true, optional = true }  #
 # Linux-specific profiling and system dependencies
 [target.'cfg(target_os = "linux")'.dependencies]
 perf-event = { workspace = true, optional = true }  # Linux perf integration
-libnuma = { workspace = true, optional = true }  # NUMA operations (C dep, Linux only, feature-gated)
 libloading = { workspace = true }  # Runtime CUDA driver probe for PlatformCapabilities (detection only; compute lives in oxicuda-*)
 
 # Windows-specific dependencies
@@ -191,7 +194,7 @@ cross_platform = ["std", "libc", "sysinfo"]  # Cross-platform validation and com
 logging = ["log"]  # Structured logging and diagnostics (works with no_std)
 async = ["std", "tokio", "async-trait"]  # Async error handling and recovery mechanisms (requires std)
 gpu = ["std"]  # GPU acceleration abstractions (requires std)
-opencl = ["std", "gpu", "dep:opencl3"]  # OpenCL-specific GPU acceleration (requires std)
+opencl = ["std", "gpu"]  # OpenCL-specific GPU acceleration via the in-repo pure-Rust runtime loader (no build-time OpenCL library) (requires std)
 metal = ["std", "gpu", "dep:metal", "dep:objc2", "dep:objc2-foundation", "dep:objc2-metal", "dep:objc2-metal-performance-shaders"]  # Metal-specific GPU acceleration (Apple) (requires std)
 mpsgraph = ["std", "metal", "dep:objc2-metal-performance-shaders-graph", "dep:cc"]  # MPSGraph high-performance operations (Apple, requires metal + cc for ObjC wrapper) (requires std)
 c-opt = ["dep:cc"]  # Enable C/Objective-C compiler for optional native extensions (mpsgraph Obj-C wrapper)
@@ -228,8 +231,8 @@ profiling_otlp = ["std", "profiling_opentelemetry", "opentelemetry-otlp"]  # OTL
 profiling_memory = ["std", "profiling", "libc"]  # Memory profiling with Pure Rust OS APIs (requires std)
 profiling_perf = ["std", "profiling", "perf-event"]  # Linux perf integration (platform-specific) (requires std)
 profiling_all = ["std", "profiling_advanced", "profiling_flame", "profiling_chrome", "profiling_opentelemetry", "profiling_prometheus", "profiling_otlp", "profiling_memory"]  # All profiling features (requires std)
-tracy = ["std", "dep:tracy-client", "tracy-client/enable"]  # Tracy profiler integration (C dep + enable flag, feature-gated, NOT in `all`) (requires std)
-libnuma = ["std", "dep:libnuma"]  # libnuma-backed NUMA operations (C dep, Linux only, feature-gated, NOT in `all`) (requires std)
+tracy = ["std", "profiling"]  # Tracy-API-compatible profiling: Pure Rust Chrome/Perfetto trace-event JSON exporter (no C++ Tracy client, no new deps, feature-gated, NOT in `all`); pulls `profiling` because the tracy module lives inside the profiling module and is otherwise never compiled (requires std)
+libnuma = []  # DEPRECATED no-op (kept for backward-compat with downstream `features = ["libnuma"]`): libnuma C dependency removed per COOLJAPAN Pure Rust Policy; NUMA sysfs discovery is now unconditional on Linux
 instrumentation = ["std", "profiling_advanced"]  # Instrumentation framework (requires std)
 random = ["std", "array"]  # Random number generation utilities with ndarray support (requires std)
 types = []  # Type conversion utilities (works in no_std)
@@ -249,6 +252,7 @@ array_protocol_distributed = ["array_protocol", "parallel"]  # Distributed compu
 array_protocol_all = ["array_protocol", "array_protocol_jit", "array_protocol_distributed"]  # All Array Protocol features
 # Production-level features for enterprise deployments
 observability = ["std", "serde", "serde_json"]  # Observability infrastructure (tracing, audit logging) (requires std)
+reqwest = ["dep:reqwest", "dep:rustls", "dep:rustls-rustcrypto"]  # HTTP client + auto-installed pure-Rust OxiTLS CryptoProvider (process default unless the app installed one)
 observability_http = ["std", "observability", "reqwest"]  # HTTP export for observability (requires std)
 versioning = ["std", "serde", "serde_json"]  # API versioning and compatibility management (requires std)
 leak_detection = ["std", "memory_management", "serde", "serde_json"]  # Memory leak detection system (requires std)

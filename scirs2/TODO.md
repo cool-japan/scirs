@@ -1,10 +1,10 @@
 # scirs2 Meta-Crate TODO
 
-## Status: v0.3.3 Released (March 17, 2026)
+## Status: v0.6.2 Released (2026-07-22)
 
 ## Purpose
 
-The `scirs2` meta-crate is the all-in-one convenience entry-point for the SciRS2 ecosystem. It re-exports all sub-crates via Cargo feature flags, exposing them as unified top-level modules. Users who want a single dependency add `scirs2 = "0.3.3"` instead of listing each sub-crate individually.
+The `scirs2` meta-crate is the all-in-one convenience entry-point for the SciRS2 ecosystem. It re-exports all sub-crates via Cargo feature flags, exposing them as unified top-level modules. Users who want a single dependency add `scirs2 = "0.6.2"` instead of listing each sub-crate individually.
 
 ---
 
@@ -68,7 +68,7 @@ The `scirs2` meta-crate is the all-in-one convenience entry-point for the SciRS2
 
 ## Ongoing Maintenance
 
-- [x] Keep feature list in README.md in sync with Cargo.toml on every release — `scirs2/README.md` updated with v0.4.2 advanced features table (cuda, rocm, distributed, jit, mobile, nn, symbolic, benchmarks, wasm); version badges and code examples bumped from 0.3.4 → 0.4.2
+- [x] Keep feature list in README.md in sync with Cargo.toml on every release — `scirs2/README.md` updated with v0.4.2 advanced features table (cuda, rocm, distributed, jit, mobile, nn, symbolic, benchmarks, wasm); version badges and code examples bumped from 0.3.4 → 0.4.2; version badges and installation snippets bumped 0.5.0 → 0.6.2 on the 2026-07-22 release-prep pass (`README.md`, `TODO.md` — both had drifted several releases behind unnoticed)
 - [x] Verify that `cargo doc --all-features` renders correctly on docs.rs after each release — `[package.metadata.docs.rs]` with `all-features = true` and `rustdoc-args = ["--cfg", "docsrs"]` already present in `scirs2/Cargo.toml` (confirmed)
 - [x] Confirm `cargo check --no-default-features` and each individual feature flag compile cleanly — `scripts/check-features.sh` (bash script; iterates all features via `cargo metadata`), `scirs2/tests/feature_check_test.rs` (asserts script exists + is executable)
 - [x] Add compile-fail tests for feature-gated paths where API changes land — `scirs2/tests/compile_fail_doc.rs` (11 tests: positive compile checks for linalg/stats/fft/optimize/datasets/signal/sparse/distributed/wasm/benchmarks + `compile_fail_harness` sentinel backed by `trybuild`; `trybuild = "1.0.116"` added to workspace dev-dependencies)

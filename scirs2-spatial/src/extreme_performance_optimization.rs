@@ -959,11 +959,7 @@ impl CacheHierarchyInfo {
             // Skip instruction-only caches when populating data-cache sizes;
             // "Data" and "Unified" caches feed the data-access hierarchy.
             match level {
-                1 => {
-                    if cache_type != "Instruction" {
-                        self.l1_size_kb = size_kb;
-                    }
-                }
+                1 if cache_type != "Instruction" => self.l1_size_kb = size_kb,
                 2 => self.l2_size_kb = size_kb,
                 3 => self.l3_size_kb = size_kb,
                 _ => {}

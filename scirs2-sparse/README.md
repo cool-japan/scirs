@@ -9,23 +9,23 @@
 
 `scirs2-sparse` provides comprehensive sparse matrix formats, iterative solvers, eigenvalue algorithms, preconditioners, graph algorithms, and advanced sparse linear algebra — all in pure Rust with no C or Fortran dependencies.
 
-Tested: 1093/1093 tests passing with default features, 1093/1093 with `--all-features` (verified 2026-07-15).
+Tested: 1093/1093 tests passing with default features, 1093/1093 with `--all-features` (verified 2026-07-22).
 
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-sparse = "0.6.1"
+scirs2-sparse = "0.6.2"
 ```
 
 With optional acceleration:
 
 ```toml
 [dependencies]
-scirs2-sparse = { version = "0.6.1", features = ["parallel", "simd"] }
+scirs2-sparse = { version = "0.6.2", features = ["parallel", "simd"] }
 ```
 
-## Features (v0.6.1)
+## Features (v0.6.2)
 
 ### Sparse Matrix Formats
 

@@ -5,12 +5,10 @@
 
 use crate::error::{IoError, Result};
 use crate::matlab::MatType;
-#[allow(unused_imports)]
 use scirs2_core::ndarray::{ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::path::Path;
 
-#[cfg(feature = "hdf5")]
 use crate::hdf5::{AttributeValue, CompressionOptions, DatasetOptions, FileMode, HDF5File};
 
 /// MATLAB v7.3+ specific features
@@ -133,7 +131,6 @@ pub struct MatlabObject {
 pub struct V73MatFile {
     #[allow(dead_code)]
     features: V73Features,
-    #[cfg(feature = "hdf5")]
     compression: Option<CompressionOptions>,
 }
 
@@ -142,20 +139,17 @@ impl V73MatFile {
     pub fn new(features: V73Features) -> Self {
         Self {
             features,
-            #[cfg(feature = "hdf5")]
             compression: None,
         }
     }
 
     /// Set compression options
-    #[cfg(feature = "hdf5")]
     pub fn with_compression(mut self, compression: CompressionOptions) -> Self {
         self.compression = Some(compression);
         self
     }
 
     /// Write extended MATLAB types to v7.3 file
-    #[cfg(feature = "hdf5")]
     pub fn write_extended<P: AsRef<Path>>(
         &self,
         path: P,
@@ -179,7 +173,6 @@ impl V73MatFile {
     }
 
     /// Read extended MATLAB types from v7.3 file
-    #[cfg(feature = "hdf5")]
     pub fn read_extended<P: AsRef<Path>>(
         &self,
         path: P,
@@ -200,7 +193,6 @@ impl V73MatFile {
     }
 
     /// Write an extended type to HDF5
-    #[cfg(feature = "hdf5")]
     fn write_extended_type(
         &self,
         file: &mut HDF5File,
@@ -232,7 +224,6 @@ impl V73MatFile {
     /// - attr `RowNames`      → StringArray (optional)
     /// - attr `property_{k}` → String for each table property
     /// - dataset `{name}/{var_name}` for each column
-    #[cfg(feature = "hdf5")]
     fn write_table(&self, file: &mut HDF5File, name: &str, table: &MatlabTable) -> Result<()> {
         Self::create_nested_group(file, name)?;
         Self::set_group_attribute(
@@ -286,7 +277,6 @@ impl V73MatFile {
     /// - attr `Categories` → StringArray
     /// - attr `ordered`    → Boolean
     /// - dataset `{name}/data` → u32 indices
-    #[cfg(feature = "hdf5")]
     fn write_categorical(
         &self,
         file: &mut HDF5File,
@@ -338,7 +328,6 @@ impl V73MatFile {
     /// Using a group (rather than a top-level dataset) ensures attributes are
     /// flushed to native HDF5 — `write_dataset_to_hdf5` does not write dataset
     /// attributes, but `write_group_to_hdf5` does write group attributes.
-    #[cfg(feature = "hdf5")]
     fn write_datetime(
         &self,
         file: &mut HDF5File,
@@ -384,7 +373,6 @@ impl V73MatFile {
     /// - group `{name}/` with attr `MATLAB_class = "string"`
     /// - attr `size` → Integer(n)  (scalar i64; IntegerArray silently fails to write due to ndarray 0.15/0.17 mismatch in hdf5-0.8.1)
     /// - dataset `{name}/string_{i}` for each element (stored as u16 UTF-16 values cast to f64)
-    #[cfg(feature = "hdf5")]
     fn write_string_array(
         &self,
         file: &mut HDF5File,
@@ -429,7 +417,6 @@ impl V73MatFile {
     /// - attr `type`                → String
     /// - dataset `{name}/function`  → u16 UTF-16 values
     /// - group `{name}/workspace/`  (optional) with one child per workspace variable
-    #[cfg(feature = "hdf5")]
     fn write_function_handle(
         &self,
         file: &mut HDF5File,
@@ -478,7 +465,6 @@ impl V73MatFile {
     /// - group `{name}/` with attr `MATLAB_class = <class_name>`, `MATLAB_object = true`
     /// - group `{name}/properties/` with one child dataset per property
     /// - group `{name}/superclass/` (optional) recursively written
-    #[cfg(feature = "hdf5")]
     fn write_object(&self, file: &mut HDF5File, name: &str, object: &MatlabObject) -> Result<()> {
         Self::create_nested_group(file, name)?;
         Self::set_group_attribute(
@@ -515,7 +501,6 @@ impl V73MatFile {
     }
 
     /// Write complex double array
-    #[cfg(feature = "hdf5")]
     fn write_complex_double(
         &self,
         file: &mut HDF5File,
@@ -554,7 +539,6 @@ impl V73MatFile {
     }
 
     /// Write complex single array
-    #[cfg(feature = "hdf5")]
     fn write_complex_single(
         &self,
         file: &mut HDF5File,
@@ -597,7 +581,6 @@ impl V73MatFile {
     /// `HDF5File::create_group` passes the full name directly to `Group::create_group`,
     /// which treats the entire string as a single key.  This helper splits the path
     /// and navigates (and creates) each level in the tree.
-    #[cfg(feature = "hdf5")]
     fn create_nested_group(file: &mut HDF5File, path: &str) -> Result<()> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
         if parts.is_empty() {
@@ -615,7 +598,6 @@ impl V73MatFile {
     /// `HDF5File::set_attribute` navigates through the groups map using the path.
     /// This is fine for groups but fails when any path component is a dataset.
     /// For group-only paths this method is equivalent but explicit.
-    #[cfg(feature = "hdf5")]
     fn set_group_attribute(
         file: &mut HDF5File,
         path: &str,
@@ -638,7 +620,6 @@ impl V73MatFile {
     }
 
     /// Get an attribute from a group at a nested path.
-    #[cfg(feature = "hdf5")]
     fn get_group_attribute<'a>(
         file: &'a HDF5File,
         path: &str,
@@ -662,7 +643,6 @@ impl V73MatFile {
     /// group and fetches the attribute from the `Dataset` object directly.
     ///
     /// Returns `None` if the dataset or attribute does not exist.
-    #[cfg(feature = "hdf5")]
     fn get_dataset_attribute<'a>(
         file: &'a HDF5File,
         path: &str,
@@ -692,7 +672,6 @@ impl V73MatFile {
     /// sets the attribute directly on the `Dataset` object stored in that group's
     /// `datasets` map.  This is required for any dataset that lives under a parent
     /// group (e.g. path `"tbl/col_a"`).
-    #[cfg(feature = "hdf5")]
     fn set_dataset_attribute(
         file: &mut HDF5File,
         path: &str,
@@ -730,7 +709,6 @@ impl V73MatFile {
     /// `set_dataset_attribute` rather than `HDF5File::set_attribute`, because
     /// the latter only navigates through the groups map and fails on leaf datasets
     /// that live under a parent group.
-    #[cfg(feature = "hdf5")]
     fn write_standard_type(
         &self,
         file: &mut HDF5File,
@@ -789,7 +767,10 @@ impl V73MatFile {
                 )?;
             }
             MatType::Int64(array) => {
-                file.create_dataset_from_array(name, array, Some(options))?;
+                // The HDF5 backing store is f64, so this cast is lossy above
+                // 2^53. It is spelled out rather than hidden behind a blanket
+                // conversion so the loss is visible where it happens.
+                file.create_dataset_from_array(name, &array.mapv(|v| v as f64), Some(options))?;
                 Self::set_dataset_attribute(
                     file,
                     name,
@@ -825,7 +806,8 @@ impl V73MatFile {
                 )?;
             }
             MatType::UInt64(array) => {
-                file.create_dataset_from_array(name, array, Some(options))?;
+                // Lossy above 2^53, as for int64 above.
+                file.create_dataset_from_array(name, &array.mapv(|v| v as f64), Some(options))?;
                 Self::set_dataset_attribute(
                     file,
                     name,
@@ -915,7 +897,6 @@ impl V73MatFile {
     /// Checks both group-level attributes (via `get_group_attribute`) and
     /// dataset-level attributes (via `get_dataset_attribute`) to determine
     /// the MATLAB type.
-    #[cfg(feature = "hdf5")]
     fn read_extended_type(&self, file: &HDF5File, name: &str) -> Result<ExtendedMatType> {
         // Try group attribute first (groups store their attrs in the Group struct)
         let class_opt = Self::get_group_attribute(file, name, "MATLAB_class")
@@ -962,7 +943,6 @@ impl V73MatFile {
     /// Mirrors `EnhancedMatFile::read_mat_type_from_hdf5`. Supports the common
     /// scalar/array types. Nested cell/struct/sparse are forwarded to error with a
     /// clear message — they can be added when needed.
-    #[cfg(feature = "hdf5")]
     fn read_standard_type(&self, file: &HDF5File, name: &str) -> Result<MatType> {
         if file.is_group(name) {
             let class = Self::get_group_attribute(file, name, "MATLAB_class")
@@ -1104,7 +1084,6 @@ impl V73MatFile {
     /// Read a MATLAB table from HDF5.
     ///
     /// Expects the layout written by `write_table`.
-    #[cfg(feature = "hdf5")]
     fn read_table(&self, file: &HDF5File, name: &str) -> Result<ExtendedMatType> {
         // Read variable names from group attribute
         let variable_names = match Self::get_group_attribute(file, name, "VariableNames") {
@@ -1161,7 +1140,6 @@ impl V73MatFile {
     /// Read a MATLAB categorical array from HDF5.
     ///
     /// Expects the layout written by `write_categorical`.
-    #[cfg(feature = "hdf5")]
     fn read_categorical(&self, file: &HDF5File, name: &str) -> Result<ExtendedMatType> {
         let categories = match Self::get_group_attribute(file, name, "Categories") {
             Some(AttributeValue::StringArray(cats)) => cats.clone(),
@@ -1197,7 +1175,6 @@ impl V73MatFile {
     /// the parent GROUP (`{name}/`), and the numeric data lives in the sub-dataset
     /// `{name}/data`.  Use `get_group_attribute` for attrs and
     /// `file.read_dataset("{name}/data")` for the data.
-    #[cfg(feature = "hdf5")]
     fn read_datetime(&self, file: &HDF5File, name: &str) -> Result<ExtendedMatType> {
         // `write_datetime` stores numeric values in a sub-dataset `{name}/data`
         // because `write_dataset_to_hdf5` does not flush dataset-level attributes;
@@ -1234,7 +1211,6 @@ impl V73MatFile {
     ///
     /// Expects the layout written by `write_string_array` (one dataset per element,
     /// stored as u16 UTF-16 values cast through f64).
-    #[cfg(feature = "hdf5")]
     fn read_string_array(&self, file: &HDF5File, name: &str) -> Result<ExtendedMatType> {
         let count = match Self::get_group_attribute(file, name, "size") {
             Some(AttributeValue::Array(arr)) => arr
@@ -1273,7 +1249,6 @@ impl V73MatFile {
     /// Read a MATLAB function handle from HDF5.
     ///
     /// Expects the layout written by `write_function_handle`.
-    #[cfg(feature = "hdf5")]
     fn read_function_handle(&self, file: &HDF5File, name: &str) -> Result<ExtendedMatType> {
         // Read function name (u16 UTF-16 values stored as f64)
         let func_path = format!("{}/function", name);
@@ -1330,7 +1305,6 @@ impl V73MatFile {
     /// Read a MATLAB object from HDF5.
     ///
     /// Expects the layout written by `write_object`.
-    #[cfg(feature = "hdf5")]
     fn read_object(&self, file: &HDF5File, name: &str) -> Result<ExtendedMatType> {
         let class_name = match Self::get_group_attribute(file, name, "MATLAB_class") {
             Some(AttributeValue::String(c)) => c.clone(),
@@ -1378,29 +1352,42 @@ impl V73MatFile {
 
 /// Partial I/O support for large variables.
 ///
-/// `read_array_slice` and `write_array_slice` provide hyperslab-style access
-/// using the in-house `HDF5File::read_dataset` / `create_dataset_from_array`
-/// API.  True low-level HDF5 hyperslab selection is avoided here because the
-/// hdf5-rust crate uses ndarray 0.15 while scirs2_core uses ndarray 0.17 —
-/// mixing the two versions in the same call chain produces type-incompatibility
-/// errors.  Instead we use the in-house module's `read_dataset` (which already
-/// handles native-file delegation) and perform the slice extraction in plain
-/// Rust.  For writes we use a read-modify-write pattern via `create_dataset_from_array`.
+/// [`PartialIoSupport::read_array_slice`] and
+/// [`PartialIoSupport::write_array_slice`] give hyperslab-style access to one
+/// hyper-rectangular region of an `f64` dataset without disturbing the rest of
+/// the file.
 ///
-/// A comment documents this limitation so full HDF5 hyperslab support can be
-/// wired in when both crates align on the same ndarray version.
+/// # Why the write does not rebuild the file
+///
+/// [`HDF5File::write`] serialises SciRS2's in-memory model from scratch, and
+/// that model knows about groups, datasets and simple attributes — not about
+/// `MATLAB_class` markers on object references, the `#refs#` group, cell arrays
+/// or compound structs. Rebuilding a `.mat` file authored by MATLAB or h5py
+/// would therefore silently drop all of it.
+///
+/// The write instead goes through [`oxih5::write_dataset_in_place_f64`], which
+/// replaces a contiguous dataset's data bytes and touches nothing else. It
+/// insists the supplied buffer match the dataset's allocated size exactly, and
+/// that is what makes it safe: no byte count changes, so no address recorded
+/// anywhere in the file can shift.
+///
+/// The previous implementation reached past this module into a raw `libhdf5`
+/// handle to call `write_raw`, because the ordinary write path fails once the
+/// dataset already exists. That handle no longer exists, and it is no longer
+/// needed.
 pub struct PartialIoSupport;
 
 impl PartialIoSupport {
     /// Read a contiguous hyper-rectangular slice from a large f64 dataset.
     ///
-    /// `start` and `count` must have the same length as the dataset's rank.
+    /// `start` and `count` must have the same length as the dataset's rank, and
+    /// the region must lie inside it.
     ///
-    /// Implementation note: reads the entire dataset via the in-house wrapper
-    /// and extracts the requested region in Rust.  True HDF5 hyperslab selection
-    /// (reading only the needed bytes from disk) will be unlocked once
-    /// hdf5-rust and scirs2_core share the same ndarray version.
-    #[cfg(feature = "hdf5")]
+    /// Delegates to [`HDF5File::read_f64_dataset_slice`], which performs the
+    /// same row-major coordinate walk this method used to spell out inline —
+    /// with per-axis bounds checks the inline copy lacked, and without the
+    /// off-by-one that made an empty region (any `count` of zero) push one
+    /// element before failing to reshape.
     pub fn read_array_slice<P: AsRef<Path>>(
         path: P,
         var_name: &str,
@@ -1414,529 +1401,107 @@ impl PartialIoSupport {
         }
 
         let file = HDF5File::open(path, FileMode::ReadOnly)?;
-        // `read_dataset` uses the native HDF5 handle when available,
-        // falling back to the in-memory representation otherwise.
-        let full = file.read_dataset(var_name)?;
-        let full_shape = full.shape().to_vec();
-        let ndim = full_shape.len();
+        let values = file.read_f64_dataset_slice(var_name, count, start)?;
 
-        if start.len() != ndim {
-            return Err(IoError::Other(format!(
-                "read_array_slice: start/count rank {} does not match dataset rank {}",
-                start.len(),
-                ndim
-            )));
-        }
-
-        // Extract the hyper-rectangular region element by element using flat indices.
-        let total: usize = count.iter().product();
-        let mut result = Vec::with_capacity(total);
-
-        // Stride vector for the full array in C order.
-        let mut strides = vec![1usize; ndim];
-        for ax in (0..ndim.saturating_sub(1)).rev() {
-            strides[ax] = strides[ax + 1] * full_shape[ax + 1];
-        }
-
-        // Iterate over all multi-indices in [0..count[0]) x ... x [0..count[ndim-1])
-        let mut coords = vec![0usize; ndim];
-        let full_flat = full
-            .as_slice()
-            .ok_or_else(|| IoError::Other("Dataset not contiguous".to_string()))?;
-
-        loop {
-            // Compute flat index in the full array.
-            let flat_idx: usize = coords
-                .iter()
-                .enumerate()
-                .map(|(ax, &c)| (start[ax] + c) * strides[ax])
-                .sum();
-            result.push(
-                *full_flat
-                    .get(flat_idx)
-                    .ok_or_else(|| IoError::Other("Slice out of bounds".to_string()))?,
-            );
-
-            // Increment coords in C order (last axis fastest).
-            let mut carry = true;
-            for ax in (0..ndim).rev() {
-                if carry {
-                    coords[ax] += 1;
-                    if coords[ax] < count[ax] {
-                        carry = false;
-                    } else {
-                        coords[ax] = 0;
-                    }
-                }
-            }
-            if carry {
-                break; // All indices exhausted.
-            }
-        }
-
-        ArrayD::from_shape_vec(IxDyn(count), result)
+        ArrayD::from_shape_vec(IxDyn(count), values)
             .map_err(|e| IoError::FormatError(format!("Failed to reshape slice: {}", e)))
     }
 
     /// Write a contiguous hyper-rectangular slice into an existing f64 dataset.
     ///
-    /// `start` must have the same length as the dataset's rank.
-    /// The dataset must already exist and be large enough to contain
-    /// `data` at the given offset.
+    /// `start` must have the same length as the dataset's rank, and the dataset
+    /// must already exist and be large enough to hold `data` at that offset.
     ///
-    /// Implementation note: uses read-modify-write via the in-house HDF5 wrapper.
-    /// The full dataset is read, the slice region is patched in Rust, and the
-    /// modified array is written back.  This is correct but not bandwidth-optimal;
-    /// see `read_array_slice` for the reason true HDF5 hyperslab is deferred.
-    #[cfg(feature = "hdf5")]
+    /// The dataset is read, the sub-region is patched in memory, and the whole
+    /// dataset is written back over its own bytes. Every other byte of the file
+    /// survives untouched — `MATLAB_class` attributes, object references, the
+    /// `#refs#` group, cell arrays and compound structs included.
+    ///
+    /// # Errors
+    ///
+    /// [`IoError::UnsupportedFormat`] when the dataset cannot be overwritten at
+    /// a fixed size: chunked, compact or virtual layouts, a filter pipeline
+    /// (compressed data), and variable-length datatypes are all rejected before
+    /// anything is read, so the file is never left half-written. Also
+    /// [`IoError::Other`] for a rank mismatch, and whatever
+    /// [`HDF5File::write_f64_dataset_slice`] reports for an out-of-range region.
     pub fn write_array_slice<P: AsRef<Path>>(
         path: P,
         var_name: &str,
         data: &ArrayD<f64>,
         start: &[usize],
     ) -> Result<()> {
+        let path = path.as_ref();
         let count: Vec<usize> = data.shape().to_vec();
-        let ndim = start.len();
 
-        if ndim != count.len() {
+        if start.len() != count.len() {
             return Err(IoError::Other(
                 "write_array_slice: start rank must match data rank".to_string(),
             ));
         }
 
-        // Step 1: read the full dataset.
-        let file_ro = HDF5File::open(path.as_ref(), FileMode::ReadOnly)?;
-        let full = file_ro.read_dataset(var_name)?;
-        let full_shape = full.shape().to_vec();
-        drop(file_ro);
+        // oxih5 addresses datasets without a leading slash.
+        let dataset_path = var_name.trim_start_matches('/');
 
-        if full_shape.len() != ndim {
-            return Err(IoError::Other(format!(
-                "write_array_slice: start rank {} does not match dataset rank {}",
-                ndim,
-                full_shape.len()
+        // Ask first, write later. `dataset_data_extent` applies every
+        // precondition the overwrite applies except the length check, so an Ok
+        // here means the write will be accepted — and an Err names the reason
+        // before a single byte has been read.
+        let extent = oxih5::dataset_data_extent(path, dataset_path).map_err(|e| {
+            IoError::UnsupportedFormat(format!(
+                "write_array_slice: dataset '{dataset_path}' cannot be overwritten in place: {e}. \
+                 A fixed-size overwrite needs a contiguous, unfiltered, fixed-length dataset; \
+                 chunked, compressed and variable-length datasets do not qualify."
+            ))
+        })?;
+
+        // Read the dataset, patch the sub-region, and take the full result back.
+        // `write_f64_dataset_slice` owns the coordinate walk and the bounds
+        // checks; this method used to duplicate both.
+        let mut file = HDF5File::open(path, FileMode::ReadOnly)?;
+
+        // The bytes written back are f64-encoded, so anything else on disk would
+        // be corrupted by them. A same-width integer dataset in particular passes
+        // the byte-count invariant below, and would otherwise be caught only by
+        // oxih5's type check with a far less specific message.
+        let stored_dtype = file.get_dataset(var_name)?.dtype.clone();
+        if !matches!(stored_dtype, crate::hdf5::HDF5DataType::Float { size: 8 }) {
+            return Err(IoError::UnsupportedFormat(format!(
+                "write_array_slice: dataset '{dataset_path}' stores {stored_dtype:?}, but an \
+                 in-place slice write encodes f64; rewrite the whole dataset instead"
             )));
         }
 
-        // Step 2: patch in memory using flat-index arithmetic (C order).
-        let mut full_flat: Vec<f64> = full.into_raw_vec_and_offset().0;
-        let mut strides = vec![1usize; ndim];
-        for ax in (0..ndim.saturating_sub(1)).rev() {
-            strides[ax] = strides[ax + 1] * full_shape[ax + 1];
+        let patch = data.as_slice().ok_or_else(|| {
+            IoError::Other("write_array_slice: patch array is not contiguous".to_string())
+        })?;
+        file.write_f64_dataset_slice(var_name, patch, &count, start)?;
+        let patched_array = file.read_dataset(var_name)?;
+        let patched = patched_array.as_slice().ok_or_else(|| {
+            IoError::Other("write_array_slice: patched dataset is not contiguous".to_string())
+        })?;
+
+        // The size invariant is the whole basis of the operation, so it is
+        // restated here rather than left to surface as a byte-count error from
+        // deeper down.
+        let required = extent.size as usize;
+        let supplied = std::mem::size_of_val(patched);
+        if supplied != required {
+            return Err(IoError::UnsupportedFormat(format!(
+                "write_array_slice: dataset '{dataset_path}' holds {required} bytes on disk but \
+                 the patched data occupies {supplied}; an in-place overwrite must not change the \
+                 size of the data area"
+            )));
         }
 
-        let patch_flat: Vec<f64> = data.iter().copied().collect();
-        let mut coords = vec![0usize; ndim];
-        for &val in &patch_flat {
-            let flat_idx: usize = coords
-                .iter()
-                .enumerate()
-                .map(|(ax, &c)| (start[ax] + c) * strides[ax])
-                .sum();
-            if let Some(elem) = full_flat.get_mut(flat_idx) {
-                *elem = val;
-            } else {
-                return Err(IoError::Other(
-                    "write_array_slice: patch out of bounds".to_string(),
-                ));
-            }
-            // Increment coords.
-            let mut carry = true;
-            for ax in (0..ndim).rev() {
-                if carry {
-                    coords[ax] += 1;
-                    if coords[ax] < count[ax] {
-                        carry = false;
-                    } else {
-                        coords[ax] = 0;
-                    }
-                }
-            }
-        }
-
-        // Step 3: write the patched array back via native HDF5 in-place overwrite.
-        //
-        // HDF5File::write() → write_group_to_hdf5 → new_dataset().create(path) fails
-        // when the dataset already exists.  Instead, open the existing dataset with
-        // the native handle and write_raw to overwrite its data without recreating it.
-        let file_rw = HDF5File::open(path.as_ref(), FileMode::ReadWrite)?;
-
-        if let Some(nf) = file_rw.native_file() {
-            // var_name should be a bare name (no leading slash) for top-level datasets.
-            let clean_name = var_name.trim_start_matches('/');
-            let h5_ds = nf.dataset(clean_name).map_err(|e| {
-                IoError::FormatError(format!(
-                    "write_array_slice: cannot open dataset '{}': {}",
-                    clean_name, e
-                ))
-            })?;
-            h5_ds.write_raw(&full_flat).map_err(|e| {
-                IoError::FormatError(format!(
-                    "write_array_slice: failed to write dataset '{}': {}",
-                    clean_name, e
-                ))
-            })?;
-        } else {
-            return Err(IoError::Other(
-                "write_array_slice: native HDF5 handle not available".to_string(),
-            ));
-        }
-
-        Ok(())
+        oxih5::write_dataset_in_place_f64(path, dataset_path, patched).map_err(|e| {
+            IoError::FormatError(format!(
+                "write_array_slice: failed to overwrite dataset '{dataset_path}': {e}"
+            ))
+        })
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_v73_features_default() {
-        let features = V73Features::default();
-        assert!(features.enable_partial_io);
-        assert!(features.support_objects);
-        assert!(features.support_tables);
-    }
-
-    #[test]
-    fn test_matlab_table_creation() {
-        let mut table = MatlabTable {
-            variable_names: vec!["x".to_string(), "y".to_string()],
-            row_names: Some(vec!["row1".to_string(), "row2".to_string()]),
-            data: HashMap::new(),
-            properties: HashMap::new(),
-        };
-
-        table.data.insert(
-            "x".to_string(),
-            MatType::Double(ArrayD::zeros(IxDyn(&[2, 1]))),
-        );
-        table.data.insert(
-            "y".to_string(),
-            MatType::Double(ArrayD::ones(IxDyn(&[2, 1]))),
-        );
-
-        assert_eq!(table.variable_names.len(), 2);
-        assert_eq!(table.data.len(), 2);
-    }
-
-    /// Round-trip a table with 2 columns and 3 rows.
-    #[cfg(all(test, feature = "hdf5"))]
-    #[test]
-    fn test_round_trip_table() {
-        let path = std::env::temp_dir().join("test_v73_table.h5");
-        let handler = V73MatFile::new(V73Features::default());
-
-        let mut data = HashMap::new();
-        data.insert(
-            "col_a".to_string(),
-            MatType::Double(ArrayD::from_elem(IxDyn(&[3, 1]), 1.0_f64)),
-        );
-        data.insert(
-            "col_b".to_string(),
-            MatType::Double(ArrayD::from_elem(IxDyn(&[3, 1]), 2.0_f64)),
-        );
-
-        let table = MatlabTable {
-            variable_names: vec!["col_a".to_string(), "col_b".to_string()],
-            row_names: Some(vec!["r1".to_string(), "r2".to_string(), "r3".to_string()]),
-            data,
-            properties: HashMap::new(),
-        };
-
-        let mut vars = HashMap::new();
-        vars.insert("tbl".to_string(), ExtendedMatType::Table(table));
-
-        handler
-            .write_extended(&path, &vars)
-            .expect("write_extended table");
-
-        let read_back = handler.read_extended(&path).expect("read_extended table");
-        let ext = read_back.get("tbl").expect("key 'tbl' missing");
-
-        if let ExtendedMatType::Table(t) = ext {
-            assert_eq!(t.variable_names.len(), 2);
-            assert!(t.variable_names.contains(&"col_a".to_string()));
-            assert!(t.variable_names.contains(&"col_b".to_string()));
-            assert_eq!(t.row_names.as_ref().map(|r| r.len()), Some(3));
-        } else {
-            panic!("Expected Table, got something else");
-        }
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    /// Round-trip a 5-element categorical array with 3 categories.
-    #[cfg(all(test, feature = "hdf5"))]
-    #[test]
-    fn test_round_trip_categorical() {
-        let path = std::env::temp_dir().join("test_v73_categorical.h5");
-        let handler = V73MatFile::new(V73Features::default());
-
-        let cat = CategoricalArray {
-            categories: vec![
-                "apple".to_string(),
-                "banana".to_string(),
-                "cherry".to_string(),
-            ],
-            data: ArrayD::from_shape_vec(IxDyn(&[5]), vec![0u32, 1, 2, 0, 1]).expect("shape vec"),
-            ordered: true,
-        };
-
-        let mut vars = HashMap::new();
-        vars.insert("cat".to_string(), ExtendedMatType::Categorical(cat));
-        handler
-            .write_extended(&path, &vars)
-            .expect("write categorical");
-
-        let read_back = handler.read_extended(&path).expect("read categorical");
-        let ext = read_back.get("cat").expect("key 'cat' missing");
-
-        if let ExtendedMatType::Categorical(c) = ext {
-            assert_eq!(c.categories, vec!["apple", "banana", "cherry"]);
-            assert_eq!(c.data.len(), 5);
-            assert!(c.ordered);
-        } else {
-            panic!("Expected Categorical");
-        }
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    /// Round-trip a 3-element datetime array.
-    #[cfg(all(test, feature = "hdf5"))]
-    #[test]
-    fn test_round_trip_datetime() {
-        let path = std::env::temp_dir().join("test_v73_datetime.h5");
-        let handler = V73MatFile::new(V73Features::default());
-
-        let dt = DateTimeArray {
-            data: ArrayD::from_shape_vec(IxDyn(&[3]), vec![738200.0_f64, 738201.0, 738202.0])
-                .expect("shape vec"),
-            timezone: Some("UTC".to_string()),
-            format: "yyyy-MM-dd".to_string(),
-        };
-
-        let mut vars = HashMap::new();
-        vars.insert("dt".to_string(), ExtendedMatType::DateTime(dt));
-        handler
-            .write_extended(&path, &vars)
-            .expect("write datetime");
-
-        let read_back = handler.read_extended(&path).expect("read datetime");
-        let ext = read_back.get("dt").expect("key 'dt' missing");
-
-        if let ExtendedMatType::DateTime(d) = ext {
-            assert_eq!(d.data.len(), 3);
-            assert_eq!(d.timezone, Some("UTC".to_string()));
-            assert_eq!(d.format, "yyyy-MM-dd");
-            assert!((d.data[[0]] - 738200.0).abs() < 1e-6);
-        } else {
-            panic!("Expected DateTime");
-        }
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    /// Round-trip an array of 4 strings.
-    #[cfg(all(test, feature = "hdf5"))]
-    #[test]
-    fn test_round_trip_string_array() {
-        let path = std::env::temp_dir().join("test_v73_string_array.h5");
-        let handler = V73MatFile::new(V73Features::default());
-
-        let strings = vec![
-            "hello".to_string(),
-            "world".to_string(),
-            "foo".to_string(),
-            "bar".to_string(),
-        ];
-
-        let mut vars = HashMap::new();
-        vars.insert(
-            "sa".to_string(),
-            ExtendedMatType::StringArray(strings.clone()),
-        );
-        handler
-            .write_extended(&path, &vars)
-            .expect("write string array");
-
-        let read_back = handler.read_extended(&path).expect("read string array");
-        let ext = read_back.get("sa").expect("key 'sa' missing");
-
-        if let ExtendedMatType::StringArray(sa) = ext {
-            assert_eq!(sa.len(), 4);
-            assert_eq!(sa[0], "hello");
-            assert_eq!(sa[3], "bar");
-        } else {
-            panic!("Expected StringArray");
-        }
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    /// Round-trip a function handle with a simple workspace variable.
-    #[cfg(all(test, feature = "hdf5"))]
-    #[test]
-    fn test_round_trip_function_handle() {
-        let path = std::env::temp_dir().join("test_v73_funchandle.h5");
-        let handler = V73MatFile::new(V73Features::default());
-
-        let mut ws = HashMap::new();
-        ws.insert(
-            "x".to_string(),
-            MatType::Double(ArrayD::from_elem(IxDyn(&[1]), 42.0_f64)),
-        );
-
-        let fh = FunctionHandle {
-            function: "@(x) x^2".to_string(),
-            function_type: "anonymous".to_string(),
-            workspace: Some(ws),
-        };
-
-        let mut vars = HashMap::new();
-        vars.insert("fh".to_string(), ExtendedMatType::FunctionHandle(fh));
-        handler
-            .write_extended(&path, &vars)
-            .expect("write function handle");
-
-        let read_back = handler.read_extended(&path).expect("read function handle");
-        let ext = read_back.get("fh").expect("key 'fh' missing");
-
-        if let ExtendedMatType::FunctionHandle(f) = ext {
-            assert_eq!(f.function, "@(x) x^2");
-            assert_eq!(f.function_type, "anonymous");
-            assert!(f.workspace.is_some());
-        } else {
-            panic!("Expected FunctionHandle");
-        }
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    /// Round-trip an object with 2 properties.
-    #[cfg(all(test, feature = "hdf5"))]
-    #[test]
-    fn test_round_trip_object() {
-        let path = std::env::temp_dir().join("test_v73_object.h5");
-        let handler = V73MatFile::new(V73Features::default());
-
-        let mut props = HashMap::new();
-        props.insert(
-            "alpha".to_string(),
-            MatType::Double(ArrayD::from_elem(IxDyn(&[1]), std::f64::consts::PI)),
-        );
-        props.insert(
-            "beta".to_string(),
-            MatType::Double(ArrayD::from_elem(IxDyn(&[1]), 2.71_f64)),
-        );
-
-        let obj = MatlabObject {
-            class_name: "MyClass".to_string(),
-            properties: props,
-            superclass_data: None,
-        };
-
-        let mut vars = HashMap::new();
-        vars.insert("obj".to_string(), ExtendedMatType::Object(obj));
-        handler.write_extended(&path, &vars).expect("write object");
-
-        let read_back = handler.read_extended(&path).expect("read object");
-        let ext = read_back.get("obj").expect("key 'obj' missing");
-
-        if let ExtendedMatType::Object(o) = ext {
-            assert_eq!(o.class_name, "MyClass");
-            assert_eq!(o.properties.len(), 2);
-            assert!(o.properties.contains_key("alpha"));
-            assert!(o.properties.contains_key("beta"));
-        } else {
-            panic!("Expected Object");
-        }
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    /// Write a simple double array via `write_standard_type`.
-    #[cfg(all(test, feature = "hdf5"))]
-    #[test]
-    fn test_write_standard_type() {
-        let path = std::env::temp_dir().join("test_v73_standard.h5");
-        let handler = V73MatFile::new(V73Features::default());
-
-        let arr = MatType::Double(
-            ArrayD::from_shape_vec(IxDyn(&[3]), vec![1.0_f64, 2.0, 3.0]).expect("shape"),
-        );
-        let mut vars = HashMap::new();
-        vars.insert("arr".to_string(), ExtendedMatType::Standard(Box::new(arr)));
-        let result = handler.write_extended(&path, &vars);
-        assert!(
-            result.is_ok(),
-            "write_standard_type failed: {:?}",
-            result.err()
-        );
-
-        let _ = std::fs::remove_file(&path);
-    }
-
-    /// Write a 20×10 f64 array, read a 5×3 slice at offset [2,1], verify values.
-    #[cfg(all(test, feature = "hdf5"))]
-    #[test]
-    fn test_partial_io_round_trip() {
-        let path = std::env::temp_dir().join("test_v73_partial_io.h5");
-
-        // Build 20×10 array where element [i,j] = (i*10 + j) as f64
-        let data: Vec<f64> = (0..200).map(|n| n as f64).collect();
-        let full = ArrayD::from_shape_vec(IxDyn(&[20, 10]), data).expect("shape");
-
-        // Write the full array
-        {
-            use crate::hdf5::HDF5File;
-            let mut file = HDF5File::create(&path).expect("create");
-            file.create_dataset_from_array("myvar", &full, None)
-                .expect("create dataset");
-            file.close().expect("close");
-        }
-
-        // Read slice at offset [2, 1], count [5, 3]
-        let slice = PartialIoSupport::read_array_slice(&path, "myvar", &[2, 1], &[5, 3])
-            .expect("read_array_slice");
-
-        assert_eq!(slice.shape(), &[5, 3]);
-        // Element [r, c] in slice = (2+r)*10 + (1+c)
-        for r in 0..5 {
-            for c in 0..3 {
-                let expected = ((2 + r) * 10 + (1 + c)) as f64;
-                assert!(
-                    (slice[[r, c]] - expected).abs() < 1e-9,
-                    "slice[{},{}]: expected {}, got {}",
-                    r,
-                    c,
-                    expected,
-                    slice[[r, c]]
-                );
-            }
-        }
-
-        // Write a patch at offset [5, 2], values all 999.0
-        let patch = ArrayD::from_elem(IxDyn(&[2, 2]), 999.0_f64);
-        PartialIoSupport::write_array_slice(&path, "myvar", &patch, &[5, 2])
-            .expect("write_array_slice");
-
-        // Read back to verify patch
-        let after = PartialIoSupport::read_array_slice(&path, "myvar", &[5, 2], &[2, 2])
-            .expect("read after write");
-        for r in 0..2 {
-            for c in 0..2 {
-                assert!(
-                    (after[[r, c]] - 999.0).abs() < 1e-9,
-                    "patched element [{},{}] should be 999.0, got {}",
-                    r,
-                    c,
-                    after[[r, c]]
-                );
-            }
-        }
-
-        let _ = std::fs::remove_file(&path);
-    }
-}
+#[path = "v73_enhanced_tests.rs"]
+mod tests;

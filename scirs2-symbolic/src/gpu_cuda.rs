@@ -76,7 +76,7 @@
 //!
 //! [`generate_ptx`] (and hence [`cuda_eval_batch`]) currently supports the
 //! arithmetic core `{Const, Var, Add, Sub, Mul}`. A pre-pass
-//! ([`validate_supported`]) walks the tree iteratively and returns
+//! (`validate_supported`) walks the tree iteratively and returns
 //! [`CudaEvalError::Unsupported`] on the first variant outside that set — *no
 //! silent wrong answer*. The `LoweredOp` → PTX walk is a straightforward
 //! iterative post-order over the tree, so extending it (e.g. `Div` via
@@ -342,7 +342,7 @@ fn emit_walk(
 /// This is a fully **GPU-free** code generator: it builds and returns the PTX
 /// string without touching any CUDA device, so it can be inspected and tested
 /// on any platform. It is general over the supported op subset
-/// `{Const, Var, Add, Sub, Mul}` (validated up front by [`validate_supported`]).
+/// `{Const, Var, Add, Sub, Mul}` (validated up front by `validate_supported`).
 ///
 /// - `n_vars` — number of variables per row (the kernel reads
 ///   `vars_ptr[(tid*n_vars + i)]` for variable `i`).

@@ -1,6 +1,6 @@
 # scirs2-linalg Development TODO
 
-## Status: v0.6.1 (released 2026-07-15; last reviewed 2026-07-15)
+## Status: v0.6.2 (released 2026-07-22; last reviewed 2026-07-22)
 
 scirs2-linalg's own test suite (freshly run 2026-07-15): 2018 tests pass, 0 failed, 2 skipped (default
 features); 2248 tests pass, 0 failed, 2 skipped (`--all-features`). This session's dev-dependency packaging fix

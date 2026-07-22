@@ -3,19 +3,45 @@
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
 use crate::error::{IoError, Result};
-#[cfg(feature = "hdf5")]
-use hdf5::File;
+use oxih5::{
+    AttrView, Dataset as OxiDataset, Dtype, File as OxiFile, FileWriter, Group as OxiGroup,
+};
 use scirs2_core::ndarray::{ArrayBase, ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::path::Path;
-use std::str::FromStr;
 
+use super::convert::{convert_dtype, dataset_to_f64, dataset_to_i64, is_floating, is_integral};
 use super::types::{AttributeValue, DataArray};
-use super::types_3::{
-    Dataset, DatasetOptions, FileMode, FileStats, Group, HDF5DataType, StringEncoding,
-};
+use super::types_3::{Dataset, DatasetOptions, FileMode, FileStats, Group, HDF5DataType};
 
-/// HDF5 file handle
+/// Report a construct the pure-Rust writer cannot express yet.
+///
+/// oxih5's `FileWriter` is being extended in parallel; until it lands the
+/// missing capability the only honest outcome is a named error. Dropping the
+/// construct and reporting success is what this migration exists to remove.
+fn unsupported_write(construct: &str, requirement: &str) -> IoError {
+    IoError::UnsupportedFormat(format!(
+        "{construct} cannot be written: oxih5's FileWriter does not yet support {requirement}"
+    ))
+}
+
+/// Iterate a name-keyed map in a stable order.
+///
+/// `HashMap` iteration order varies between runs, which would make the bytes of
+/// an otherwise identical output file differ run to run.
+fn sorted_pairs<V>(map: &HashMap<String, V>) -> Vec<(&String, &V)> {
+    let mut pairs: Vec<(&String, &V)> = map.iter().collect();
+    pairs.sort_by(|a, b| a.0.cmp(b.0));
+    pairs
+}
+
+/// HDF5 file handle.
+///
+/// This is a complete in-memory model of the file: [`HDF5File::open`] walks the
+/// whole object tree eagerly and materialises every dataset's data into
+/// [`HDF5File::root`]. There is consequently no live file handle to keep — reads
+/// are served from `root`, and [`HDF5File::write`] serialises `root` back out in
+/// one pass.
 pub struct HDF5File {
     /// File path
     #[allow(dead_code)]
@@ -25,68 +51,40 @@ pub struct HDF5File {
     /// File access mode
     #[allow(dead_code)]
     pub(super) mode: FileMode,
-    /// Native HDF5 file handle (when feature is enabled)
-    #[cfg(feature = "hdf5")]
-    pub(super) native_file: Option<File>,
 }
 impl HDF5File {
-    /// Create a new HDF5 file
+    /// Create a new HDF5 file.
+    ///
+    /// The structure is built in memory; nothing reaches `path` until
+    /// [`HDF5File::write`] or [`HDF5File::close`] is called.
     pub fn create<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path_str = path.as_ref().to_string_lossy().to_string();
-        #[cfg(feature = "hdf5")]
-        {
-            let native_file = File::create(&path_str)
-                .map_err(|e| IoError::FormatError(format!("Failed to create HDF5 file: {e}")))?;
-            Ok(Self {
-                path: path_str,
-                root: Group::new("/".to_string()),
-                mode: FileMode::Create,
-                native_file: Some(native_file),
-            })
-        }
-        #[cfg(not(feature = "hdf5"))]
-        {
-            Ok(Self {
-                path: path_str,
-                root: Group::new("/".to_string()),
-                mode: FileMode::Create,
-            })
-        }
+        Ok(Self {
+            path: path.as_ref().to_string_lossy().to_string(),
+            root: Group::new("/".to_string()),
+            mode: FileMode::Create,
+        })
     }
-    /// Open an existing HDF5 file
+    /// Open an existing HDF5 file.
+    ///
+    /// The whole object tree — groups, datasets, payloads and attributes — is
+    /// read eagerly, after which the file handle is released. [`FileMode::Create`]
+    /// and [`FileMode::Truncate`] discard whatever is on disk, so nothing is read
+    /// for those modes.
     pub fn open<P: AsRef<Path>>(path: P, mode: FileMode) -> Result<Self> {
         let path_str = path.as_ref().to_string_lossy().to_string();
-        #[cfg(feature = "hdf5")]
-        {
-            let native_file = match mode {
-                FileMode::ReadOnly => File::open(&path_str)
-                    .map_err(|e| IoError::FormatError(format!("Failed to open HDF5 file: {e}")))?,
-                FileMode::ReadWrite => File::open_rw(&path_str)
-                    .map_err(|e| IoError::FormatError(format!("Failed to open HDF5 file: {e}")))?,
-                FileMode::Create => File::create(&path_str).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create HDF5 file: {e}"))
-                })?,
-                FileMode::Truncate => File::create(&path_str).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create HDF5 file: {e}"))
-                })?,
-            };
-            let mut root = Group::new("/".to_string());
-            Self::load_group_structure(&native_file, &mut root)?;
-            Ok(Self {
-                path: path_str,
-                root,
-                mode,
-                native_file: Some(native_file),
-            })
+        let mut root = Group::new("/".to_string());
+        if matches!(mode, FileMode::ReadOnly | FileMode::ReadWrite) {
+            // Scoped so the mapped file is dropped before we return.
+            let file = OxiFile::open(&path_str).map_err(|e| {
+                IoError::FormatError(format!("Failed to open HDF5 file '{path_str}': {e}"))
+            })?;
+            Self::load_group_structure(&file, &mut root)?;
         }
-        #[cfg(not(feature = "hdf5"))]
-        {
-            Ok(Self {
-                path: path_str,
-                root: Group::new("/".to_string()),
-                mode,
-            })
-        }
+        Ok(Self {
+            path: path_str,
+            root,
+            mode,
+        })
     }
     /// Get the root group
     pub fn root(&self) -> &Group {
@@ -96,571 +94,322 @@ impl HDF5File {
     pub fn root_mut(&mut self) -> &mut Group {
         &mut self.root
     }
-    /// Get access to the native HDF5 file handle (when feature is enabled)
-    #[cfg(feature = "hdf5")]
-    pub fn native_file(&self) -> Option<&File> {
-        self.native_file.as_ref()
+    /// Load the complete object tree of `file` into `group`.
+    ///
+    /// The recursion is spelled out rather than delegated to
+    /// [`oxih5::File::walk`]: `walk` swallows any error hit while descending into
+    /// a sub-group, so a partially unreadable file would come back as a silently
+    /// truncated tree instead of an error.
+    pub(super) fn load_group_structure(file: &OxiFile, group: &mut Group) -> Result<()> {
+        let root = file
+            .root()
+            .map_err(|e| IoError::FormatError(format!("Failed to open root group: {e}")))?;
+        Self::load_group_attributes(&root, "/", group)?;
+        Self::load_group_contents(file, &root, "", group)
     }
-    /// Load group structure from native HDF5 file
-    #[cfg(feature = "hdf5")]
-    pub(super) fn load_group_structure(file: &File, group: &mut Group) -> Result<()> {
-        use hdf5::types::TypeDescriptor;
-        if let Ok(attr_names) = file.attr_names() {
-            for attr_name in attr_names {
-                if let Ok(attr) = file.attr(&attr_name) {
-                    if let Ok(attr_value) = Self::read_attribute_value(&attr) {
-                        group.attributes.insert(attr_name, attr_value);
-                    }
-                }
-            }
+    /// Read the attributes attached to an oxih5 group object into `group`.
+    pub(super) fn load_group_attributes(
+        oxi_group: &OxiGroup,
+        path: &str,
+        group: &mut Group,
+    ) -> Result<()> {
+        let views = oxi_group.attr_views().map_err(|e| {
+            IoError::FormatError(format!("Failed to read attributes of group '{path}': {e}"))
+        })?;
+        for view in &views {
+            let value = Self::read_attribute_value(view, path)?;
+            group.attributes.insert(view.name().to_string(), value);
         }
-        let datasets = file
-            .datasets()
-            .map_err(|e| IoError::FormatError(format!("Failed to get datasets: {e}")))?;
-        for dataset in datasets {
-            let dataset_name_full = dataset.name();
-            let dataset_key = dataset_name_full
-                .rsplit('/')
-                .next()
-                .unwrap_or(&dataset_name_full)
-                .trim_start_matches('/')
-                .to_string();
-            if let Ok(h5_dataset) = file.dataset(&dataset_name_full) {
-                let shape: Vec<usize> = h5_dataset.shape().to_vec();
-                let dtype = h5_dataset.dtype().map_err(|e| {
-                    IoError::FormatError(format!("Failed to get dataset dtype: {e}"))
-                })?;
-                let internal_dtype = Self::convert_hdf5_datatype(&dtype)?;
-                let data = Self::read_dataset_data(&h5_dataset, &dtype)?;
-                let mut attributes = HashMap::new();
-                if let Ok(attr_names) = h5_dataset.attr_names() {
-                    for attr_name in attr_names {
-                        if let Ok(attr) = h5_dataset.attr(&attr_name) {
-                            if let Ok(attr_value) = Self::read_attribute_value(&attr) {
-                                attributes.insert(attr_name, attr_value);
-                            }
-                        }
-                    }
-                }
-                let dataset = Dataset {
-                    name: dataset_key.clone(),
-                    dtype: internal_dtype,
-                    shape,
+        Ok(())
+    }
+    /// Recursively load the datasets and sub-groups of `oxi_group`.
+    ///
+    /// `prefix` is the slash-separated path of `oxi_group` relative to the root
+    /// (empty for the root itself). It is needed because attribute lookups and
+    /// string decoding go through absolute paths on [`oxih5::File`], while
+    /// enumeration goes through the group handle.
+    pub(super) fn load_group_contents(
+        file: &OxiFile,
+        oxi_group: &OxiGroup,
+        prefix: &str,
+        group: &mut Group,
+    ) -> Result<()> {
+        let dataset_names = oxi_group.datasets().map_err(|e| {
+            IoError::FormatError(format!("Failed to list datasets of '{prefix}/': {e}"))
+        })?;
+        for name in dataset_names {
+            let full_path = Self::join_path(prefix, &name);
+            let oxi_dataset = oxi_group.dataset(&name).map_err(|e| {
+                IoError::FormatError(format!("Failed to read dataset '{full_path}': {e}"))
+            })?;
+            let dtype = convert_dtype(&oxi_dataset.dtype);
+            let data = Self::read_dataset_data(file, &full_path, &oxi_dataset)?;
+            let mut attributes = HashMap::new();
+            let views = file.attr_views(&full_path).map_err(|e| {
+                IoError::FormatError(format!(
+                    "Failed to read attributes of dataset '{full_path}': {e}"
+                ))
+            })?;
+            for view in &views {
+                let value = Self::read_attribute_value(view, &full_path)?;
+                attributes.insert(view.name().to_string(), value);
+            }
+            group.datasets.insert(
+                name.clone(),
+                Dataset {
+                    name,
+                    dtype,
+                    shape: oxi_dataset.shape.clone(),
                     data,
                     attributes,
                     options: DatasetOptions::default(),
-                };
-                group.datasets.insert(dataset_key, dataset);
-            }
+                },
+            );
         }
-        let groups = file
-            .groups()
-            .map_err(|e| IoError::FormatError(format!("Failed to get groups: {e}")))?;
-        for h5_group in groups {
-            let group_name_full = h5_group.name();
-            let group_key = group_name_full
-                .rsplit('/')
-                .next()
-                .unwrap_or(&group_name_full)
-                .trim_start_matches('/')
-                .to_string();
-            let mut subgroup = Group::new(group_key.clone());
-            Self::load_subgroup_structure(&h5_group, &mut subgroup)?;
-            group.groups.insert(group_key, subgroup);
+        let group_names = oxi_group.groups().map_err(|e| {
+            IoError::FormatError(format!("Failed to list groups of '{prefix}/': {e}"))
+        })?;
+        for name in group_names {
+            let full_path = Self::join_path(prefix, &name);
+            let child = oxi_group.group(&name).map_err(|e| {
+                IoError::FormatError(format!("Failed to open group '{full_path}': {e}"))
+            })?;
+            let mut subgroup = Group::new(name.clone());
+            Self::load_group_attributes(&child, &full_path, &mut subgroup)?;
+            Self::load_group_contents(file, &child, &full_path, &mut subgroup)?;
+            group.groups.insert(name, subgroup);
         }
         Ok(())
     }
-    /// Recursively load structure for an HDF5 group
-    #[cfg(feature = "hdf5")]
-    pub(super) fn load_subgroup_structure(h5_group: &hdf5::Group, group: &mut Group) -> Result<()> {
-        if let Ok(attr_names) = h5_group.attr_names() {
-            for attr_name in attr_names {
-                if let Ok(attr) = h5_group.attr(&attr_name) {
-                    if let Ok(attr_value) = Self::read_attribute_value(&attr) {
-                        group.attributes.insert(attr_name, attr_value);
-                    }
-                }
-            }
-        }
-        if let Ok(datasets) = h5_group.datasets() {
-            for ds in datasets {
-                let ds_name_full = ds.name();
-                let ds_key = ds_name_full
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or(&ds_name_full)
-                    .trim_start_matches('/')
-                    .to_string();
-                if let Ok(h5_dataset) = h5_group.dataset(&ds_key) {
-                    let shape: Vec<usize> = h5_dataset.shape().to_vec();
-                    let dtype = h5_dataset.dtype().map_err(|e| {
-                        IoError::FormatError(format!("Failed to get dataset dtype: {e}"))
-                    })?;
-                    let internal_dtype = Self::convert_hdf5_datatype(&dtype)?;
-                    let data = Self::read_dataset_data(&h5_dataset, &dtype)?;
-                    let mut attributes = HashMap::new();
-                    if let Ok(attr_names) = h5_dataset.attr_names() {
-                        for attr_name in attr_names {
-                            if let Ok(attr) = h5_dataset.attr(&attr_name) {
-                                if let Ok(attr_value) = Self::read_attribute_value(&attr) {
-                                    attributes.insert(attr_name, attr_value);
-                                }
-                            }
-                        }
-                    }
-                    let dataset = Dataset {
-                        name: ds_key.clone(),
-                        dtype: internal_dtype,
-                        shape,
-                        data,
-                        attributes,
-                        options: DatasetOptions::default(),
-                    };
-                    group.datasets.insert(ds_key, dataset);
-                }
-            }
-        }
-        if let Ok(subgroups) = h5_group.groups() {
-            for sub in subgroups {
-                let sub_name_full = sub.name();
-                let sub_key = sub_name_full
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or(&sub_name_full)
-                    .trim_start_matches('/')
-                    .to_string();
-                let mut child = Group::new(sub_key.clone());
-                Self::load_subgroup_structure(&sub, &mut child)?;
-                group.groups.insert(sub_key, child);
-            }
-        }
-        Ok(())
-    }
-    /// Write a group (and all its contents) to the HDF5 file
-    #[cfg(feature = "hdf5")]
-    pub(super) fn write_group_to_hdf5(file: &File, group: &Group, path_prefix: &str) -> Result<()> {
-        for (attr_name, attr_value) in &group.attributes {
-            Self::write_attribute_to_hdf5(file, path_prefix, attr_name, attr_value)?;
-        }
-        for (dataset_name, dataset) in &group.datasets {
-            let dataset_path = if path_prefix.is_empty() {
-                dataset_name.clone()
-            } else {
-                format!("{}/{}", path_prefix, dataset_name)
-            };
-            Self::write_dataset_to_hdf5(file, &dataset_path, dataset)?;
-        }
-        for (subgroup_name, subgroup) in &group.groups {
-            let subgroup_path = if path_prefix.is_empty() {
-                subgroup_name.clone()
-            } else {
-                format!("{}/{}", path_prefix, subgroup_name)
-            };
-            if let Err(_) = file.group(&subgroup_path) {
-                file.create_group(&subgroup_path).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create group {}: {}", subgroup_path, e))
-                })?;
-            }
-            Self::write_group_to_hdf5(file, subgroup, &subgroup_path)?;
-        }
-        Ok(())
-    }
-    /// Write an attribute to the HDF5 file
-    #[cfg(feature = "hdf5")]
-    pub(super) fn write_attribute_to_hdf5(
-        file: &File,
-        path: &str,
-        name: &str,
-        value: &AttributeValue,
-    ) -> Result<()> {
-        use hdf5::types::VarLenUnicode;
-        let target_group = if path.is_empty() {
-            file.as_group()
-                .map_err(|e| IoError::FormatError(format!("Failed to access root group: {e}")))?
+    /// Join a group prefix and a child name into an object path.
+    fn join_path(prefix: &str, name: &str) -> String {
+        if prefix.is_empty() {
+            name.to_string()
         } else {
-            file.group(path).map_err(|e| {
-                IoError::FormatError(format!("Failed to access group '{path}': {e}"))
-            })?
-        };
-        match value {
-            AttributeValue::Integer(v) => {
-                let attr = target_group.new_attr::<i64>().create(name).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create integer attribute: {}", e))
-                })?;
-                attr.write_scalar(v).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write integer attribute: {}", e))
-                })?;
-            }
-            AttributeValue::Float(v) => {
-                let attr = target_group.new_attr::<f64>().create(name).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create float attribute: {}", e))
-                })?;
-                attr.write_scalar(v).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write float attribute: {}", e))
-                })?;
-            }
-            AttributeValue::String(v) => {
-                let vlen_str = VarLenUnicode::from_str(v).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create VarLenUnicode: {:?}", e))
-                })?;
-                let attr = target_group
-                    .new_attr::<VarLenUnicode>()
-                    .create(name)
-                    .map_err(|e| {
-                        IoError::FormatError(format!("Failed to create string attribute: {}", e))
-                    })?;
-                attr.write_scalar(&vlen_str).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write string attribute: {}", e))
-                })?;
-            }
-            AttributeValue::IntegerArray(v) => {
-                let attr = target_group
-                    .new_attr::<i64>()
-                    .shape([v.len()])
-                    .create(name)
-                    .map_err(|e| {
-                        IoError::FormatError(format!(
-                            "Failed to create integer array attribute: {}",
-                            e
-                        ))
-                    })?;
-                attr.write(v).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write integer array attribute: {}", e))
-                })?;
-            }
-            AttributeValue::FloatArray(v) => {
-                let attr = target_group
-                    .new_attr::<f64>()
-                    .shape([v.len()])
-                    .create(name)
-                    .map_err(|e| {
-                        IoError::FormatError(format!(
-                            "Failed to create float array attribute: {}",
-                            e
-                        ))
-                    })?;
-                attr.write(v).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write float array attribute: {}", e))
-                })?;
-            }
-            AttributeValue::StringArray(v) => {
-                let mut vlen_strings = Vec::new();
-                for s in v {
-                    let vlen = VarLenUnicode::from_str(s).map_err(|e| {
-                        IoError::FormatError(format!("Failed to create VarLenUnicode: {:?}", e))
-                    })?;
-                    vlen_strings.push(vlen);
-                }
-                let attr = target_group
-                    .new_attr::<VarLenUnicode>()
-                    .shape([v.len()])
-                    .create(name)
-                    .map_err(|e| {
-                        IoError::FormatError(format!(
-                            "Failed to create string array attribute: {}",
-                            e
-                        ))
-                    })?;
-                attr.write(&vlen_strings).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write string array attribute: {}", e))
-                })?;
-            }
-            AttributeValue::Boolean(v) => {
-                let int_val = if *v { 1i64 } else { 0i64 };
-                let attr = target_group.new_attr::<i64>().create(name).map_err(|e| {
-                    IoError::FormatError(format!("Failed to create boolean attribute: {}", e))
-                })?;
-                attr.write_scalar(&int_val).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write boolean attribute: {}", e))
-                })?;
-            }
-            AttributeValue::Array(_) => {
-                eprintln!("Warning: Skipping complex array attribute '{}'", name);
-            }
+            format!("{prefix}/{name}")
+        }
+    }
+    /// Serialise `group` and everything below it into `writer`.
+    ///
+    /// `prefix` is the group's path from the root, empty for the root itself.
+    /// oxih5's writer resolves object paths at any depth and creates the
+    /// intermediate groups a dataset path implies, so the SciRS2 tree maps
+    /// across one-to-one with no flattening.
+    ///
+    /// Order matters twice over: a group must exist before an attribute can be
+    /// attached to it, and a dataset must exist before its own attributes can.
+    fn write_group_to(writer: &mut FileWriter, group: &Group, prefix: &str) -> Result<()> {
+        // The root group's attribute path is "/"; "" resolves to it as well but
+        // "/" is what the writer documents.
+        let group_path = if prefix.is_empty() { "/" } else { prefix };
+        Self::write_attributes(writer, group_path, &group.attributes)?;
+
+        for (name, dataset) in sorted_pairs(&group.datasets) {
+            let path = Self::join_path(prefix, name);
+            Self::write_dataset_to(writer, &path, dataset)?;
+            Self::write_attributes(writer, &path, &dataset.attributes)?;
+        }
+        for (name, subgroup) in sorted_pairs(&group.groups) {
+            let path = Self::join_path(prefix, name);
+            // Created explicitly rather than left to a dataset path, so that a
+            // group holding only sub-groups — or nothing at all — still appears
+            // in the file. The parent is always created before its children, so
+            // this never collides with an implicitly created intermediate.
+            writer.create_group(&path).map_err(|e| {
+                IoError::FormatError(format!("Failed to create group '{path}': {e}"))
+            })?;
+            Self::write_group_to(writer, subgroup, &path)?;
         }
         Ok(())
     }
-    /// Write a dataset to the HDF5 file
-    #[cfg(feature = "hdf5")]
-    pub(super) fn write_dataset_to_hdf5(file: &File, path: &str, dataset: &Dataset) -> Result<()> {
-        match &dataset.data {
-            DataArray::Float(data) => {
-                let h5_dataset = file
-                    .new_dataset::<f64>()
-                    .shape(&dataset.shape)
-                    .create(path)
-                    .map_err(|e| {
-                        IoError::FormatError(format!("Failed to create float dataset: {}", e))
-                    })?;
-                h5_dataset.write_raw(data).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write float dataset: {}", e))
-                })?;
-            }
-            DataArray::Integer(data) => {
-                let h5_dataset = file
-                    .new_dataset::<i64>()
-                    .shape(&dataset.shape)
-                    .create(path)
-                    .map_err(|e| {
-                        IoError::FormatError(format!("Failed to create integer dataset: {}", e))
-                    })?;
-                h5_dataset.write_raw(data).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write integer dataset: {}", e))
-                })?;
-            }
+    /// Attach `attributes` to the dataset or group at `path`.
+    ///
+    /// `AttributeValue::Boolean` is stored as a 0/1 signed integer, matching
+    /// what the C backend wrote; it reads back as
+    /// [`AttributeValue::Integer`], since HDF5 has no boolean datatype.
+    fn write_attributes(
+        writer: &mut FileWriter,
+        path: &str,
+        attributes: &HashMap<String, AttributeValue>,
+    ) -> Result<()> {
+        for (key, value) in sorted_pairs(attributes) {
+            let outcome = match value {
+                AttributeValue::String(v) => writer.write_string_attr(path, key, v),
+                AttributeValue::Integer(v) => writer.write_i64_attr(path, key, *v),
+                AttributeValue::Float(v) => writer.write_f64_attr(path, key, *v),
+                AttributeValue::Boolean(v) => writer.write_i64_attr(path, key, i64::from(*v)),
+                AttributeValue::IntegerArray(v) | AttributeValue::Array(v) => {
+                    writer.write_i64_array_attr(path, key, v)
+                }
+                AttributeValue::FloatArray(v) => writer.write_f64_array_attr(path, key, v),
+                AttributeValue::StringArray(v) => {
+                    let refs: Vec<&str> = v.iter().map(String::as_str).collect();
+                    writer.write_string_array_attr(path, key, &refs)
+                }
+            };
+            outcome.map_err(|e| {
+                IoError::FormatError(format!(
+                    "Failed to write attribute '{key}' on '{path}': {e}"
+                ))
+            })?;
+        }
+        Ok(())
+    }
+    /// Serialise one dataset at `path`.
+    fn write_dataset_to(writer: &mut FileWriter, path: &str, dataset: &Dataset) -> Result<()> {
+        let shape = &dataset.shape;
+        let outcome = match &dataset.data {
+            DataArray::Float(data) => writer.write_dataset_f64(path, data, shape).map(|_| ()),
+            DataArray::Integer(data) => writer.write_dataset_i64(path, data, shape).map(|_| ()),
+            DataArray::Binary(data) => writer.write_dataset_u8(path, data, shape).map(|_| ()),
             DataArray::String(data) => {
-                use hdf5::types::VarLenUnicode;
-                let mut vlen_strings = Vec::new();
-                for s in data {
-                    let vlen = VarLenUnicode::from_str(s).map_err(|e| {
-                        IoError::FormatError(format!("Failed to create VarLenUnicode: {:?}", e))
-                    })?;
-                    vlen_strings.push(vlen);
+                if shape.len() > 1 {
+                    return Err(unsupported_write(
+                        &format!("{}-D string dataset '{path}'", shape.len()),
+                        "multi-dimensional string datasets \
+                         (create_vlen_string_dataset lays out a single axis)",
+                    ));
                 }
-                let h5_dataset = file
-                    .new_dataset::<VarLenUnicode>()
-                    .shape(&dataset.shape)
-                    .create(path)
-                    .map_err(|e| {
-                        IoError::FormatError(format!("Failed to create string dataset: {}", e))
-                    })?;
-                h5_dataset.write(&vlen_strings).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write string dataset: {}", e))
-                })?;
+                let declared: usize = shape.iter().product();
+                if !shape.is_empty() && declared != data.len() {
+                    return Err(IoError::FormatError(format!(
+                        "String dataset '{path}' declares shape {shape:?} ({declared} elements) \
+                         but holds {} strings",
+                        data.len()
+                    )));
+                }
+                let refs: Vec<&str> = data.iter().map(String::as_str).collect();
+                writer.create_vlen_string_dataset(path, &refs)
             }
-            DataArray::Binary(data) => {
-                let h5_dataset = file
-                    .new_dataset::<u8>()
-                    .shape(&dataset.shape)
-                    .create(path)
-                    .map_err(|e| {
-                        IoError::FormatError(format!("Failed to create binary dataset: {}", e))
-                    })?;
-                h5_dataset.write(data).map_err(|e| {
-                    IoError::FormatError(format!("Failed to write binary dataset: {}", e))
-                })?;
-            }
-        }
-        Ok(())
+        };
+        outcome.map_err(|e| IoError::FormatError(format!("Failed to add dataset '{path}': {e}")))
     }
-    /// Convert HDF5 datatype to internal representation
-    #[cfg(feature = "hdf5")]
-    pub(super) fn convert_hdf5_datatype(dtype: &hdf5::Datatype) -> Result<HDF5DataType> {
-        use hdf5::types::TypeDescriptor;
-        match dtype.to_descriptor() {
-            Ok(TypeDescriptor::Integer(int_type)) => Ok(HDF5DataType::Integer {
-                size: int_type as usize,
-                signed: true,
-            }),
-            Ok(TypeDescriptor::Unsigned(int_type)) => Ok(HDF5DataType::Integer {
-                size: int_type as usize,
-                signed: false,
-            }),
-            Ok(TypeDescriptor::Float(float_type)) => Ok(HDF5DataType::Float {
-                size: float_type as usize,
-            }),
-            Ok(TypeDescriptor::FixedUnicode(_size)) => Ok(HDF5DataType::String {
-                encoding: StringEncoding::UTF8,
-            }),
-            Ok(TypeDescriptor::FixedAscii(_size)) => Ok(HDF5DataType::String {
-                encoding: StringEncoding::ASCII,
-            }),
-            Ok(TypeDescriptor::VarLenUnicode) => Ok(HDF5DataType::String {
-                encoding: StringEncoding::UTF8,
-            }),
-            Ok(TypeDescriptor::VarLenAscii) => Ok(HDF5DataType::String {
-                encoding: StringEncoding::ASCII,
-            }),
-            Ok(TypeDescriptor::FixedArray(elem_ty, len)) => {
-                let elem_datatype = hdf5::Datatype::from_descriptor(&elem_ty).map_err(|e| {
-                    IoError::FormatError(format!(
-                        "Failed to create element datatype for FixedArray: {e}"
-                    ))
-                })?;
-                let base_type = Self::convert_hdf5_datatype(&elem_datatype)?;
-                Ok(HDF5DataType::Array {
-                    base_type: Box::new(base_type),
-                    shape: vec![len],
-                })
-            }
-            Ok(TypeDescriptor::VarLenArray(elem_ty)) => {
-                let elem_datatype = hdf5::Datatype::from_descriptor(&elem_ty).map_err(|e| {
-                    IoError::FormatError(format!(
-                        "Failed to create element datatype for VarLenArray: {e}"
-                    ))
-                })?;
-                let base_type = Self::convert_hdf5_datatype(&elem_datatype)?;
-                Ok(HDF5DataType::Array {
-                    base_type: Box::new(base_type),
-                    shape: vec![0],
-                })
-            }
-            Ok(TypeDescriptor::Compound(comp_type)) => {
-                let mut fields = Vec::new();
-                for field in &comp_type.fields {
-                    let field_datatype =
-                        hdf5::Datatype::from_descriptor(&field.ty).map_err(|e| {
-                            IoError::FormatError(format!(
-                                "Failed to create datatype for field: {}",
-                                e
-                            ))
-                        })?;
-                    let field_type = Self::convert_hdf5_datatype(&field_datatype)?;
-                    fields.push((field.name.clone(), field_type));
-                }
-                Ok(HDF5DataType::Compound { fields })
-            }
-            Ok(TypeDescriptor::Enum(enum_type)) => {
-                let mut values = Vec::new();
-                for member in &enum_type.members {
-                    values.push((member.name.clone(), member.value as i64));
-                }
-                Ok(HDF5DataType::Enum { values })
-            }
-            _ => Ok(HDF5DataType::String {
-                encoding: StringEncoding::UTF8,
-            }),
-        }
-    }
-    /// Read dataset data based on HDF5 datatype
-    #[cfg(feature = "hdf5")]
+    /// Decode a dataset's payload into SciRS2's [`DataArray`].
+    ///
+    /// Every numeric read goes through the widening helpers in
+    /// [`super::convert`]. The C backend converted implicitly inside
+    /// `read_raw::<T>()`; matching only the exact Rust type here would quietly
+    /// reduce SciRS2 from "any numeric dataset" to "f64 datasets only".
     pub(super) fn read_dataset_data(
-        dataset: &hdf5::Dataset,
-        dtype: &hdf5::Datatype,
+        file: &OxiFile,
+        path: &str,
+        dataset: &OxiDataset,
     ) -> Result<DataArray> {
-        use hdf5::types::TypeDescriptor;
-        match dtype.to_descriptor() {
-            Ok(TypeDescriptor::Integer(_)) => {
-                let data: Vec<i64> = dataset.read_raw().map_err(|e| {
-                    IoError::FormatError(format!("Failed to read integer dataset: {e}"))
-                })?;
-                Ok(DataArray::Integer(data))
-            }
-            Ok(TypeDescriptor::Float(_)) => {
-                let data: Vec<f64> = dataset.read_raw().map_err(|e| {
-                    IoError::FormatError(format!("Failed to read float dataset: {e}"))
-                })?;
-                Ok(DataArray::Float(data))
-            }
-            Ok(TypeDescriptor::FixedUnicode(_))
-            | Ok(TypeDescriptor::FixedAscii(_))
-            | Ok(TypeDescriptor::VarLenUnicode) => {
-                use hdf5::types::VarLenUnicode;
-                let data: Vec<VarLenUnicode> = dataset.read_raw().map_err(|e| {
-                    IoError::FormatError(format!("Failed to read string dataset: {e}"))
-                })?;
-                let strings: Vec<String> = data.into_iter().map(|s| s.to_string()).collect();
-                Ok(DataArray::String(strings))
-            }
-            Ok(TypeDescriptor::VarLenAscii) => {
-                use hdf5::types::VarLenAscii;
-                let data: Vec<VarLenAscii> = dataset.read_raw().map_err(|e| {
-                    IoError::FormatError(format!("Failed to read string dataset: {e}"))
-                })?;
-                let strings: Vec<String> = data.into_iter().map(|s| s.to_string()).collect();
-                Ok(DataArray::String(strings))
-            }
-            _ => {
-                let data: Vec<u8> = dataset.read_raw().map_err(|e| {
-                    IoError::FormatError(format!("Failed to read binary dataset: {e}"))
-                })?;
-                Ok(DataArray::Binary(data))
-            }
+        if matches!(dataset.dtype, Dtype::String { .. }) {
+            // `File::dataset_strings` handles fixed-length *and* variable-length
+            // strings; `Dataset::as_string` returns NotImplemented for vlen,
+            // whose elements are global-heap references needing the file bytes.
+            let strings = file.dataset_strings(path).map_err(|e| {
+                IoError::FormatError(format!("Failed to read string dataset '{path}': {e}"))
+            })?;
+            return Ok(DataArray::String(strings));
         }
+        if is_floating(&dataset.dtype) {
+            return Ok(DataArray::Float(dataset_to_f64(dataset)?));
+        }
+        if is_integral(&dataset.dtype) {
+            return Ok(DataArray::Integer(dataset_to_i64(dataset)?));
+        }
+        // Compound, opaque, reference, vlen-sequence and array datatypes have no
+        // scalar counterpart in `DataArray`. Their bytes are kept verbatim rather
+        // than reinterpreted as something they are not.
+        Ok(DataArray::Binary(dataset.data.clone()))
     }
-    /// Read attribute value
-    #[cfg(feature = "hdf5")]
-    pub(super) fn read_attribute_value(attr: &hdf5::Attribute) -> Result<AttributeValue> {
-        use hdf5::types::TypeDescriptor;
-        let dtype = attr
-            .dtype()
-            .map_err(|e| IoError::FormatError(format!("Failed to get attribute dtype: {e}")))?;
-        match dtype.to_descriptor() {
-            Ok(TypeDescriptor::Integer(_)) => {
-                if attr.shape().iter().product::<usize>() == 1 {
-                    let value: i64 = attr.read_scalar().map_err(|e| {
-                        IoError::FormatError(format!("Failed to read integer attribute: {e}"))
-                    })?;
-                    Ok(AttributeValue::Integer(value))
-                } else {
-                    let value: Vec<i64> = attr.read_raw().map_err(|e| {
+    /// Re-present an attribute's payload as a dataset so oxih5's element
+    /// decoders apply unchanged.
+    ///
+    /// `AttrView::attr` and every `oxih5_core::Dataset` field are public, so no
+    /// decoding logic needs duplicating here. The payload is trimmed to the
+    /// element count the dataspace declares: an attribute's data section is
+    /// padded out to an 8-byte boundary inside its object-header message, and
+    /// decoding that padding would invent trailing elements.
+    pub(crate) fn attribute_as_dataset(view: &AttrView<'_>, path: &str) -> Result<OxiDataset> {
+        let shape: Vec<usize> = view.shape().iter().map(|&d| d as usize).collect();
+        let n_elems: usize = shape.iter().product();
+        let dtype = view.attr.dtype.clone();
+        let data = match dtype.size() {
+            Some(elem_size) => {
+                let needed = n_elems.checked_mul(elem_size).ok_or_else(|| {
+                    IoError::FormatError(format!(
+                        "Attribute '{}' on '{path}' declares an unrepresentable shape {shape:?}",
+                        view.name()
+                    ))
+                })?;
+                view.attr
+                    .data
+                    .get(..needed)
+                    .ok_or_else(|| {
                         IoError::FormatError(format!(
-                            "Failed to read integer array attribute: {}",
-                            e
+                            "Attribute '{}' on '{path}' is truncated: {} bytes present, {needed} required",
+                            view.name(),
+                            view.attr.data.len()
                         ))
-                    })?;
-                    Ok(AttributeValue::IntegerArray(value))
-                }
+                    })?
+                    .to_vec()
             }
-            Ok(TypeDescriptor::Float(_)) => {
-                if attr.shape().iter().product::<usize>() == 1 {
-                    let value: f64 = attr.read_scalar().map_err(|e| {
-                        IoError::FormatError(format!("Failed to read float attribute: {e}"))
-                    })?;
-                    Ok(AttributeValue::Float(value))
+            None => view.attr.data.clone(),
+        };
+        Ok(OxiDataset {
+            data,
+            shape,
+            dtype,
+            attributes: Vec::new(),
+            max_dims: None,
+        })
+    }
+    /// Decode an attribute into SciRS2's [`AttributeValue`].
+    ///
+    /// Takes an [`AttrView`] rather than a bare `Attribute` because that is the
+    /// only route that can decode variable-length string attributes: their
+    /// elements are 16-byte global-heap references which need the file bytes to
+    /// resolve, and an `Attribute` does not carry them.
+    pub(super) fn read_attribute_value(view: &AttrView<'_>, path: &str) -> Result<AttributeValue> {
+        let name = view.name();
+        let scalar = view.is_scalar();
+        match &view.attr.dtype {
+            Dtype::String { .. } => {
+                let strings = view.as_strings().map_err(|e| {
+                    IoError::FormatError(format!(
+                        "Failed to decode string attribute '{name}' on '{path}': {e}"
+                    ))
+                })?;
+                if scalar {
+                    Ok(AttributeValue::String(
+                        strings.into_iter().next().unwrap_or_default(),
+                    ))
                 } else {
-                    let value: Vec<f64> = attr.read_raw().map_err(|e| {
-                        IoError::FormatError(format!("Failed to read float array attribute: {e}"))
-                    })?;
-                    Ok(AttributeValue::FloatArray(value))
-                }
-            }
-            Ok(TypeDescriptor::VarLenUnicode) => {
-                use hdf5::types::VarLenUnicode;
-                if attr.shape().iter().product::<usize>() == 1 {
-                    let value: VarLenUnicode = attr.read_scalar().map_err(|e| {
-                        IoError::FormatError(format!("Failed to read string attribute: {e}"))
-                    })?;
-                    Ok(AttributeValue::String(value.to_string()))
-                } else {
-                    let value: Vec<VarLenUnicode> = attr.read_raw().map_err(|e| {
-                        IoError::FormatError(format!(
-                            "Failed to read string array attribute: {}",
-                            e
-                        ))
-                    })?;
-                    let strings: Vec<String> = value.into_iter().map(|s| s.to_string()).collect();
                     Ok(AttributeValue::StringArray(strings))
                 }
             }
-            Ok(TypeDescriptor::VarLenAscii) => {
-                use hdf5::types::VarLenAscii;
-                if attr.shape().iter().product::<usize>() == 1 {
-                    let value: VarLenAscii = attr.read_scalar().map_err(|e| {
-                        IoError::FormatError(format!("Failed to read string attribute: {e}"))
-                    })?;
-                    Ok(AttributeValue::String(value.to_string()))
-                } else {
-                    let value: Vec<VarLenAscii> = attr.read_raw().map_err(|e| {
+            dtype if is_floating(dtype) => {
+                let values = dataset_to_f64(&Self::attribute_as_dataset(view, path)?)?;
+                if scalar {
+                    let first = values.first().copied().ok_or_else(|| {
                         IoError::FormatError(format!(
-                            "Failed to read string array attribute: {}",
-                            e
+                            "Scalar float attribute '{name}' on '{path}' decoded to no value"
                         ))
                     })?;
-                    let strings: Vec<String> = value.into_iter().map(|s| s.to_string()).collect();
-                    Ok(AttributeValue::StringArray(strings))
+                    Ok(AttributeValue::Float(first))
+                } else {
+                    Ok(AttributeValue::FloatArray(values))
                 }
             }
-            Ok(TypeDescriptor::FixedUnicode(size)) | Ok(TypeDescriptor::FixedAscii(size)) => {
-                use hdf5::types::VarLenUnicode;
-                if attr.shape().iter().product::<usize>() == 1 {
-                    let value: VarLenUnicode = attr.read_scalar().map_err(|e| {
-                        IoError::FormatError(format!("Failed to read string attribute: {e}"))
-                    })?;
-                    Ok(AttributeValue::String(value.to_string()))
-                } else {
-                    let value: Vec<VarLenUnicode> = attr.read_raw().map_err(|e| {
+            dtype if is_integral(dtype) => {
+                let values = dataset_to_i64(&Self::attribute_as_dataset(view, path)?)?;
+                if scalar {
+                    let first = values.first().copied().ok_or_else(|| {
                         IoError::FormatError(format!(
-                            "Failed to read string array attribute: {}",
-                            e
+                            "Scalar integer attribute '{name}' on '{path}' decoded to no value"
                         ))
                     })?;
-                    let strings: Vec<String> = value.into_iter().map(|s| s.to_string()).collect();
-                    Ok(AttributeValue::StringArray(strings))
+                    Ok(AttributeValue::Integer(first))
+                } else {
+                    Ok(AttributeValue::IntegerArray(values))
                 }
             }
-            other => Err(IoError::FormatError(format!(
-                "Unsupported HDF5 attribute type descriptor: {other:?}"
+            other => Err(IoError::UnsupportedFormat(format!(
+                "Attribute '{name}' on '{path}' has datatype {other}, which has no \
+                 AttributeValue representation"
             ))),
         }
     }
@@ -673,23 +422,23 @@ impl HDF5File {
     ) -> Result<()>
     where
         A: scirs2_core::ndarray::Data,
-        A::Elem: Clone + std::fmt::Debug,
+        A::Elem: Clone + Into<f64>,
         D: scirs2_core::ndarray::Dimension,
     {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() {
-            return Err(IoError::FormatError("Invalid dataset path".to_string()));
-        }
-        let dataset_name = parts.last().expect("Operation failed");
+        let dataset_name = *parts
+            .last()
+            .ok_or_else(|| IoError::FormatError("Invalid dataset path".to_string()))?;
         let mut current_group = &mut self.root;
         for &group_name in &parts[..parts.len() - 1] {
             current_group = current_group.create_group(group_name);
         }
         let shape: Vec<usize> = array.shape().to_vec();
-        let flat_data: Vec<f64> = array
-            .iter()
-            .map(|x| format!("{:?}", x).parse::<f64>().unwrap_or(0.0))
-            .collect();
+        // `A::Elem: Into<f64>` gives an exact, total conversion. The previous
+        // implementation round-tripped each element through `format!("{:?}")`
+        // and `parse::<f64>()`, falling back to `0.0` for anything whose Debug
+        // output is not a bare float literal — silently zeroing the data.
+        let flat_data: Vec<f64> = array.iter().map(|x| x.clone().into()).collect();
         let dataset = Dataset {
             name: dataset_name.to_string(),
             dtype: HDF5DataType::Float { size: 8 },
@@ -724,10 +473,9 @@ impl HDF5File {
     /// Read a dataset as an ndarray of f64
     pub fn read_dataset(&self, path: &str) -> Result<ArrayD<f64>> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() {
-            return Err(IoError::FormatError("Invalid dataset path".to_string()));
-        }
-        let dataset_name = parts.last().expect("Operation failed");
+        let dataset_name = *parts
+            .last()
+            .ok_or_else(|| IoError::FormatError("Invalid dataset path".to_string()))?;
         let mut current_group = &self.root;
         for &group_name in &parts[..parts.len() - 1] {
             current_group = current_group
@@ -736,22 +484,11 @@ impl HDF5File {
         }
         let dataset = current_group
             .datasets
-            .get(*dataset_name)
+            .get(dataset_name)
             .ok_or_else(|| IoError::FormatError(format!("Dataset '{dataset_name}' not found")))?;
-        #[cfg(feature = "hdf5")]
-        {
-            if let Some(ref file) = self.native_file {
-                let full_path = parts.join("/");
-                if let Ok(h5_dataset) = file.dataset(&full_path) {
-                    let data: Vec<f64> = h5_dataset.read_raw().map_err(|e| {
-                        IoError::FormatError(format!("Failed to read HDF5 dataset: {e}"))
-                    })?;
-                    let shape = IxDyn(&dataset.shape);
-                    return ArrayD::from_shape_vec(shape, data)
-                        .map_err(|e| IoError::FormatError(e.to_string()));
-                }
-            }
-        }
+        // `open()` already materialised every payload, and the widening dispatch
+        // in `super::convert` ran at that point, so `dataset.data` is the
+        // authoritative copy — there is no file handle left to re-read from.
         match &dataset.data {
             DataArray::Float(data) => {
                 let shape = IxDyn(&dataset.shape);
@@ -769,51 +506,59 @@ impl HDF5File {
             )),
         }
     }
-    /// Write the file to disk
+    /// Serialise the in-memory tree to `self.path` as a real HDF5 file.
+    ///
+    /// # Errors
+    ///
+    /// Refuses to run for [`FileMode::ReadOnly`]. `FileWriter::build` rewrites
+    /// the target from scratch rather than patching it, so
+    /// `open(.., ReadOnly, ..)` → `close()` would otherwise destroy the very
+    /// file that was just read. Under the C backend the same sequence failed
+    /// harmlessly because the underlying handle was itself read-only.
+    ///
+    /// Also returns [`IoError::UnsupportedFormat`], naming the exact construct,
+    /// for structures oxih5's writer cannot express yet — see
+    /// the private `unsupported_write` helper.
     pub fn write(&self) -> Result<()> {
-        #[cfg(feature = "hdf5")]
-        {
-            if let Some(ref file) = self.native_file {
-                Self::write_group_to_hdf5(file, &self.root, "")?;
-                file.flush()
-                    .map_err(|e| IoError::FormatError(format!("Failed to flush HDF5 file: {e}")))?;
-            }
+        if self.mode == FileMode::ReadOnly {
+            return Err(IoError::Other(format!(
+                "refusing to write '{}': the file was opened read-only, and writing \
+                 rebuilds it from scratch, which would destroy its contents",
+                self.path
+            )));
         }
-        #[cfg(not(feature = "hdf5"))]
-        {
-            let sidecar = format!("{}.json", self.path);
-            let mut obj = serde_json::json!(
-                { "groups" : serde_json::Value::Object(serde_json::Map::new()),
-                "datasets" : serde_json::Value::Object(serde_json::Map::new()), }
-            );
-            if let serde_json::Value::Object(ref mut map) = obj["datasets"] {
-                for (k, ds) in &self.root.datasets {
-                    map.insert(
-                        k.clone(),
-                        serde_json::json!(
-                            { "shape" : ds.shape, "data" : match & ds.data {
-                            DataArray::Float(v) => serde_json::json!(v),
-                            DataArray::Integer(v) => serde_json::json!(v), _ =>
-                            serde_json::json!([]) }, }
-                        ),
-                    );
-                }
-            }
-            std::fs::write(
-                &sidecar,
-                serde_json::to_vec(&obj).expect("Operation failed"),
-            )
-            .map_err(|e| IoError::FormatError(format!("Failed to persist mock HDF5: {e}")))?;
-        }
-        Ok(())
+        let mut writer = FileWriter::new();
+        Self::write_group_to(&mut writer, &self.root, "")?;
+        writer.build(&self.path).map_err(|e| {
+            IoError::FormatError(format!("Failed to write HDF5 file '{}': {e}", self.path))
+        })
+    }
+    /// Serialise the in-memory tree and report how many bytes it occupies.
+    ///
+    /// Runs the same `FileWriter` pipeline as [`HDF5File::write`] but keeps the
+    /// result in memory, so the answer is the real on-disk size rather than an
+    /// estimate derived from element counts. Used by
+    /// [`super::enhanced::EnhancedHDF5File::get_compression_stats`] to report a
+    /// measured compression ratio.
+    ///
+    /// # Errors
+    ///
+    /// The same layout failures [`HDF5File::write`] reports; unlike `write` it
+    /// does not refuse [`FileMode::ReadOnly`], because nothing is written.
+    pub(super) fn serialized_len(&self) -> Result<usize> {
+        let mut writer = FileWriter::new();
+        Self::write_group_to(&mut writer, &self.root, "")?;
+        let bytes = writer.build_to_vec().map_err(|e| {
+            IoError::FormatError(format!("Failed to serialise the HDF5 object tree: {e}"))
+        })?;
+        Ok(bytes.len())
     }
     /// Get a dataset by path (e.g., "/group1/group2/dataset")
     pub fn get_dataset(&self, path: &str) -> Result<&Dataset> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() {
-            return Err(IoError::FormatError("Invalid dataset path".to_string()));
-        }
-        let dataset_name = parts.last().expect("Operation failed");
+        let dataset_name = *parts
+            .last()
+            .ok_or_else(|| IoError::FormatError("Invalid dataset path".to_string()))?;
         let mut current_group = &self.root;
         for &group_name in &parts[..parts.len() - 1] {
             current_group = current_group
@@ -908,16 +653,17 @@ impl HDF5File {
             self.collect_stats(subgroup, stats);
         }
     }
-    /// Close the file
+    /// Close the file, flushing the in-memory tree to disk first.
+    ///
+    /// Read-only handles have nothing to flush and close without touching the
+    /// file. For every other mode the write is performed and its result is
+    /// propagated: the previous implementation discarded it, so a failed flush
+    /// looked exactly like a successful close.
     pub fn close(self) -> Result<()> {
-        #[cfg(feature = "hdf5")]
-        {
-            let _ = self.write();
-            if let Some(file) = self.native_file {
-                drop(file);
-            }
+        match self.mode {
+            FileMode::ReadOnly => Ok(()),
+            _ => self.write(),
         }
-        Ok(())
     }
     /// Create a group in the root - delegation method
     pub fn create_group(&mut self, name: &str) -> Result<()> {
@@ -1218,7 +964,7 @@ impl HDF5File {
         _options: Option<DatasetOptions>,
     ) -> Result<()>
     where
-        T: Clone + Default + std::fmt::Debug,
+        T: Clone + Default + Into<f64>,
     {
         let total: usize = shape.iter().product();
         let data = vec![T::default(); total];

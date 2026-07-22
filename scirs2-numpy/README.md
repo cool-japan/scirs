@@ -4,7 +4,7 @@ A SciRS2-maintained fork of [rust-numpy](https://github.com/PyO3/rust-numpy) pro
 
 [![Stable](https://img.shields.io/badge/status-stable-brightgreen)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](../LICENSE)
-[![Version](https://img.shields.io/badge/version-0.6.1-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
 
 ## What Is This Crate?
 
@@ -57,9 +57,9 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-numpy = { path = "../scirs2-numpy" }
-# or from crates.io once published:
-# scirs2-numpy = "0.6.1"
+scirs2-numpy = "0.6.2"
+# or, for local development inside the SciRS2 workspace:
+# scirs2-numpy = { path = "../scirs2-numpy" }
 pyo3 = { version = "0.29", features = ["extension-module"] }
 ```
 
@@ -168,7 +168,7 @@ fn scale_inplace<'py>(
 ### nalgebra Integration (Optional Feature)
 
 ```rust
-// Cargo.toml: scirs2-numpy = { version = "0.6.1", features = ["nalgebra-support"] }
+// Cargo.toml: scirs2-numpy = { version = "0.6.2", features = ["nalgebra-support"] }
 use pyo3::prelude::*;
 use scirs2_numpy::{PyArray2, PyArrayMethods};
 

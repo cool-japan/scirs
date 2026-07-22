@@ -1360,6 +1360,21 @@ impl TraceExporter for ConsoleExporter {
 }
 
 /// HTTP exporter for OpenTelemetry-compatible endpoints
+///
+/// # TLS crypto provider
+///
+/// [`HttpExporter::new`] builds a `reqwest::blocking::Client` eagerly, which constructs rustls'
+/// `ClientConfig` inside `.build()` even for an exporter that will only ever be pointed at a
+/// plaintext-HTTP collector. Since the workspace's `reqwest` dependency uses `rustls-no-provider`
+/// (no aws-lc-rs/ring bundled -- see the "PURE RUST BLOCKER (reqwest)" note in the workspace root
+/// `Cargo.toml`), this crate installs the pure-Rust OxiTLS provider (`oxitls-rustcrypto-provider`,
+/// COOLJAPAN's RUSTSEC-2026-0104-fixed fork of the abandoned upstream `rustls-rustcrypto`
+/// 0.0.2-alpha, resolved under the `rustls-rustcrypto` name) as the process-default rustls
+/// `CryptoProvider` automatically, right before the client is constructed -- unless the
+/// application has already installed a provider of its own. Applications that want a different
+/// provider (e.g. a C-linked aws-lc-rs/ring one) simply call
+/// `rustls::crypto::CryptoProvider::install_default(...)` before the first `HttpExporter` is
+/// constructed; an existing process default is never overridden.
 #[cfg(feature = "reqwest")]
 pub struct HttpExporter {
     endpoint: String,
@@ -1371,6 +1386,7 @@ pub struct HttpExporter {
 #[cfg(feature = "reqwest")]
 impl HttpExporter {
     pub fn new(endpoint: String, timeout: Duration) -> Result<Self, CoreError> {
+        crate::observability::ensure_default_tls_provider();
         let client = reqwest::blocking::Client::builder()
             .timeout(timeout)
             .build()

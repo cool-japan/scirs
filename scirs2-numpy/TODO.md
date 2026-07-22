@@ -1,6 +1,6 @@
 # scirs2-numpy TODO
 
-## Status: v0.6.1 (2026-07-15)
+## Status: v0.6.2 (2026-07-22)
 
 ## v0.6.1 Quality Gate (verified 2026-07-15)
 

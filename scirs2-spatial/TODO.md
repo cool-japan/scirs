@@ -1,6 +1,6 @@
 # scirs2-spatial TODO
 
-## Status: v0.6.1 (released, 2026-07-15)
+## Status: v0.6.2 (released, 2026-07-22)
 
 ## v0.3.3 Completed
 
@@ -121,3 +121,8 @@ Status (verified 2026-07-15): `src/gpu_accel.rs` provides `GpuDevice`/`GpuDistan
 - [x] **`distance::hamming()`** — new standalone convenience function computing the proportion of differing coordinates between two equal-length points (tolerance-based float comparison via `T::epsilon()`), matching `scipy.spatial.distance.hamming` semantics; re-exported at the crate root alongside `euclidean`/`jaccard`/etc. This is the first time a `hamming` symbol has existed anywhere in this crate — the "Hamming" entry already listed under Distance Metrics above (and in the `v0.3.3 Completed` section) had no backing implementation until now.
   - Files: `src/distance/functions_2.rs`, `src/distance_tests.rs`, `src/lib.rs`.
   - Workspace: 890 / 854 tests pass (all-features / default-features).
+
+## v0.6.2 Fixes (2026-07-22)
+
+- [x] **`NumaTopology::detect()` now reads real hardware topology instead of fabricating it** — previously estimated one NUMA node per 8 logical CPUs and hard-coded 1GB of memory per node regardless of the actual machine. On Linux it now reads node count, per-node `cpulist`/`meminfo`, and the firmware ACPI SLIT distance matrix from `/sys/devices/system/node/`; other platforms fall back to an honest single-node layout spanning all detected logical CPUs with memory reported as unknown (`0`) rather than guessed. Affects the `NumaTopology` types in both `src/advanced_parallel.rs` and `src/memory_pool.rs`. The affected test previously asserted a hard-coded `numa_nodes == 1` (only ever passing by coincidence on single-socket machines); it now asserts against the real detected topology.
+  - Files: `src/advanced_parallel.rs`, `src/memory_pool.rs`.

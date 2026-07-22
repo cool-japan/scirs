@@ -27,7 +27,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-datasets = "0.6.1"
+//! scirs2-datasets = "0.6.2"
 //! ```
 //!
 //! ```rust
@@ -41,7 +41,7 @@
 //! let data = make_classification(100, 5, 3, 2, 4, Some(42)).expect("Operation failed");
 //! ```
 //!
-//! ## 🔒 Version: 0.6.1
+//! ## 🔒 Version: 0.6.2
 //!
 //! ### v0.5.0 New Features
 //!
@@ -155,6 +155,11 @@ pub mod registry;
 pub mod sample;
 pub mod streaming;
 pub mod time_series;
+// Crate-private TLS provider bootstrap: installs the pure-Rust OxiTLS CryptoProvider as the
+// process default before any eager reqwest client construction and before ureq HTTPS
+// requests (see src/tls.rs).
+#[cfg(any(feature = "download", feature = "download-sync"))]
+mod tls;
 pub mod toy;
 /// Core utilities for working with datasets
 ///

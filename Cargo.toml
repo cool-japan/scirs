@@ -73,7 +73,7 @@ android_min_api = 21
 supported_architectures = ["aarch64", "armv7"]
 
 [workspace.package]
-version = "0.6.1"  # scirs2 0.6.1
+version = "0.6.2"  # scirs2 0.6.2
 edition = "2021"
 authors = ["COOLJAPAN OU (Team KitaSan)"]
 description = "A Rust port of SciPy with AI/ML extensions - Scientific Computing and AI Library"
@@ -130,7 +130,7 @@ chrono = "0.4.45"
 pyo3 = { version = "0.29.0", default-features = false, features = ["macros"] }
 pyo3-build-config = { version = "0.29", features = ["resolve-config"] }
 numpy = { version = "0.29.0" }  # Keep for non-SciRS2 compatibility
-scirs2-numpy = { version = "0.6.1", path = "./scirs2-numpy" }  # SciRS2 fork with ndarray 0.17
+scirs2-numpy = { version = "0.6.2", path = "./scirs2-numpy" }  # SciRS2 fork with ndarray 0.17
 
 # Linear algebra and math (heavy dependencies - minimize features)
 nalgebra = { version = "0.35.0", default-features = false }
@@ -145,16 +145,16 @@ oxiblas-blas = { version = "0.2.1" }
 oxiblas-lapack = { version = "0.2.1" }
 
 # OxiZ - Pure Rust SMT solver (powers scirs2-symbolic SMT-pruned regression in v0.4.5+)
-oxiz = { version = "0.2.3" }
+oxiz = { version = "0.2.4" }
 
 # OxiEML - Pure Rust EML expression/machine-learning library (used by scirs2-symbolic dev)
 oxieml = { version = "0.1.3" }
 
 # Cranelift JIT (powers scirs2-symbolic compile::to_jit; gated behind crate-local `jit` feature)
-cranelift-codegen = { version = "0.133" }
-cranelift-frontend = { version = "0.133" }
-cranelift-jit = { version = "0.133" }
-cranelift-module = { version = "0.133" }
+cranelift-codegen = { version = "0.134" }
+cranelift-frontend = { version = "0.134" }
+cranelift-jit = { version = "0.134" }
+cranelift-module = { version = "0.134" }
 
 # DEPRECATED: OpenBLAS dependencies - replaced by OxiBLAS
 # ndarray-linalg = { version = "0.18.0", default-features = false }
@@ -208,7 +208,18 @@ oxiarc-brotli = "0.3.6"  # Pure Rust Brotli compression (COOLJAPAN Policy)
 plotly = { version = "0.14.1" }
 plotters = { version = "0.3.7", default-features = false, features = ["bitmap_backend", "bitmap_encoder", "svg_backend", "all_series", "all_elements", "full_palette", "colormaps", "ab_glyph"] }
 printpdf = { version = "0.11.1", default-features = false }
-reqwest = { version = "0.13", features = ["blocking", "json"] }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "rustls-no-provider", "charset", "http2", "system-proxy"] }
+# PURE RUST BLOCKER (reqwest): reqwest's default "default-tls" feature (= "rustls") activates
+# "__rustls-aws-lc-rs" (rustls/aws-lc-rs, C + assembly + cmake crypto via aws-lc-sys).
+# Changed to "rustls-no-provider" (+ reqwest's other three defaults: charset, http2, system-proxy)
+# to remove aws-lc-rs from the default closure. reqwest builds its rustls ClientConfig eagerly
+# inside `.build()` (blocking or async), so a process-default CryptoProvider must exist before
+# any reqwest::Client is constructed -- the SciRS2 crates that build such clients
+# (scirs2-datasets, scirs2-io, scirs2-core observability) each install the pure-Rust OxiTLS
+# provider (rustls-rustcrypto below) as the process default via a crate-private
+# ensure_default_tls_provider() immediately before construction, unless the application already
+# installed a provider of its own (an existing default is never overridden); applications may
+# still consciously opt into a C provider (aws-lc-rs/ring) by installing it first.
 
 # Math libraries
 libm = "0.2"
@@ -218,15 +229,29 @@ fixed = { version = "1.31.0", default-features = false }
 netcdf3 = "0.6.1"
 ordered-float = "5.3.0"
 kamadak-exif = "0.6"
-hdf5 = "0.8.1"
-# Pure-Rust HDF5 reader (replaces hdf5 C-linked crate; read-only at M1)
-oxih5-core = "0.1.3"
-oxih5-format = "0.1.3"
-ureq = { version = "3.3", default-features = false, features = ["rustls-no-provider", "gzip"] }
+# Pure-Rust HDF5 (COOLJAPAN Pure Rust Policy — replaces the C-linked `hdf5` crate).
+oxih5 = "0.2.2"
+oxih5-core = "0.2.2"
+ureq = { version = "3.3", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots", "gzip"] }
 # PURE RUST BLOCKER (ureq): ureq's default "rustls" feature activates "_ring" (= rustls/ring, C/ASM crypto).
-# Changed to "rustls-no-provider" + "gzip" to remove ring from the default closure.
-# A crypto provider (aws-lc-rs pure-Rust path or rustcrypto) must be configured at the application
-# binary level via rustls::crypto::CryptoProvider::install_default() before TLS connections are made.
+# Changed to "rustls-no-provider" + "gzip" to remove ring from the default closure, plus
+# "rustls-webpki-roots" (compiled-in Mozilla root certificates via the pure-Rust `webpki-roots`
+# data crate) so ureq's default `RootCerts::WebPki` verifier works without a C dependency.
+# ureq builds its rustls config lazily at the first HTTPS request and panics without a
+# process-default CryptoProvider -- scirs2-datasets (the only ureq user) installs the pure-Rust
+# OxiTLS provider via its ensure_default_tls_provider() before every ureq HTTPS request, unless
+# the application already installed a provider of its own.
+#
+# Below: rustls itself (to check for / install the process-default CryptoProvider) and a
+# pure-Rust CryptoProvider to install. rustls-rustcrypto upstream is 0.0.2-alpha and carries an
+# unpatched RUSTSEC-2026-0104 (rustls-webpki CRL-parsing panic); `oxitls-rustcrypto-provider` is
+# COOLJAPAN's vendored fork of the same crate with that advisory fixed (webpki dependency dropped),
+# resolved here under the `rustls-rustcrypto` name via a package rename. Used as OPTIONAL runtime
+# dependencies of scirs2-datasets ("download"), scirs2-io ("reqwest") and scirs2-core ("reqwest"):
+# each crate installs OxiTLS as the process-default provider on first eager HTTP-client
+# construction unless the application already installed a provider of its own.
+rustls = { version = "0.23.42", default-features = false, features = ["std", "tls12"] }
+rustls-rustcrypto = { package = "oxitls-rustcrypto-provider", version = "0.2.1", default-features = false, features = ["std", "tls12"] }
 parking_lot = "0.12.5"
 serde_yaml = "0.9"
 toml = "1.1"
@@ -266,14 +291,13 @@ log = "0.4"
 sysinfo = "0.39.5"
 
 # GPU backends
-libloading = "0.9"  # Runtime dlopen wrapper for CUDA driver probing (detection only; compute lives in oxicuda-*)
+libloading = "0.9"  # Runtime dlopen wrapper for scirs2-core's OpenCL ICD loader and CUDA driver probe (detection only; compute lives in oxicuda-*)
 metal = "0.33.0"
 objc2 = { version = "0.6.4"}
 objc2-foundation = "0.3.2"
 objc2-metal = "0.3.2"  # Metal bindings for objc2
 objc2-metal-performance-shaders = "0.3.2"
 objc2-metal-performance-shaders-graph = "0.3.2"  # MPSGraph for high-performance graph operations
-opencl3 = { version = "0.12" }
 wgpu = { version = "29.0" }
 pollster = { version = "0.4" }
 cudarc = { version = "0.19", features = ["cuda-12000"] }
@@ -295,8 +319,8 @@ ahash = { version = "0.8" }
 
 # Database drivers
 # Pure-Rust SQLite-compatible backend (Limbo engine, alpha; ROLLBACK/savepoints incomplete)
-oxisql-core = "0.3.2"
-oxisql-sqlite-compat = "0.3.2"
+oxisql-core = "0.4.0"
+oxisql-sqlite-compat = "0.4.0"
 # sqlx removed - not used (postgres/mysql implementations are stubs)
 # mongodb removed - stub only, not actually used
 # redis removed - stub only, not actually used
@@ -336,19 +360,17 @@ tracing-appender = { version = "0.2" }
 # OpenTelemetry
 opentelemetry = { version = "0.32.0" }
 opentelemetry_sdk = { version = "0.32.1", features = ["rt-tokio", "metrics", "trace"] }
-opentelemetry-otlp = { version = "0.32.0", features = ["grpc-tonic", "metrics", "trace"] }
+opentelemetry-otlp = { version = "0.32.0", default-features = false, features = ["grpc-tonic", "metrics", "trace"] }
+# default-features = false drops opentelemetry-otlp's own default set (http-proto,
+# reqwest-blocking-client, logs, internal-logs) -- scirs2-core's only OTLP exporter path
+# (scirs2-core/src/profiling/opentelemetry_integration.rs) uses `.with_tonic()` (grpc-tonic),
+# never the reqwest-based http-proto exporter, and no code uses the "logs" feature either.
 
 # Memory profiling (Pure Rust - uses OS APIs via libc)
 
 # Platform-specific profiling (feature-gated)
 # perf-event for Linux performance counters
 perf-event = { version = "0.4.9" }
-
-# Tracy profiler bindings (C dep, feature-gated, disabled by default)
-tracy-client = { version = "0.18", default-features = false, features = ["timer-fallback"] }
-
-# libnuma bindings for Linux NUMA operations (C dep, feature-gated, Linux only)
-libnuma = { version = "0.0.4" }
 
 # GUI libraries
 egui = { version = "0.35" }
@@ -360,51 +382,52 @@ pyo3-async-runtimes = { version = "0.29.0", default-features = false, features =
 # Python integration (optional)
 
 # Base scirs2 crates
-scirs2-core = { version = "0.6.1", path = "./scirs2-core", default-features = false }
-scirs2 = { version = "0.6.1", path = "./scirs2", default-features = false }
-scirs2-linalg = { version = "0.6.1", path = "./scirs2-linalg", default-features = false }
-scirs2-integrate = { version = "0.6.1", path = "./scirs2-integrate", default-features = false }
-scirs2-interpolate = { version = "0.6.1", path = "./scirs2-interpolate", default-features = false }
-scirs2-optimize = { version = "0.6.1", path = "./scirs2-optimize", default-features = false }
-scirs2-fft = { version = "0.6.1", path = "./scirs2-fft", default-features = false }
-scirs2-stats = { version = "0.6.1", path = "./scirs2-stats", default-features = false }
-scirs2-special = { version = "0.6.1", path = "./scirs2-special", default-features = false }
-scirs2-signal = { version = "0.6.1", path = "./scirs2-signal", default-features = false }
-scirs2-sparse = { version = "0.6.1", path = "./scirs2-sparse" }
-scirs2-spatial = { version = "0.6.1", path = "./scirs2-spatial" }
+scirs2-core = { version = "0.6.2", path = "./scirs2-core", default-features = false }
+scirs2 = { version = "0.6.2", path = "./scirs2", default-features = false }
+scirs2-linalg = { version = "0.6.2", path = "./scirs2-linalg", default-features = false }
+scirs2-integrate = { version = "0.6.2", path = "./scirs2-integrate", default-features = false }
+scirs2-interpolate = { version = "0.6.2", path = "./scirs2-interpolate", default-features = false }
+scirs2-optimize = { version = "0.6.2", path = "./scirs2-optimize", default-features = false }
+scirs2-fft = { version = "0.6.2", path = "./scirs2-fft", default-features = false }
+scirs2-stats = { version = "0.6.2", path = "./scirs2-stats", default-features = false }
+scirs2-special = { version = "0.6.2", path = "./scirs2-special", default-features = false }
+scirs2-signal = { version = "0.6.2", path = "./scirs2-signal", default-features = false }
+scirs2-sparse = { version = "0.6.2", path = "./scirs2-sparse" }
+scirs2-spatial = { version = "0.6.2", path = "./scirs2-spatial" }
 
 # Advanced modules
-scirs2-cluster = { version = "0.6.1", path = "./scirs2-cluster" }
-scirs2-ndimage = { version = "0.6.1", path = "./scirs2-ndimage" }
-scirs2-io = { version = "0.6.1", path = "./scirs2-io" }
-scirs2-datasets = { version = "0.6.1", path = "./scirs2-datasets", default-features = false }
+scirs2-cluster = { version = "0.6.2", path = "./scirs2-cluster" }
+scirs2-ndimage = { version = "0.6.2", path = "./scirs2-ndimage" }
+scirs2-io = { version = "0.6.2", path = "./scirs2-io" }
+scirs2-datasets = { version = "0.6.2", path = "./scirs2-datasets", default-features = false }
 
 # AI/ML modules
-scirs2-neural = { version = "0.6.1", path = "./scirs2-neural" }
+scirs2-neural = { version = "0.6.2", path = "./scirs2-neural" }
 # scirs2-optim moved to independent OptiRS project
-scirs2-graph = { version = "0.6.1", path = "./scirs2-graph" }
-scirs2-transform = { version = "0.6.1", path = "./scirs2-transform" }
-scirs2-metrics = { version = "0.6.1", path = "./scirs2-metrics", default-features = false }
-scirs2-text = { version = "0.6.1", path = "./scirs2-text" }
-scirs2-vision = { version = "0.6.1", path = "./scirs2-vision" }
-scirs2-series = { version = "0.6.1", path = "./scirs2-series" }
-scirs2-autograd = { version = "0.6.1", path = "./scirs2-autograd" }
-scirs2-wasm = { version = "0.6.1", path = "./scirs2-wasm" }  # WebAssembly bindings
-scirs2-python = { version = "0.6.1", path = "./scirs2-python" }  # Python bindings
-scirs2-symbolic = { version = "0.6.1", path = "./scirs2-symbolic" }  # Symbolic math
-scirs2-symbolic-macros = { version = "0.6.1", path = "./scirs2-symbolic-macros" }  # Proc-macro DSL
+scirs2-graph = { version = "0.6.2", path = "./scirs2-graph" }
+scirs2-transform = { version = "0.6.2", path = "./scirs2-transform" }
+scirs2-metrics = { version = "0.6.2", path = "./scirs2-metrics", default-features = false }
+scirs2-text = { version = "0.6.2", path = "./scirs2-text" }
+scirs2-vision = { version = "0.6.2", path = "./scirs2-vision" }
+scirs2-series = { version = "0.6.2", path = "./scirs2-series" }
+scirs2-autograd = { version = "0.6.2", path = "./scirs2-autograd" }
+scirs2-wasm = { version = "0.6.2", path = "./scirs2-wasm" }  # WebAssembly bindings
+scirs2-python = { version = "0.6.2", path = "./scirs2-python" }  # Python bindings
+scirs2-symbolic = { version = "0.6.2", path = "./scirs2-symbolic" }  # Symbolic math
+scirs2-symbolic-macros = { version = "0.6.2", path = "./scirs2-symbolic-macros" }  # Proc-macro DSL
 # OxiCUDA pure-Rust CUDA crates — used by scirs2-fft's optional, off-by-default `cuda` feature.
 # oxicuda 0.4.0 is now published on crates.io; pinned via version (no local path pin needed).
 # Only the three crates scirs2-fft names directly are declared here; oxicuda-launch/-ptx/-blas are pulled transitively.
-oxicuda-driver = "0.5.0"
-oxicuda-memory = "0.5.0"
-oxicuda-fft = "0.5.0"
-oxicuda-ptx = "0.5.0"
-oxicuda-launch = "0.5.0"
-oxicuda-blas = "0.5.0"
-oxicuda-solver = "0.5.0"
-oxicuda-sparse = "0.5.0"
-oxicuda-dnn = "0.5.0"
+oxicuda-driver = "0.5.1"
+oxicuda-memory = "0.5.1"
+oxicuda-fft = "0.5.1"
+oxicuda-ptx = "0.5.1"
+oxicuda-launch = "0.5.1"
+oxicuda-blas = "0.5.1"
+oxicuda-solver = "0.5.1"
+oxicuda-sparse = "0.5.1"
+oxicuda-dnn = "0.5.1"
+oxicuda-nvrtc = "0.5.1"
 
 
 [profile.release]
@@ -439,16 +462,11 @@ opt-level = 3
 
 # Patches to override unmaintained transitive dependencies
 [patch.crates-io]
-# Force parking_lot 0.12.5 to fix instant 0.1.13 warning from hdf5
-# The hdf5 crate uses parking_lot 0.11.2 which depends on unmaintained instant
-# parking_lot = { version = "0.12.5" }  # Disabled - causes compilation issues with hdf5
-
 # Patch pathfinder_simd 0.5.6 to fix ARM NEON intrinsic renames in nightly rustc >= 1.96
 # simd_minimum_number_nsz/simd_maximum_number_nsz were renamed; use vmin/vmax NEON intrinsics directly
 pathfinder_simd = { path = "patches/pathfinder_simd-0.5.6" }
-
-# Patch bitflags 0.6.0 (transitively pulled in by unmaintained libnuma 0.0.4)
-# Replaces `pub use core as __core` with `pub extern crate core as __core` to fix
-# the "extern crate `core` is private and cannot be re-exported" future-incompat warning
-bitflags = { path = "patches/bitflags-0.6.0" }
+# Patch alloca 0.4.0 (pulled in unconditionally by criterion, a plain dependency of `benches`) to
+# a Pure Rust heap-backed reimplementation of its full public API -- upstream compiles a C shim
+# (alloca.c) via cc::Build with no feature gate to disable it (COOLJAPAN Pure Rust Policy)
+alloca = { path = "patches/alloca-0.4.0" }
 

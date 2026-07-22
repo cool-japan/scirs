@@ -212,7 +212,7 @@ pub fn to_jit(op: &LoweredOp) -> Result<JitFunction, JitError> {
         let result = vstack.pop().ok_or(JitError::EmptyResult)?;
 
         builder.ins().return_(&[result]);
-        builder.finalize();
+        builder.finalize(module.target_config());
     }
 
     // ── Compile + finalize ────────────────────────────────────────────

@@ -1,6 +1,6 @@
 # scirs2-transform TODO
 
-## Status: v0.6.1 (current, 2026-07-15) — reassessed Stable → Partial
+## Status: v0.6.2 (current, 2026-07-22) — reassessed Stable → Partial
 
 - [x] **Removed unused direct `rand` dependency** — `scirs2-transform`'s `Cargo.toml` carried a direct `rand` crate dependency (previously banned; all random-number generation in this workspace goes through `scirs2_core::random`) with zero actual `rand::`/`use rand` call sites anywhere in `src/`. Removed as pure cleanup; no behavior change. (All apparent `rand`-prefixed hits in a naive grep, e.g. in `performance.rs`, are `scirs2_core::random::{Rng, RngExt}` usage and identifiers like `random_matrix`/`use_randomized` — substring matches on "rand" inside "random", not the banned crate.)
 - 0 `todo!()`/`unimplemented!()` markers in `src/`. GPU-accelerated dimensionality reduction (`gpu.rs`: matmul, SVD, eigendecomposition, t-SNE) still returns explicit "not yet implemented, use CPU" errors — this is an **honest** gap (clear `Err`, not a silent no-op) and is already tracked below under "GPU-Accelerated Dimensionality Reduction" (unchecked roadmap items); it does not by itself justify a status downgrade.
