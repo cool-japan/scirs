@@ -367,10 +367,18 @@ impl CrossPlatformValidator {
 
     /// Validate Windows-specific path constraints
     fn validate_windows_path(&self, path: &str, result: &mut ValidationResult) {
+        // A leading drive specifier (`C:`) is the one legal use of ':' in a
+        // Windows path, so strip it before scanning for invalid characters —
+        // otherwise every absolute Windows path is reported as invalid.
+        let scan_target = match path.as_bytes() {
+            [drive, b':', ..] if drive.is_ascii_alphabetic() => &path[2..],
+            _ => path,
+        };
+
         // Check for invalid characters
         let invalid_chars = r#"<>:"|?*"#.chars().collect::<Vec<_>>();
         for &ch in &invalid_chars {
-            if path.contains(ch) {
+            if scan_target.contains(ch) {
                 result.is_valid = false;
                 result.errors.push(ValidationError {
                     code: "INVALID_WINDOWS_CHAR".to_string(),

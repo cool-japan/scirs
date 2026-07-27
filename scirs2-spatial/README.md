@@ -9,6 +9,8 @@
 
 Tested: 854/854 tests passing with default features, 890/890 with `--all-features` (verified 2026-07-15).
 
+**v0.6.3:** fixed undefined behavior in `DistancePool::create_aligned_buffer`/`create_numa_aware_buffer` (`src/memory_pool.rs`) — both allocated cache-aligned memory via raw `System.alloc` then freed it through `Box<[f64]>`'s default-aligned `Drop`, an alloc/dealloc layout mismatch that corrupted the heap on Windows (`STATUS_HEAP_CORRUPTION`); both now allocate through plain `Vec`/`Box<[f64]>`.
+
 ## What scirs2-spatial Provides
 
 Use scirs2-spatial when you need to:
@@ -22,7 +24,7 @@ Use scirs2-spatial when you need to:
 - Plan paths in continuous space (A*, RRT)
 - Apply 3D transformations (quaternions, rigid transforms, SLERP)
 
-## Features (v0.6.2)
+## Features (v0.6.3)
 
 ### Spatial Data Structures
 - **KD-Tree**: Efficient k-nearest neighbor and radius search in any dimension
@@ -119,14 +121,14 @@ Use scirs2-spatial when you need to:
 
 ```toml
 [dependencies]
-scirs2-spatial = "0.6.2"
+scirs2-spatial = "0.6.3"
 ```
 
 For parallel processing:
 
 ```toml
 [dependencies]
-scirs2-spatial = { version = "0.6.2", features = ["parallel"] }
+scirs2-spatial = { version = "0.6.3", features = ["parallel"] }
 ```
 
 ## Quick Start

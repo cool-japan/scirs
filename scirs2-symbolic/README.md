@@ -17,7 +17,7 @@ system (CAS) component designed to complement the numeric capabilities of SciRS2
 
 ```toml
 [dependencies]
-scirs2-symbolic = "0.6.2"
+scirs2-symbolic = "0.6.3"
 ```
 
 ## Quick Start
@@ -205,6 +205,10 @@ Recognised constants: `\pi`, `e`. Operators: `\frac`, `\cdot`, `a^{b}`, `\sqrt`,
   the CAS is well-tested, not infallible, and the SMT-certified-rewrite subsystem's "sound by
   construction" claim applies to registered rewrite *rules*, not to unrelated engine-internal code
   such as extraction.
+- **Iterative `Drop` for `EmlNode` (0.6.3):** the previous compiler-derived recursive `Drop` impl
+  could overflow the stack when a deep expression tree (e.g. a 10,000-node chain) went out of
+  scope — it fit within Linux's 8 MB default thread stack but not Windows' 1 MB default
+  (`STATUS_STACK_OVERFLOW`). `EmlNode` (`src/eml/tree.rs`) now has an explicit iterative `Drop` impl.
 
 ## Optional Features
 

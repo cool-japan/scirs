@@ -208,11 +208,78 @@ fn read_os_memory_info() -> CoreResult<OsMemoryInfo> {
     })
 }
 
+/// Read memory info on Windows via `K32GetProcessMemoryInfo` (kernel32).
+///
+/// `WorkingSetSize` is the Windows equivalent of RSS, and `PagefileUsage` is the
+/// private commit charge, which is the closest analogue to the Unix virtual size
+/// reported above. `K32GetProcessMemoryInfo` lives in kernel32.dll on Windows 7
+/// and later, so no psapi.dll import library is required.
+#[cfg(all(feature = "profiling_memory", target_os = "windows"))]
+fn read_os_memory_info() -> CoreResult<OsMemoryInfo> {
+    // PROCESS_MEMORY_COUNTERS as declared in psapi.h. Field order and types are
+    // part of the stable Win32 ABI.
+    #[repr(C)]
+    #[derive(Default)]
+    struct ProcessMemoryCounters {
+        cb: u32,
+        page_fault_count: u32,
+        peak_working_set_size: usize,
+        working_set_size: usize,
+        quota_peak_paged_pool_usage: usize,
+        quota_paged_pool_usage: usize,
+        quota_peak_non_paged_pool_usage: usize,
+        quota_non_paged_pool_usage: usize,
+        pagefile_usage: usize,
+        peak_pagefile_usage: usize,
+    }
+
+    // Both symbols are exported from kernel32.dll (Windows 7+ for the K32 form).
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetCurrentProcess() -> *mut core::ffi::c_void;
+        fn K32GetProcessMemoryInfo(
+            process: *mut core::ffi::c_void,
+            counters: *mut ProcessMemoryCounters,
+            cb: u32,
+        ) -> i32;
+    }
+
+    let mut counters = ProcessMemoryCounters {
+        cb: core::mem::size_of::<ProcessMemoryCounters>() as u32,
+        ..Default::default()
+    };
+
+    // SAFETY: `counters` is a live, correctly sized PROCESS_MEMORY_COUNTERS and
+    // `cb` matches its size; the pseudo-handle from GetCurrentProcess is always
+    // valid and needs no closing.
+    let ok = unsafe {
+        K32GetProcessMemoryInfo(
+            GetCurrentProcess(),
+            &mut counters,
+            core::mem::size_of::<ProcessMemoryCounters>() as u32,
+        )
+    };
+
+    if ok == 0 {
+        return Err(crate::CoreError::ConfigError(
+            crate::error::ErrorContext::new(
+                "K32GetProcessMemoryInfo failed to report process memory counters".to_string(),
+            ),
+        ));
+    }
+
+    Ok(OsMemoryInfo {
+        resident: counters.working_set_size,
+        virtual_size: counters.pagefile_usage,
+    })
+}
+
 /// Fallback for other platforms - returns estimates from atomic tracking
 #[cfg(all(
     feature = "profiling_memory",
     not(target_os = "macos"),
-    not(target_os = "linux")
+    not(target_os = "linux"),
+    not(target_os = "windows")
 ))]
 fn read_os_memory_info() -> CoreResult<OsMemoryInfo> {
     // On unsupported platforms, use the tracked allocation as a rough estimate

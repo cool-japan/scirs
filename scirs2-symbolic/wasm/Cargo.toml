@@ -1,6 +1,6 @@
 [package]
 name = "scirs2-symbolic-wasm"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2021"
 authors = ["COOLJAPAN OU (Team Kitasan)"]
 description = "WebAssembly playground bindings for scirs2-symbolic CAS"

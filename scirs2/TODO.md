@@ -1,10 +1,10 @@
 # scirs2 Meta-Crate TODO
 
-## Status: v0.6.2 Released (2026-07-22)
+## Status: v0.6.3 Released (2026-07-27)
 
 ## Purpose
 
-The `scirs2` meta-crate is the all-in-one convenience entry-point for the SciRS2 ecosystem. It re-exports all sub-crates via Cargo feature flags, exposing them as unified top-level modules. Users who want a single dependency add `scirs2 = "0.6.2"` instead of listing each sub-crate individually.
+The `scirs2` meta-crate is the all-in-one convenience entry-point for the SciRS2 ecosystem. It re-exports all sub-crates via Cargo feature flags, exposing them as unified top-level modules. Users who want a single dependency add `scirs2 = "0.6.3"` instead of listing each sub-crate individually.
 
 ---
 
@@ -72,3 +72,4 @@ The `scirs2` meta-crate is the all-in-one convenience entry-point for the SciRS2
 - [x] Verify that `cargo doc --all-features` renders correctly on docs.rs after each release — `[package.metadata.docs.rs]` with `all-features = true` and `rustdoc-args = ["--cfg", "docsrs"]` already present in `scirs2/Cargo.toml` (confirmed)
 - [x] Confirm `cargo check --no-default-features` and each individual feature flag compile cleanly — `scripts/check-features.sh` (bash script; iterates all features via `cargo metadata`), `scirs2/tests/feature_check_test.rs` (asserts script exists + is executable)
 - [x] Add compile-fail tests for feature-gated paths where API changes land — `scirs2/tests/compile_fail_doc.rs` (11 tests: positive compile checks for linalg/stats/fft/optimize/datasets/signal/sparse/distributed/wasm/benchmarks + `compile_fail_harness` sentinel backed by `trybuild`; `trybuild = "1.0.116"` added to workspace dev-dependencies)
+- [x] Version badges and installation snippets bumped 0.6.2 → 0.6.3 on the 2026-07-27 release-prep pass (`README.md`, `TODO.md`) — mechanical version-string sync only; no API, feature, or re-exported crate-list changes this cycle (facade crate's own code is unchanged in 0.6.3, only its sub-crate dependency version pins moved)

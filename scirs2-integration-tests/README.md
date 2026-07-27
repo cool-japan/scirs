@@ -1,10 +1,10 @@
 # SciRS2 Integration Tests
 
 [![Stable](https://img.shields.io/badge/status-stable-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.3-green)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)]()
 
-Cross-crate integration test suite for the SciRS2 ecosystem, v0.6.2.
+Cross-crate integration test suite for the SciRS2 ecosystem, v0.6.3.
 
 ## Purpose
 
@@ -14,7 +14,7 @@ All tests run with `--all-features` so that every optional sub-crate is exercise
 
 ---
 
-## Integration Scenarios Tested (v0.6.2)
+## Integration Scenarios Tested (v0.6.3)
 
 ### autograd + neural
 
@@ -138,8 +138,9 @@ scirs2-integration-tests/
 
 ---
 
-## Current Status (v0.6.2, verified 2026-07-22)
+## Current Status (v0.6.3, verified 2026-07-27)
 
+- Untouched by this release (no integration-tests-specific changes shipped in 0.6.3); the status below (verified 2026-07-22 as part of the 0.6.2 cycle) remains accurate since the crate is unchanged
 - All five baseline integration scenarios above are implemented and passing
 - v0.4.2 Wave 42/44 added 6 additional pipeline tests: ML pipeline, signal analysis, computer vision, graph ML, scientific computing, NLP — all green
 - v0.4.2 Wave 44 added 16 numerical cross-crate consistency tests and 40 numerical validation tests

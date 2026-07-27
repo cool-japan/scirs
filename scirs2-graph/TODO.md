@@ -1,6 +1,10 @@
 # scirs2-graph TODO
 
-## Status: v0.6.2 Released (July 22, 2026)
+## Status: v0.6.3 Released (July 27, 2026)
+
+Untouched by this release's fix work (no graph-specific changes shipped in 0.6.3); the audit below
+— last performed against source on 2026-07-15 — remains accurate since the crate source is
+unchanged.
 
 Note: this file was last audited against `src/` on 2026-07-15. Almost all of the
 former "v0.4.0 Roadmap" below has since been implemented (verified by grepping

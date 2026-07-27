@@ -243,28 +243,25 @@ impl DistancePool {
         MatrixBuffer::new(matrix, self)
     }
 
-    /// Create cache-aligned buffer for optimal SIMD performance
+    /// Create a zeroed distance buffer.
+    ///
+    /// This must allocate through the ordinary `Vec`/`Box<[f64]>` path. An
+    /// earlier version called `System.alloc` with `cache_line_size` (64-byte)
+    /// alignment and wrapped the result in `Box::from_raw`, but `Box<[f64]>`'s
+    /// `Drop` deallocates using `Layout::array::<f64>(len)` — alignment 8. That
+    /// alloc/dealloc layout mismatch is undefined behaviour, and on Windows it
+    /// corrupts the heap outright: the system allocator satisfies over-aligned
+    /// requests by returning an offset pointer with a bookkeeping header, so
+    /// freeing it as an 8-aligned block hands `HeapFree` a pointer that is not
+    /// the block base (STATUS_HEAP_CORRUPTION, 0xC0000374). glibc's `free`
+    /// happens to tolerate the same mistake, which is why it only showed up on
+    /// Windows.
+    ///
+    /// Nothing in this module performs alignment-dependent loads, and the system
+    /// allocator already returns 16-byte-aligned memory on 64-bit targets, so
+    /// dropping the over-alignment costs nothing measurable.
     fn create_aligned_buffer(&self, size: usize) -> Box<[f64]> {
-        let layout = Layout::from_size_align(
-            size * std::mem::size_of::<f64>(),
-            self.config.cache_line_size,
-        )
-        .expect("Operation failed");
-
-        unsafe {
-            let ptr = System.alloc(layout) as *mut f64;
-            if ptr.is_null() {
-                panic!("Failed to allocate aligned memory");
-            }
-
-            // Initialize to zero (optional memory warming)
-            if self.config.enable_memory_warming {
-                std::ptr::write_bytes(ptr, 0, size);
-            }
-
-            // Convert to boxed slice
-            Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, size))
-        }
+        vec![0.0_f64; size].into_boxed_slice()
     }
 
     /// Create NUMA-aware aligned buffer with proper node binding
@@ -322,21 +319,10 @@ impl DistancePool {
         size: usize,
         node: u32,
     ) -> Result<Box<[f64]>, Box<dyn std::error::Error>> {
-        let total_size = size * std::mem::size_of::<f64>();
-        let layout = Layout::from_size_align(total_size, 64)?;
-
-        unsafe {
-            // Allocate memory (NUMA binding disabled due to libc limitations)
-            let ptr = System.alloc(layout) as *mut f64;
-            if ptr.is_null() {
-                return Err("Failed to allocate memory".into());
-            }
-
-            // Initialize memory
-            std::ptr::write_bytes(ptr, 0, size);
-
-            Ok(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, size)))
-        }
+        // Allocated through `Vec` for the same reason as `create_aligned_buffer`:
+        // a `Box<[f64]>` must be freed with the layout `Box` itself will use.
+        // (NUMA binding is disabled here due to libc limitations.)
+        Ok(vec![0.0_f64; size].into_boxed_slice())
     }
 
     /// Windows-specific NUMA-aware allocation

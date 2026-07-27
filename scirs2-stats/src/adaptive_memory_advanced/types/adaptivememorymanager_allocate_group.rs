@@ -33,14 +33,24 @@ where
     pub fn allocate(&self, size: usize) -> StatsResult<*mut u8> {
         let allocation_context = self.analyze_allocation_request(size)?;
         let strategy = self.select_allocation_strategy(&allocation_context)?;
-        match strategy {
+        let ptr = match strategy {
             AllocationStrategy::System => self.allocate_system(size),
             AllocationStrategy::Pool => self.allocate_pool(size),
             AllocationStrategy::NumaAware => self.allocate_numa_aware(size, &allocation_context),
             AllocationStrategy::MemoryMapped => self.allocate_memory_mapped(size),
             AllocationStrategy::Adaptive => self.allocate_adaptive(size, &allocation_context),
             AllocationStrategy::ZeroCopy => self.allocate_zero_copy(size),
-        }
+        }?;
+
+        // Remember which allocator produced this pointer so `deallocate` can
+        // return it to the same one. `strategy` is the *resolved* strategy,
+        // which for an `Adaptive` config is whatever the predictor chose.
+        self.allocation_strategies
+            .write()
+            .expect("Operation failed")
+            .insert(ptr as usize, strategy);
+
+        Ok(ptr)
     }
     /// Analyze allocation request context
     fn analyze_allocation_request(&self, size: usize) -> StatsResult<AllocationContext> {

@@ -11,14 +11,23 @@ use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, RwLock, Weak};
 
 use super::types::{
-    AdaptiveMemoryConfig, CacheManager, GCManager, MemoryPerformanceMonitor, MemoryPool,
-    NumaManager, OutOfCoreManager, PredictiveEngine, PressureMonitor,
+    AdaptiveMemoryConfig, AllocationStrategy, CacheManager, GCManager, MemoryPerformanceMonitor,
+    MemoryPool, NumaManager, OutOfCoreManager, PredictiveEngine, PressureMonitor,
 };
 
 /// Advanced-advanced adaptive memory manager
 pub struct AdaptiveMemoryManager<F> {
     pub(super) config: AdaptiveMemoryConfig,
     pub(super) memory_pools: Arc<RwLock<HashMap<usize, Arc<MemoryPool>>>>,
+    /// Strategy actually used for each live allocation, keyed by pointer address.
+    ///
+    /// `allocate` may resolve `AllocationStrategy::Adaptive` into a different
+    /// concrete strategy (e.g. `Pool`), so the deallocation path cannot re-derive
+    /// the strategy from the config — it must free through the same allocator
+    /// that produced the pointer. Freeing pool memory through the system
+    /// allocator (or with a different layout) is undefined behaviour and aborts
+    /// with STATUS_HEAP_CORRUPTION on Windows.
+    pub(super) allocation_strategies: Arc<RwLock<HashMap<usize, AllocationStrategy>>>,
     pub(super) cache_manager: Arc<CacheManager>,
     pub(super) numa_manager: Arc<NumaManager>,
     pub(super) predictive_engine: Arc<PredictiveEngine>,

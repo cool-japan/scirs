@@ -1,6 +1,9 @@
 # scirs2-io TODO
 
-## Status: v0.6.2 (2026-07-22)
+## Status: v0.6.3 (2026-07-27)
+
+Untouched by this release (no io-specific changes shipped in 0.6.3); the 0.6.2 changes and test
+counts below remain accurate since the crate source is unchanged.
 
 **0.6.2:** MAT v7.3 (HDF5-based) support — `EnhancedMatFile`, `V73MatFile`, `PartialIoSupport` — is now available in default builds; all 45 feature gates across `matlab::enhanced`/`matlab::v73_enhanced` that previously required the `hdf5` Cargo feature (and a system `libhdf5`) are gone now that the backend is pure-Rust `oxih5`. The in-tree `hdf5_lite` module (2697 lines) was deleted outright; `oxih5` now serves every HDF5 path in the crate, widening format coverage (superblock v2/v3, fractal heaps, extensible arrays, virtual datasets, szip) beyond what `hdf5_lite` supported. Fixed three real bugs: `create_dataset_with_compression` was silently dropping every value it was handed (critical silent-data-loss bug), writing a `SparseLogical` matrix to MAT v7.3 stored all zeros, and the HDF5 v2-dataspace header was mis-parsed as three bytes instead of four. Added a new `tests/hdf5_conformance.rs` integration suite. See `CHANGELOG.md` `[0.6.2]` for full detail.
 

@@ -11,6 +11,8 @@
 
 **Tests:** 2529/2529 passing (default features), 2561/2561 passing (`--all-features`) — as of 2026-07-22.
 
+**v0.6.3:** fixed `AdaptiveMemoryManager::infer_deallocation_strategy` (`src/adaptive_memory_advanced/`), which re-derived the strategy from config instead of the strategy `allocate` actually resolved for that pointer — wrong for `Adaptive`-configured pools, which could be freed through the wrong allocator/layout and corrupt the heap. `allocate` now records the resolved strategy per pointer for `deallocate` to look up.
+
 ---
 
 ## Overview
@@ -28,7 +30,7 @@ Modern statistical workflows demand more than descriptive statistics and p-value
 
 ---
 
-## Feature List (v0.6.2)
+## Feature List (v0.6.3)
 
 ### Descriptive Statistics
 - Mean, median, trimmed mean, geometric mean, harmonic mean
@@ -146,7 +148,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.6.2"
+scirs2-stats = "0.6.3"
 ```
 
 ### Basic Descriptive Statistics

@@ -400,8 +400,12 @@ fn francis_double_step(h: &mut [f64], n: usize, lo: usize, hi: usize) {
         - s * h[lo * n + lo]
         + t;
     let mut y = h[(lo + 1) * n + lo] * (h[lo * n + lo] + h[(lo + 1) * n + lo + 1] - s);
+    // z = H[lo+2][lo+1] · H[lo+1][lo]. It must read the *sub-diagonal* entry:
+    // H[lo+2][lo] sits two rows below the diagonal and is structurally zero in a
+    // Hessenberg matrix, so using it pins z to 0 and the double-shift bulge is
+    // never formed.
     let mut z = if hi > lo + 1 {
-        h[(lo + 2) * n + lo] * h[(lo + 1) * n + lo]
+        h[(lo + 2) * n + lo + 1] * h[(lo + 1) * n + lo]
     } else {
         0.0
     };
@@ -445,7 +449,14 @@ fn francis_double_step(h: &mut [f64], n: usize, lo: usize, hi: usize) {
         }
 
         // Right multiply: H[:, k:k+len] -= 2 (H[:, k:k+len] v) v^T
-        let r2 = (k + len).min(n);
+        //
+        // The row limit must be `k + len + 1`, not `k + len`. Row `k+len` still has a
+        // non-zero in this column range -- its sub-diagonal entry H[k+len][k+len-1] --
+        // so stopping one row short leaves that entry un-rotated. The step then applies
+        // P from the left but only part of P^T from the right, which is no longer a
+        // similarity transform: the eigenvalues themselves drift away from the input
+        // matrix's, silently and without any loss of Hessenberg structure to signal it.
+        let r2 = (k + len + 1).min(n);
         for i in 0..r2 {
             let dot_val: f64 = (0..len).map(|j| h[i * n + k + j] * v[j]).sum();
             for j in 0..len {
@@ -514,39 +525,39 @@ fn eigenvalues_francis_qr(mat: &[f64], n: usize, max_iter: usize) -> Vec<(f64, f
     let mut h = mat.to_vec();
     reduce_to_hessenberg(&mut h, n);
 
-    let mut lo = 0usize;
+    // Standard deflation driver: repeatedly locate the *active* unreduced block
+    // H[lo..=hi] at the bottom of the matrix, then either retire it (1×1 or 2×2,
+    // which `extract_eigenvalues_from_schur` reads directly) or run one Francis
+    // step on it. Searching upward from `hi` for the first negligible sub-diagonal
+    // is what keeps the block unreduced -- a Francis step driven across an interior
+    // zero sub-diagonal chases the bulge through a block boundary and corrupts both
+    // sides.
     let mut hi = n - 1;
     let mut iters = 0;
 
-    while lo < hi && iters < max_iter {
+    while hi > 0 && iters < max_iter {
         iters += 1;
 
-        // Check for tiny sub-diagonal entries → deflate.
-        let mut deflated = false;
-        for k in (lo..hi).rev() {
-            let tol = 1e-12 * (h[k * n + k].abs() + h[(k + 1) * n + k + 1].abs());
-            if h[(k + 1) * n + k].abs() <= tol {
-                h[(k + 1) * n + k] = 0.0;
-                if k == hi - 1 {
-                    // Converged 1×1 block.
-                    hi = k;
-                    lo = lo.max(0);
-                    deflated = true;
-                    break;
-                } else if k == hi - 2 {
-                    // Check if 2×2 block at bottom has converged.
-                    hi = k;
-                    deflated = true;
-                    break;
-                }
+        let mut lo = hi;
+        while lo > 0 {
+            let tol = 1e-14 * (h[(lo - 1) * n + lo - 1].abs() + h[lo * n + lo].abs());
+            if h[lo * n + lo - 1].abs() <= tol.max(f64::MIN_POSITIVE) {
+                h[lo * n + lo - 1] = 0.0;
+                break;
             }
+            lo -= 1;
         }
 
-        if hi <= lo {
-            break;
-        }
-
-        if !deflated {
+        if lo == hi {
+            // Converged 1×1 block.
+            hi -= 1;
+        } else if lo + 1 == hi {
+            // Converged 2×2 block (a real pair or a complex conjugate pair).
+            if hi < 2 {
+                break;
+            }
+            hi -= 2;
+        } else {
             francis_double_step(&mut h, n, lo, hi);
         }
     }

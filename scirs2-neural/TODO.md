@@ -1,6 +1,10 @@
 # scirs2-neural TODO
 
-## Status: v0.6.2 (2026-07-22)
+## Status: v0.6.3 (2026-07-27)
+
+Untouched by this release's fix work (no neural-specific changes shipped in 0.6.3); the
+verification below (performed for 0.6.2, itself carried forward from the 0.6.1 run) remains
+accurate for 0.6.3 since the crate source is unchanged.
 
 ### v0.6.1 Verification (2026-07-15)
 

@@ -1,6 +1,9 @@
 # scirs2-interpolate TODO
 
-## Status: v0.6.2 (released, 2026-07-22)
+## Status: v0.6.3 (released, 2026-07-27)
+
+Untouched by this release (no interpolate-specific changes shipped in 0.6.3); the v0.6.2 status
+below remains accurate since the crate source is unchanged.
 
 scirs2-interpolate's own test suite (freshly re-run 2026-07-15): 1143 tests pass, 13 skipped, 0 failed with default features; 1173 tests pass, 13 skipped, 0 failed with `--all-features`. See "Online / streaming interpolation" entry further down for one verified discrepancy (Kriging streaming was never implemented despite being marked done).
 

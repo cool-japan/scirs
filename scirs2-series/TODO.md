@@ -1,6 +1,8 @@
 # scirs2-series TODO
 
-## Status: v0.6.2 — Documentation Audit (July 15, 2026)
+## Status: v0.6.3 — Documentation Audit (July 15, 2026)
+
+Untouched by this release's fix work (no series-specific changes shipped in 0.6.3); this documentation audit was performed for 0.6.2 and remains accurate for 0.6.3 since the crate source is unchanged.
 
 A README/TODO accuracy pass was done directly against `src/` (grep + `Read`, not just skimming
 doc comments). Headline findings:

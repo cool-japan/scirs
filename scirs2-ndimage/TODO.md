@@ -1,6 +1,10 @@
 # scirs2-ndimage TODO
 
-## Status: v0.6.2 (2026-07-22)
+## Status: v0.6.3 (2026-07-27)
+
+**0.6.3:** Untouched by this release's fix work — no ndimage-specific changes shipped; the survey,
+real gaps, and known issues below (re-verified against `src/` 2026-07-15, last reviewed for the
+0.6.2 release on 2026-07-22) remain accurate for 0.6.3 since the crate source is unchanged.
 
 **0.6.2:** the CUDA backend's kernel JIT (`backend/cuda.rs`) now compiles CUDA-C to PTX via the pure-Rust `oxicuda-nvrtc` crate (runtime `dlopen` of `libnvrtc`, zero build-time CUDA SDK dependency) instead of an embedded NVRTC loader; `libloading` is no longer a direct dependency of the crate. The `cuda` feature remains off-by-default, NVIDIA-only, and experimental. See `CHANGELOG.md` `[0.6.2]` for detail.
 

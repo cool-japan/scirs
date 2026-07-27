@@ -4,13 +4,15 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-signal)](https://docs.rs/scirs2-signal)
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.3-green)]()
 
 **Production-ready signal processing for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
 `scirs2-signal` provides a comprehensive signal processing toolkit modelled after SciPy's `signal` module while going considerably further in v0.5.0: matched filtering, CFAR detection, Kalman/EKF/UKF state estimation, MFCC and cepstral analysis, EMD/HHT, compressed sensing (OMP/ISTA), blind source separation (ICA, NMF audio), system identification (ARX, N4SID), radar processing, and music information retrieval. The Savitzky-Golay polynomial smoother (`savgol`) was re-enabled and validated in the v0.5.0 stub-check sweep.
 
 Tested: 1489/1489 tests passing with default features, 1489/1489 with `--all-features` (verified 2026-07-15).
+
+**v0.6.3:** fixed two correctness bugs — `eigenvalues_francis_qr` (`src/phase_estimation/esprit.rs`, used by ESPRIT phase estimation) had a wrong bulge-term index and a right-multiply loop one row short in its double-shift QR, letting eigenvalues silently drift from the input matrix's; and `n4sid_estimate` (`src/system_identification/n4sid.rs`) now solves its least-squares steps through an SVD-based minimum-norm solve (new `pseudoinverse_product`) instead of normal equations, which previously returned silently-bogus huge-norm solutions for rank-deficient (non-persistently-exciting) inputs instead of erroring.
 
 ---
 
@@ -20,7 +22,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ---
 
-## Feature List (v0.6.2)
+## Feature List (v0.6.3)
 
 ### Filter Design & Application
 - **IIR filters**: Butterworth, Chebyshev I/II, Elliptic, Bessel — analog prototype design and digital transformation
@@ -185,7 +187,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ```toml
 [dependencies]
-scirs2-signal = "0.6.2"
+scirs2-signal = "0.6.3"
 ```
 
 ### Butterworth Low-Pass Filter

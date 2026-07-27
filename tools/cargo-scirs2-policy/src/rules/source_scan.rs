@@ -92,7 +92,9 @@ pub(crate) fn scan_for_pattern(
         let path = entry.path();
         // Only process .rs files
         if path.extension().is_some_and(|e| e == "rs") {
-            let path_str = path.to_string_lossy();
+            // Normalize `\` to `/` so the directory-segment checks below behave
+            // identically on Windows, where `Path` renders separators as `\`.
+            let path_str = path.to_string_lossy().replace('\\', "/");
             // Exempt the core crate itself
             if path_str.contains(exempt_crate_dir) {
                 continue;

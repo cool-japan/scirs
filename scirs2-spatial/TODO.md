@@ -1,6 +1,6 @@
 # scirs2-spatial TODO
 
-## Status: v0.6.2 (released, 2026-07-22)
+## Status: v0.6.3 (released, 2026-07-27)
 
 ## v0.3.3 Completed
 
@@ -121,6 +121,11 @@ Status (verified 2026-07-15): `src/gpu_accel.rs` provides `GpuDevice`/`GpuDistan
 - [x] **`distance::hamming()`** — new standalone convenience function computing the proportion of differing coordinates between two equal-length points (tolerance-based float comparison via `T::epsilon()`), matching `scipy.spatial.distance.hamming` semantics; re-exported at the crate root alongside `euclidean`/`jaccard`/etc. This is the first time a `hamming` symbol has existed anywhere in this crate — the "Hamming" entry already listed under Distance Metrics above (and in the `v0.3.3 Completed` section) had no backing implementation until now.
   - Files: `src/distance/functions_2.rs`, `src/distance_tests.rs`, `src/lib.rs`.
   - Workspace: 890 / 854 tests pass (all-features / default-features).
+
+## v0.6.3 Fixes (2026-07-27)
+
+- [x] **Fixed undefined behavior in `DistancePool::create_aligned_buffer`/`create_numa_aware_buffer`** (`src/memory_pool.rs`) — both allocated cache-aligned memory via raw `System.alloc` then freed it through `Box<[f64]>`'s default-aligned `Drop`, an alloc/dealloc layout mismatch that corrupted the heap on Windows (`STATUS_HEAP_CORRUPTION`). Both now allocate through plain `Vec`/`Box<[f64]>`.
+  - Verified by code review and the existing macOS/Linux test suite; not exercised under Windows CI. See `CHANGELOG.md` `[0.6.3]` for full detail.
 
 ## v0.6.2 Fixes (2026-07-22)
 

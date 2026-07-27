@@ -1,6 +1,8 @@
 # scirs2-stats TODO
 
-## Status: v0.6.2 (released 2026-07-22; last reviewed 2026-07-22)
+## Status: v0.6.3 (released 2026-07-27; last reviewed 2026-07-27)
+
+**0.6.3:** fixed `AdaptiveMemoryManager::infer_deallocation_strategy` (`src/adaptive_memory_advanced/types/adaptivememorymanager_deallocate_group.rs`), which re-derived the strategy from config instead of the strategy `allocate` actually resolved for that pointer — wrong for `Adaptive`-configured pools, which could be freed through the wrong allocator/layout and corrupt the heap. `allocate` now records the resolved strategy per pointer for `deallocate` to look up. Verified by code review and the (unchanged) test suite below; not exercised under Windows CI. See `CHANGELOG.md` `[0.6.3]` for full detail.
 
 scirs2-stats's own test suite (freshly run 2026-07-15): 2529 tests pass, 0 failed, 24 skipped (default features); 2561 tests pass, 0 failed, 24 skipped (`--all-features`, matching the previous review's count). Added the missing F-distribution `ppf()` (inverse CDF); removed a dead/orphaned `advanced_stubs.rs` (unused stub types); added real peak/average RSS memory tracking to the SciPy benchmark framework via a new opt-in `memory_tracking` feature. This session also migrated `mcmc/smc.rs` and `variational/bbvi.rs` off a direct `rand` crate dependency onto `scirs2_core::random`, and converted the `scirs2-symbolic` dev-dependency from `workspace=true` to `path=` (packaging fix, no functional change).
 

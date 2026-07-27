@@ -1,6 +1,10 @@
 # scirs2-autograd TODO
 
-## Status: v0.6.2 (released 2026-07-22; last reviewed 2026-07-22)
+## Status: v0.6.3 (released 2026-07-27; last reviewed 2026-07-27)
+
+Untouched by this release's fix work (no autograd-specific changes shipped in 0.6.3); the status
+and test results below — last reviewed against source on 2026-07-22 — remain accurate since the
+crate source is unchanged.
 
 scirs2-autograd's own test suite (freshly run 2026-07-15): 1260 tests pass, 0 failed, 18 skipped (default features); 1345 tests pass, 0 failed, 18 skipped (`--all-features`).
 

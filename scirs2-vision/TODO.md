@@ -1,9 +1,10 @@
 # scirs2-vision TODO
 
-## Status: v0.6.2 (current, 2026-07-22) — reassessed Stable → Partial
+## Status: v0.6.3 (current, 2026-07-27) — reassessed Stable → Partial
 
-Untouched by this release's fix work (no vision-specific changes shipped in 0.6.1); this is a fresh
-implementation-status survey. 0 `todo!()`/`unimplemented!()` markers in `src/` — but a targeted sweep
+Untouched by this release's fix work (no vision-specific changes shipped in 0.6.1, nor in 0.6.2); this is a fresh
+implementation-status survey performed for 0.6.2 that remains accurate for 0.6.3 since the crate source is
+unchanged. 0 `todo!()`/`unimplemented!()` markers in `src/` — but a targeted sweep
 for the *silent*-stub pattern (code that compiles, looks real, and returns a plausible-looking value
 without actually computing it — the same pattern `scirs2-ndimage`/`scirs2-integrate` are marked
 "Partial" for) turned up three confirmed, publicly-reachable instances, so the status badge is

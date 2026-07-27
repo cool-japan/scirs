@@ -1,6 +1,9 @@
 # scirs2-integration-tests TODO
 
-## Status: v0.6.2 (2026-07-22)
+## Status: v0.6.3 (2026-07-27)
+
+Untouched by this release (no integration-tests-specific changes shipped in 0.6.3); the v0.6.2
+status recorded below remains accurate since the crate is unchanged.
 
 ## Purpose
 
@@ -32,7 +35,7 @@ Cross-crate integration tests for SciRS2 ecosystem.
 
 cargo nextest run --all-features -p scirs2-integration-tests
 
-## v0.6.2 Status (verified 2026-07-22)
+## v0.6.3 Status (verified 2026-07-27)
 
 - 251 `#[test]` functions across baseline scenarios + Wave 42/44 pipelines; 0 doctests; 0 `todo!()`/`unimplemented!()`
 - Freshly re-run via `cargo nextest run --all-features -p scirs2-integration-tests` as part of the 0.6.2 workspace-wide all-features run: 246 passed, 5 skipped (0 failures). The 5 skips are all `#[ignore]`-by-design opt-in benchmarks (`neural_optimize::test_distributed_training_integration`, `performance::comprehensive_performance_benchmark`, `performance::test_cache_efficiency`, `performance::test_image_processing_pipeline_performance`, `performance::test_performance_scaling`) — not failures

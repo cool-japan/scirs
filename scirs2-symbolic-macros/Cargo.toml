@@ -8,6 +8,7 @@ repository.workspace = true
 description = "Proc-macro DSL for scirs2-symbolic pattern matching rules"
 keywords = ["symbolic", "proc-macro", "dsl", "pattern-matching", "eml"]
 categories = ["mathematics", "development-tools::procedural-macro-helpers"]
+readme = "README.md"
 
 [lints]
 workspace = true

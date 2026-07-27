@@ -41,7 +41,9 @@ scirs2-core = { workspace = true, features = ["simd", "parallel", "gpu", "valida
 
 # FFT specific dependencies
 # OxiFFT - Pure Rust high-performance FFT (FFTW-compatible algorithms) - DEFAULT
-oxifft = { workspace = true, optional = true }
+# Non-wasm32: full defaults (std + threading/rayon).
+# wasm32-unknown-unknown cannot spawn OS threads, and oxifft's `threading`
+# feature hard-fails there via compile_error!() (see target table below).
 
 # Serialization dependencies
 serde = { workspace = true }
@@ -70,6 +72,13 @@ pollster = { workspace = true, optional = true }
 oxicuda-driver = { workspace = true, optional = true }
 oxicuda-memory = { workspace = true, optional = true }
 oxicuda-fft = { workspace = true, optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+oxifft = { workspace = true, optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# threading (rayon) is not supported on wasm32-unknown-unknown - keep std only
+oxifft = { version = "0.4.1", optional = true, default-features = false, features = ["std"] }
 
 [dev-dependencies]
 approx = { workspace = true }

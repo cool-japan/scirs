@@ -1451,10 +1451,40 @@ impl AdvancedMemoryPool {
         pool
     }
 
+    /// Total bytes `prewarm_common_sizes` is allowed to allocate up front.
+    ///
+    /// Pre-warming used to push `max_matrices_per_size / 4` (25) copies of every
+    /// entry in the size list, including a 50000x500 matrix — 25 x 200 MB = 5 GB
+    /// for that one size, ~5.5 GB overall, allocated eagerly just to construct
+    /// an `AdvancedPCA`. Linux hides this because `Array2::zeros` gets lazily
+    /// faulted zero pages from the kernel, so the memory is never really
+    /// committed; Windows has no overcommit and must back the whole reservation,
+    /// so the allocation fails and Rust aborts the process
+    /// (STATUS_STACK_BUFFER_OVERRUN, 0xC0000409, which is how a Rust `abort()`
+    /// surfaces on Windows).
+    ///
+    /// 64 MB keeps the cache useful for the sizes that actually recur while
+    /// staying far below any plausible allocation limit.
+    const PREWARM_BUDGET_BYTES: usize = 64 * 1024 * 1024;
+
     /// ✅ Advanced OPTIMIZATION: Pre-warm pool with common matrix sizes
+    ///
+    /// Buffers are pre-allocated cheapest-first and stop as soon as
+    /// [`Self::PREWARM_BUDGET_BYTES`] is exhausted, so large entries are simply
+    /// not pre-warmed rather than being allocated eagerly. Sizes that miss the
+    /// budget still work — `get_matrix`/`get_vector` allocate them on demand.
     fn prewarm_common_sizes(&mut self) {
-        // Common PCA matrix sizes
-        let common_matrix_sizes = vec![
+        const ELEM: usize = std::mem::size_of::<f64>();
+        // Cap the copies per size as well: 25 identical spare buffers per shape
+        // is far more than any call site reuses concurrently.
+        let matrix_copies = (self.max_matrices_per_size / 4).min(4);
+        let vector_copies = (self.max_vectors_per_size / 4).min(8);
+
+        let mut budget = Self::PREWARM_BUDGET_BYTES;
+
+        // Common PCA matrix sizes, smallest first so the budget is spent on the
+        // shapes that are cheapest to keep resident.
+        let common_matrix_sizes = [
             (100, 10),
             (500, 20),
             (1000, 50),
@@ -1464,18 +1494,28 @@ impl AdvancedMemoryPool {
         ];
 
         for (rows, cols) in common_matrix_sizes {
+            let bytes = rows * cols * ELEM;
             let pool = self.matrix_pools.entry((rows, cols)).or_default();
-            for _ in 0..(self.max_matrices_per_size / 4) {
+            for _ in 0..matrix_copies {
+                let Some(remaining) = budget.checked_sub(bytes) else {
+                    break;
+                };
+                budget = remaining;
                 pool.push(Array2::zeros((rows, cols)));
                 self.stats.current_matrices += 1;
             }
         }
 
         // Common vector sizes
-        let common_vector_sizes = vec![10, 20, 50, 100, 200, 500, 1000, 5000];
+        let common_vector_sizes = [10, 20, 50, 100, 200, 500, 1000, 5000];
         for size in common_vector_sizes {
+            let bytes = size * ELEM;
             let pool = self.vector_pools.entry(size).or_default();
-            for _ in 0..(self.max_vectors_per_size / 4) {
+            for _ in 0..vector_copies {
+                let Some(remaining) = budget.checked_sub(bytes) else {
+                    break;
+                };
+                budget = remaining;
                 pool.push(Array1::zeros(size));
                 self.stats.current_vectors += 1;
             }

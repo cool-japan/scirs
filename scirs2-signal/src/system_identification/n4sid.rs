@@ -142,51 +142,19 @@ pub fn n4sid_estimate(
     // Solve: Y_future = [Theta_u | Theta_wp] * [U_future; W_past]
     // Using transpose formulation: Y_f^T = X^T * Theta^T where X = combined
     // So Theta^T = pinv(X^T) * Y_f^T
-    let xt = combined.clone(); // (combined_rows x j)
-    let yf_t = y_future.clone(); // (i x j)
-
-    // Normal equations: (X * X^T) * Theta^T_cols = X * Y_f^T_cols
-    // X is (combined_rows x j), X * X^T is (combined_rows x combined_rows)
-    let t_dot = std::time::Instant::now();
-    let xxt = xt.dot(&xt.t());
-    let x_yft = xt.dot(&yf_t.t()); // (combined_rows x i)
-    eprintln!("[N4SID-PROFILE] xxt+x_yft dots: {:?}", t_dot.elapsed());
-
-    // Solve column by column
-    let t0 = std::time::Instant::now();
-    let mut theta_t = Array2::<f64>::zeros((combined_rows, i));
-    for col in 0..i {
-        let rhs = x_yft.column(col).to_owned();
-        match scirs2_linalg::solve(&xxt.view(), &rhs.view(), None) {
-            Ok(sol) => {
-                for row in 0..combined_rows {
-                    theta_t[[row, col]] = sol[row];
-                }
-            }
-            Err(_) => {
-                // Fall back to regularized solve
-                let mut xxt_reg = xxt.clone();
-                for k in 0..combined_rows {
-                    xxt_reg[[k, k]] += 1e-8;
-                }
-                if let Ok(sol) = scirs2_linalg::solve(&xxt_reg.view(), &rhs.view(), None) {
-                    for row in 0..combined_rows {
-                        theta_t[[row, col]] = sol[row];
-                    }
-                }
-            }
-        }
-    }
-    eprintln!("[N4SID-PROFILE] solve_loop: {:?}", t0.elapsed());
+    // Least squares in the (j x combined_rows) overdetermined form, solved from a
+    // rank-truncated SVD. `combined` is rank-deficient for any input that is not
+    // persistently exciting of order 2i, so the minimum-norm solution is what keeps
+    // the oblique projection meaningful; see `pseudoinverse_product`.
+    let theta_t = pseudoinverse_product(&combined.t().to_owned(), &y_future.t().to_owned())?;
+    debug_assert_eq!(theta_t.dim(), (combined_rows, i));
 
     // The oblique projection is Theta_wp * W_past where Theta_wp = theta_t[i..,:]
     let theta_wp = theta_t.slice(s![i.., ..]).to_owned(); // (2i x i)
     let obl_proj = theta_wp.t().dot(&w_past); // (i x j)
 
     // Step 4: SVD of the oblique projection to get observability matrix
-    let t_svd = std::time::Instant::now();
     let (u_svd, s_svd, vt_svd) = svd_thin(&obl_proj)?;
-    eprintln!("[N4SID-PROFILE] svd_thin: {:?}", t_svd.elapsed());
 
     let sv = Array1::from_vec(s_svd.clone());
 
@@ -230,7 +198,6 @@ pub fn n4sid_estimate(
     let c_mat = obs_matrix.slice(s![0..1, ..]).to_owned(); // (1 x state_order)
 
     // A = pinv(O_{i-1}) * O_{shifted} where O_{shifted} = O_i without last block row
-    let t_pinv = std::time::Instant::now();
     let a_mat = if state_order > 0 && obs_rows > 1 {
         let obs_up = obs_matrix.slice(s![0..obs_rows - 1, ..]).to_owned();
         let obs_down = obs_matrix.slice(s![1..obs_rows, ..]).to_owned();
@@ -238,7 +205,6 @@ pub fn n4sid_estimate(
     } else {
         Array2::<f64>::zeros((state_order, state_order))
     };
-    eprintln!("[N4SID-PROFILE] pinv_product: {:?}", t_pinv.elapsed());
 
     // Step 6: Estimate B and D from input-output equation
     // y(t) = C * x(t) + D * u(t)
@@ -316,10 +282,8 @@ pub fn n4sid_estimate(
     }
 
     // Use observability-based A (more reliable from SVD) for the final model
-    let t_sim = std::time::Instant::now();
     let fit_pct = compute_simulation_fit(y, u, &a_mat, &b_mat_est, &c_mat, &d_mat_est);
     let noise_var = compute_simulation_noise_var(y, u, &a_mat, &b_mat_est, &c_mat, &d_mat_est);
-    eprintln!("[N4SID-PROFILE] sim_fit+noise: {:?}", t_sim.elapsed());
 
     Ok(SubspaceIdResult {
         a: a_mat,
@@ -333,12 +297,15 @@ pub fn n4sid_estimate(
     })
 }
 
-/// Thin SVD: returns (U, sigma, V^T) where U is (m x min(m,n))
+/// Thin SVD: returns (U, sigma, V^T) where U is (m x min(m,n)).
+///
+/// `full_matrices` must stay `false`. The oblique projection is a very wide
+/// `i x j` matrix (8 x 485 for the first-order test), and asking for the full
+/// decomposition materialises a `j x j` V — 485x485 here, which costs seconds
+/// while every column past the first `min(i, j)` is discarded by the caller.
 fn svd_thin(matrix: &Array2<f64>) -> SignalResult<(Array2<f64>, Vec<f64>, Array2<f64>)> {
-    match scirs2_linalg::svd(&matrix.view(), true, None) {
-        Ok((u_opt, s_vec, vt_opt)) => {
-            let u = u_opt;
-            let vt = vt_opt;
+    match scirs2_linalg::svd(&matrix.view(), false, None) {
+        Ok((u, s_vec, vt)) => {
             let sigma: Vec<f64> = s_vec.iter().copied().collect();
             Ok((u, sigma, vt))
         }
@@ -348,35 +315,49 @@ fn svd_thin(matrix: &Array2<f64>) -> SignalResult<(Array2<f64>, Vec<f64>, Array2
     }
 }
 
-/// Compute pseudoinverse-based product: pinv(A) * B
+/// Minimum-norm least-squares solve `pinv(A) * B`, from a thin SVD with
+/// relative rank truncation.
+///
+/// This deliberately avoids the normal equations (`solve(A^T A, A^T B)`). That
+/// form squares the condition number, and the regression N4SID performs here is
+/// genuinely rank-deficient whenever the input is not persistently exciting of
+/// order `2i` — a single sinusoid, the most common smoke-test input, excites
+/// only two directions no matter how long the record. `A^T A` is then singular,
+/// and `solve` does not report that: LU with a near-zero pivot happily returns
+/// an arbitrary huge-norm solution, so the `Err` fallback never fires and the
+/// oblique projection silently becomes noise. Truncating at `tol` and taking the
+/// minimum-norm solution keeps the projection well defined for such data.
 fn pseudoinverse_product(a: &Array2<f64>, b: &Array2<f64>) -> SignalResult<Array2<f64>> {
-    let ata = a.t().dot(a);
-    let atb = a.t().dot(b);
-    let n = ata.nrows();
-    let m = atb.ncols();
+    let (u, s, vt) = svd_thin(a)?;
 
-    let mut result = Array2::<f64>::zeros((n, m));
-    for col in 0..m {
-        let rhs = atb.column(col).to_owned();
-        match scirs2_linalg::solve(&ata.view(), &rhs.view(), None) {
-            Ok(sol) => {
-                for row in 0..n {
-                    result[[row, col]] = sol[row];
-                }
-            }
-            Err(_) => {
-                let mut ata_reg = ata.clone();
-                for k in 0..n {
-                    ata_reg[[k, k]] += 1e-8;
-                }
-                if let Ok(sol) = scirs2_linalg::solve(&ata_reg.view(), &rhs.view(), None) {
-                    for row in 0..n {
-                        result[[row, col]] = sol[row];
-                    }
-                }
+    let rank_cap = s.len().min(u.ncols()).min(vt.nrows());
+    let ncols_out = b.ncols();
+    let nrows_out = vt.ncols();
+    let mut result = Array2::<f64>::zeros((nrows_out, ncols_out));
+    if rank_cap == 0 {
+        return Ok(result);
+    }
+
+    // Relative truncation threshold, the usual `max(m, n) * eps * sigma_max`.
+    let smax = s.iter().take(rank_cap).fold(0.0f64, |acc, &v| acc.max(v));
+    let tol = smax * (a.nrows().max(a.ncols()) as f64) * f64::EPSILON;
+
+    // result = V * diag(1/s) * (U^T * B), skipping the truncated directions.
+    for k in 0..rank_cap {
+        if s[k] <= tol {
+            continue;
+        }
+        let inv_s = 1.0 / s[k];
+        for col in 0..ncols_out {
+            // (U^T B)[k, col]
+            let ub: f64 = (0..a.nrows()).map(|row| u[[row, k]] * b[[row, col]]).sum();
+            let scaled = ub * inv_s;
+            for row in 0..nrows_out {
+                result[[row, col]] += vt[[k, row]] * scaled;
             }
         }
     }
+
     Ok(result)
 }
 

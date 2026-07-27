@@ -116,7 +116,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-core = { version = "0.6.2", features = ["simd", "parallel"] }
+//! scirs2-core = { version = "0.6.3", features = ["simd", "parallel"] }
 //! ```
 //!
 //! ### SIMD Operations
@@ -360,7 +360,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.6.2**
+//! Current version: **0.6.3**
 //!
 //! ## 📚 Examples
 //!

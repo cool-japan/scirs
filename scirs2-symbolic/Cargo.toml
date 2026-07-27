@@ -8,6 +8,7 @@ repository.workspace = true
 description = "Symbolic mathematics for SciRS2 — EML-native CAS, expression trees, differentiation, simplification"
 keywords = ["symbolic", "differentiation", "computer-algebra", "calculus", "eml"]
 categories = ["mathematics", "science"]
+readme = "README.md"
 
 [lints]
 workspace = true

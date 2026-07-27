@@ -73,7 +73,7 @@ android_min_api = 21
 supported_architectures = ["aarch64", "armv7"]
 
 [workspace.package]
-version = "0.6.2"  # scirs2 0.6.2
+version = "0.6.3"  # scirs2 0.6.3
 edition = "2021"
 authors = ["COOLJAPAN OU (Team KitaSan)"]
 description = "A Rust port of SciPy with AI/ML extensions - Scientific Computing and AI Library"
@@ -130,13 +130,13 @@ chrono = "0.4.45"
 pyo3 = { version = "0.29.0", default-features = false, features = ["macros"] }
 pyo3-build-config = { version = "0.29", features = ["resolve-config"] }
 numpy = { version = "0.29.0" }  # Keep for non-SciRS2 compatibility
-scirs2-numpy = { version = "0.6.2", path = "./scirs2-numpy" }  # SciRS2 fork with ndarray 0.17
+scirs2-numpy = { version = "0.6.3", path = "./scirs2-numpy" }  # SciRS2 fork with ndarray 0.17
 
 # Linear algebra and math (heavy dependencies - minimize features)
 nalgebra = { version = "0.35.0", default-features = false }
 
 # OxiFFT - Pure Rust high-performance FFT (FFTW-compatible algorithms)
-oxifft = { version = "0.3.2" }
+oxifft = { version = "0.4.1" }
 
 # OxiBLAS - Pure Rust BLAS/LAPACK implementation (replaces OpenBLAS)
 # Using crates.io 0.2 series for stable releases
@@ -145,7 +145,7 @@ oxiblas-blas = { version = "0.2.1" }
 oxiblas-lapack = { version = "0.2.1" }
 
 # OxiZ - Pure Rust SMT solver (powers scirs2-symbolic SMT-pruned regression in v0.4.5+)
-oxiz = { version = "0.2.4" }
+oxiz = { version = "0.3.0" }
 
 # OxiEML - Pure Rust EML expression/machine-learning library (used by scirs2-symbolic dev)
 oxieml = { version = "0.1.3" }
@@ -382,52 +382,52 @@ pyo3-async-runtimes = { version = "0.29.0", default-features = false, features =
 # Python integration (optional)
 
 # Base scirs2 crates
-scirs2-core = { version = "0.6.2", path = "./scirs2-core", default-features = false }
-scirs2 = { version = "0.6.2", path = "./scirs2", default-features = false }
-scirs2-linalg = { version = "0.6.2", path = "./scirs2-linalg", default-features = false }
-scirs2-integrate = { version = "0.6.2", path = "./scirs2-integrate", default-features = false }
-scirs2-interpolate = { version = "0.6.2", path = "./scirs2-interpolate", default-features = false }
-scirs2-optimize = { version = "0.6.2", path = "./scirs2-optimize", default-features = false }
-scirs2-fft = { version = "0.6.2", path = "./scirs2-fft", default-features = false }
-scirs2-stats = { version = "0.6.2", path = "./scirs2-stats", default-features = false }
-scirs2-special = { version = "0.6.2", path = "./scirs2-special", default-features = false }
-scirs2-signal = { version = "0.6.2", path = "./scirs2-signal", default-features = false }
-scirs2-sparse = { version = "0.6.2", path = "./scirs2-sparse" }
-scirs2-spatial = { version = "0.6.2", path = "./scirs2-spatial" }
+scirs2-core = { version = "0.6.3", path = "./scirs2-core", default-features = false }
+scirs2 = { version = "0.6.3", path = "./scirs2", default-features = false }
+scirs2-linalg = { version = "0.6.3", path = "./scirs2-linalg", default-features = false }
+scirs2-integrate = { version = "0.6.3", path = "./scirs2-integrate", default-features = false }
+scirs2-interpolate = { version = "0.6.3", path = "./scirs2-interpolate", default-features = false }
+scirs2-optimize = { version = "0.6.3", path = "./scirs2-optimize", default-features = false }
+scirs2-fft = { version = "0.6.3", path = "./scirs2-fft", default-features = false }
+scirs2-stats = { version = "0.6.3", path = "./scirs2-stats", default-features = false }
+scirs2-special = { version = "0.6.3", path = "./scirs2-special", default-features = false }
+scirs2-signal = { version = "0.6.3", path = "./scirs2-signal", default-features = false }
+scirs2-sparse = { version = "0.6.3", path = "./scirs2-sparse" }
+scirs2-spatial = { version = "0.6.3", path = "./scirs2-spatial" }
 
 # Advanced modules
-scirs2-cluster = { version = "0.6.2", path = "./scirs2-cluster" }
-scirs2-ndimage = { version = "0.6.2", path = "./scirs2-ndimage" }
-scirs2-io = { version = "0.6.2", path = "./scirs2-io" }
-scirs2-datasets = { version = "0.6.2", path = "./scirs2-datasets", default-features = false }
+scirs2-cluster = { version = "0.6.3", path = "./scirs2-cluster" }
+scirs2-ndimage = { version = "0.6.3", path = "./scirs2-ndimage" }
+scirs2-io = { version = "0.6.3", path = "./scirs2-io" }
+scirs2-datasets = { version = "0.6.3", path = "./scirs2-datasets", default-features = false }
 
 # AI/ML modules
-scirs2-neural = { version = "0.6.2", path = "./scirs2-neural" }
+scirs2-neural = { version = "0.6.3", path = "./scirs2-neural" }
 # scirs2-optim moved to independent OptiRS project
-scirs2-graph = { version = "0.6.2", path = "./scirs2-graph" }
-scirs2-transform = { version = "0.6.2", path = "./scirs2-transform" }
-scirs2-metrics = { version = "0.6.2", path = "./scirs2-metrics", default-features = false }
-scirs2-text = { version = "0.6.2", path = "./scirs2-text" }
-scirs2-vision = { version = "0.6.2", path = "./scirs2-vision" }
-scirs2-series = { version = "0.6.2", path = "./scirs2-series" }
-scirs2-autograd = { version = "0.6.2", path = "./scirs2-autograd" }
-scirs2-wasm = { version = "0.6.2", path = "./scirs2-wasm" }  # WebAssembly bindings
-scirs2-python = { version = "0.6.2", path = "./scirs2-python" }  # Python bindings
-scirs2-symbolic = { version = "0.6.2", path = "./scirs2-symbolic" }  # Symbolic math
-scirs2-symbolic-macros = { version = "0.6.2", path = "./scirs2-symbolic-macros" }  # Proc-macro DSL
+scirs2-graph = { version = "0.6.3", path = "./scirs2-graph" }
+scirs2-transform = { version = "0.6.3", path = "./scirs2-transform" }
+scirs2-metrics = { version = "0.6.3", path = "./scirs2-metrics", default-features = false }
+scirs2-text = { version = "0.6.3", path = "./scirs2-text" }
+scirs2-vision = { version = "0.6.3", path = "./scirs2-vision" }
+scirs2-series = { version = "0.6.3", path = "./scirs2-series" }
+scirs2-autograd = { version = "0.6.3", path = "./scirs2-autograd" }
+scirs2-wasm = { version = "0.6.3", path = "./scirs2-wasm" }  # WebAssembly bindings
+scirs2-python = { version = "0.6.3", path = "./scirs2-python" }  # Python bindings
+scirs2-symbolic = { version = "0.6.3", path = "./scirs2-symbolic" }  # Symbolic math
+scirs2-symbolic-macros = { version = "0.6.3", path = "./scirs2-symbolic-macros" }  # Proc-macro DSL
 # OxiCUDA pure-Rust CUDA crates — used by scirs2-fft's optional, off-by-default `cuda` feature.
 # oxicuda 0.4.0 is now published on crates.io; pinned via version (no local path pin needed).
 # Only the three crates scirs2-fft names directly are declared here; oxicuda-launch/-ptx/-blas are pulled transitively.
-oxicuda-driver = "0.5.1"
-oxicuda-memory = "0.5.1"
-oxicuda-fft = "0.5.1"
-oxicuda-ptx = "0.5.1"
-oxicuda-launch = "0.5.1"
-oxicuda-blas = "0.5.1"
-oxicuda-solver = "0.5.1"
-oxicuda-sparse = "0.5.1"
-oxicuda-dnn = "0.5.1"
-oxicuda-nvrtc = "0.5.1"
+oxicuda-driver = "0.5.3"
+oxicuda-memory = "0.5.3"
+oxicuda-fft = "0.5.3"
+oxicuda-ptx = "0.5.3"
+oxicuda-launch = "0.5.3"
+oxicuda-blas = "0.5.3"
+oxicuda-solver = "0.5.3"
+oxicuda-sparse = "0.5.3"
+oxicuda-dnn = "0.5.3"
+oxicuda-nvrtc = "0.5.3"
 
 
 [profile.release]
@@ -437,9 +437,22 @@ codegen-units = 16  # More codegen units for faster compilation and WASM safety
 
 [profile.dev]
 opt-level = 0  # Reduced to prevent memory exhaustion
-debug = 1  # Line numbers only (not full debug info=2) - reduces binary size significantly
-split-debuginfo = "packed"  # Separate debug info into .dwp files (Linux/CUDA optimization)
-incremental = true  # Keep incremental compilation but consider cleaning periodically
+# debug = 0 does NOT remove the PDB on windows-msvc -- the linker always writes one
+# (public symbols + section info) -- but it roughly halves it by dropping source-level
+# debug info. Measured on scirs2-core's lib test binary: 144.8 MB -> 67.4 MB.
+# PDB writing is what makes the linker hold GBs of RAM per link; with ~300 test
+# binaries linked at high parallelism on a 16 GB machine that was the main cause of
+# swapping. Add -Clink-arg=/DEBUG:NONE to drop the PDB entirely, at the cost of
+# losing function names in panic backtraces.
+# Set CARGO_PROFILE_DEV_DEBUG=1 / CARGO_PROFILE_TEST_DEBUG=1 when you need line
+# numbers in a backtrace.
+debug = 0
+# split-debuginfo intentionally unset: on windows-msvc "packed" (PDB) is the only
+# supported value, so the option was a no-op here despite the Linux-oriented comment.
+# incremental = false: the incremental cache was 35.7 GB of a 58.4 GB target/ dir,
+# it does nothing for full `cargo nextest run` sweeps, and the extra codegen units
+# it forces make linking slower.
+incremental = false
 
 # Disable debug info for all dependencies to reduce target/ size dramatically
 [profile.dev.package."*"]
@@ -448,8 +461,8 @@ strip = "debuginfo"
 
 [profile.test]
 opt-level = 0  # Reduced to prevent memory exhaustion during compilation
-debug = 1  # Line numbers only - reduces test binary size
-split-debuginfo = "packed"
+debug = 0  # No PDBs; see [profile.dev] for why. Override with CARGO_PROFILE_TEST_DEBUG=1.
+# incremental is inherited from [profile.dev] (false).
 
 # Disable debug info for dependencies in test builds
 [profile.test.package."*"]

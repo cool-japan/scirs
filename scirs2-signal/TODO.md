@@ -1,6 +1,8 @@
 # scirs2-signal TODO
 
-## Status: v0.6.2 (released, 2026-07-22)
+## Status: v0.6.3 (released, 2026-07-27)
+
+**0.6.3:** fixed two correctness bugs in `eigenvalues_francis_qr` (`src/phase_estimation/esprit.rs`, used by ESPRIT phase estimation)'s double-shift QR that let eigenvalues silently drift from the input matrix's — a wrong bulge-term index and a right-multiply loop one row short. Also fixed `n4sid_estimate` (`src/system_identification/n4sid.rs`)'s least-squares solve, which used normal equations and silently returned bogus huge-norm solutions for rank-deficient (non-persistently-exciting) inputs instead of erroring — both solves now go through an SVD-based minimum-norm solve (new `pseudoinverse_product`). Verified by code review and the (unchanged) test suite below; not exercised under Windows CI. See `CHANGELOG.md` `[0.6.3]` for full detail.
 
 scirs2-signal's own test suite (freshly re-run 2026-07-15): 1489 tests pass, 2 skipped, 0 failed with default features; 1489 tests pass, 2 skipped, 0 failed with `--all-features`. Fixed a real `waverec` bug (`dwt/multiscale.rs`): it was reconstructing to 2x the correct length for wavelet filters with more than 2 taps; the DWT round-trip test now asserts genuine perfect reconstruction instead of just checking non-empty output.
 

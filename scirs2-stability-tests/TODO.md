@@ -1,6 +1,8 @@
 # scirs2-stability-tests TODO
 
-## Status: v0.6.2 (2026-07-22)
+## Status: v0.6.3 (2026-07-27)
+
+No scirs2-stability-tests-specific changes shipped in 0.6.3; all content below (verified as of 2026-07-22) remains accurate.
 
 ## Purpose
 

@@ -15,17 +15,17 @@
 
 ```toml
 [dependencies]
-scirs2-core = "0.6.2"
+scirs2-core = "0.6.3"
 ```
 
 With optional feature flags:
 
 ```toml
 [dependencies]
-scirs2-core = { version = "0.6.2", features = ["validation", "simd", "parallel", "gpu"] }
+scirs2-core = { version = "0.6.3", features = ["validation", "simd", "parallel", "gpu"] }
 ```
 
-## Features (v0.6.2)
+## Features (v0.6.3)
 
 ### Performance
 
@@ -236,6 +236,15 @@ let d2 = f64::simd_distance_squared_euclidean(&a.view(), &b.view());
 - `training_history(&self) -> &[f64]` on `NormalizingFlow`, `ScoreBasedDiffusion`, `EnergyBasedModel`, and `NeuralPosteriorEstimation` (`src/random/neural_sampling.rs`) — per-epoch average loss recorded during `train()`.
 - Real GPU runtime detection feeding `PlatformCapabilities` (`src/simd_ops/gpu_detection.rs`): CUDA is probed via dynamic `libcuda`/`nvcuda` loading plus `cuInit`/`cuDeviceGetCount`; Metal is probed via the `metal` feature or a documented platform heuristic. Replaces the previous stub.
 - `ProductionProfiler::export_data()` (`src/profiling/production.rs`) now returns a real JSON snapshot (config, resource utilization, active workload IDs) instead of a placeholder.
+
+## v0.6.3 — Windows Compatibility Fix
+
+Two Windows-only bugs were fixed in this release:
+
+- **Real memory-profiling backend for Windows** — `profiling::memory_profiling` (`src/profiling/memory_profiling.rs`) gained a `K32GetProcessMemoryInfo` (kernel32)-backed backend reporting actual process memory use; it previously fell back to an atomic-tracking estimate on Windows.
+- **`CrossPlatformValidator::validate_windows_path` drive-letter fix** (`src/validation/cross_platform.rs`) — the validator incorrectly flagged the drive-letter colon in any absolute Windows path (e.g. `C:\Users\...`) as an invalid character; it now strips the leading `X:` drive specifier before scanning for `<>:"|?*`.
+
+Verified by code review and the existing macOS/Linux test suite (unchanged pass counts above); not exercised under a Windows CI run.
 
 ## v0.6.2 — Pure Rust Dependency Removals
 

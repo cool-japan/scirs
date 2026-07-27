@@ -52,6 +52,7 @@ where
         Self {
             config,
             memory_pools,
+            allocation_strategies: Arc::new(RwLock::new(HashMap::new())),
             cache_manager,
             numa_manager,
             predictive_engine,

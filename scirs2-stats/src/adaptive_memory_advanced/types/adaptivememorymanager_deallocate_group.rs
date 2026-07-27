@@ -41,9 +41,30 @@ where
             AllocationStrategy::ZeroCopy => self.deallocate_zero_copy(ptr, size),
         }
     }
-    /// Infer deallocation strategy from pointer
+    /// Infer deallocation strategy from pointer.
+    ///
+    /// Looks up (and forgets) the strategy recorded by `allocate` for this exact
+    /// pointer. Falling back to `self.config.allocation_strategy` — as this used
+    /// to do unconditionally — is wrong whenever the config says `Adaptive`,
+    /// because `allocate` resolves that to a concrete strategy such as `Pool`.
+    /// Pool memory then got handed to `dealloc` with a different size and
+    /// alignment than it was allocated with, corrupting the heap.
     pub fn infer_deallocation_strategy(&self, ptr: *mut u8, size: usize) -> AllocationStrategy {
-        self.config.allocation_strategy
+        if let Some(strategy) = self
+            .allocation_strategies
+            .write()
+            .expect("Operation failed")
+            .remove(&(ptr as usize))
+        {
+            return strategy;
+        }
+
+        // Pointer we never handed out (or already freed): fall back to the
+        // configured strategy, resolving `Adaptive` the way `allocate` would.
+        match self.config.allocation_strategy {
+            AllocationStrategy::Adaptive => AllocationStrategy::System,
+            strategy => strategy,
+        }
     }
     /// System deallocation
     pub fn deallocate_system(&self, ptr: *mut u8, size: usize) -> StatsResult<()> {

@@ -1,6 +1,8 @@
 # scirs2-core Development TODO
 
-## Status: v0.6.2 (released 2026-07-22)
+## Status: v0.6.3 (released 2026-07-27)
+
+**0.6.3:** two Windows-only fixes — `profiling::memory_profiling` (`src/profiling/memory_profiling.rs`) gained a `K32GetProcessMemoryInfo` (kernel32)-backed real memory-profiling backend for Windows (previously an atomic-tracking estimate fallback), and `CrossPlatformValidator::validate_windows_path` (`src/validation/cross_platform.rs`) no longer flags the drive-letter colon in an absolute Windows path (e.g. `C:\Users\...`) as an invalid character — it now strips the leading `X:` drive specifier before scanning for `<>:"|?*`. Verified by code review and the (unchanged) test suite below; not exercised under Windows CI. See `CHANGELOG.md` `[0.6.3]` for full detail.
 
 **0.6.2:** removed three C/C++ dependencies — `libnuma` (the `NumaTopology::discover()` FFI block; NUMA topology now read from the existing pure-Rust `/sys` sysfs parser unconditionally, `libnuma` Cargo feature kept as an inert no-op alias), `tracy-client` (the `tracy` feature is now pure Rust; `TracyClient` gained `export_chrome_trace(path)`, a Chrome Trace Event Format / Perfetto-compatible JSON exporter), and `opencl3` (OpenCL now loads via runtime `dlopen` instead of build-time linking; `gpu/backends/opencl.rs` split into `opencl/{mod.rs, ffi.rs, memory_pool.rs}`). See `CHANGELOG.md` `[0.6.2]` for full detail.
 
@@ -181,6 +183,12 @@ All items listed under v0.4.0 Planned were implemented during Waves 1-39 and are
   - `par_map_chunks<T, U, F>(input, chunk_size, f)` — rayon-backed with NUMA-locality thread pool on Linux; plain rayon fallback on Darwin/WASM.
   - Files: `src/parallel/numa/mod.rs`, `src/parallel/numa/par_map_chunks.rs`
   - Tests: 8 in `tests/parallel_numa_par_map_chunks_tests.rs`
+
+## v0.6.3 — Windows Compatibility Fix (2026-07-27)
+
+- [x] **Real Windows memory-profiling backend** — `profiling::memory_profiling` (`src/profiling/memory_profiling.rs`) gained a `K32GetProcessMemoryInfo` (kernel32)-backed backend for Windows; it previously fell back to an atomic-tracking estimate on that platform.
+- [x] **Fixed `CrossPlatformValidator::validate_windows_path` drive-letter false positive** (`src/validation/cross_platform.rs`) — the validator incorrectly flagged the drive-letter colon in any absolute Windows path (e.g. `C:\Users\...`) as an invalid character; it now strips the leading `X:` drive specifier before scanning for `<>:"|?*`.
+- Verified by code review and the existing macOS/Linux workspace test run; not exercised under Windows CI.
 
 ## v0.6.2 — Pure Rust Dependency Removals (2026-07-22)
 

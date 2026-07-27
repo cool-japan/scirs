@@ -1,3 +1,16 @@
+# Cap build parallelism. The machine has 8 cores / 16 threads but only 15.6 GB RAM,
+# and linking ~300 test binaries at -j16 drove it into the pagefile (peak 6.7 GB).
+# Linking is the memory-hungry phase and cargo has no separate link-job throttle,
+# so the global job count is the only lever.
+[build]
+jobs = 6
+
+# Use the bundled rust-lld instead of MSVC link.exe: substantially faster and it
+# holds far less memory per link. Verified working on this toolchain (1.97.1).
+# If a native/CUDA dependency ever fails to link, comment this out to fall back.
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"
+
 # WASM target configuration
 # getrandom 0.3.x requires a cfg flag (not just a feature) for wasm32 support
 [target.wasm32-unknown-unknown]

@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-transform.svg)](https://crates.io/crates/scirs2-transform)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-transform)](https://docs.rs/scirs2-transform)
-[![Version](https://img.shields.io/badge/version-0.6.2-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.3-green)]()
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
 Data transformation, dimensionality reduction, and feature engineering library for machine learning in Rust, part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
@@ -151,14 +151,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-transform = "0.6.2"
+scirs2-transform = "0.6.3"
 ```
 
 Parallel (Rayon-based) processing is provided unconditionally via `scirs2-core` — there is no separate `parallel` feature to enable. With SIMD and GPU-dispatch features:
 
 ```toml
 [dependencies]
-scirs2-transform = { version = "0.6.2", features = ["simd", "gpu"] }
+scirs2-transform = { version = "0.6.3", features = ["simd", "gpu"] }
 ```
 
 ### Normalization
@@ -284,6 +284,8 @@ Rayon-based parallel processing is always compiled in via `scirs2-core` and is n
 ## Testing
 
 493 tests passing (default features) / 532 tests passing (all-features, `cargo nextest run -p scirs2-transform --all-features`), plus doctests. 0 `todo!()`/`unimplemented!()` markers in `src/` — see Known Issues in `TODO.md` for the silent-stub finding (`distributed::check_node_health`) that keeps this crate at "Partial" status despite the clean test run.
+
+**v0.6.3:** fixed `AdvancedMemoryPool::prewarm_common_sizes` (`src/performance.rs`), which eagerly pre-allocated up to ~5.5 GB of spare buffers just to construct an `AdvancedPCA` (Linux's overcommit hid the cost; Windows backed the whole reservation up front and aborted the process). Pre-warming is now capped by a 64 MB total budget spent smallest-size-first.
 
 ## Related Crates
 

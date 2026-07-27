@@ -5,11 +5,11 @@
 [![Documentation](https://img.shields.io/docsrs/scirs2-special)](https://docs.rs/scirs2-special)
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
-**Special mathematical functions for the SciRS2 scientific computing library (v0.6.2).**
+**Special mathematical functions for the SciRS2 scientific computing library (v0.6.3).**
 
 `scirs2-special` provides a comprehensive collection of special mathematical functions modeled after SciPy's `special` module. Past releases extended the classical function set with advanced additions: Mathieu functions, Coulomb wave functions, spherical harmonics with Wigner/Gaunt symbols, Jacobi theta functions, Weierstrass elliptic functions, parabolic cylinder functions, Fox H-functions, Appell hypergeometric functions, Meixner-Pollaczek polynomials, Heun functions, polylogarithm, q-analogs, number-theoretic functions, and information-theoretic functions — all as pure Rust.
 
-## Features (v0.6.2)
+## Features (v0.6.3)
 
 ### Classical Special Functions
 
@@ -193,14 +193,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-special = "0.6.2"
+scirs2-special = "0.6.3"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-special = { version = "0.6.2", features = ["parallel"] }
+scirs2-special = { version = "0.6.3", features = ["parallel"] }
 ```
 
 ### Classical functions

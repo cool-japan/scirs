@@ -8,6 +8,12 @@ This file tracks every work item from v0.4.4 onward. The item template (Why / De
 
 ---
 
+## Test status as of 2026-07-27 (v0.6.3)
+
+**Windows compatibility fix, not a new feature:** `EmlNode` (`src/eml/tree.rs`) gained an explicit iterative `Drop` impl. The compiler-derived recursive `Drop` could overflow the stack when a deep expression tree (e.g. a 10,000-node chain) went out of scope — it fit within Linux's 8 MB default thread stack but not Windows' 1 MB default (`STATUS_STACK_OVERFLOW`). No other functional changes to `scirs2-symbolic` landed in the 0.6.3 release; see the workspace `CHANGELOG.md` `[0.6.3]` entry for the release-wide picture. Verified by code review and the existing macOS/Linux test suite (unchanged pass counts below); not exercised under Windows CI.
+
+---
+
 ## Test status as of 2026-07-22 (v0.6.2)
 
 **Dependency hardening, not a new feature:** the `jit` feature's Cranelift dependency was bumped `0.133` → `0.134` to fix a `memmap2` unsoundness advisory (RUSTSEC-2026-0186). This required one source change — `FunctionBuilder::finalize()` gained a required argument in the new Cranelift API — already applied in `compile::to_jit`. Verified: 21/21 JIT tests pass under the `jit` feature. No other functional changes to `scirs2-symbolic` landed in the 0.6.2 release; see the workspace `CHANGELOG.md` `[0.6.2]` entry for the release-wide picture.
@@ -758,7 +764,7 @@ The following items are explicitly out of scope for `scirs2-symbolic`. Future ag
 
 ---
 
-*Last updated: 2026-07-22 (0.6.2 dependency hardening: Cranelift 0.133 → 0.134 bump for RUSTSEC-2026-0186; prior update 2026-07-15, post-0.6.1 e-graph extraction correctness fix; prior update 2026-05-15, Waves 59–70 + plan blocks 2026-05-06). Branch: `0.6.2`. Maintainer: COOLJAPAN OU (Team Kitasan). Architecture: clean-room, SciRS2-native EML implementation. Substrate guidance: oxieml v0.1.1 (pinned in `[dev-dependencies]` for parity testing only); paper reference arXiv:2603.21852 v2 (2026-04-04). Phase 2: 15/15. Phase 3: 15/12+. Phase 4: 9/N.*
+*Last updated: 2026-07-27 (0.6.3 Windows compatibility fix: `EmlNode` gained an explicit iterative `Drop` impl to prevent a stack overflow on deep expression trees going out of scope; prior update 2026-07-22, 0.6.2 dependency hardening: Cranelift 0.133 → 0.134 bump for RUSTSEC-2026-0186; prior update 2026-07-15, post-0.6.1 e-graph extraction correctness fix; prior update 2026-05-15, Waves 59–70 + plan blocks 2026-05-06). Branch: `0.6.3`. Maintainer: COOLJAPAN OU (Team Kitasan). Architecture: clean-room, SciRS2-native EML implementation. Substrate guidance: oxieml v0.1.1 (pinned in `[dev-dependencies]` for parity testing only); paper reference arXiv:2603.21852 v2 (2026-04-04). Phase 2: 15/15. Phase 3: 15/12+. Phase 4: 9/N.*
 
 *Note: as of 2026-05-03, oxieml's `Cargo.toml` has hardcoded absolute paths for `tensorlogic-ir`, `scirs2-core`, `oxicode` — this is an upstream oxieml issue, separate from this crate.*
 

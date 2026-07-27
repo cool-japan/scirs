@@ -1,6 +1,9 @@
 # scirs2-datasets TODO
 
-## Status: v0.3.4 Released (March 18, 2026) — v0.6.2 Released (2026-07-22)
+## Status: v0.3.4 Released (March 18, 2026) — v0.6.3 Released (2026-07-27)
+
+Untouched by this release's fix work (no datasets-specific changes shipped in 0.6.3); the 0.6.2
+change notes and audit information below remain accurate since the crate source is unchanged.
 
 **0.6.2**: `hdf5_dataset.rs` now reads through the new oxih5-backed HDF5 module (see scirs2-io's `[0.6.2]` CHANGELOG entry for the underlying backend change) instead of the old `hdf5_lite`/C-`hdf5` paths. New `tls.rs` installs the pure-Rust `oxitls-rustcrypto-provider` TLS crypto provider before this crate's HTTP/HTTPS requests (`ExternalClient`, cache downloads) — needed because the workspace `reqwest`/`ureq` dependencies now build with `rustls-no-provider` instead of the C `aws-lc-rs`/`ring` backends.
 

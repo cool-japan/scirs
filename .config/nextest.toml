@@ -13,6 +13,16 @@
 [test-groups.cuda-gpu]
 max-threads = 1
 
+# Each trybuild harness shells out to its own nested `cargo build` against a
+# sandbox crate under `target/tests/trybuild/`. Two of them exist
+# (`compile_fail_tests` in scirs2-stability-tests and `compile_fail_doc` in the
+# scirs2 facade), and nextest is free to schedule them at the same time — two
+# concurrent cargo invocations contending for the same `target/` lock, each
+# reporting a build failure as a stderr mismatch. Serializing the group removes
+# the interaction; both harnesses pass standalone.
+[test-groups.trybuild]
+max-threads = 1
+
 [store]
 # Directory where nextest stores its metadata
 dir = "target/.nextest"
@@ -103,6 +113,7 @@ threads-required = 2
 filter = 'binary(compile_fail_tests) | binary(compile_fail_doc)'
 slow-timeout = { period = "600s", terminate-after = 3 }
 threads-required = 4
+test-group = 'trybuild'
 
 [[profile.default.overrides]]
 # 4D hypercube Voronoi tests (Bowyer-Watson 16-point triangulation) are slow;
