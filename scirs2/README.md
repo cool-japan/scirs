@@ -3,11 +3,13 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2.svg)](https://crates.io/crates/scirs2)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2)](https://docs.rs/scirs2)
-[![Version](https://img.shields.io/badge/version-0.6.3-green.svg)]()
+[![Version](https://img.shields.io/badge/version-0.6.4-green.svg)]()
 
 `scirs2` is the **all-in-one convenience meta-crate** for the SciRS2 scientific computing ecosystem. It re-exports the complete set of SciRS2 sub-crates through a unified interface, so you can depend on a single crate and enable only the domains you need via Cargo feature flags.
 
 If you prefer minimal compile times and finer dependency control, use the individual sub-crates directly (e.g., `scirs2-linalg`, `scirs2-stats`). If you want the full ecosystem available in one dependency, use this crate.
+
+**v0.6.4:** resumes publishing after being skipped at 0.6.3 — this crate's optional `scirs2-wasm` dependency needed a resolvable `0.6.3` release that didn't exist (an `oxifft` wasm32 `compile_error!` blocked it), which blocked this meta-crate's own publish in turn. Both catch up together at 0.6.4.
 
 ## Installation
 
@@ -15,30 +17,30 @@ Add the meta-crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2 = "0.6.3"
+scirs2 = "0.6.4"
 ```
 
 With only the sub-crates you need (recommended for production):
 
 ```toml
 [dependencies]
-scirs2 = { version = "0.6.3", default-features = false, features = ["linalg", "stats", "optimize"] }
+scirs2 = { version = "0.6.4", default-features = false, features = ["linalg", "stats", "optimize"] }
 ```
 
 For the complete ecosystem:
 
 ```toml
 [dependencies]
-scirs2 = { version = "0.6.3", features = ["full"] }
+scirs2 = { version = "0.6.4", features = ["full"] }
 ```
 
 Or depend on individual sub-crates directly for fastest compile times:
 
 ```toml
 [dependencies]
-scirs2-core     = "0.6.3"
-scirs2-linalg   = "0.6.3"
-scirs2-stats    = "0.6.3"
+scirs2-core     = "0.6.4"
+scirs2-linalg   = "0.6.4"
+scirs2-stats    = "0.6.4"
 ```
 
 ## Feature Flags
@@ -266,7 +268,7 @@ scirs2 (meta-crate, re-exports all)
 
 ## Performance
 
-SciRS2 v0.6.3 delivers production-grade performance:
+SciRS2 v0.6.4 delivers production-grade performance:
 
 - **SIMD Acceleration**: AVX2/AVX-512/NEON paths for 3-12x speedups on element-wise operations
 - **GPU Backends**: Metal (Apple Silicon), with CUDA and ROCm in development

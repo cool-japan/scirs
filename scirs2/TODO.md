@@ -4,7 +4,7 @@
 
 ## Purpose
 
-The `scirs2` meta-crate is the all-in-one convenience entry-point for the SciRS2 ecosystem. It re-exports all sub-crates via Cargo feature flags, exposing them as unified top-level modules. Users who want a single dependency add `scirs2 = "0.6.3"` instead of listing each sub-crate individually.
+The `scirs2` meta-crate is the all-in-one convenience entry-point for the SciRS2 ecosystem. It re-exports all sub-crates via Cargo feature flags, exposing them as unified top-level modules. Users who want a single dependency add `scirs2 = "0.6.4"` instead of listing each sub-crate individually.
 
 ---
 

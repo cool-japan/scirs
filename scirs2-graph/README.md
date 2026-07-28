@@ -170,14 +170,14 @@ Use scirs2-graph when you need to:
 
 ```toml
 [dependencies]
-scirs2-graph = "0.6.3"
+scirs2-graph = "0.6.4"
 ```
 
 For parallel processing support:
 
 ```toml
 [dependencies]
-scirs2-graph = { version = "0.6.3", features = ["parallel"] }
+scirs2-graph = { version = "0.6.4", features = ["parallel"] }
 ```
 
 ## Quick Start

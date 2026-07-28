@@ -148,7 +148,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.6.3"
+scirs2-stats = "0.6.4"
 ```
 
 ### Basic Descriptive Statistics

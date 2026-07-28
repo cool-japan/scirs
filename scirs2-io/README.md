@@ -125,14 +125,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.6.3"
+scirs2-io = "0.6.4"
 ```
 
 To enable optional feature groups:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.6.3", features = ["async", "parquet"] }
+scirs2-io = { version = "0.6.4", features = ["async", "parquet"] }
 ```
 
 ### Reading a CSV file

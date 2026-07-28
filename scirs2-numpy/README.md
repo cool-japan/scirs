@@ -57,7 +57,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-numpy = "0.6.3"
+scirs2-numpy = "0.6.4"
 # or, for local development inside the SciRS2 workspace:
 # scirs2-numpy = { path = "../scirs2-numpy" }
 pyo3 = { version = "0.29", features = ["extension-module"] }
@@ -168,7 +168,7 @@ fn scale_inplace<'py>(
 ### nalgebra Integration (Optional Feature)
 
 ```rust
-// Cargo.toml: scirs2-numpy = { version = "0.6.3", features = ["nalgebra-support"] }
+// Cargo.toml: scirs2-numpy = { version = "0.6.4", features = ["nalgebra-support"] }
 use pyo3::prelude::*;
 use scirs2_numpy::{PyArray2, PyArrayMethods};
 

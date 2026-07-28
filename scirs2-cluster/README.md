@@ -110,14 +110,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-cluster = "0.6.3"
+scirs2-cluster = "0.6.4"
 ```
 
 Rayon-based parallel processing (parallel K-means, parallel linkage, etc.) is included by default — no extra feature flag is required. To additionally enable SIMD-accelerated distance computations:
 
 ```toml
 [dependencies]
-scirs2-cluster = { version = "0.6.3", features = ["simd"] }
+scirs2-cluster = { version = "0.6.4", features = ["simd"] }
 ```
 
 ### K-means Clustering

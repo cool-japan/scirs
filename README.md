@@ -35,9 +35,9 @@ cargo build --release
 
 SciRS2 provides a complete ecosystem for scientific computing, data analysis, and machine learning in Rust, with production-grade quality and performance that rivals or exceeds traditional C/Fortran-based libraries.
 
-## 🎉 Release Status: v0.6.3 (2026-07-27)
+## 🎉 Release Status: v0.6.4 (2026-07-28)
 
-**Latest Stable Release** - v0.6.3 (July 27, 2026) 🚀
+**Latest Stable Release** - v0.6.4 (July 28, 2026) 🚀
 
 - ✅ **37,442 Tests (all-features) / 35,668 (default-features) + 5,000 Doc-Tests**: Full workspace-wide test suite via `cargo nextest`, across 29 workspace crates
 - ✅ **3.9M+ Lines of Rust Code**: Comprehensive coverage of scientific computing and AI/ML
@@ -46,7 +46,14 @@ SciRS2 provides a complete ecosystem for scientific computing, data analysis, an
 - ✅ **Near-complete implementation**: Minimal stubs remaining across all modules
 - ✅ **Pure Rust by Default**: OxiBLAS, OxiFFT, oxiarc-* - zero C/Fortran dependencies
 - ✅ **Zero Warnings Policy**: Clean build with 0 compilation errors, 0 clippy warnings, 0 rustdoc warnings
-- 📅 **Release Date**: July 27, 2026
+- 📅 **Release Date**: July 28, 2026
+
+**What's New in 0.6.4** — wasm32 Follow-Up Fix:
+
+- **oxifft wasm32 threading fix**: `oxifft` 0.4.1 added a hard `compile_error!` when its `threading` (rayon) feature is active on `wasm32` targets. `scirs2-fft` and `scirs2-signal` now declare `oxifft` via target-gated `[target.'cfg(...)'.dependencies]` tables — full defaults off-wasm, `default-features = false, features = ["std"]` on `wasm32` — resolving the error.
+- **scirs2-wasm and scirs2 (meta-crate) resume publishing**: both were skipped from 0.6.3 because the fix above landed too late to affect the `scirs2-fft`/`scirs2-signal` artifacts crates.io already had at that version. They catch up at 0.6.4.
+
+See [CHANGELOG.md](CHANGELOG.md) `[0.6.4]` for the complete list.
 
 **What's New in 0.6.3** — Windows-Compatibility Hardening:
 
@@ -441,7 +448,7 @@ Profiler::global().lock().unwrap().print_report();
 
 Each module has its own README with detailed documentation and is available on crates.io.
 
-### Complete Crate Reference (v0.6.3)
+### Complete Crate Reference (v0.6.4)
 
 | Crate | Description | docs.rs |
 |-------|-------------|---------|
@@ -601,7 +608,7 @@ SciRS2 follows the COOLJAPAN Pure Rust Policy. All default dependencies are 100%
 
 ### System Dependencies
 
-**v0.6.3 uses Pure Rust dependencies only - No system libraries required!** 🎉
+**v0.6.4 uses Pure Rust dependencies only - No system libraries required!** 🎉
 
 SciRS2 is **100% Pure Rust** with OxiBLAS (Pure Rust BLAS/LAPACK implementation). You don't need to install:
 - ❌ OpenBLAS
@@ -623,7 +630,7 @@ SciRS2 and all its modules are available on [crates.io](https://crates.io/crates
 ```toml
 # Add the main integration crate for all functionality
 [dependencies]
-scirs2 = "0.6.3"
+scirs2 = "0.6.4"
 ```
 
 Or include only the specific modules you need:
@@ -631,16 +638,16 @@ Or include only the specific modules you need:
 ```toml
 [dependencies]
 # Core utilities
-scirs2-core = "0.6.3"
+scirs2-core = "0.6.4"
 
 # Scientific computing modules
-scirs2-linalg = "0.6.3"
-scirs2-stats = "0.6.3"
-scirs2-optimize = "0.6.3"
+scirs2-linalg = "0.6.4"
+scirs2-stats = "0.6.4"
+scirs2-optimize = "0.6.4"
 
 # AI/ML modules
-scirs2-neural = "0.6.3"
-scirs2-autograd = "0.6.3"
+scirs2-neural = "0.6.4"
+scirs2-autograd = "0.6.4"
 # Note: For ML optimization algorithms, use the independent OptiRS project
 ```
 
@@ -758,7 +765,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Platform Compatibility
 
-SciRS2 v0.6.3 (July 27, 2026) has been tested on the following platforms:
+SciRS2 v0.6.4 (July 28, 2026) has been tested on the following platforms:
 
 ### ✅ Fully Supported Platforms
 
@@ -807,7 +814,7 @@ cargo install cargo-nextest
 cargo nextest run --nff --all-features
 ```
 
-## Current Status (v0.6.3 - Released July 27, 2026)
+## Current Status (v0.6.4 - Released July 28, 2026)
 
 ### 🎉 Production-Ready Features
 
@@ -848,7 +855,7 @@ cargo nextest run --nff --all-features
 - ✨ **Statistics**: Conformal prediction (CQR/RAPS/Mondrian), Bayesian NNs, INLA, ADVI/Laplace/SWAG
 - ✨ **Zero Warnings**: 60+ clippy warnings fixed, 0 errors, 0 warnings, 0 rustdoc warnings
 
-### Stable Modules (Production Ready — v0.6.3)
+### Stable Modules (Production Ready — v0.6.4)
 
 All 29 workspace crates are production-ready with comprehensive test coverage (37,442 tests all-features, 35,668 default-features, + 5,000 doc-tests).
 
@@ -907,10 +914,10 @@ All SciRS2 modules are available on crates.io. Add the modules you need to your 
 
 ```toml
 [dependencies]
-scirs2 = "0.6.3"  # Core library with all modules
+scirs2 = "0.6.4"  # Core library with all modules
 # Or individual modules:
-scirs2-linalg = "0.6.3"  # Linear algebra
-scirs2-stats = "0.6.3"   # Statistics
+scirs2-linalg = "0.6.4"  # Linear algebra
+scirs2-stats = "0.6.4"   # Statistics
 # ... and more
 ```
 
@@ -985,9 +992,9 @@ For detailed development plans, upcoming features, and contribution opportunitie
 
 ## Development Branch Status
 
-**Current Branch**: `0.6.3` (July 27, 2026)
+**Current Branch**: `0.6.4` (July 28, 2026)
 
-**Release Status**: All major features through v0.6.3 have been implemented and tested (Waves 53–78, plus the 0.6.0 CUDA-decentralization, 0.6.1 hardening, 0.6.2 Pure-Rust dependency-elimination, and 0.6.3 Windows-compatibility hardening cycles):
+**Release Status**: All major features through v0.6.4 have been implemented and tested (Waves 53–78, plus the 0.6.0 CUDA-decentralization, 0.6.1 hardening, 0.6.2 Pure-Rust dependency-elimination, 0.6.3 Windows-compatibility hardening, and 0.6.4 wasm32 follow-up fix cycles):
 - ✅ 29 workspace crates fully implemented
 - ✅ 78 waves of development completed
 - ✅ Flash Attention 2, QAT, ONNX export, LoRA/DoRA/GPTQ in neural
@@ -996,7 +1003,7 @@ For detailed development plans, upcoming features, and contribution opportunitie
 - ✅ NUMA-aware `par_map_chunks`, lock-free data structures, GpuNdarray<f32>
 - ✅ WebGPU/WASM backend, conformal prediction, Bayesian NNs
 - ✅ Complete EML-IR CAS: canonicalize, e-graphs, SMT (OxiZ), JIT, GPU eval, diffgeom, ALiBi
-- ✅ Pure-Rust `oxicuda-*` CUDA backend across 10 crates (0.6.0), real model-serving codegen + DLPack safety fixes (0.6.1), hdf5/tracy/libnuma/opencl3 C-dependency removal (0.6.2), Windows heap-corruption/stack-overflow/path-validation fixes (0.6.3)
+- ✅ Pure-Rust `oxicuda-*` CUDA backend across 10 crates (0.6.0), real model-serving codegen + DLPack safety fixes (0.6.1), hdf5/tracy/libnuma/opencl3 C-dependency removal (0.6.2), Windows heap-corruption/stack-overflow/path-validation fixes (0.6.3), oxifft wasm32-threading compile-error fix enabling scirs2-wasm/scirs2 meta-crate to resume publishing (0.6.4)
 - ✅ 37,442 tests (all-features) / 35,668 (default-features) + 5,000 doc-tests passing
 - ✅ Zero warnings policy maintained (clippy, rustdoc, compilation)
 - ✅ 80,800+ public API items documented
@@ -1339,7 +1346,7 @@ If you use SciRS2 in your research, please cite:
   author = {{COOLJAPAN OU (Team KitaSan)}},
   year = {2026},
   url = {https://github.com/cool-japan/scirs},
-  version = {0.6.3}
+  version = {0.6.4}
 }
 ```
 

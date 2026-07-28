@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-neural = "0.6.3"
+//! scirs2-neural = "0.6.4"
 //! ```
 //!
 //! ### Building a Simple Neural Network
@@ -261,7 +261,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.6.3**
+//! Current version: **0.6.4**
 
 pub mod activations;
 pub mod activations_minimal;

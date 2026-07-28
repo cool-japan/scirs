@@ -179,7 +179,7 @@ Key design goals:
 
 ```toml
 [dependencies]
-scirs2-series = "0.6.3"
+scirs2-series = "0.6.4"
 ```
 
 ### ARIMA Forecasting

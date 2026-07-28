@@ -15,14 +15,14 @@
 
 ```toml
 [dependencies]
-scirs2-linalg = "0.6.3"
+scirs2-linalg = "0.6.4"
 ```
 
 With optional acceleration:
 
 ```toml
 [dependencies]
-scirs2-linalg = { version = "0.6.3", features = ["simd", "parallel"] }
+scirs2-linalg = { version = "0.6.4", features = ["simd", "parallel"] }
 ```
 
 ## Features (v0.6.3)

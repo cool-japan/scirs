@@ -57,14 +57,14 @@ A dataset loading and generation library for the SciRS2 scientific computing eco
 
 ```toml
 [dependencies]
-scirs2-datasets = "0.6.3"
+scirs2-datasets = "0.6.4"
 ```
 
 With remote dataset download support:
 
 ```toml
 [dependencies]
-scirs2-datasets = { version = "0.6.3", features = ["download"] }
+scirs2-datasets = { version = "0.6.4", features = ["download"] }
 ```
 
 ## Quick Start

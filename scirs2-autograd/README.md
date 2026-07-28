@@ -95,14 +95,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-autograd = "0.6.3"
+scirs2-autograd = "0.6.4"
 ```
 
 For OxiBLAS-accelerated matrix operations (recommended):
 
 ```toml
 [dependencies]
-scirs2-autograd = { version = "0.6.3", features = ["blas"] }
+scirs2-autograd = { version = "0.6.4", features = ["blas"] }
 ```
 
 ### Basic Differentiation

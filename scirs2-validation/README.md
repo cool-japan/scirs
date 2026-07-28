@@ -82,7 +82,7 @@ Enable `serde` / `serde_json` support for richer serialization workflows:
 
 ```toml
 [dependencies]
-scirs2-validation = { version = "0.6.3", features = ["serialization"] }
+scirs2-validation = { version = "0.6.4", features = ["serialization"] }
 ```
 
 ## Quick Start
@@ -91,7 +91,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-validation = "0.6.3"
+scirs2-validation = "0.6.4"
 ```
 
 ### Validating a Distribution Implementation

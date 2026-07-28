@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.4] - 2026-07-28
+
+Follow-up release completing the wasm32 fix from 0.6.3's Windows-hardening cycle. The `oxifft` 0.4.1 bump landed a hard `compile_error!` for its `threading` (rayon) feature on `wasm32` targets; the fix was merged before the `0.6.3` tag was cut, but arrived too late to affect the `scirs2-fft`/`scirs2-signal` artifacts actually published to crates.io at `0.6.3` — those had already gone out with the unfixed manifest, which blocked `scirs2-wasm`'s own publish and, transitively, the `scirs2` meta-crate's. Both were skipped from `0.6.3` as a result; this release publishes them.
+
+### Fixed
+- **scirs2-fft** / **scirs2-signal**: `oxifft`'s `threading` (rayon) feature is no longer enabled by default on `wasm32-unknown-unknown`. Both crates now declare `oxifft` via target-gated `[target.'cfg(...)'.dependencies]` tables — full defaults (`std` + `threading`) off-wasm, `default-features = false, features = ["std"]` on `wasm32` — resolving the hard `compile_error!` introduced by `oxifft` 0.4.1.
+
+### Published
+- **scirs2-wasm** and **scirs2** (the meta-crate) resume publishing at `0.6.4`, catching up after being skipped at `0.6.3` due to the issue above.
+
+---
+
 ## [0.6.3] - 2026-07-27
 
 Windows-compatibility hardening release: seven silent-corruption/crash bugs that only (or mostly) manifested on Windows — heap corruption from alignment-mismatched deallocation, stack overflow from recursive drop glue, process-abort from non-overcommitted eager allocation, and a rejected-by-default path validator — plus two numerical-correctness fixes in signal processing found while testing those paths cross-platform.

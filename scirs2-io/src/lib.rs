@@ -58,7 +58,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-io = "0.6.3"
+//! scirs2-io = "0.6.4"
 //! ```
 //!
 //! ```rust,no_run
@@ -73,7 +73,7 @@
 //! let (headers, data) = read_csv("data.csv", Some(config)).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.6.3 (July 22, 2026)
+//! ## 🔒 Version: 0.6.4 (July 22, 2026)
 //!
 //! ## Modules
 //!

@@ -47,8 +47,8 @@ Add the crate to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-symbolic = "0.6.3"
-scirs2-symbolic-macros = "0.6.3"
+scirs2-symbolic = "0.6.4"
+scirs2-symbolic-macros = "0.6.4"
 ```
 
 Define a rewrite rule with the DSL macros:

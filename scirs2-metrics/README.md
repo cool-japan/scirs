@@ -106,14 +106,14 @@ Comprehensive machine learning evaluation metrics for the SciRS2 scientific comp
 
 ```toml
 [dependencies]
-scirs2-metrics = "0.6.3"
+scirs2-metrics = "0.6.4"
 ```
 
 Selective features:
 
 ```toml
 [dependencies]
-scirs2-metrics = { version = "0.6.3", features = ["neural_common", "plotters_backend"] }
+scirs2-metrics = { version = "0.6.4", features = ["neural_common", "plotters_backend"] }
 ```
 
 Available features:

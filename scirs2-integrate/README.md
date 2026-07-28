@@ -111,14 +111,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-integrate = "0.6.3"
+scirs2-integrate = "0.6.4"
 ```
 
 With optional performance features:
 
 ```toml
 [dependencies]
-scirs2-integrate = { version = "0.6.3", features = ["parallel", "simd"] }
+scirs2-integrate = { version = "0.6.4", features = ["parallel", "simd"] }
 ```
 
 ### Adaptive 1D quadrature

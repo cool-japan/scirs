@@ -121,14 +121,14 @@ Use scirs2-spatial when you need to:
 
 ```toml
 [dependencies]
-scirs2-spatial = "0.6.3"
+scirs2-spatial = "0.6.4"
 ```
 
 For parallel processing:
 
 ```toml
 [dependencies]
-scirs2-spatial = { version = "0.6.3", features = ["parallel"] }
+scirs2-spatial = { version = "0.6.4", features = ["parallel"] }
 ```
 
 ## Quick Start

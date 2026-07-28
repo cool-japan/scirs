@@ -3,12 +3,14 @@
 High-performance scientific computing for JavaScript and TypeScript environments, powered by Rust compiled to WebAssembly. Part of the [SciRS2](https://github.com/cool-japan/scirs) ecosystem.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](../LICENSE)
-[![Version](https://img.shields.io/badge/version-0.6.3-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.4-green)]()
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 ## Overview
 
 `scirs2-wasm` brings the full power of SciRS2's scientific computing capabilities to the browser and Node.js through WebAssembly. It exposes a `wasm-bindgen`-based interface with TypeScript type definitions, SIMD-accelerated operations (where supported by the runtime), and utilities for linear algebra, signal processing, statistics, machine learning, and streaming data processing.
+
+**v0.6.4:** resumes publishing after being skipped at 0.6.3 — `oxifft` 0.4.1 added a hard `compile_error!` for its `threading` (rayon) feature on `wasm32` targets, which `scirs2-fft`/`scirs2-signal` didn't gate for wasm32. Both now declare `oxifft` via target-gated dependencies, so this crate builds again.
 
 ## Features
 

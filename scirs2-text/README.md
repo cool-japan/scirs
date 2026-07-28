@@ -121,7 +121,7 @@ Comprehensive natural language processing and text processing library for the Sc
 
 ```toml
 [dependencies]
-scirs2-text = "0.6.3"
+scirs2-text = "0.6.4"
 ```
 
 ## Quick Start

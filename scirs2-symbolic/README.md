@@ -17,7 +17,7 @@ system (CAS) component designed to complement the numeric capabilities of SciRS2
 
 ```toml
 [dependencies]
-scirs2-symbolic = "0.6.3"
+scirs2-symbolic = "0.6.4"
 ```
 
 ## Quick Start

@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-cluster = "0.6.3"
+//! scirs2-cluster = "0.6.4"
 //! ```
 //!
 //! ```rust
@@ -53,7 +53,7 @@
 //! let (centroids, labels) = kmeans(data.view(), 2, None, None, None, None).expect("operation should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.6.3 (July 22, 2026)
+//! ## 🔒 Version: 0.6.4 (July 22, 2026)
 //!
 //! ## Features
 //!

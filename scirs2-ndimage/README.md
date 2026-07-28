@@ -122,14 +122,14 @@ Use scirs2-ndimage when you need to:
 
 ```toml
 [dependencies]
-scirs2-ndimage = "0.6.3"
+scirs2-ndimage = "0.6.4"
 ```
 
 For parallel processing and SIMD:
 
 ```toml
 [dependencies]
-scirs2-ndimage = { version = "0.6.3", features = ["parallel", "simd"] }
+scirs2-ndimage = { version = "0.6.4", features = ["parallel", "simd"] }
 ```
 
 ## Feature Flags

@@ -151,14 +151,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-transform = "0.6.3"
+scirs2-transform = "0.6.4"
 ```
 
 Parallel (Rayon-based) processing is provided unconditionally via `scirs2-core` — there is no separate `parallel` feature to enable. With SIMD and GPU-dispatch features:
 
 ```toml
 [dependencies]
-scirs2-transform = { version = "0.6.3", features = ["simd", "gpu"] }
+scirs2-transform = { version = "0.6.4", features = ["simd", "gpu"] }
 ```
 
 ### Normalization

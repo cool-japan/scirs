@@ -65,14 +65,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-interpolate = "0.6.3"
+scirs2-interpolate = "0.6.4"
 ```
 
 With optional performance features:
 
 ```toml
 [dependencies]
-scirs2-interpolate = { version = "0.6.3", features = ["simd", "linalg"] }
+scirs2-interpolate = { version = "0.6.4", features = ["simd", "linalg"] }
 ```
 
 ### Cubic spline interpolation

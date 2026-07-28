@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-signal)](https://docs.rs/scirs2-signal)
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.6.3-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.4-green)]()
 
 **Production-ready signal processing for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
@@ -14,6 +14,8 @@ Tested: 1489/1489 tests passing with default features, 1489/1489 with `--all-fea
 
 **v0.6.3:** fixed two correctness bugs — `eigenvalues_francis_qr` (`src/phase_estimation/esprit.rs`, used by ESPRIT phase estimation) had a wrong bulge-term index and a right-multiply loop one row short in its double-shift QR, letting eigenvalues silently drift from the input matrix's; and `n4sid_estimate` (`src/system_identification/n4sid.rs`) now solves its least-squares steps through an SVD-based minimum-norm solve (new `pseudoinverse_product`) instead of normal equations, which previously returned silently-bogus huge-norm solutions for rank-deficient (non-persistently-exciting) inputs instead of erroring.
 
+**v0.6.4:** `oxifft`'s `threading` (rayon) feature is no longer enabled by default on `wasm32-unknown-unknown` — `oxifft` is now declared via target-gated `[target.'cfg(...)'.dependencies]` tables, resolving a hard `compile_error!` that `oxifft` 0.4.1 added for that combination.
+
 ---
 
 ## Overview
@@ -22,7 +24,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ---
 
-## Feature List (v0.6.3)
+## Feature List (v0.6.4)
 
 ### Filter Design & Application
 - **IIR filters**: Butterworth, Chebyshev I/II, Elliptic, Bessel — analog prototype design and digital transformation
@@ -187,7 +189,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ```toml
 [dependencies]
-scirs2-signal = "0.6.3"
+scirs2-signal = "0.6.4"
 ```
 
 ### Butterworth Low-Pass Filter

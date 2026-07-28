@@ -120,14 +120,14 @@ Use scirs2-vision when you need to:
 
 ```toml
 [dependencies]
-scirs2-vision = "0.6.3"
+scirs2-vision = "0.6.4"
 ```
 
 Parallel (Rayon-based) processing is provided unconditionally via `scirs2-core` — there is no separate `parallel` feature to enable. For GPU-accelerated kernels:
 
 ```toml
 [dependencies]
-scirs2-vision = { version = "0.6.3", features = ["wgpu"] }
+scirs2-vision = { version = "0.6.4", features = ["wgpu"] }
 ```
 
 ## Quick Start

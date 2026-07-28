@@ -193,14 +193,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-special = "0.6.3"
+scirs2-special = "0.6.4"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-special = { version = "0.6.3", features = ["parallel"] }
+scirs2-special = { version = "0.6.4", features = ["parallel"] }
 ```
 
 ### Classical functions
