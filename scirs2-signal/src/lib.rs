@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-signal = "0.6.5"
+//! scirs2-signal = "0.6.6"
 //! ```
 //!
 //! ```rust
@@ -49,7 +49,7 @@
 //! let filtered = convolve(&signal, &kernel, "same").expect("operation should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.6.5 (July 22, 2026)
+//! ## 🔒 Version: 0.6.6 (Unreleased)
 
 // Core error handling - ESSENTIAL
 pub mod error;

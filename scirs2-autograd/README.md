@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-autograd.svg)](https://crates.io/crates/scirs2-autograd)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-autograd)](https://docs.rs/scirs2-autograd)
-[![Version](https://img.shields.io/badge/version-0.6.5-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.6-green)]()
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 Automatic differentiation engine for Rust, part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
@@ -97,14 +97,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-autograd = "0.6.5"
+scirs2-autograd = "0.6.6"
 ```
 
 For OxiBLAS-accelerated matrix operations (recommended):
 
 ```toml
 [dependencies]
-scirs2-autograd = { version = "0.6.5", features = ["blas"] }
+scirs2-autograd = { version = "0.6.6", features = ["blas"] }
 ```
 
 ### Basic Differentiation

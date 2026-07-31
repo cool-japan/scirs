@@ -460,7 +460,7 @@ Profiler::global().lock().unwrap().print_report();
 
 Each module has its own README with detailed documentation and is available on crates.io.
 
-### Complete Crate Reference (v0.6.5)
+### Complete Crate Reference (v0.6.6)
 
 | Crate | Description | docs.rs |
 |-------|-------------|---------|
@@ -642,7 +642,7 @@ SciRS2 and all its modules are available on [crates.io](https://crates.io/crates
 ```toml
 # Add the main integration crate for all functionality
 [dependencies]
-scirs2 = "0.6.5"
+scirs2 = "0.6.6"
 ```
 
 Or include only the specific modules you need:
@@ -650,16 +650,16 @@ Or include only the specific modules you need:
 ```toml
 [dependencies]
 # Core utilities
-scirs2-core = "0.6.5"
+scirs2-core = "0.6.6"
 
 # Scientific computing modules
-scirs2-linalg = "0.6.5"
-scirs2-stats = "0.6.5"
-scirs2-optimize = "0.6.5"
+scirs2-linalg = "0.6.6"
+scirs2-stats = "0.6.6"
+scirs2-optimize = "0.6.6"
 
 # AI/ML modules
-scirs2-neural = "0.6.5"
-scirs2-autograd = "0.6.5"
+scirs2-neural = "0.6.6"
+scirs2-autograd = "0.6.6"
 # Note: For ML optimization algorithms, use the independent OptiRS project
 ```
 
@@ -926,10 +926,10 @@ All SciRS2 modules are available on crates.io. Add the modules you need to your 
 
 ```toml
 [dependencies]
-scirs2 = "0.6.5"  # Core library with all modules
+scirs2 = "0.6.6"  # Core library with all modules
 # Or individual modules:
-scirs2-linalg = "0.6.5"  # Linear algebra
-scirs2-stats = "0.6.5"   # Statistics
+scirs2-linalg = "0.6.6"  # Linear algebra
+scirs2-stats = "0.6.6"   # Statistics
 # ... and more
 ```
 
@@ -1004,7 +1004,7 @@ For detailed development plans, upcoming features, and contribution opportunitie
 
 ## Development Branch Status
 
-**Current Branch**: `0.6.5` (July 31, 2026)
+**Current Branch**: `0.6.6` (July 31, 2026)
 
 **Release Status**: All major features through v0.6.5 have been implemented and tested (Waves 53–78, plus the 0.6.0 CUDA-decentralization, 0.6.1 hardening, 0.6.2 Pure-Rust dependency-elimination, 0.6.3 Windows-compatibility hardening, 0.6.4 wasm32 follow-up fix, and 0.6.5 ignore-audit bug-hunt cycles):
 - ✅ 29 workspace crates fully implemented

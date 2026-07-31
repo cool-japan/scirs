@@ -5,11 +5,11 @@
 [![Documentation](https://img.shields.io/docsrs/scirs2-io)](https://docs.rs/scirs2-io)
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
-**Scientific data input/output for the SciRS2 scientific computing library (v0.6.5).**
+**Scientific data input/output for the SciRS2 scientific computing library (v0.6.6).**
 
 `scirs2-io` provides comprehensive, high-performance file I/O for scientific and numerical workloads. It covers everything from classic scientific formats (MATLAB, NetCDF, HDF5, WAV, NumPy, Fortran unformatted, IDL) through domain-specific formats (FITS/VOTable, FASTA/FASTQ/SAM/BAM/VCF, GeoTIFF/Shapefile/GeoJSON/KML), modern columnar and lakehouse formats (Parquet, Arrow IPC, Zarr, Delta Lake, Iceberg), to cloud storage, ETL pipelines, data catalogs, and lineage tracking — all as pure Rust with no required C/Fortran dependencies.
 
-## Features (v0.6.5)
+## Features (v0.6.6)
 
 ### Classic Scientific Formats
 - **MATLAB (.mat)**: `.mat` v4/v5 read/write with structures and cell arrays, plus v7.3 (HDF5-based) read/write — `EnhancedMatFile`, `V73MatFile`, `PartialIoSupport` — now available in default builds via the pure-Rust `oxih5` backend; no `hdf5` Cargo feature or system `libhdf5` required
@@ -125,14 +125,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.6.5"
+scirs2-io = "0.6.6"
 ```
 
 To enable optional feature groups:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.6.5", features = ["async", "parquet"] }
+scirs2-io = { version = "0.6.6", features = ["async", "parquet"] }
 ```
 
 ### Reading a CSV file

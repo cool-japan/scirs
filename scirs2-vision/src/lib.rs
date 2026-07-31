@@ -35,7 +35,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-vision = "0.6.5"
+//! scirs2-vision = "0.6.6"
 //! ```
 //!
 //! ### Feature Detection (Harris Corners)
@@ -262,7 +262,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.6.5**
+//! Current version: **0.6.6**
 
 #![warn(missing_docs)]
 

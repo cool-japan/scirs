@@ -5,6 +5,8 @@ All notable changes to the SciRS2 project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.6] - Unreleased
+
 ## [0.6.5] - 2026-07-31
 
 A defect-hunting cycle rather than a features cycle: a workspace-wide audit of every `#[ignore]`d test (132 found, ~31% bare/undocumented) that, followed to ground, surfaced and fixed real bugs across autograd, linalg, neural, stats, graph, io, integrate, series, spatial, ndimage and special — the single biggest of which is that `scirs2-autograd`'s live backward pass silently identity-passed-through the majority of its operators instead of computing their real gradients. Several hundred files touched workspace-wide, net tens of thousands of lines *removed* (mostly `scirs2-signal`, whose module tree had drifted to 47% unreachable dead/duplicate code — see Changed). Every `#[ignore]` reason is now machine-checked by a new policy lint.

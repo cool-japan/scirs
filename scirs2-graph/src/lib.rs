@@ -30,7 +30,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-graph = "0.6.5"
+//! scirs2-graph = "0.6.6"
 //! ```
 //!
 //! ```rust,no_run
@@ -43,7 +43,7 @@
 //! g.add_edge(0, 1, 1.0);
 //! ```
 //!
-//! ## 🔒 Version: 0.6.5
+//! ## 🔒 Version: 0.6.6
 //!
 //! ## API Stability and Versioning
 //!

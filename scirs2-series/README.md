@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-series.svg)](https://crates.io/crates/scirs2-series)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-series)](https://docs.rs/scirs2-series)
-[![Version](https://img.shields.io/badge/version-0.6.5-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.6-green)]()
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
 **Comprehensive time series analysis for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
@@ -25,7 +25,7 @@ Key design goals:
 
 ---
 
-## Feature List (v0.6.5)
+## Feature List (v0.6.6)
 
 ### Decomposition
 - STL (Seasonal-Trend decomposition using Loess) with robustness iterations
@@ -179,7 +179,7 @@ Key design goals:
 
 ```toml
 [dependencies]
-scirs2-series = "0.6.5"
+scirs2-series = "0.6.6"
 ```
 
 ### ARIMA Forecasting

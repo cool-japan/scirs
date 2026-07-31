@@ -24,7 +24,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.6.5", features = ["blas"] }
+//! scirs2-autograd = { version = "0.6.6", features = ["blas"] }
 //! ```
 //!
 //! ### BLAS Acceleration (Recommended)
@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.6.5", features = ["blas"] }
+//! scirs2-autograd = { version = "0.6.6", features = ["blas"] }
 //! ```
 //!
 //! ## 🚀 Quick Start
@@ -316,7 +316,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.6.5**
+//! Current version: **0.6.6**
 
 #[allow(unused_imports)]
 // Re-export from scirs2-core for POLICY compliance

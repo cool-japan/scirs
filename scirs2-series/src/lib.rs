@@ -36,7 +36,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-series = "0.6.5"
+//! scirs2-series = "0.6.6"
 //! ```
 //!
 //! ```rust,no_run
@@ -50,7 +50,7 @@
 //! // result.trend, result.seasonal, result.residual
 //! ```
 //!
-//! ## 🔒 Version: 0.6.5 (July 22, 2026)
+//! ## 🔒 Version: 0.6.6 (Unreleased)
 //! - Change point detection
 //!   - PELT (Pruned Exact Linear Time) algorithm
 //!   - Binary segmentation

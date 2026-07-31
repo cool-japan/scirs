@@ -34,7 +34,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-text = "0.6.5"
+//! scirs2-text = "0.6.6"
 //! ```
 //!
 //! ```rust,no_run
@@ -50,7 +50,7 @@
 //! let matrix = vectorizer.fit_transform(&docs).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.6.5 (July 22, 2026)
+//! ## 🔒 Version: 0.6.6 (Unreleased)
 //!
 //! ## Quick Start
 //!
