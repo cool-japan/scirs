@@ -9,7 +9,11 @@ fn main() {
     ag::run(|ctx: &mut ag::Context<f64>| {
         // Test Frobenius norm gradient
         println!("\n=== Testing Frobenius Norm Gradient ===");
-        let matrix = convert_to_tensor(array![[3.0, 4.0], [0.0, 0.0]].into_dyn(), ctx);
+        // Differentiated below via `grad()`, so `variable(...)` is required:
+        // `convert_to_tensor` marks the node non-differentiable, which used to
+        // make every assertion below fail (the printed gradient was silently
+        // all-zero instead of the values asserted here).
+        let matrix = variable(array![[3.0, 4.0], [0.0, 0.0]].into_dyn(), ctx);
         let norm = frobenius_norm(matrix);
 
         // Expected norm: sqrt(3^2 + 4^2) = 5.0
@@ -46,7 +50,7 @@ fn main() {
 
         // Test spectral norm on diagonal matrix
         println!("\n=== Testing Spectral Norm (Diagonal Matrix) ===");
-        let diag_matrix = convert_to_tensor(array![[5.0, 0.0], [0.0, 3.0]].into_dyn(), ctx);
+        let diag_matrix = variable(array![[5.0, 0.0], [0.0, 3.0]].into_dyn(), ctx);
         let spec_norm = spectral_norm(&diag_matrix);
 
         // Expected spectral norm: max(5, 3) = 5.0
@@ -83,7 +87,7 @@ fn main() {
 
         // Test nuclear norm on diagonal matrix
         println!("\n=== Testing Nuclear Norm (Diagonal Matrix) ===");
-        let diag_matrix2 = convert_to_tensor(array![[2.0, 0.0], [0.0, -3.0]].into_dyn(), ctx);
+        let diag_matrix2 = variable(array![[2.0, 0.0], [0.0, -3.0]].into_dyn(), ctx);
         let nuc_norm = nuclear_norm(&diag_matrix2);
 
         // Expected nuclear norm: |2| + |-3| = 5.0

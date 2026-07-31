@@ -42,17 +42,26 @@ mod tests {
         let x = array![1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9];
         let y = array![1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4];
 
-        // Test if x is stochastically less than y (which is true)
-        let _stat_p_value_less =
+        // Test if x is stochastically less than y (which is true): the null
+        // hypothesis of the "less" test ("CDF of x >= CDF of y", i.e. x <= y)
+        // holds here, so we expect a HIGH p-value (fail to reject a true null).
+        let (_stat_less, p_value_less) =
             ks_2samp(&x.view(), &y.view(), "less").expect("Test: operation failed");
 
-        // Test the opposite direction (which should be false)
-        let _stat_p_value_greater =
+        // Test the opposite direction (which should be false): the null
+        // hypothesis of the "greater" test ("x >= y") does NOT hold here, so
+        // we expect a comparatively LOWER p-value (evidence against a false null).
+        let (_stat_greater, p_value_greater) =
             ks_2samp(&x.view(), &y.view(), "greater").expect("Test: operation failed");
 
-        // For these samples, ideally "less" should have a smaller p-value than "greater"
-        // But due to the alternative hypothesis calculation, we'll temporarily disable this assertion
-        // assert!(p_value_less < p_value_greater);
+        // A one-sided test whose null hypothesis actually matches the data
+        // ("less" here) should not be rejected as readily as one whose null
+        // is contradicted by the data ("greater" here), so its p-value
+        // should be the larger of the two.
+        assert!(
+            p_value_less > p_value_greater,
+            "p_value_less={p_value_less} should exceed p_value_greater={p_value_greater}"
+        );
     }
 
     #[test]
@@ -61,17 +70,25 @@ mod tests {
         let y = array![1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9];
         let x = array![1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4];
 
-        // Test if x is stochastically greater than y (which is true)
+        // Test if x is stochastically greater than y (which is true): the
+        // null hypothesis of the "greater" test ("x >= y") holds here, so we
+        // expect a HIGH p-value (fail to reject a true null).
         let (_stat, p_value_greater) =
             ks_2samp(&x.view(), &y.view(), "greater").expect("Test: operation failed");
 
-        // Test the opposite direction (which should be false)
+        // Test the opposite direction (which should be false): the null
+        // hypothesis of the "less" test ("x <= y") does NOT hold here, so we
+        // expect a comparatively LOWER p-value (evidence against a false null).
         let (_stat, p_value_less) =
             ks_2samp(&x.view(), &y.view(), "less").expect("Test: operation failed");
 
-        // For these samples, "greater" should have a smaller p-value than "less"
-        // This verifies that the alternative hypothesis is working correctly
-        assert!(p_value_greater < p_value_less);
+        // This verifies that the alternative hypothesis is working correctly:
+        // the one-sided test whose null actually matches the data ("greater")
+        // should have the larger p-value of the two.
+        assert!(
+            p_value_greater > p_value_less,
+            "p_value_greater={p_value_greater} should exceed p_value_less={p_value_less}"
+        );
     }
 
     #[test]

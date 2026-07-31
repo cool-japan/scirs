@@ -31,6 +31,20 @@ pub fn simd_cosine_similarity_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f
         return f32::NAN;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        let mut dot = 0.0f32;
+        let mut norm_a_sq = 0.0f32;
+        let mut norm_b_sq = 0.0f32;
+        for (&x, &y) in a.iter().zip(b.iter()) {
+            dot += x * y;
+            norm_a_sq += x * x;
+            norm_b_sq += y * y;
+        }
+        let denom = (norm_a_sq * norm_b_sq).sqrt();
+        return if denom == 0.0 { f32::NAN } else { dot / denom };
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -44,8 +58,8 @@ pub fn simd_cosine_similarity_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f
 
                 // Process 8 f32s at a time, computing all three sums together
                 while i + 8 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 8];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 8];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 8];
                     let a_vec = _mm256_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_ps(b_slice.as_ptr());
 
@@ -101,8 +115,8 @@ pub fn simd_cosine_similarity_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm_loadu_ps(b_slice.as_ptr());
 
@@ -164,8 +178,8 @@ pub fn simd_cosine_similarity_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f
             let mut i = 0;
 
             while i + 4 <= len {
-                let a_slice = &a.as_slice().expect("Operation failed")[i..i + 4];
-                let b_slice = &b.as_slice().expect("Operation failed")[i..i + 4];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                 let a_vec = vld1q_f32(a_slice.as_ptr());
                 let b_vec = vld1q_f32(b_slice.as_ptr());
 
@@ -230,6 +244,20 @@ pub fn simd_cosine_similarity_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> f
         return f64::NAN;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        let mut dot = 0.0f64;
+        let mut norm_a_sq = 0.0f64;
+        let mut norm_b_sq = 0.0f64;
+        for (&x, &y) in a.iter().zip(b.iter()) {
+            dot += x * y;
+            norm_a_sq += x * x;
+            norm_b_sq += y * y;
+        }
+        let denom = (norm_a_sq * norm_b_sq).sqrt();
+        return if denom == 0.0 { f64::NAN } else { dot / denom };
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -243,8 +271,8 @@ pub fn simd_cosine_similarity_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> f
 
                 // Process 4 f64s at a time
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm256_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_pd(b_slice.as_ptr());
 
@@ -287,8 +315,8 @@ pub fn simd_cosine_similarity_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> f
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 2];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 2];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                     let a_vec = _mm_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm_loadu_pd(b_slice.as_ptr());
 
@@ -348,8 +376,8 @@ pub fn simd_cosine_similarity_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> f
             let mut i = 0;
 
             while i + 2 <= len {
-                let a_slice = &a.as_slice().expect("Operation failed")[i..i + 2];
-                let b_slice = &b.as_slice().expect("Operation failed")[i..i + 2];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                 let a_vec = vld1q_f64(a_slice.as_ptr());
                 let b_vec = vld1q_f64(b_slice.as_ptr());
 

@@ -9,7 +9,6 @@
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1};
 #[cfg(feature = "parallel")]
 use scirs2_core::parallel_ops::*;
-use scirs2_core::random::{Rng, RngExt};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 use crate::base::{DiGraph, EdgeWeight, Graph, Node};
@@ -157,6 +156,211 @@ mod simd_spectral {
     }
 }
 
+/// Minimal deterministic PRNG (a PCG/Knuth-style LCG) used only to generate
+/// reproducible Lanczos starting vectors and k-means initial centroids.
+///
+/// This is *not* used for anything statistical: its only job is to hand
+/// Lanczos a "generic" (numerically non-degenerate) starting vector while
+/// keeping the whole spectral pipeline byte-for-byte reproducible across
+/// runs -- `scirs2_core::random::rng()` returns a `ThreadRng` seeded from OS
+/// entropy, which would make spectral clustering results non-reproducible.
+mod deterministic_rng {
+    const LCG_MUL: u64 = 6364136223846793005;
+    const LCG_ADD: u64 = 1442695040888963407;
+
+    /// Advances `state` and returns the new value.
+    pub fn next_u64(state: &mut u64) -> u64 {
+        *state = state.wrapping_mul(LCG_MUL).wrapping_add(LCG_ADD);
+        *state
+    }
+
+    /// A pseudo-random `f64` in `[-0.5, 0.5)`, deterministic given `state`.
+    pub fn next_signed_unit(state: &mut u64) -> f64 {
+        let bits = next_u64(state);
+        ((bits >> 11) as f64 / (1u64 << 53) as f64) - 0.5
+    }
+}
+
+/// Builds a deterministic, reproducible "generic" starting vector for
+/// Lanczos, seeded from `seed`. Callers vary the seed per call (e.g. by
+/// matrix size and eigenvector index) so consecutive deflation steps don't
+/// reuse the same vector.
+fn lanczos_start_vector(n: usize, seed: u64) -> Array1<f64> {
+    let mut state = seed ^ 0x9E37_79B9_7F4A_7C15;
+    // Advance once so an all-zero seed doesn't start the sequence at 0.
+    deterministic_rng::next_u64(&mut state);
+    Array1::from_shape_fn(n, |_| deterministic_rng::next_signed_unit(&mut state))
+}
+
+/// Derives a reproducible per-call Lanczos seed so consecutive deflation
+/// steps (different `eig_idx`, i.e. a different number of previously found
+/// eigenvectors) don't reuse the same starting vector.
+fn lanczos_seed(n: usize, prev_count: usize) -> u64 {
+    (n as u64)
+        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+        .wrapping_add((prev_count as u64).wrapping_mul(0xBF58_476D_1CE4_E5B9))
+        .wrapping_add(1)
+}
+
+/// Projects out the components of `vec` along each column of `prev`
+/// (Gram-Schmidt deflation against already-found eigenvectors).
+fn deflate_against(vec: Array1<f64>, prev: &Array2<f64>) -> Array1<f64> {
+    let mut v = vec;
+    for j in 0..prev.ncols() {
+        let prev_vec = prev.column(j);
+        let proj = v.dot(&prev_vec);
+        v = v - proj * &prev_vec;
+    }
+    v
+}
+
+/// Projects out the components of `vec` along columns `0..upto` of `basis`
+/// (full reorthogonalization to counter the numerical loss of orthogonality
+/// inherent to naive Lanczos iteration).
+fn reorthogonalize(vec: Array1<f64>, basis: &Array2<f64>, upto: usize) -> Array1<f64> {
+    let mut v = vec;
+    for j in 0..upto {
+        let basis_vec = basis.column(j);
+        let proj = v.dot(&basis_vec);
+        v = v - proj * &basis_vec;
+    }
+    v
+}
+
+/// Exact eigendecomposition of a real symmetric tridiagonal matrix given its
+/// diagonal (`alpha`) and off-diagonal (`beta`; `beta[i]` sits between
+/// `alpha[i]` and `alpha[i + 1]`) entries, via the implicit-shift QL
+/// algorithm (a.k.a. "tqli", Numerical Recipes §11.3). Returns eigenvalues in
+/// ascending order together with matching orthonormal eigenvectors (as
+/// columns).
+#[allow(dead_code)]
+fn tridiagonal_eigen(
+    alpha: &[f64],
+    beta: &[f64],
+) -> std::result::Result<(Vec<f64>, Array2<f64>), String> {
+    let n = alpha.len();
+    if n == 0 {
+        return Ok((vec![], Array2::zeros((0, 0))));
+    }
+
+    let mut d = alpha.to_vec();
+    // e[i] holds the off-diagonal entry between d[i] and d[i + 1]; e[n - 1]
+    // is unused scratch space required by the algorithm below.
+    let mut e = vec![0.0_f64; n];
+    for (i, e_i) in e.iter_mut().enumerate().take(n.saturating_sub(1)) {
+        *e_i = beta.get(i).copied().unwrap_or(0.0);
+    }
+
+    let mut z = Array2::<f64>::eye(n);
+    tridiagonal_ql_implicit(&mut d, &mut e, &mut z)?;
+
+    // `tqli` does not sort its output; sort ascending and permute the
+    // eigenvector columns to match (callers rely on index 0 == smallest).
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|&a, &b| d[a].partial_cmp(&d[b]).unwrap_or(std::cmp::Ordering::Equal));
+
+    let eigenvalues: Vec<f64> = order.iter().map(|&i| d[i]).collect();
+    let mut eigenvectors = Array2::<f64>::zeros((n, n));
+    for (new_col, &old_col) in order.iter().enumerate() {
+        eigenvectors.column_mut(new_col).assign(&z.column(old_col));
+    }
+
+    Ok((eigenvalues, eigenvectors))
+}
+
+/// In-place implicit-shift QL algorithm for a real symmetric tridiagonal
+/// matrix (the classic "tqli" routine). `d` holds the diagonal on input and
+/// the (unsorted) eigenvalues on output. `e[i]` holds the off-diagonal entry
+/// between `d[i]` and `d[i + 1]` for `i in 0..n - 1` (`e[n - 1]` is unused
+/// scratch space). `z` must be initialized by the caller -- typically to the
+/// identity matrix, to obtain the tridiagonal matrix's own eigenvectors; on
+/// return, column `j` of `z` holds the eigenvector for eigenvalue `d[j]`.
+#[allow(clippy::many_single_char_names)]
+fn tridiagonal_ql_implicit(
+    d: &mut [f64],
+    e: &mut [f64],
+    z: &mut Array2<f64>,
+) -> std::result::Result<(), String> {
+    let n = d.len();
+    if n <= 1 {
+        return Ok(());
+    }
+
+    for l in 0..n {
+        let mut iter_count = 0;
+        loop {
+            // Find the smallest sub-diagonal element to split the problem
+            // (i.e. one already negligible relative to its neighboring
+            // diagonal entries).
+            let mut m = l;
+            while m < n - 1 {
+                let dd = d[m].abs() + d[m + 1].abs();
+                if e[m].abs() + dd == dd {
+                    break;
+                }
+                m += 1;
+            }
+
+            if m == l {
+                break;
+            }
+
+            iter_count += 1;
+            if iter_count > 50 {
+                return Err(
+                    "tridiagonal QL: an eigenvalue failed to converge after 50 iterations"
+                        .to_string(),
+                );
+            }
+
+            let mut g = (d[l + 1] - d[l]) / (2.0 * e[l]);
+            let mut r = g.hypot(1.0);
+            g = d[m] - d[l] + e[l] / (g + r.copysign(g));
+
+            let mut s = 1.0_f64;
+            let mut c = 1.0_f64;
+            let mut p = 0.0_f64;
+            let mut broke_early = false;
+
+            for i in (l..m).rev() {
+                let mut f = s * e[i];
+                let b = c * e[i];
+                r = f.hypot(g);
+                e[i + 1] = r;
+                if r == 0.0 {
+                    d[i + 1] -= p;
+                    e[m] = 0.0;
+                    broke_early = true;
+                    break;
+                }
+                s = f / r;
+                c = g / r;
+                g = d[i + 1] - p;
+                r = (d[i] - g) * s + 2.0 * c * b;
+                p = s * r;
+                d[i + 1] = g + p;
+                g = c * r - b;
+
+                // Accumulate the rotation into the eigenvector matrix.
+                for k in 0..n {
+                    f = z[[k, i + 1]];
+                    z[[k, i + 1]] = s * z[[k, i]] + c * f;
+                    z[[k, i]] = c * z[[k, i]] - s * f;
+                }
+            }
+
+            if broke_early {
+                continue;
+            }
+            d[l] -= p;
+            e[l] = g;
+            e[m] = 0.0;
+        }
+    }
+
+    Ok(())
+}
+
 /// Advanced eigenvalue computation using Lanczos algorithm for Laplacian matrices
 /// This is a production-ready implementation with proper deflation and convergence checking
 #[allow(dead_code)]
@@ -228,62 +432,102 @@ fn lanczos_eigenvalues(
     Ok((eigenvalues, eigenvectors))
 }
 
-/// Simple eigenvalue computation for very small matrices
-/// Returns an approximation suitable for small Laplacian matrices
-fn simple_eigenvalue_for_small_matrix(
+/// Core deflated Lanczos iteration: finds the eigenpair of `matrix` with the
+/// smallest eigenvalue lying outside the span of `prev_eigenvectors`.
+///
+/// Implements full three-term-recurrence tridiagonalization with full
+/// reorthogonalization against every previously generated Lanczos vector (to
+/// counter the numerical loss of orthogonality inherent to naive Lanczos),
+/// followed by an *exact* eigendecomposition of the resulting tridiagonal
+/// matrix `T` (via [`tridiagonal_eigen`]) and reconstruction of the Ritz
+/// vector in the original basis. The `matvec` closure lets callers choose a
+/// sequential-SIMD or rayon-parallel matrix-vector product without
+/// duplicating this logic (see [`deflated_lanczos_iteration`] and
+/// [`parallel_deflated_lanczos_iteration`]).
+fn deflated_lanczos_core(
     matrix: &Array2<f64>,
     prev_eigenvectors: &Array2<f64>,
+    tolerance: f64,
+    max_iterations: usize,
+    seed: u64,
+    matvec: impl Fn(&Array2<f64>, &ArrayView1<f64>) -> Array1<f64>,
 ) -> std::result::Result<(f64, Array1<f64>), String> {
     let n = matrix.shape()[0];
+    if n == 0 {
+        return Err("Cannot run Lanczos iteration on an empty matrix".to_string());
+    }
 
-    // For small Laplacian matrices, approximate the second eigenvalue
-    // For path-like and cycle-like graphs, use better approximations
-    let degree_sum = (0..n).map(|i| matrix[[i, i]]).sum::<f64>();
-    let avg_degree = degree_sum / n as f64;
+    // Deterministic (reproducible), deflated, normalized starting vector.
+    let mut v = deflate_against(lanczos_start_vector(n, seed), prev_eigenvectors);
+    let start_norm = simd_spectral::simd_norm(&v.view());
+    if start_norm < tolerance {
+        return Err("Failed to generate suitable starting vector".to_string());
+    }
+    v /= start_norm;
 
-    // Better approximation for common small graph topologies
-    let approx_eigenvalue = if avg_degree == 2.0 {
-        if n == 4 {
-            // C4 cycle graph has eigenvalue 2.0, P4 path graph has ~0.586
-            // Check if it's a cycle (more uniform degree distribution)
-            let min_degree = (0..n).map(|i| matrix[[i, i]]).fold(f64::INFINITY, f64::min);
-            if min_degree == 2.0 {
-                2.0 // Cycle graph
-            } else {
-                2.0 * (1.0 - (std::f64::consts::PI / n as f64).cos()) // Path graph
-            }
-        } else {
-            2.0 * (1.0 - (std::f64::consts::PI / n as f64).cos()) // Path graph approximation
+    let m = max_iterations.min(n).max(1);
+    let mut alpha: Vec<f64> = Vec::with_capacity(m);
+    let mut beta: Vec<f64> = Vec::with_capacity(m.saturating_sub(1));
+    let mut lanczos_vectors = Array2::<f64>::zeros((n, m));
+    lanczos_vectors.column_mut(0).assign(&v);
+
+    let w0 = deflate_against(matvec(matrix, &v.view()), prev_eigenvectors);
+    alpha.push(v.dot(&w0));
+    let mut w = reorthogonalize(&w0 - alpha[0] * &v, &lanczos_vectors, 1);
+
+    let mut steps = 1usize;
+
+    for i in 1..m {
+        let beta_val = simd_spectral::simd_norm(&w.view());
+        if beta_val < tolerance {
+            break;
         }
-    } else {
-        // More connected graph
-        avg_degree * 0.5
-    };
 
-    // Create a reasonable eigenvector
-    let mut eigenvector = Array1::zeros(n);
-    for i in 0..n {
-        eigenvector[i] = if i % 2 == 0 { 1.0 } else { -1.0 };
+        let mut v_i = reorthogonalize(&w / beta_val, &lanczos_vectors, i);
+        let renorm = simd_spectral::simd_norm(&v_i.view());
+        if renorm < tolerance {
+            break;
+        }
+        v_i /= renorm;
+        lanczos_vectors.column_mut(i).assign(&v_i);
+        beta.push(beta_val);
+        steps = i + 1;
+
+        let prev_v = lanczos_vectors.column(i - 1).to_owned();
+        let w_raw = deflate_against(matvec(matrix, &v_i.view()), prev_eigenvectors);
+        let alpha_i = v_i.dot(&w_raw);
+        alpha.push(alpha_i);
+        let w_next = &w_raw - alpha_i * &v_i - beta[i - 1] * &prev_v;
+        w = reorthogonalize(w_next, &lanczos_vectors, i + 1);
     }
 
-    // Orthogonalize against previous eigenvectors
-    for j in 0..prev_eigenvectors.ncols() {
-        let prev_vec = prev_eigenvectors.column(j);
-        let proj = eigenvector.dot(&prev_vec);
-        eigenvector = eigenvector - proj * &prev_vec;
+    let (tri_evals, tri_evecs) = tridiagonal_eigen(&alpha, &beta)
+        .map_err(|e| format!("tridiagonal eigensolve failed: {e}"))?;
+    if tri_evals.is_empty() {
+        return Err("Lanczos process produced no eigenvalues".to_string());
     }
 
-    // Normalize
-    let norm = (eigenvector.dot(&eigenvector)).sqrt();
-    if norm > 1e-12 {
-        eigenvector /= norm;
+    let smallest_eval = tri_evals[0];
+    let mut ritz_vector = Array1::<f64>::zeros(n);
+    for j in 0..steps {
+        ritz_vector = ritz_vector + tri_evecs[[j, 0]] * &lanczos_vectors.column(j);
     }
 
-    Ok((approx_eigenvalue, eigenvector))
+    // Defensive final deflation + normalization.
+    ritz_vector = deflate_against(ritz_vector, prev_eigenvectors);
+    let final_norm = simd_spectral::simd_norm(&ritz_vector.view());
+    if final_norm < tolerance {
+        return Err("Eigenvector deflation failed".to_string());
+    }
+    ritz_vector /= final_norm;
+
+    Ok((smallest_eval, ritz_vector))
 }
 
-/// Single deflated Lanczos iteration to find the next smallest eigenvalue
-/// Uses deflation to avoid previously found eigenvectors
+/// Single deflated Lanczos iteration to find the next smallest eigenvalue.
+/// Uses deflation to avoid previously found eigenvectors. See
+/// [`deflated_lanczos_core`] for the shared algorithm; this entry point uses
+/// a sequential SIMD matrix-vector product.
 #[allow(dead_code)]
 fn deflated_lanczos_iteration(
     matrix: &Array2<f64>,
@@ -291,249 +535,15 @@ fn deflated_lanczos_iteration(
     tolerance: f64,
     max_iterations: usize,
 ) -> std::result::Result<(f64, Array1<f64>), String> {
-    let n = matrix.shape()[0];
-
-    // For very small matrices, use a more direct approach
-    if n <= 4 {
-        return simple_eigenvalue_for_small_matrix(matrix, prev_eigenvectors);
-    }
-
-    // Generate random starting vector
-    let mut rng = scirs2_core::random::rng();
-    let mut v: Array1<f64> = Array1::from_shape_fn(n, |_| rng.random::<f64>() - 0.5);
-
-    // Deflate against previous _eigenvectors
-    for j in 0..prev_eigenvectors.ncols() {
-        let prev_vec = prev_eigenvectors.column(j);
-        let proj = v.dot(&prev_vec);
-        v = v - proj * &prev_vec;
-    }
-
-    // Normalize
-    let norm = simd_spectral::simd_norm(&v.view());
-    if norm < tolerance {
-        return Err("Failed to generate suitable starting vector".to_string());
-    }
-    v /= norm;
-
-    // Lanczos tridiagonalization
-    let mut alpha = Vec::with_capacity(max_iterations);
-    let mut beta = Vec::with_capacity(max_iterations);
-    let mut lanczos_vectors = Array2::zeros((n, max_iterations.min(n)));
-
-    lanczos_vectors.column_mut(0).assign(&v);
-    let mut w = matrix.dot(&v);
-
-    // Deflate w against previous _eigenvectors
-    for j in 0..prev_eigenvectors.ncols() {
-        let prev_vec = prev_eigenvectors.column(j);
-        let proj = w.dot(&prev_vec);
-        w = w - proj * &prev_vec;
-    }
-
-    alpha.push(v.dot(&w));
-    w = w - alpha[0] * &v;
-
-    let mut prev_v = v.clone();
-
-    for i in 1..max_iterations.min(n) {
-        let beta_val = simd_spectral::simd_norm(&w.view());
-        if beta_val < tolerance {
-            break;
-        }
-
-        beta.push(beta_val);
-        v = w / beta_val;
-        lanczos_vectors.column_mut(i).assign(&v);
-
-        w = matrix.dot(&v);
-
-        // Deflate w against previous _eigenvectors
-        for j in 0..prev_eigenvectors.ncols() {
-            let prev_vec = prev_eigenvectors.column(j);
-            let proj = w.dot(&prev_vec);
-            w = w - proj * &prev_vec;
-        }
-
-        alpha.push(v.dot(&w));
-        w = w - alpha[i] * &v - beta[i - 1] * &prev_v;
-
-        prev_v = lanczos_vectors.column(i).to_owned();
-
-        // Check for convergence by solving the tridiagonal eigenvalue problem
-        if i >= 3 && i % 5 == 0 {
-            let (tri_evals, tri_evecs) = solve_tridiagonal_eigenvalue(&alpha, &beta)?;
-            if !tri_evals.is_empty() {
-                let smallest_eval = tri_evals[0];
-                if smallest_eval > tolerance {
-                    // Construct the eigenvector from Lanczos basis
-                    let mut eigenvector = Array1::zeros(n);
-                    for j in 0..=i {
-                        eigenvector = eigenvector + tri_evecs[[j, 0]] * &lanczos_vectors.column(j);
-                    }
-
-                    // Final deflation and normalization
-                    for j in 0..prev_eigenvectors.ncols() {
-                        let prev_vec = prev_eigenvectors.column(j);
-                        let proj = eigenvector.dot(&prev_vec);
-                        eigenvector = eigenvector - proj * &prev_vec;
-                    }
-
-                    let final_norm = simd_spectral::simd_norm(&eigenvector.view());
-                    if final_norm > tolerance {
-                        eigenvector /= final_norm;
-                        return Ok((smallest_eval, eigenvector));
-                    }
-                }
-            }
-        }
-    }
-
-    // If we reach here, solve the final tridiagonal problem
-    let (tri_evals, tri_evecs) = solve_tridiagonal_eigenvalue(&alpha, &beta)?;
-    if tri_evals.is_empty() {
-        return Err("Failed to find eigenvalue".to_string());
-    }
-
-    let smallest_eval = tri_evals[0];
-    let mut eigenvector = Array1::zeros(n);
-    let effective_size = alpha.len().min(lanczos_vectors.ncols());
-
-    for j in 0..effective_size {
-        eigenvector = eigenvector + tri_evecs[[j, 0]] * &lanczos_vectors.column(j);
-    }
-
-    // Final deflation and normalization
-    for j in 0..prev_eigenvectors.ncols() {
-        let prev_vec = prev_eigenvectors.column(j);
-        let proj = eigenvector.dot(&prev_vec);
-        eigenvector = eigenvector - proj * &prev_vec;
-    }
-
-    let final_norm = simd_spectral::simd_norm(&eigenvector.view());
-    if final_norm < tolerance {
-        return Err("Eigenvector deflation failed".to_string());
-    }
-    eigenvector /= final_norm;
-
-    Ok((smallest_eval, eigenvector))
-}
-
-/// Solve the tridiagonal eigenvalue problem using QR algorithm
-/// Returns eigenvalues and eigenvectors sorted by eigenvalue magnitude
-#[allow(dead_code)]
-fn solve_tridiagonal_eigenvalue(
-    alpha: &[f64],
-    beta: &[f64],
-) -> std::result::Result<(Vec<f64>, Array2<f64>), String> {
-    let n = alpha.len();
-    if n == 0 {
-        return Ok((vec![], Array2::zeros((0, 0))));
-    }
-
-    if n == 1 {
-        return Ok((
-            vec![alpha[0]],
-            Array2::from_shape_vec((1, 1), vec![1.0]).expect("Operation failed"),
-        ));
-    }
-
-    // Build tridiagonal matrix
-    let mut tri_matrix = Array2::zeros((n, n));
-    for i in 0..n {
-        tri_matrix[[i, i]] = alpha[i];
-        if i > 0 {
-            tri_matrix[[i, i - 1]] = beta[i - 1];
-            tri_matrix[[i - 1, i]] = beta[i - 1];
-        }
-    }
-
-    // Use simplified eigenvalue computation for small matrices
-    if n <= 10 {
-        return solve_small_symmetric_eigenvalue(&tri_matrix);
-    }
-
-    // For larger matrices, use iterative QR algorithm (simplified version)
-    let mut eigenvalues = Vec::with_capacity(n);
-    let eigenvectors = Array2::eye(n);
-
-    // Extract diagonal for eigenvalue estimates
-    for i in 0..n {
-        eigenvalues.push(tri_matrix[[i, i]]);
-    }
-    eigenvalues.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-    Ok((eigenvalues, eigenvectors))
-}
-
-/// Solve eigenvalue problem for small symmetric matrices using direct methods
-#[allow(dead_code)]
-fn solve_small_symmetric_eigenvalue(
-    matrix: &Array2<f64>,
-) -> std::result::Result<(Vec<f64>, Array2<f64>), String> {
-    let n = matrix.shape()[0];
-
-    if n == 1 {
-        return Ok((
-            vec![matrix[[0, 0]]],
-            Array2::from_shape_vec((1, 1), vec![1.0]).expect("Operation failed"),
-        ));
-    }
-
-    if n == 2 {
-        // Analytic solution for 2x2 matrices
-        let a = matrix[[0, 0]];
-        let b = matrix[[0, 1]];
-        let c = matrix[[1, 1]];
-
-        let trace = a + c;
-        let det = a * c - b * b;
-        let discriminant = (trace * trace - 4.0 * det).sqrt();
-
-        let lambda1 = (trace - discriminant) / 2.0;
-        let lambda2 = (trace + discriminant) / 2.0;
-
-        let mut eigenvalues = vec![lambda1, lambda2];
-        eigenvalues.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-        // Compute eigenvectors
-        let mut eigenvectors = Array2::zeros((2, 2));
-
-        // First eigenvector
-        if b.abs() > 1e-12 {
-            let v1_1 = 1.0;
-            let v1_2 = (eigenvalues[0] - a) / b;
-            let norm1 = (v1_1 * v1_1 + v1_2 * v1_2).sqrt();
-            eigenvectors[[0, 0]] = v1_1 / norm1;
-            eigenvectors[[1, 0]] = v1_2 / norm1;
-        } else {
-            eigenvectors[[0, 0]] = 1.0;
-            eigenvectors[[1, 0]] = 0.0;
-        }
-
-        // Second eigenvector (orthogonal to first)
-        eigenvectors[[0, 1]] = -eigenvectors[[1, 0]];
-        eigenvectors[[1, 1]] = eigenvectors[[0, 0]];
-
-        return Ok((eigenvalues, eigenvectors));
-    }
-
-    // For n > 2, use simplified power iteration approach
-    let mut eigenvalues = Vec::with_capacity(n);
-    let mut eigenvectors = Array2::zeros((n, n));
-
-    // Get diagonal elements as initial eigenvalue estimates
-    for i in 0..n {
-        eigenvalues.push(matrix[[i, i]]);
-    }
-    eigenvalues.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-    // Create identity matrix as eigenvector estimates
-    for i in 0..n {
-        eigenvectors[[i, i]] = 1.0;
-    }
-
-    Ok((eigenvalues, eigenvectors))
+    let seed = lanczos_seed(matrix.shape()[0], prev_eigenvectors.ncols());
+    deflated_lanczos_core(
+        matrix,
+        prev_eigenvectors,
+        tolerance,
+        max_iterations,
+        seed,
+        simd_spectral::simd_matvec,
+    )
 }
 
 /// Laplacian matrix type
@@ -1018,19 +1028,17 @@ where
     // Compute the Laplacian matrix
     let laplacian_matrix = laplacian(graph, laplacian_type)?;
 
-    // Compute the eigenvectors corresponding to the smallest n_clusters eigenvalues
-    let _eigenvalues_eigenvectors = compute_smallest_eigenvalues(&laplacian_matrix, n_clusters)
+    // Compute the eigenvectors corresponding to the smallest n_clusters eigenvalues;
+    // these form the spectral embedding (n rows, n_clusters columns).
+    let (_eigenvalues, embedding) = compute_smallest_eigenvalues(&laplacian_matrix, n_clusters)
         .map_err(|e| GraphError::LinAlgError {
             operation: "spectral_clustering_eigenvalues".to_string(),
             details: e,
         })?;
 
-    // For testing, we'll just make up some random cluster assignments
-    let mut labels = Vec::with_capacity(graph.node_count());
-    let mut rng = scirs2_core::random::rng();
-    for _ in 0..graph.node_count() {
-        labels.push(rng.random_range(0..n_clusters));
-    }
+    // Cluster the rows of the spectral embedding with Lloyd's k-means
+    // (deterministic k-means++ init, so results are reproducible).
+    let labels = kmeans_cluster_embedding(&embedding, n_clusters, n);
 
     Ok(labels)
 }
@@ -1092,7 +1100,7 @@ where
         })?;
 
     // Run Lloyd's k-means on the spectral embedding (n × k_clusters matrix, rows are points)
-    let labels = spectral_kmeans_clustering(&embedding, n_clusters, n);
+    let labels = kmeans_cluster_embedding(&embedding, n_clusters, n);
 
     Ok(labels)
 }
@@ -1289,70 +1297,60 @@ fn parallel_lanczos_eigenvalues(
     Ok((eigenvalues, eigenvectors))
 }
 
-/// Parallel deflated Lanczos iteration with SIMD acceleration
+/// Parallel deflated Lanczos iteration.
+///
+/// Implements the exact same algorithm as [`deflated_lanczos_iteration`] (full
+/// tridiagonalization with reorthogonalization, then an exact eigensolve of
+/// the resulting tridiagonal matrix -- see [`deflated_lanczos_core`]), but
+/// uses a rayon-parallel row reduction for the matrix-vector product, which
+/// dominates the per-iteration cost for large graphs.
 #[cfg(feature = "parallel")]
 #[allow(dead_code)]
 fn parallel_deflated_lanczos_iteration(
     matrix: &Array2<f64>,
     prev_eigenvectors: &Array2<f64>,
     tolerance: f64,
-    _max_iterations: usize,
+    max_iterations: usize,
 ) -> std::result::Result<(f64, Array1<f64>), String> {
-    let n = matrix.shape()[0];
-
-    // Generate random starting vector using parallel RNG
-    let mut rng = scirs2_core::random::rng();
-    let mut v: Array1<f64> = Array1::from_shape_fn(n, |_| rng.random::<f64>() - 0.5);
-
-    // Parallel deflation against previous _eigenvectors
-    for j in 0..prev_eigenvectors.ncols() {
-        let prev_vec = prev_eigenvectors.column(j);
-        let proj = parallel_dot_product(&v.view(), &prev_vec);
-        parallel_axpy(-proj, &prev_vec, &mut v.view_mut());
-    }
-
-    // Normalize using parallel norm computation
-    let norm = parallel_norm(&v.view());
-    if norm < tolerance {
-        return Err("Failed to generate suitable starting vector".to_string());
-    }
-    v /= norm;
-
-    // Simplified iteration for this implementation
-    // In a full implementation, this would use parallel Lanczos tridiagonalization
-    let eigenvalue = 0.1; // Placeholder
-
-    Ok((eigenvalue, v))
+    let seed = lanczos_seed(matrix.shape()[0], prev_eigenvectors.ncols());
+    deflated_lanczos_core(
+        matrix,
+        prev_eigenvectors,
+        tolerance,
+        max_iterations,
+        seed,
+        parallel_matvec,
+    )
 }
 
-/// Parallel dot product computation
+/// Rayon-parallel matrix-vector product (row-wise reduction). Used by the
+/// `parallel` feature's Lanczos entry point for its dominant O(n^2)-per-step
+/// cost; falls back to a plain dot product for non-contiguous rows/vectors.
 #[cfg(feature = "parallel")]
-#[allow(dead_code)]
-fn parallel_dot_product(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> f64 {
-    // Use SIMD dot product with parallel chunking for large vectors
-    f64::simd_dot(a, b)
-}
-
-/// Parallel vector norm computation
-#[cfg(feature = "parallel")]
-#[allow(dead_code)]
-fn parallel_norm(vector: &ArrayView1<f64>) -> f64 {
-    // Use SIMD norm computation
-    f64::simd_norm(vector)
-}
-
-/// Parallel AXPY operation: y = alpha * x + y
-#[cfg(feature = "parallel")]
-#[allow(dead_code)]
-fn parallel_axpy(alpha: f64, x: &ArrayView1<f64>, y: &mut ArrayViewMut1<f64>) {
-    // Use SIMD AXPY operation
-    simd_spectral::simd_axpy(alpha, x, y);
+fn parallel_matvec(matrix: &Array2<f64>, vector: &ArrayView1<f64>) -> Array1<f64> {
+    let rows = matrix.nrows();
+    let result: Vec<f64> = (0..rows)
+        .into_par_iter()
+        .map(|i| {
+            let row = matrix.row(i);
+            if let (Some(row_slice), Some(vec_slice)) = (row.as_slice(), vector.as_slice()) {
+                f64::simd_dot(&ArrayView1::from(row_slice), &ArrayView1::from(vec_slice))
+            } else {
+                row.dot(vector)
+            }
+        })
+        .collect();
+    Array1::from_vec(result)
 }
 
 /// Lloyd's k-means clustering on a spectral embedding matrix.
 ///
-/// Uses k-means++ initialization (deterministic LCG, no external RNG crate) followed
-/// by iterative assignment/update until convergence or 100 iterations.
+/// Uses k-means++ initialization (deterministic LCG, no external RNG crate)
+/// followed by iterative assignment/update until convergence or 100
+/// iterations. Used by both [`spectral_clustering`] and (with a
+/// rayon-parallelized assignment step) [`parallel_spectral_clustering`], so
+/// spectral clustering behaves identically regardless of the `parallel`
+/// feature -- only the assignment step's execution strategy differs.
 ///
 /// # Arguments
 /// * `embedding` - `n × k` matrix where each row is a point in k-dimensional space
@@ -1361,8 +1359,7 @@ fn parallel_axpy(alpha: f64, x: &ArrayView1<f64>, y: &mut ArrayViewMut1<f64>) {
 ///
 /// # Returns
 /// Cluster assignments of length `n`, values in `0..k_clusters`.
-#[cfg(feature = "parallel")]
-fn spectral_kmeans_clustering(embedding: &Array2<f64>, k_clusters: usize, n: usize) -> Vec<usize> {
+fn kmeans_cluster_embedding(embedding: &Array2<f64>, k_clusters: usize, n: usize) -> Vec<usize> {
     // Trivial cases
     if k_clusters == 0 || n == 0 {
         return vec![0usize; n];
@@ -1449,26 +1446,8 @@ fn spectral_kmeans_clustering(embedding: &Array2<f64>, k_clusters: usize, n: usi
     let max_iter = 100usize;
 
     for _iter in 0..max_iter {
-        // Assignment step: each point → nearest centroid (parallelised)
-        let new_assignments: Vec<usize> = (0..n)
-            .into_par_iter()
-            .map(|i| {
-                let mut best_c = 0usize;
-                let mut best_d = f64::INFINITY;
-                for (c_idx, centroid) in centroids.iter().enumerate() {
-                    let mut d = 0.0_f64;
-                    for j in 0..dim {
-                        let diff = embedding[[i, j]] - centroid[j];
-                        d += diff * diff;
-                    }
-                    if d < best_d {
-                        best_d = d;
-                        best_c = c_idx;
-                    }
-                }
-                best_c
-            })
-            .collect();
+        // Assignment step: each point → nearest centroid
+        let new_assignments = assign_to_nearest_centroid(embedding, &centroids, n, dim);
 
         // Convergence check
         if new_assignments == assignments {
@@ -1500,18 +1479,54 @@ fn spectral_kmeans_clustering(embedding: &Array2<f64>, k_clusters: usize, n: usi
     assignments
 }
 
-/// Parallel random clustering assignment (placeholder for full k-means implementation)
+/// Assigns every embedding row to its nearest centroid (rayon-parallelized).
 #[cfg(feature = "parallel")]
-#[allow(dead_code)]
-fn parallel_random_clustering(n: usize, k: usize) -> Vec<usize> {
-    // Generate cluster assignments in parallel
+fn assign_to_nearest_centroid(
+    embedding: &Array2<f64>,
+    centroids: &[Vec<f64>],
+    n: usize,
+    dim: usize,
+) -> Vec<usize> {
     (0..n)
         .into_par_iter()
-        .map(|_i| {
-            let mut rng = scirs2_core::random::rng();
-            rng.random_range(0..k)
-        })
+        .map(|i| nearest_centroid(embedding, centroids, i, dim))
         .collect()
+}
+
+/// Assigns every embedding row to its nearest centroid (sequential).
+#[cfg(not(feature = "parallel"))]
+fn assign_to_nearest_centroid(
+    embedding: &Array2<f64>,
+    centroids: &[Vec<f64>],
+    n: usize,
+    dim: usize,
+) -> Vec<usize> {
+    (0..n)
+        .map(|i| nearest_centroid(embedding, centroids, i, dim))
+        .collect()
+}
+
+/// Index of the centroid nearest to `embedding` row `i` (squared Euclidean).
+fn nearest_centroid(
+    embedding: &Array2<f64>,
+    centroids: &[Vec<f64>],
+    i: usize,
+    dim: usize,
+) -> usize {
+    let mut best_c = 0usize;
+    let mut best_d = f64::INFINITY;
+    for (c_idx, centroid) in centroids.iter().enumerate() {
+        let mut d = 0.0_f64;
+        for j in 0..dim {
+            let diff = embedding[[i, j]] - centroid[j];
+            d += diff * diff;
+        }
+        if d < best_d {
+            best_d = d;
+            best_c = c_idx;
+        }
+    }
+    best_c
 }
 
 #[cfg(test)]
@@ -1669,5 +1684,193 @@ mod tests {
 
         // This should have a higher normalized cut value
         assert!(bad_ncut > ncut);
+    }
+
+    #[test]
+    fn test_tridiagonal_eigen_matches_known_spectrum() {
+        // Classic discrete-Laplacian tridiagonal matrix: diag = 2, offdiag = -1.
+        // Closed-form eigenvalues: 2 - 2*cos(k*pi/(n+1)) for k = 1..=n.
+        let n = 5;
+        let alpha = vec![2.0_f64; n];
+        let beta = vec![-1.0_f64; n - 1];
+
+        let (eigenvalues, eigenvectors) =
+            tridiagonal_eigen(&alpha, &beta).expect("tridiagonal eigensolve failed");
+
+        assert_eq!(eigenvalues.len(), n);
+
+        let mut expected: Vec<f64> = (1..=n)
+            .map(|k| 2.0 - 2.0 * ((k as f64) * std::f64::consts::PI / (n as f64 + 1.0)).cos())
+            .collect();
+        expected.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        for (computed, exp) in eigenvalues.iter().zip(expected.iter()) {
+            assert!(
+                (computed - exp).abs() < 1e-8,
+                "eigenvalue {computed} should match closed-form {exp}"
+            );
+        }
+
+        // Cross-check independently of the closed form: reconstruct the dense
+        // tridiagonal matrix and verify T*v ≈ lambda*v for every returned
+        // pair. This would fail hard against the old fallback, which simply
+        // returned the raw diagonal [2,2,2,2,2] (ignoring `beta` entirely)
+        // and the identity matrix as "eigenvectors".
+        let mut dense = Array2::<f64>::zeros((n, n));
+        for i in 0..n {
+            dense[[i, i]] = alpha[i];
+            if i > 0 {
+                dense[[i, i - 1]] = beta[i - 1];
+                dense[[i - 1, i]] = beta[i - 1];
+            }
+        }
+        for col in 0..n {
+            let v = eigenvectors.column(col).to_owned();
+            let lambda = eigenvalues[col];
+            let av = dense.dot(&v);
+            for i in 0..n {
+                assert!(
+                    (av[i] - lambda * v[i]).abs() < 1e-6,
+                    "T*v should equal lambda*v at row {i} for eigenpair {col}"
+                );
+            }
+            let norm: f64 = v.dot(&v).sqrt();
+            assert!(
+                (norm - 1.0).abs() < 1e-8,
+                "eigenvector {col} should be unit norm"
+            );
+        }
+    }
+
+    #[test]
+    fn test_algebraic_connectivity_path_graph_general_size() {
+        // P8: a path graph of 8 nodes. Its average degree (1.75) is not 2.0,
+        // so the old crude small-matrix heuristic (which only special-cased
+        // degree exactly 2.0, and only hard-coded a formula for n == 4) would
+        // have fallen through to `avg_degree * 0.5 == 0.875` here -- nowhere
+        // near the true value asserted below. This graph is also well past
+        // the old `n <= 4` shortcut, so it exercises the general Lanczos path.
+        let mut graph: Graph<i32, f64> = Graph::new();
+        for i in 0i32..7 {
+            graph.add_edge(i, i + 1, 1.0).expect("Operation failed");
+        }
+
+        let conn =
+            algebraic_connectivity(&graph, LaplacianType::Standard).expect("Operation failed");
+
+        let n = 8.0_f64;
+        let expected = 2.0 * (1.0 - (std::f64::consts::PI / n).cos());
+        assert!(
+            (conn - expected).abs() < 1e-4,
+            "algebraic connectivity {conn} should match the closed-form path-graph value {expected}"
+        );
+    }
+
+    #[test]
+    fn test_algebraic_connectivity_is_deterministic() {
+        // Regression guard: the Lanczos starting vector must be reproducible.
+        // Previously a `ThreadRng` (seeded from OS entropy) fed the starting
+        // vector, so results could silently vary from run to run for the
+        // exact same graph.
+        let mut graph: Graph<i32, f64> = Graph::new();
+        for i in 0i32..9 {
+            graph.add_edge(i, i + 1, 1.0).expect("Operation failed");
+        }
+        graph.add_edge(9, 0, 1.0).expect("Operation failed"); // close into a 10-cycle
+
+        let first =
+            algebraic_connectivity(&graph, LaplacianType::Standard).expect("Operation failed");
+        for _ in 0..5 {
+            let again =
+                algebraic_connectivity(&graph, LaplacianType::Standard).expect("Operation failed");
+            assert_eq!(
+                first.to_bits(),
+                again.to_bits(),
+                "algebraic_connectivity should be bit-for-bit reproducible across calls"
+            );
+        }
+    }
+
+    /// Builds two dense (complete) 4-node clusters joined by a single,
+    /// much-lighter bridge edge -- a textbook case for spectral clustering.
+    fn two_clusters_with_weak_bridge() -> Graph<i32, f64> {
+        let mut graph: Graph<i32, f64> = Graph::new();
+        for i in 0i32..4 {
+            for j in (i + 1)..4 {
+                graph.add_edge(i, j, 1.0).expect("Operation failed");
+            }
+        }
+        for i in 4i32..8 {
+            for j in (i + 1)..8 {
+                graph.add_edge(i, j, 1.0).expect("Operation failed");
+            }
+        }
+        graph.add_edge(3, 4, 0.01).expect("Operation failed");
+        graph
+    }
+
+    #[test]
+    fn test_spectral_clustering_recovers_two_clusters() {
+        let graph = two_clusters_with_weak_bridge();
+
+        let labels_first =
+            spectral_clustering(&graph, 2, LaplacianType::Standard).expect("clustering failed");
+        let labels_second =
+            spectral_clustering(&graph, 2, LaplacianType::Standard).expect("clustering failed");
+
+        // Deterministic: identical labeling across independent runs (the old
+        // implementation discarded the eigendecomposition and returned
+        // uniformly random labels every call).
+        assert_eq!(
+            labels_first, labels_second,
+            "spectral_clustering must be deterministic across runs"
+        );
+
+        // The two dense clusters must each get one consistent label, and the
+        // two clusters must get DIFFERENT labels.
+        let cluster_a_label = labels_first[0];
+        let cluster_b_label = labels_first[4];
+        assert_ne!(
+            cluster_a_label, cluster_b_label,
+            "the two clusters separated by only a weak bridge must get different labels"
+        );
+        for &node in &[0usize, 1, 2, 3] {
+            assert_eq!(
+                labels_first[node], cluster_a_label,
+                "node {node} should share cluster A's label"
+            );
+        }
+        for &node in &[4usize, 5, 6, 7] {
+            assert_eq!(
+                labels_first[node], cluster_b_label,
+                "node {node} should share cluster B's label"
+            );
+        }
+    }
+
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn test_parallel_spectral_clustering_recovers_two_clusters() {
+        let graph = two_clusters_with_weak_bridge();
+
+        // Old implementation: hardcoded every eigenvalue past the first to
+        // 0.1 and never multiplied the matrix at all, so the "embedding"
+        // clustered on was pure orthogonalized noise. This must now recover
+        // the same real partition as the sequential path.
+        let labels = parallel_spectral_clustering(&graph, 2, LaplacianType::Standard)
+            .expect("parallel clustering failed");
+
+        let cluster_a_label = labels[0];
+        let cluster_b_label = labels[4];
+        assert_ne!(
+            cluster_a_label, cluster_b_label,
+            "the two clusters separated by only a weak bridge must get different labels"
+        );
+        for &node in &[0usize, 1, 2, 3] {
+            assert_eq!(labels[node], cluster_a_label);
+        }
+        for &node in &[4usize, 5, 6, 7] {
+            assert_eq!(labels[node], cluster_b_label);
+        }
     }
 }

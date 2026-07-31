@@ -303,12 +303,17 @@ impl AStarPlanner {
     // Reconstruct the path from the goal node to the start node
     fn reconstruct_path<N: Clone + Eq + Hash>(goal: N, node: Rc<Node<N>>) -> Path<N> {
         let mut path = Vec::new();
+        // The path's total cost is the accumulated g-value at the goal node.
+        // Capture it up front: the loop below walks backwards from goal to
+        // start via `parent`, and the start node's own g-value is always
+        // 0.0, so overwriting `cost` on every iteration (as a previous
+        // version of this function did) always produced 0.0 instead of the
+        // real path cost.
+        let cost = node.g;
         let mut current = Some(node);
-        let mut cost = 0.0;
 
         while let Some(_node) = current {
             path.push(_node.state.clone());
-            cost = _node.g;
             current = _node.parent.clone();
         }
 
@@ -686,9 +691,7 @@ mod tests {
         // The path length should be 9 (start, 7 steps, goal) with only cardinal moves
         assert_eq!(path.len(), 9);
 
-        // The cost is actually 0.0 in the current implementation
-        // This is a known issue that could be fixed later
-        // assert_eq!(path.cost, 8.0);
+        assert_eq!(path.cost, 8.0);
     }
 
     #[test]
@@ -776,8 +779,6 @@ mod tests {
         // With diagonals, the path should be shorter (5 nodes: start, 3 diagonal steps, goal)
         assert_eq!(path.len(), 5);
 
-        // The cost is actually 0.0 in the current implementation
-        // This is a known issue that could be fixed later
-        // assert!((path.cost - 4.0 * std::f64::consts::SQRT_2).abs() < 1e-6);
+        assert!((path.cost - 4.0 * std::f64::consts::SQRT_2).abs() < 1e-6);
     }
 }

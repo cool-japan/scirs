@@ -1,6 +1,6 @@
 //! Writer for the columnar binary format.
 //!
-//! File layout:
+//! File layout (format version 2):
 //! - Magic bytes (8 bytes): "SCIRCOL\x01"
 //! - Version (u32): format version
 //! - Column count (u32)
@@ -11,6 +11,11 @@
 //!   - Encoding type (u8)
 //!   - Data size in bytes (u64)
 //!   - Encoded data bytes
+//!   - Null-mask flag (u8): 1 if a null/validity bitmap follows, else 0
+//!   - If the flag is 1: one byte per row (1 = null, 0 = valid)
+//!
+//! Version 1 files omit the null-mask flag/bitmap entirely; [`super::reader`]
+//! treats every column in such a file as having no null mask.
 
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::fs::File;
@@ -102,6 +107,25 @@ pub fn write_columnar_with_options<P: AsRef<Path>>(
         writer
             .write_all(&data_buf)
             .map_err(|e| IoError::FileError(format!("Failed to write column data: {}", e)))?;
+
+        // Write the null/validity bitmap, if any (format version 2+).
+        match &col.null_mask {
+            Some(mask) => {
+                writer.write_u8(1).map_err(|e| {
+                    IoError::FileError(format!("Failed to write null-mask flag: {}", e))
+                })?;
+                for &is_null in mask {
+                    writer.write_u8(is_null as u8).map_err(|e| {
+                        IoError::FileError(format!("Failed to write null-mask byte: {}", e))
+                    })?;
+                }
+            }
+            None => {
+                writer.write_u8(0).map_err(|e| {
+                    IoError::FileError(format!("Failed to write null-mask flag: {}", e))
+                })?;
+            }
+        }
     }
 
     writer

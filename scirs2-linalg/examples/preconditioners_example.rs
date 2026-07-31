@@ -420,8 +420,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _result = preconditioner.apply(&test_vector.view())?;
         let apply_time = start_apply.elapsed();
 
-        // Analyze performance
-        let analysis = analyze_preconditioner(&benchmarkmatrix.view(), preconditioner.as_ref())?;
+        // Analyze performance (pass along the setup time we already measured
+        // above, since `analyze_preconditioner` receives an already-built
+        // preconditioner and cannot time its own construction).
+        let analysis = analyze_preconditioner(
+            &benchmarkmatrix.view(),
+            preconditioner.as_ref(),
+            Some(setup_time),
+        )?;
 
         println!(
             "   {:<19} {:>8.2}    {:>8.1}    {:>8.1}      {:.1}x",

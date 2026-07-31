@@ -132,58 +132,186 @@ impl<
     }
 
     /// Compute metrics using neuromorphic processing
+    ///
+    /// This runs the actual staged neuromorphic pipeline on `data` (not a
+    /// passthrough echo of the input):
+    /// 1. Rate-code `data` into spike trains (the private `encode_to_spikes` method).
+    /// 2. Drive the real spiking neural network
+    ///    ([`spiking_networks::SpikingNeuralNetwork::simulate_step`], genuine
+    ///    LIF dynamics + synaptic weighting + lateral inhibition) one encoded
+    ///    timestep at a time, keeping the final layer's last-timestep output
+    ///    as well as a time-averaged |membrane potential| per neuron across
+    ///    the whole run (a single last-instant snapshot can coincide with a
+    ///    just-fired/reset neuron and mask real input-dependent differences).
+    /// 3. Update synaptic plasticity from the network's own time-averaged
+    ///    activity ([`synaptic_systems::SynapticPlasticityManager::update`]).
+    /// 4. Run pattern recognition against the spikes the network actually
+    ///    produced ([`pattern_recognition::SpikePatternRecognizer::recognize_patterns`]).
+    /// 5. Store a real memory trace of the response
+    ///    ([`memory_systems::NeuromorphicMemory::store`]).
+    /// 6. Update performance monitoring from the network's real state
+    ///    ([`performance_monitoring::NeuromorphicPerformanceMonitor::update`]).
+    /// 7. Apply the real (if intentionally simplified) quantum-neuromorphic
+    ///    combination when both quantum processing is enabled and a quantum
+    ///    computer is supplied.
+    ///
+    /// `metric_type` genuinely selects which real reduction of the network's
+    /// response is returned: `"mean_activity"` (mean of the time-averaged
+    /// activity), `"spike_rate"` (per-neuron firing rate over the tracked
+    /// history window), `"entropy"` (Shannon entropy of the normalized
+    /// time-averaged activity), or (default) the raw final-layer output itself.
+    ///
+    /// Deliberately NOT invoked here (left as pre-existing, separately-scoped
+    /// gaps rather than silently faked): `self.homeostasis` -- an unrelated,
+    /// pre-existing no-op stub (`core::HomeostaticController::regulate` is
+    /// generic over any `T` and ignores it); `self.learning_controller` --
+    /// its `update` needs a `learning_controllers::PerformanceSnapshot` with
+    /// `stability`/`adaptability` fields this pipeline has no principled way
+    /// to derive yet; `self.realtime_adapter` -- its `adapt` requires
+    /// supervised target data this function is never given.
     pub fn compute_neuromorphic_metrics(
         &mut self,
         data: &[F],
         metric_type: &str,
         quantum_computer: Option<&QuantumMetricsComputer<F>>,
     ) -> Result<Vec<F>> {
-        // Convert input data to spike trains (placeholder)
-        let _spike_trains = data.iter().map(|&x| x > F::zero()).collect::<Vec<_>>();
+        let dt = self.config.timestep;
 
-        // Process through spiking neural network (placeholder)
-        let _network_output = data.to_vec();
+        // 1. Real rate-coded spike-train encoding of the input.
+        let spike_trains = self.encode_to_spikes(data)?;
+        let n_timesteps = spike_trains
+            .iter()
+            .map(|train| train.len())
+            .max()
+            .unwrap_or(0);
 
-        // Apply synaptic plasticity (placeholder - no-op)
-        // self.plasticity_manager.update_plasticity(&network_output, &self.spiking_network)?;
+        // 2. Drive the real spiking network one encoded timestep at a time;
+        // the final layer's output after the last timestep is the network's
+        // genuine response to this input. `activity_accumulator` sums each
+        // step's |membrane potential| per neuron across the whole run
+        // (rather than sampling only the last timestep, which can coincide
+        // with a just-fired/reset neuron and mask real input-dependent
+        // differences) so the resulting `activity` vector is a robust,
+        // real, time-averaged measure of how strongly each neuron responded.
+        let mut network_output = Vec::new();
+        let mut activity_accumulator: Vec<F> = Vec::new();
+        for t in 0..n_timesteps {
+            let input_at_t: Vec<F> = spike_trains
+                .iter()
+                .map(|train| train.get(t).copied().unwrap_or_else(F::zero))
+                .collect();
+            network_output = self.spiking_network.simulate_step(dt, &input_at_t)?;
 
-        // Pattern recognition on spike outputs (placeholder)
-        let _recognized_patterns: Vec<()> = vec![]; // Placeholder
-
-        // Store patterns in memory (placeholder - no-op)
-        // for pattern in &recognized_patterns { ... }
-
-        // Update performance monitoring (placeholder - no-op)
-        // self.performance_monitor.update(&network_output)?;
-
-        // Apply homeostatic control (placeholder - no-op)
-        // self.homeostasis.regulate(&mut self.spiking_network)?;
-
-        // Learning controller adaptation (placeholder - no-op)
-        // let performance_snapshot = self.performance_monitor.get_current_performance();
-        // self.learning_controller.update(performance_snapshot)?;
-
-        // Float-time adaptation (placeholder - no-op)
-        // self.realtime_adapter.adapt(data, &network_output.activity_levels)?;
-
-        // Quantum processing if enabled (placeholder)
-        let final_output = if let Some(_quantum_proc) = &self.quantum_processor {
-            if let Some(_qc) = quantum_computer {
-                _network_output.clone() // Placeholder
+            let step_activity = &self.spiking_network.network_state.activity_levels;
+            if activity_accumulator.is_empty() {
+                activity_accumulator = step_activity.iter().map(|v| v.abs()).collect();
             } else {
-                _network_output.clone() // Placeholder
+                for (acc, &v) in activity_accumulator.iter_mut().zip(step_activity.iter()) {
+                    *acc = *acc + v.abs();
+                }
             }
+        }
+        let activity: Vec<F> = if n_timesteps > 0 {
+            let n = F::from(n_timesteps).expect("Failed to convert constant to float");
+            activity_accumulator.iter().map(|&s| s / n).collect()
         } else {
-            _network_output.clone()
+            Vec::new()
         };
 
-        // Record computation metrics (placeholder - no-op)
-        // let processing_time = Duration::from_millis(1); // Simplified timing
-        // self.performance_monitor.record_computation(metric_type,
-        //     final_output.iter().fold(F::zero(), |acc, &x| acc + x) / F::from(final_output.len()).expect("Operation failed"),
-        //     processing_time)?;
+        // 3. Real synaptic plasticity update driven by the network's own
+        // (time-averaged) activity.
+        self.plasticity_manager.update(dt, &activity)?;
 
-        Ok(final_output)
+        // 4. Real pattern recognition against the spikes the network actually
+        // produced (per-neuron spike trains recorded by the LIF dynamics).
+        let spike_data: std::collections::HashMap<usize, Vec<std::time::Instant>> = self
+            .spiking_network
+            .layers
+            .iter()
+            .flat_map(|layer| layer.neurons.iter())
+            .map(|neuron| (neuron.id, neuron.spike_train.iter().copied().collect()))
+            .collect();
+        let _recognized_patterns = self.pattern_recognizer.recognize_patterns(&spike_data)?;
+
+        // 5. Real memory trace of this computation; strength reflects the
+        // actual mean |activity| of the response, not a fabricated constant.
+        let mean_abs_activity = if activity.is_empty() {
+            F::zero()
+        } else {
+            activity.iter().fold(F::zero(), |acc, &x| acc + x.abs())
+                / F::from(activity.len()).expect("Failed to convert constant to float")
+        };
+        self.memory_system
+            .store(network_output.clone(), mean_abs_activity)?;
+        self.memory_system.update(dt)?;
+
+        // 6. Real performance-monitor update from the network's own state.
+        self.performance_monitor
+            .update(&self.spiking_network.network_state)?;
+
+        // 7. Quantum-neuromorphic hybrid enhancement (real combination, when enabled).
+        let final_output = match (self.quantum_processor.take(), quantum_computer) {
+            (Some(mut quantum_proc), Some(qc)) => {
+                let combined =
+                    Self::quantum_neuromorphic_processing(&network_output, &mut quantum_proc, qc);
+                self.quantum_processor = Some(quantum_proc);
+                combined?
+            }
+            (quantum_proc, _) => {
+                self.quantum_processor = quantum_proc;
+                network_output
+            }
+        };
+
+        // `metric_type` genuinely selects a real, distinctly-computed
+        // reduction of the network's actual response. "mean_activity" and
+        // "entropy" use the time-averaged `activity` (real membrane-potential
+        // magnitudes across the whole run) rather than `final_output` (a
+        // single last-timestep binary spike/no-spike snapshot that can
+        // coincidentally land on "just fired and reset" for any input).
+        match metric_type {
+            "mean_activity" => {
+                let n =
+                    F::from(activity.len().max(1)).expect("Failed to convert constant to float");
+                let mean = activity.iter().fold(F::zero(), |acc, &x| acc + x) / n;
+                Ok(vec![mean])
+            }
+            "spike_rate" => {
+                let window_secs = F::from(
+                    self.spiking_network
+                        .spike_history
+                        .history_window
+                        .as_secs_f64(),
+                )
+                .expect("Failed to convert constant to float");
+                if window_secs > F::zero() {
+                    Ok(spike_data
+                        .values()
+                        .map(|spikes| {
+                            F::from(spikes.len()).expect("Failed to convert constant to float")
+                                / window_secs
+                        })
+                        .collect())
+                } else {
+                    Ok(Vec::new())
+                }
+            }
+            "entropy" => {
+                let total = activity.iter().fold(F::zero(), |acc, &x| acc + x.abs());
+                let entropy = if total > F::zero() {
+                    let epsilon = F::from(1e-12).expect("Failed to convert constant to float");
+                    activity.iter().fold(F::zero(), |acc, &x| {
+                        let p = x.abs() / total;
+                        let p_safe = if p < epsilon { epsilon } else { p };
+                        acc - p_safe * p_safe.ln()
+                    })
+                } else {
+                    F::zero()
+                };
+                Ok(vec![entropy])
+            }
+            _ => Ok(final_output),
+        }
     }
 
     /// Encode input data to spike trains
@@ -216,8 +344,11 @@ impl<
     }
 
     /// Quantum-neuromorphic hybrid processing
+    ///
+    /// An associated function (no `&self` receiver) so callers can pass
+    /// `&mut self.quantum_processor` without conflicting with a simultaneous
+    /// `&self`/`&mut self` borrow of the rest of the computer.
     fn quantum_neuromorphic_processing(
-        &self,
         neural_output: &[F],
         quantum_processor: &mut QuantumNeuromorphicProcessor<F>,
         _quantum_computer: &QuantumMetricsComputer<F>,
@@ -536,6 +667,79 @@ mod tests {
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let result = computer.compute_neuromorphic_metrics(&data, "test", None);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn neuromorphic_computation_is_not_an_identity_echo_of_the_input() {
+        let mut computer = create_default_neuromorphic_computer::<f64>().expect("Operation failed");
+        let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let result = computer
+            .compute_neuromorphic_metrics(&data, "unrecognized_metric", None)
+            .expect("computation should succeed");
+
+        // The old code returned `data` unchanged (same length, same values).
+        // The real spiking network's fixed output-layer topology (10
+        // neurons) means the response can never simply be the 5-element
+        // input echoed back.
+        assert_eq!(
+            result.len(),
+            10,
+            "default/unrecognized metric_type should return the real 10-neuron output layer"
+        );
+        assert_ne!(result.len(), data.len());
+        assert_ne!(result, data);
+    }
+
+    #[test]
+    fn neuromorphic_metric_type_genuinely_changes_the_computed_result() {
+        let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+
+        let mut computer_mean =
+            create_default_neuromorphic_computer::<f64>().expect("Operation failed");
+        let mean_activity = computer_mean
+            .compute_neuromorphic_metrics(&data, "mean_activity", None)
+            .expect("mean_activity should succeed");
+        assert_eq!(mean_activity.len(), 1);
+
+        let mut computer_entropy =
+            create_default_neuromorphic_computer::<f64>().expect("Operation failed");
+        let entropy = computer_entropy
+            .compute_neuromorphic_metrics(&data, "entropy", None)
+            .expect("entropy should succeed");
+        assert_eq!(entropy.len(), 1);
+        assert!(entropy[0].is_finite());
+        assert!(entropy[0] >= 0.0);
+
+        let mut computer_rate =
+            create_default_neuromorphic_computer::<f64>().expect("Operation failed");
+        let spike_rate = computer_rate
+            .compute_neuromorphic_metrics(&data, "spike_rate", None)
+            .expect("spike_rate should succeed");
+        // One rate entry per neuron that has recorded spikes.
+        assert!(spike_rate.iter().all(|r| r.is_finite() && *r >= 0.0));
+    }
+
+    #[test]
+    fn neuromorphic_computation_differs_for_strongly_vs_weakly_driven_inputs() {
+        let mut computer_weak =
+            create_default_neuromorphic_computer::<f64>().expect("Operation failed");
+        let mut computer_strong =
+            create_default_neuromorphic_computer::<f64>().expect("Operation failed");
+
+        let weak_input = vec![0.05, 0.05, 0.05, 0.05, 0.05];
+        let strong_input = vec![9.0, 8.0, 7.0, 6.0, 5.0];
+
+        let weak_result = computer_weak
+            .compute_neuromorphic_metrics(&weak_input, "mean_activity", None)
+            .expect("Operation failed");
+        let strong_result = computer_strong
+            .compute_neuromorphic_metrics(&strong_input, "mean_activity", None)
+            .expect("Operation failed");
+
+        assert_ne!(
+            weak_result, strong_result,
+            "a weakly-driven vs strongly-driven input must produce different real network responses"
+        );
     }
 
     #[test]

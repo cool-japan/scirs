@@ -436,9 +436,18 @@ pub fn benchmark_lookup_table(
 ) -> SignalResult<LookupTableBenchmark> {
     use std::time::Instant;
 
-    let table = WindowLookupTable::global();
+    // Use a private, freshly-created table instead of the process-wide global
+    // singleton (`WindowLookupTable::global()`). Benchmarking the shared global
+    // cache is unreliable: any other code running in the same process --
+    // including unrelated tests executing concurrently, or application code
+    // calling `get_window_cached`/`initialize_window_system` on another thread
+    // -- can insert, hit, or evict entries in it between this function's cold
+    // and warm passes, corrupting both the timing measurements and the
+    // hit/miss counts it reports. A private table gives reproducible, isolated
+    // benchmark results regardless of what else is running.
+    let table = WindowLookupTable::new(1000);
 
-    // Clear cache to start fresh
+    // Clear cache to start fresh (defensive; the table above is already empty)
     table.clear_cache();
 
     // Benchmark with empty cache (all misses)

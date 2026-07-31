@@ -50,7 +50,11 @@ pub fn pca(signals: &Array2<f64>, config: &BssConfig) -> SignalResult<(Array2<f6
 
     // Sort eigenvectors by eigenvalues in descending order
     let mut indices: Vec<usize> = (0..n_signals).collect();
-    indices.sort_by(|&i, &j| eigvals[j].partial_cmp(&eigvals[i]).expect("Operation failed"));
+    indices.sort_by(|&i, &j| {
+        eigvals[j]
+            .partial_cmp(&eigvals[i])
+            .expect("Operation failed")
+    });
 
     let mut sorted_eigvecs = Array2::<f64>::zeros((n_signals, n_signals));
     for (i, &idx) in indices.iter().enumerate() {

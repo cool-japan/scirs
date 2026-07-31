@@ -346,26 +346,161 @@ impl<
         })
     }
 
-    /// Compute calibration metrics
+    /// Compute calibration metrics from the actual `predictions` vs
+    /// `ground_truth` passed in.
+    ///
+    /// Uses the standard "top-label" reduction from a multiclass softmax-like
+    /// prediction matrix to a binary calibration problem (as in Guo et al.
+    /// 2017, "On Calibration of Modern Neural Networks"): for each sample,
+    /// `confidence = max_j predictions[i, j]` and
+    /// `correct = 1` iff `argmax_j predictions[i, j] == ground_truth[i]`.
+    /// Samples are partitioned into 10 equal-width confidence bins in
+    /// `[0, 1]` to compute:
+    /// - Expected/Maximum Calibration Error (ECE/MCE): the (weighted) average
+    ///   / maximum absolute gap between per-bin accuracy and per-bin average
+    ///   confidence.
+    /// - `reliability_curve`: an `(n_bins, 2)` array of
+    ///   `[avg_confidence, accuracy]` per bin (0 for empty bins), i.e. the
+    ///   standard reliability diagram data.
+    /// - A Murphy (1973) Brier-score decomposition computed over the same
+    ///   bins: `reliability` (calibration term), `resolution`
+    ///   (discrimination term) and `uncertainty` (base-rate variance);
+    ///   `reliability - resolution + uncertainty` approximates `brier_score`
+    ///   (the exact decomposition requires grouping by unique confidence
+    ///   values -- with coarse bins this is a standard, documented
+    ///   approximation, not a fabricated value). `brier_score` itself is
+    ///   always the *exact* mean squared error between confidence and
+    ///   correctness, computed directly (no binning involved).
+    /// - `sharpness`: the variance of the confidence scores themselves (a
+    ///   property of the predictive distributions alone, independent of
+    ///   `ground_truth`, per Gneiting et al.'s notion of forecast sharpness).
     fn compute_calibration_metrics(
         &self,
         predictions: &ArrayView2<F>,
         ground_truth: &ArrayView1<F>,
     ) -> Result<CalibrationMetrics<F>> {
-        // Simplified calibration computation
-        let expected_calibration_error =
-            F::from(0.05).expect("Failed to convert constant to float"); // Placeholder
-        let maximum_calibration_error = F::from(0.1).expect("Failed to convert constant to float"); // Placeholder
+        const N_BINS: usize = 10;
+
+        let n_samples = predictions.nrows();
+        let n_classes = predictions.ncols();
+
+        if n_samples == 0 {
+            return Ok(CalibrationMetrics::default());
+        }
+        if n_classes == 0 {
+            return Err(MetricsError::InvalidInput(
+                "predictions must have at least one class column".to_string(),
+            ));
+        }
+        if ground_truth.len() != n_samples {
+            return Err(MetricsError::InvalidInput(format!(
+                "predictions has {} rows but ground_truth has {} elements",
+                n_samples,
+                ground_truth.len()
+            )));
+        }
+
+        // Real per-sample top-label confidence and correctness.
+        let mut confidences = Vec::with_capacity(n_samples);
+        let mut corrects = Vec::with_capacity(n_samples);
+        for i in 0..n_samples {
+            let row = predictions.row(i);
+            let mut best_class = 0usize;
+            let mut best_val = row[0];
+            for (j, &v) in row.iter().enumerate().skip(1) {
+                if v > best_val {
+                    best_val = v;
+                    best_class = j;
+                }
+            }
+            confidences.push(best_val);
+
+            // usize::MAX never matches a real class index, so a
+            // non-representable/negative/NaN ground-truth label is safely
+            // (and honestly) treated as "not correct" rather than panicking.
+            let true_label = ground_truth[i].to_usize().unwrap_or(usize::MAX);
+            corrects.push(if best_class == true_label {
+                F::one()
+            } else {
+                F::zero()
+            });
+        }
+
+        let n_f = F::from(n_samples).expect("Failed to convert constant to float");
+        let n_bins_f = F::from(N_BINS).expect("Failed to convert constant to float");
+
+        let mut bin_conf_sum = vec![F::zero(); N_BINS];
+        let mut bin_correct_sum = vec![F::zero(); N_BINS];
+        let mut bin_count = vec![0usize; N_BINS];
+
+        for i in 0..n_samples {
+            let c = confidences[i];
+            let clamped = if c < F::zero() {
+                F::zero()
+            } else if c > F::one() {
+                F::one()
+            } else {
+                c
+            };
+            let mut bin_idx = (clamped * n_bins_f).to_usize().unwrap_or(0);
+            if bin_idx >= N_BINS {
+                bin_idx = N_BINS - 1;
+            }
+            bin_conf_sum[bin_idx] = bin_conf_sum[bin_idx] + c;
+            bin_correct_sum[bin_idx] = bin_correct_sum[bin_idx] + corrects[i];
+            bin_count[bin_idx] += 1;
+        }
+
+        let overall_accuracy = corrects.iter().fold(F::zero(), |acc, &x| acc + x) / n_f;
+
+        let mut expected_calibration_error = F::zero();
+        let mut maximum_calibration_error = F::zero();
+        let mut reliability = F::zero();
+        let mut resolution = F::zero();
+        let mut reliability_curve = Array2::zeros((N_BINS, 2));
+
+        for (b, &count) in bin_count.iter().enumerate() {
+            if count == 0 {
+                continue;
+            }
+            let n_b = F::from(count).expect("Failed to convert constant to float");
+            let avg_conf_b = bin_conf_sum[b] / n_b;
+            let acc_b = bin_correct_sum[b] / n_b;
+
+            reliability_curve[[b, 0]] = avg_conf_b;
+            reliability_curve[[b, 1]] = acc_b;
+
+            let gap = (acc_b - avg_conf_b).abs();
+            expected_calibration_error = expected_calibration_error + (n_b / n_f) * gap;
+            if gap > maximum_calibration_error {
+                maximum_calibration_error = gap;
+            }
+
+            reliability = reliability + n_b * (avg_conf_b - acc_b) * (avg_conf_b - acc_b);
+            resolution = resolution + n_b * (acc_b - overall_accuracy) * (acc_b - overall_accuracy);
+        }
+        reliability = reliability / n_f;
+        resolution = resolution / n_f;
+        let uncertainty = overall_accuracy * (F::one() - overall_accuracy);
+
+        // Exact Brier score: mean squared error between confidence and correctness.
+        let brier_score = confidences
+            .iter()
+            .zip(corrects.iter())
+            .fold(F::zero(), |acc, (&c, &o)| acc + (c - o) * (c - o))
+            / n_f;
 
         let brier_decomposition = BrierDecomposition {
-            reliability: F::from(0.02).expect("Failed to convert constant to float"),
-            resolution: F::from(0.1).expect("Failed to convert constant to float"),
-            uncertainty: F::from(0.25).expect("Failed to convert constant to float"),
-            brier_score: F::from(0.15).expect("Failed to convert constant to float"),
+            reliability,
+            resolution,
+            uncertainty,
+            brier_score,
         };
 
-        let reliability_curve = Array2::zeros((10, 2)); // Placeholder
-        let sharpness = F::from(0.8).expect("Failed to convert constant to float");
+        let mean_confidence = confidences.iter().fold(F::zero(), |acc, &x| acc + x) / n_f;
+        let sharpness = confidences.iter().fold(F::zero(), |acc, &x| {
+            acc + (x - mean_confidence) * (x - mean_confidence)
+        }) / n_f;
 
         Ok(CalibrationMetrics {
             expected_calibration_error,
@@ -469,5 +604,126 @@ impl<F: Float> Default for CalibrationMetrics<F> {
             reliability_curve: Array2::zeros((0, 0)),
             sharpness: F::zero(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn quantifier() -> UncertaintyQuantifier<f64> {
+        UncertaintyQuantifier::new()
+    }
+
+    #[test]
+    fn calibration_metrics_match_hand_computed_fixture() {
+        // 3 samples, 2 classes. Predicted class = argmax, confidence = max prob.
+        // s0: pred=class0 conf=0.9, truth=0 -> correct
+        // s1: pred=class1 conf=0.7, truth=0 -> WRONG
+        // s2: pred=class1 conf=0.8, truth=1 -> correct
+        let predictions =
+            Array2::from_shape_vec((3, 2), vec![0.9, 0.1, 0.3, 0.7, 0.2, 0.8]).expect("shape");
+        let ground_truth = Array1::from_vec(vec![0.0, 0.0, 1.0]);
+
+        let q = quantifier();
+        let metrics = q
+            .compute_calibration_metrics(&predictions.view(), &ground_truth.view())
+            .expect("computation should succeed");
+
+        // Hand-computed (see scratch derivation): each sample lands in its
+        // own bin (7, 8, 9), so ECE = mean(|gap|) = (0.7+0.2+0.1)/3.
+        assert!((metrics.expected_calibration_error - (1.0 / 3.0)).abs() < 1e-9);
+        assert!((metrics.maximum_calibration_error - 0.7).abs() < 1e-9);
+        assert!((metrics.brier_decomposition.reliability - 0.18).abs() < 1e-9);
+        assert!((metrics.brier_decomposition.resolution - 2.0 / 9.0).abs() < 1e-9);
+        assert!((metrics.brier_decomposition.uncertainty - 2.0 / 9.0).abs() < 1e-9);
+        assert!((metrics.brier_decomposition.brier_score - 0.18).abs() < 1e-9);
+        // Singleton bins => the binned decomposition is exact here.
+        assert!(
+            (metrics.brier_decomposition.reliability - metrics.brier_decomposition.resolution
+                + metrics.brier_decomposition.uncertainty
+                - metrics.brier_decomposition.brier_score)
+                .abs()
+                < 1e-9
+        );
+        assert!((metrics.sharpness - 0.02 / 3.0).abs() < 1e-9);
+
+        assert!((metrics.reliability_curve[[7, 0]] - 0.7).abs() < 1e-9);
+        assert!((metrics.reliability_curve[[7, 1]] - 0.0).abs() < 1e-9);
+        assert!((metrics.reliability_curve[[8, 0]] - 0.8).abs() < 1e-9);
+        assert!((metrics.reliability_curve[[8, 1]] - 1.0).abs() < 1e-9);
+        assert!((metrics.reliability_curve[[9, 0]] - 0.9).abs() < 1e-9);
+        assert!((metrics.reliability_curve[[9, 1]] - 1.0).abs() < 1e-9);
+        // Untouched bins remain at zero.
+        assert_eq!(metrics.reliability_curve[[0, 0]], 0.0);
+
+        // None of these must equal the old hardcoded constants (0.05, 0.1,
+        // 0.02, 0.25, 0.15, 0.8) -- they must be computed from this specific
+        // (non-constant) input.
+        assert!((metrics.expected_calibration_error - 0.05).abs() > 1e-6);
+        assert!((metrics.brier_decomposition.brier_score - 0.15).abs() > 1e-6);
+    }
+
+    #[test]
+    fn calibration_metrics_are_perfect_for_a_perfectly_calibrated_model() {
+        // Every sample predicted with 100% confidence, and always correct.
+        let predictions =
+            Array2::from_shape_vec((4, 2), vec![1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0])
+                .expect("shape");
+        let ground_truth = Array1::from_vec(vec![0.0, 0.0, 1.0, 1.0]);
+
+        let q = quantifier();
+        let metrics = q
+            .compute_calibration_metrics(&predictions.view(), &ground_truth.view())
+            .expect("computation should succeed");
+
+        assert!(metrics.expected_calibration_error.abs() < 1e-9);
+        assert!(metrics.maximum_calibration_error.abs() < 1e-9);
+        assert!(metrics.brier_decomposition.brier_score.abs() < 1e-9);
+    }
+
+    #[test]
+    fn calibration_metrics_detect_a_badly_miscalibrated_model() {
+        // Extremely overconfident but wrong on every single sample.
+        let predictions = Array2::from_shape_vec((3, 2), vec![0.95, 0.05, 0.97, 0.03, 0.99, 0.01])
+            .expect("shape");
+        let ground_truth = Array1::from_vec(vec![1.0, 1.0, 1.0]); // true class is always 1
+
+        let q = quantifier();
+        let metrics = q
+            .compute_calibration_metrics(&predictions.view(), &ground_truth.view())
+            .expect("computation should succeed");
+
+        // Confidence ~0.97, accuracy 0.0 => huge miscalibration.
+        assert!(metrics.expected_calibration_error > 0.9);
+        assert!(metrics.brier_decomposition.brier_score > 0.9);
+        // Must differ sharply from the old hardcoded 0.05 ECE / 0.15 Brier score.
+        assert!((metrics.expected_calibration_error - 0.05).abs() > 0.5);
+        assert!((metrics.brier_decomposition.brier_score - 0.15).abs() > 0.5);
+    }
+
+    #[test]
+    fn calibration_metrics_reject_mismatched_lengths() {
+        let predictions = Array2::from_shape_vec((2, 2), vec![0.5, 0.5, 0.5, 0.5]).expect("shape");
+        let ground_truth = Array1::from_vec(vec![0.0]); // wrong length
+        let q = quantifier();
+        let result = q.compute_calibration_metrics(&predictions.view(), &ground_truth.view());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn analyze_uncertainty_public_api_uses_the_real_calibration_computation() {
+        let predictions =
+            Array2::from_shape_vec((3, 2), vec![0.9, 0.1, 0.3, 0.7, 0.2, 0.8]).expect("shape");
+        let ground_truth = Array1::from_vec(vec![0.0, 0.0, 1.0]);
+
+        let q = quantifier();
+        let analysis = q
+            .analyze_uncertainty(&predictions.view(), Some(&ground_truth.view()), None)
+            .expect("analysis should succeed");
+
+        assert!(
+            (analysis.calibration_metrics.expected_calibration_error - (1.0 / 3.0)).abs() < 1e-9
+        );
     }
 }

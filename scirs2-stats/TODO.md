@@ -1,5 +1,25 @@
 # scirs2-stats TODO
 
+## Status: v0.6.5 (released 2026-07-31; last reviewed 2026-07-31)
+
+Several correctness bugs fixed this cycle, surfaced by a workspace-wide `#[ignore]`-legitimacy audit
+followed to ground rather than just re-read:
+
+- The one-sided Kolmogorov-Smirnov test (`tests/normality.rs`) had an asymmetric/backwards p-value
+  formula, printing logically-inverted "Rejected"/"Not rejected" conclusions for `Alternative::Less`
+  / `Alternative::Greater`.
+- `polyfit`'s (`regression/polynomial.rs`) regression F-test hardcoded `f_p_value = F::zero()`
+  instead of computing it from the F-statistic.
+- `fisher_exact` (`contingency/mod.rs`) produced garbage output on the affected code paths; fixed.
+- The QMC low-discrepancy sequence generators — Niederreiter and Sobol, in `qmc/advanced.rs` and
+  `qmc/enhanced_sequences.rs` — produced garbage output; fixed.
+- `ErrorMonitor::get_statistics()` (`error_diagnostics.rs`) self-deadlocked by re-locking its own
+  non-reentrant `Mutex` from `detect_active_patterns()`.
+
+See `CHANGELOG.md` `[0.6.5]` for full detail.
+
+scirs2-stats's own test suite (last independently run 2026-07-15, pre-fix): 2529 tests pass, 0 failed, 24 skipped (default features); 2561 tests pass, 0 failed, 24 skipped (`--all-features`). Not re-run for this docs update.
+
 ## Status: v0.6.3 (released 2026-07-27; last reviewed 2026-07-27)
 
 **0.6.3:** fixed `AdaptiveMemoryManager::infer_deallocation_strategy` (`src/adaptive_memory_advanced/types/adaptivememorymanager_deallocate_group.rs`), which re-derived the strategy from config instead of the strategy `allocate` actually resolved for that pointer — wrong for `Adaptive`-configured pools, which could be freed through the wrong allocator/layout and corrupt the heap. `allocate` now records the resolved strategy per pointer for `deallocate` to look up. Verified by code review and the (unchanged) test suite below; not exercised under Windows CI. See `CHANGELOG.md` `[0.6.3]` for full detail.

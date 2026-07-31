@@ -478,7 +478,10 @@ mod tests {
     }
 
     /// Test: SVGD on a bimodal target — particles should spread across both modes
-    #[ignore = "slow: SVGD convergence test can exceed timeout"]
+    #[ignore = "slow: measured ~107.5s (100 particles x 1000 iterations, O(particles^2) \
+                kernel/phi_star updates per iteration, no early-exit) -- razor-thin under \
+                the workspace's 120s default nextest hard-kill, so left ignored rather than \
+                risking flaky CI timeouts; 0.6.5 ignore audit"]
     #[test]
     fn test_svgd_bimodal() {
         // Bimodal: 0.5 * N(-3, 0.5) + 0.5 * N(3, 0.5)
@@ -576,7 +579,6 @@ mod tests {
     }
 
     /// Test: SVGD 2D Gaussian — mean and std should be reasonable
-    #[ignore = "slow: SVGD may exceed timeout on slow machines"]
     #[test]
     fn test_svgd_2d_gaussian() {
         let config = SvgdConfig {

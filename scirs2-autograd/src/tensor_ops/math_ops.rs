@@ -46,6 +46,7 @@ pub struct Transpose {
 }
 pub struct Lgamma;
 pub struct Digamma;
+pub struct Trigamma;
 
 #[inline(always)]
 #[allow(dead_code)]
@@ -115,20 +116,18 @@ macro_rules! impl_cmp_op {
                     let x1_elem = x1[scirs2_core::ndarray::IxDyn(&[])];
                     x0.mapv(move |a| $assign(a, x1_elem))
                 } else {
-                    // case that scalar is not involved
-                    // Check the input ranks.
-                    // op couldn't we catch here cause ndarray's panics.
-
-                    // rank check
-                    if shape0.len() != shape1.len() {
-                        panic!(
-                            "Tensor ranks mismatch: {}({}'s lhs input) vs {}({}'s rhs input)",
-                            shape0.len(),
-                            $name,
-                            shape1.len(),
-                            $name,
-                        )
-                    }
+                    // case that scalar is not involved.
+                    //
+                    // NOTE: this used to reject `shape0.len() != shape1.len()` outright
+                    // (e.g. a [3,4] tensor against a [4] bias) before ever attempting a
+                    // broadcast. That rejected a case `ArrayView::broadcast` already
+                    // supports: broadcasting only ever requires `to.ndim() >= from.ndim()`
+                    // (it left-pads `from` with new size-1 axes), never that the two ranks
+                    // already match -- same-rank size-1 broadcasting (handled below) and
+                    // rank-promoting broadcasting are the same operation as far as
+                    // `.broadcast()` is concerned. The `match ... { None => ... }` chain
+                    // below already reports a proper error for shapes that truly cannot
+                    // broadcast, so no separate rank pre-check is needed.
 
                     // Try to broadcast the arrays
                     // First try broadcasting x0 to x1's shape
@@ -177,7 +176,7 @@ macro_rules! impl_cmp_op {
                 Ok(())
             }
 
-            fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+            fn grad<'a, 'g>(&self, ctx: &mut crate::op::GradientContext<'a, 'g, T>) {
                 $grad_fn(
                     ctx.output_grad().clone(),
                     ctx.input(0).clone(),
@@ -214,17 +213,27 @@ fn none_grad<'g, T: Float>(
 
 #[inline]
 #[allow(dead_code)]
-fn min_max_grad<'g, T: Float>(
+fn min_max_grad<'a, 'g, T: Float>(
     gy: Tensor<'g, T>,
     x1: Tensor<'g, T>,
     x2: Tensor<'g, T>,
     y: Tensor<'g, T>,
-    ctx: &mut op::GradientContext<'g, 'g, T>,
+    ctx: &mut op::GradientContext<'a, 'g, T>,
 ) {
+    // `equal(x_i, y)` broadcasts `x_i` up to `y`'s (the op's output, i.e. the broadcast)
+    // shape whenever `x1`/`x2` differ in shape (e.g. `maximum([3,4]-tensor, [4]-bias)`), so
+    // `mul(selected_*, gy)` comes out shaped like `y`/`gy`, not necessarily like `x1`/`x2`
+    // themselves. Reduce each contribution back down to its own operand's real shape --
+    // exactly as `AddOp`/`SubOp`/`MulOp` do in `binary_ops.rs` -- otherwise the gradient
+    // for the smaller/broadcast operand comes back the wrong shape (it looked identical to
+    // `gy` under an all-ones cotangent, which is why this went unnoticed).
+    let g = ctx.graph();
     let selected_a = equal(x1, y);
     let selected_b = equal(x2, y);
-    ctx.append_input_grad(0, Some(mul(selected_a, gy)));
-    ctx.append_input_grad(1, Some(mul(selected_b, gy)));
+    let gx1 = crate::tensor_ops::binary_ops::maybe_reduce(&shape(x1), &mul(selected_a, gy), g);
+    let gx2 = crate::tensor_ops::binary_ops::maybe_reduce(&shape(x2), &mul(selected_b, gy), g);
+    ctx.append_input_grad(0, Some(gx1));
+    ctx.append_input_grad(1, Some(gx2));
 }
 
 #[cfg(feature = "blas")]
@@ -594,6 +603,16 @@ impl<T: Float> op::Op<T> for Pow<T> {
         let gx = ctx.output_grad() * scalar(self.a, ctx.graph()) * pow(x, self.a - T::one());
         ctx.append_input_grad(0, Some(gx))
     }
+
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        // Required so gradient.rs's string-dispatch (`compute_grad_for_input`)
+        // can recover the exponent `a` via `downcast_ref::<Pow<F>>()`. Without
+        // this override the default `as_any` (which returns `None`) makes
+        // the downcast always fail, silently falling back to the generic
+        // "pass gradient through unchanged" default -- i.e. treating x^a as
+        // the identity function instead of applying the power rule.
+        Some(self)
+    }
 }
 
 impl<T: Float> op::Op<T> for Sqrt {
@@ -715,12 +734,11 @@ impl<T: Float> op::Op<T> for Exp2 {
 impl<T: Float> op::Op<T> for Exp10 {
     fn compute(&self, ctx: &mut op::ComputeContext<T>) -> Result<(), op::OpError> {
         let ten = T::from(10).expect("Operation failed");
-
-        #[cfg(not(feature = "blas"))]
-        {
-            let ret = ctx.input(0).map(move |&a| ten.powf(a));
-            ctx.append_output(ret);
-        }
+        // NOTE: the output append used to sit inside a `#[cfg(not(feature = "blas"))]`
+        // block, so with the `blas` feature enabled this op produced NO output at all
+        // and every graph containing `exp10` failed to evaluate.
+        let ret = ctx.input(0).map(move |&a| ten.powf(a));
+        ctx.append_output(ret);
         Ok(())
     }
 
@@ -913,9 +931,9 @@ impl<T: Float> op::Op<T> for Tan {
 
 use special::Gamma;
 
-// impl lgamma and digamma
+// impl lgamma, digamma and trigamma
 macro_rules! impl_gamma {
-    ($ty:ty, $digamma_fn:ident) => {
+    ($ty:ty, $digamma_fn:ident, $trigamma_fn:ident) => {
         impl op::Op<$ty> for Digamma {
             fn compute(&self, ctx: &mut op::ComputeContext<$ty>) -> Result<(), op::OpError> {
                 let x = ctx.input(0);
@@ -925,8 +943,35 @@ macro_rules! impl_gamma {
             }
 
             fn grad(&self, ctx: &mut op::GradientContext<$ty>) {
-                // no impl
-                ctx.append_input_grad(0, None);
+                // d/dx digamma(x) = trigamma(x) (the polygamma function of order 1).
+                let x = ctx.input(0);
+                let gy = ctx.output_grad();
+                let gx = gy * $trigamma_fn(x);
+                ctx.append_input_grad(0, Some(gx));
+            }
+        }
+
+        impl op::Op<$ty> for Trigamma {
+            fn compute(&self, ctx: &mut op::ComputeContext<$ty>) -> Result<(), op::OpError> {
+                let x = ctx.input(0);
+                let y = x.mapv(move |a| a.trigamma());
+                ctx.append_output(y);
+                Ok(())
+            }
+
+            fn grad(&self, ctx: &mut op::GradientContext<$ty>) {
+                // The polygamma function of order 2 ("tetragamma") is not exposed by the
+                // `special` crate this evaluates through, so there is no way to compute
+                // this analytically here. Reporting a loud error (rather than `None`,
+                // which the backward pass would silently read back as an implicit zero)
+                // keeps a second derivative through `digamma` from being mistaken for a
+                // real answer.
+                crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+                    ctx,
+                    "trigamma(): second-order differentiation (the tetragamma / order-2 \
+                     polygamma function) is not implemented."
+                        .into(),
+                );
             }
         }
 
@@ -950,5 +995,5 @@ macro_rules! impl_gamma {
     };
 }
 
-impl_gamma!(f32, digamma_f32);
-impl_gamma!(f64, digamma_f64);
+impl_gamma!(f32, digamma_f32, trigamma_f32);
+impl_gamma!(f64, digamma_f64, trigamma_f64);

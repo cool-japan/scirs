@@ -35,7 +35,7 @@ impl LagCovariance {
     /// Compute covariance matrices at a set of lags.
     ///
     /// For whitened signal z of shape (n, T), the lag-τ covariance is:
-    ///   R_τ[i,j] = (1/T) Σ_{t=0}^{T-τ-1} z[i,t] z[j, t+τ]
+    ///   `R_τ[i,j] = (1/T) Σ_{t=0}^{T-τ-1} z[i,t] z[j, t+τ]`
     ///
     /// The matrices are symmetrised: R_τ = (R_τ + R_τ^T) / 2.
     ///
@@ -47,15 +47,10 @@ impl LagCovariance {
     /// # Returns
     ///
     /// Vector of (lag, R_lag) pairs.
-    pub fn compute(
-        z: &Array2<f64>,
-        lags: &[usize],
-    ) -> SignalResult<Vec<(usize, Array2<f64>)>> {
+    pub fn compute(z: &Array2<f64>, lags: &[usize]) -> SignalResult<Vec<(usize, Array2<f64>)>> {
         let (n, t) = z.dim();
         if t == 0 {
-            return Err(SignalError::ValueError(
-                "Data has zero samples".to_string(),
-            ));
+            return Err(SignalError::ValueError("Data has zero samples".to_string()));
         }
         let mut result = Vec::with_capacity(lags.len());
 
@@ -90,7 +85,8 @@ impl LagCovariance {
 
         if result.is_empty() {
             return Err(SignalError::ValueError(
-                "No valid lag-covariance matrices could be computed (all lags ≥ n_samples)".to_string(),
+                "No valid lag-covariance matrices could be computed (all lags ≥ n_samples)"
+                    .to_string(),
             ));
         }
 
@@ -109,9 +105,16 @@ impl LagCovariance {
     /// # Returns
     ///
     /// Sorted list of unique positive lags.
-    pub fn auto_lags(n_samples: usize, n_lags: Option<usize>, max_lag: Option<usize>) -> Vec<usize> {
+    pub fn auto_lags(
+        n_samples: usize,
+        n_lags: Option<usize>,
+        max_lag: Option<usize>,
+    ) -> Vec<usize> {
         let nl = n_lags.unwrap_or(100).max(1);
-        let ml = max_lag.unwrap_or(n_samples / 4).max(1).min(n_samples.saturating_sub(1));
+        let ml = max_lag
+            .unwrap_or(n_samples / 4)
+            .max(1)
+            .min(n_samples.saturating_sub(1));
 
         if ml == 0 || n_samples < 2 {
             return vec![];
@@ -171,10 +174,7 @@ impl JointDiag {
     /// # Returns
     ///
     /// (V, n_iters, converged)
-    pub fn run(
-        &self,
-        matrices: &mut Vec<Array2<f64>>,
-    ) -> SignalResult<(Array2<f64>, usize, bool)> {
+    pub fn run(&self, matrices: &mut Vec<Array2<f64>>) -> SignalResult<(Array2<f64>, usize, bool)> {
         if matrices.is_empty() {
             return Err(SignalError::ValueError(
                 "No matrices provided for joint diagonalisation".to_string(),
@@ -412,10 +412,7 @@ pub fn sobi(
 /// Centre and whiten data for SOBI: returns (whitened, whitening_matrix).
 /// whitened: (n_components, n_samples)
 /// whitening_matrix: (n_components, n_channels)
-fn whiten_sobi(
-    x: &Array2<f64>,
-    n_components: usize,
-) -> SignalResult<(Array2<f64>, Array2<f64>)> {
+fn whiten_sobi(x: &Array2<f64>, n_components: usize) -> SignalResult<(Array2<f64>, Array2<f64>)> {
     let (n_channels, n_samples) = x.dim();
     let t_f = n_samples as f64;
 
@@ -434,9 +431,8 @@ fn whiten_sobi(
 
     // Covariance and eigen-decomposition
     let cov = centered.dot(&centered.t()) / t_f;
-    let (eigvals, eigvecs) = eigh(&cov.view(), None).map_err(|e| {
-        SignalError::ComputationError(format!("Eigendecomposition failed: {e}"))
-    })?;
+    let (eigvals, eigvecs) = eigh(&cov.view(), None)
+        .map_err(|e| SignalError::ComputationError(format!("Eigendecomposition failed: {e}")))?;
 
     // Sort descending
     let mut idx: Vec<usize> = (0..n_channels).collect();

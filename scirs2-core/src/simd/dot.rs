@@ -37,9 +37,14 @@ pub fn simd_dot_f32_adaptive(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
 pub fn simd_dot_f32_ultra(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum();
+    }
+
     let len = a.len();
-    let a_ptr = a.as_slice().expect("Test operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Test operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
 
     let features = get_cpu_features();
 
@@ -142,12 +147,22 @@ pub fn simd_fma_f32_ultra(
     assert_eq!(a.len(), b.len(), "Arrays a and b must have the same length");
     assert_eq!(a.len(), c.len(), "Arrays a and c must have the same length");
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() || c.as_slice().is_none() {
+        return Array1::from_iter(
+            a.iter()
+                .zip(b.iter())
+                .zip(c.iter())
+                .map(|((&x, &y), &z)| x * y + z),
+        );
+    }
+
     let len = a.len();
     let mut result = vec![0.0f32; len];
 
-    let a_ptr = a.as_slice().expect("Test operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Test operation failed").as_ptr();
-    let c_ptr = c.as_slice().expect("Test operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
+    let c_ptr = c.as_slice().expect("contiguity checked above").as_ptr();
     let result_ptr = result.as_mut_ptr();
 
     let features = get_cpu_features();
@@ -238,11 +253,16 @@ pub fn simd_fma_f32_ultra(
 pub fn simd_mul_f32_fast(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return (a * b).to_owned();
+    }
+
     let len = a.len();
     let mut result = vec![0.0f32; len];
 
-    let a_ptr = a.as_slice().expect("Test operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Test operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
     let result_ptr = result.as_mut_ptr();
 
     let features = get_cpu_features();

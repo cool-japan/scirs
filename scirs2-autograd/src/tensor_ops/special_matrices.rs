@@ -65,54 +65,57 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let y = ctx.output();
+        // NOTE: this must NOT eagerly `.eval()` `y`/`gy` here (a previous version did).
+        // `Op::grad` only ever has access to a bare `&Graph` (`ctx.graph()`), never the
+        // `Context`/`VariableEnvironment` that resolves `Variable` nodes -- evaluating a
+        // tensor that traces back to a `Variable` from here fails *honestly* rather than
+        // fabricating a value (see `Graph::eval_tensors_in`'s `var_env` parameter). That
+        // honest failure silently became a *shape* bug: the failed eval fell through to
+        // `ctx.append_input_grad(0, None)`, and `tensor_ops::grad`'s "no gradient
+        // accumulated" fallback then invented a zero gradient from `Tensor::shape()`'s
+        // (empty, since it is never set for this node) hint -- a 0-d "gradient" in place
+        // of an n×n matrix. Building a lazy `CholeskyBackwardOp` instead defers the
+        // Murray-2016 computation to normal (non-eager) graph evaluation, exactly like
+        // every other backward op in this crate.
+        let y = *ctx.output();
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
+        let gx = Tensor::builder(g)
+            .append_input(y, false)
+            .append_input(gy, false)
+            .build(CholeskyBackwardOp);
+        ctx.append_input_grad(0, Some(gx));
+    }
+}
 
-        // Retrieve L (forward output) and gy (upstream gradient)
-        let y_array = match y.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+/// Iain Murray (2016) reverse-mode gradient for Cholesky decomposition, computed lazily
+/// (as an ordinary graph node evaluated in topological order) rather than eagerly inside
+/// `Op::grad` -- see the comment on `CholeskyOp::grad` for why eager evaluation there is
+/// unsound.
+///
+/// Inputs are `(L, dL)`: `L = chol(A)` (the forward output) and `dL` (the upstream
+/// cotangent). Output is `dA`.
+struct CholeskyBackwardOp;
 
-        let gy_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+impl<F: Float + ScalarOperand> Op<F> for CholeskyBackwardOp {
+    fn name(&self) -> &'static str {
+        "CholeskyBackward"
+    }
 
-        let l = match y_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let l_view = ctx.input(0);
+        let l = l_view
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| OpError::Other("CholeskyBackward: L must be 2D".into()))?;
+        let gy_view = ctx.input(1);
+        let gy_2d = gy_view
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| OpError::Other("CholeskyBackward: dL must be 2D".into()))?;
 
         let n = l.shape()[0];
-        let two = match F::from(2.0_f64) {
-            Some(v) => v,
-            None => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+        let two = F::from(2.0_f64)
+            .ok_or_else(|| OpError::Other("CholeskyBackward: could not represent 2.0".into()))?;
 
-        // Iain Murray (2016) reverse-mode gradient for Cholesky decomposition.
-        //
         // Given L = chol(A) and upstream gradient dL = gy_2d:
         //   S     = L^T * dL                              (n×n)
         //   Phi(S) = tril(S, -1) + diag(diag(S)) / 2     (keep strict lower tri, halve diagonal)
@@ -191,8 +194,15 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
             }
         }
 
-        let grad_tensor = convert_to_tensor(grad.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        ctx.append_output(grad.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+            ctx,
+            "Cholesky: second-order differentiation is not implemented.".into(),
+        );
     }
 }
 
@@ -234,40 +244,19 @@ impl<F: Float + ScalarOperand> Op<F> for SymmetrizeOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
+        // Symmetrize, `S(A) = (A + A^T) / 2`, is self-adjoint under the Frobenius inner
+        // product (`<S(A), B> = <A, S(B)>`), so its VJP is itself: re-apply `SymmetrizeOp`
+        // to the upstream cotangent. Building this as a lazy graph node (rather than
+        // eagerly evaluating `gy` right here, as a previous version did) is required:
+        // `Op::grad` only ever has a bare `&Graph`, not the `Context`/`VariableEnvironment`
+        // needed to resolve a `Variable` upstream of `gy`, so an eager `.eval()` here can
+        // fail even when the *lazy* gradient graph would evaluate just fine later.
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
-
-        // Get array for gradient computation
-        let gy_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Convert to 2D array
-        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Gradient of symmetrize: (dY + dY^T) / 2
-        let mut grad = Array2::<F>::zeros(gy_2d.dim());
-        let half = F::from(0.5).expect("Failed to convert constant to float");
-
-        for i in 0..gy_2d.shape()[0] {
-            for j in 0..gy_2d.shape()[1] {
-                grad[[i, j]] = (gy_2d[[i, j]] + gy_2d[[j, i]]) * half;
-            }
-        }
-
-        // Convert gradient to tensor and append
-        let grad_tensor = convert_to_tensor(grad.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        let gx = Tensor::builder(g)
+            .append_input(gy, false)
+            .build(SymmetrizeOp);
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 
@@ -315,42 +304,19 @@ impl<F: Float> Op<F> for LowerTriangularOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
+        // Extracting a triangle is a coordinate projection (each output entry either
+        // copies or zeros the matching input entry), which is self-adjoint: its VJP is
+        // itself. Re-apply the same masking op to the upstream cotangent, built as a lazy
+        // graph node -- see `CholeskyOp::grad`'s comment for why this must not eagerly
+        // `.eval()` `gy` here.
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
-
-        // Get array for gradient computation
-        let gy_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Convert to 2D array
-        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let mut grad = gy_2d.to_owned();
-        let (rows, cols) = (grad.shape()[0], grad.shape()[1]);
-
-        // Zero out gradients for elements that were zeroed in forward pass
-        for i in 0..rows {
-            for j in 0..cols {
-                if j as i32 > i as i32 - self.diagonal {
-                    grad[[i, j]] = F::zero();
-                }
-            }
-        }
-
-        // Convert gradient to tensor and append
-        let grad_tensor = convert_to_tensor(grad.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        let gx = Tensor::builder(g)
+            .append_input(gy, false)
+            .build(LowerTriangularOp {
+                diagonal: self.diagonal,
+            });
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 
@@ -398,42 +364,15 @@ impl<F: Float> Op<F> for UpperTriangularOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
+        // Self-adjoint coordinate projection -- see `LowerTriangularOp::grad`.
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
-
-        // Get array for gradient computation
-        let gy_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Convert to 2D array
-        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let mut grad = gy_2d.to_owned();
-        let (rows, cols) = (grad.shape()[0], grad.shape()[1]);
-
-        // Zero out gradients for elements that were zeroed in forward pass
-        for i in 0..rows {
-            for j in 0..cols {
-                if (j as i32) < (i as i32 + self.diagonal) {
-                    grad[[i, j]] = F::zero();
-                }
-            }
-        }
-
-        // Convert gradient to tensor and append
-        let grad_tensor = convert_to_tensor(grad.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        let gx = Tensor::builder(g)
+            .append_input(gy, false)
+            .build(UpperTriangularOp {
+                diagonal: self.diagonal,
+            });
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 
@@ -483,43 +422,16 @@ impl<F: Float> Op<F> for BandMatrixOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
+        // Self-adjoint coordinate projection -- see `LowerTriangularOp::grad`.
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
-
-        // Get array for gradient computation
-        let gy_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Convert to 2D array
-        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let mut grad = gy_2d.to_owned();
-        let (rows, cols) = (grad.shape()[0], grad.shape()[1]);
-
-        // Zero out gradients for elements outside the band
-        for i in 0..rows {
-            for j in 0..cols {
-                let diag_offset = j as i32 - i as i32;
-                if diag_offset < -self.lower || diag_offset > self.upper {
-                    grad[[i, j]] = F::zero();
-                }
-            }
-        }
-
-        // Convert gradient to tensor and append
-        let grad_tensor = convert_to_tensor(grad.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        let gx = Tensor::builder(g)
+            .append_input(gy, false)
+            .build(BandMatrixOp {
+                lower: self.lower,
+                upper: self.upper,
+            });
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 

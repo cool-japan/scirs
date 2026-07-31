@@ -937,7 +937,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore] // Ignore by default as it requires CUDA
+    #[ignore = "requires-gpu: requires a CUDA-capable device"]
     fn test_cudacontext_creation() {
         let context = CudaContext::new(None);
         assert!(context.is_ok());
@@ -949,7 +949,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Ignore by default as it requires CUDA
+    #[ignore = "requires-gpu: requires a CUDA-capable device"]
     fn test_cuda_buffer_allocation() {
         let buffer = CudaBuffer::<f32>::new(1024);
         assert!(buffer.is_ok());

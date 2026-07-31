@@ -15,8 +15,10 @@
 
 use crate::error::{Result, TextError};
 use crate::multilingual::{Language, LanguageDetectionResult};
-use crate::sentiment::SentimentResult;
+use crate::named_entity_recognition::{extract_entities, NerPatternConfig};
+use crate::sentiment::{LexiconSentimentAnalyzer, Sentiment, SentimentResult, SentimentWordCounts};
 use crate::transformer::*;
+use crate::vectorize::{TfidfVectorizer, Vectorizer};
 use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -572,6 +574,182 @@ impl AdvancedTextAnalytics {
     }
 }
 
+/// Computes a genuine (non-fabricated) [`TextProcessingResult`] for a batch
+/// of texts, shared by [`AdvancedTextCoordinator::processtexts_standard`]
+/// and [`NeuralProcessingEnsemble::processtexts_ensemble`] (both of which
+/// previously returned all-zero embeddings, a constant `Neutral`/0.5
+/// sentiment, a hardcoded single "general" topic, and empty entities
+/// regardless of the input text).
+///
+/// - `vectors`: real TF-IDF vectorization of the batch (replaces
+///   `Array2::zeros`).
+/// - `sentiment`: real lexicon-based sentiment
+///   ([`LexiconSentimentAnalyzer`]), aggregated (mean score/confidence,
+///   summed word counts) across the batch (replaces a constant `Neutral`).
+/// - `topics`: the batch's top TF-IDF-weighted terms, used as topic labels
+///   (replaces a hardcoded `["general"]` with probability `1.0`).
+/// - `entities`: rule-based named-entity extraction
+///   ([`extract_entities`]) run over every text (replaces an always-empty
+///   `Vec`).
+/// - `neural_outputs`: honestly *derived* from the real TF-IDF vectors --
+///   `embeddings` is a fixed-width (down-)projection of each text's real
+///   vector, `attentionweights` is the real pairwise cosine-similarity
+///   matrix between texts, and `layer_outputs` reuses the same embeddings
+///   as a single layer. These are not a genuine transformer forward pass
+///   (no pretrained model is available to run here), but they are real,
+///   text-dependent computations rather than fabricated zeros -- documented
+///   as such rather than presented as authentic transformer internals.
+fn compute_real_text_processing(texts: &[String]) -> Result<TextProcessingResult> {
+    const NEURAL_EMBEDDING_DIM: usize = 50;
+
+    if texts.is_empty() {
+        return Ok(TextProcessingResult {
+            vectors: Array2::zeros((0, 0)),
+            sentiment: SentimentResult {
+                sentiment: Sentiment::Neutral,
+                confidence: 0.0,
+                score: 0.0,
+                word_counts: SentimentWordCounts::default(),
+            },
+            topics: TopicModelingResult {
+                topics: Vec::new(),
+                topic_probabilities: Vec::new(),
+                dominant_topic: String::new(),
+                topic_coherence: 0.0,
+            },
+            entities: Vec::new(),
+            quality_metrics: TextQualityMetrics::default(),
+            neural_outputs: NeuralProcessingOutputs {
+                embeddings: Array2::zeros((0, NEURAL_EMBEDDING_DIM)),
+                attentionweights: Array2::zeros((0, 0)),
+                layer_outputs: vec![Array2::zeros((0, NEURAL_EMBEDDING_DIM))],
+            },
+        });
+    }
+
+    let text_refs: Vec<&str> = texts.iter().map(String::as_str).collect();
+
+    // Real TF-IDF vectorization.
+    let mut vectorizer = TfidfVectorizer::default();
+    let vectors = vectorizer.fit_transform(&text_refs)?;
+
+    // Real lexicon-based sentiment, aggregated over the batch.
+    let sentiment_analyzer = LexiconSentimentAnalyzer::with_basiclexicon();
+    let per_text_sentiment = sentiment_analyzer.analyze_batch(&text_refs)?;
+    let n = per_text_sentiment.len().max(1) as f64;
+    let avg_score = per_text_sentiment.iter().map(|s| s.score).sum::<f64>() / n;
+    let avg_confidence = per_text_sentiment.iter().map(|s| s.confidence).sum::<f64>() / n;
+    let mut word_counts = SentimentWordCounts::default();
+    for s in &per_text_sentiment {
+        word_counts.positive_words += s.word_counts.positive_words;
+        word_counts.negative_words += s.word_counts.negative_words;
+        word_counts.neutral_words += s.word_counts.neutral_words;
+        word_counts.total_words += s.word_counts.total_words;
+    }
+    let sentiment = SentimentResult {
+        sentiment: Sentiment::from_score(avg_score),
+        score: avg_score,
+        confidence: avg_confidence,
+        word_counts,
+    };
+
+    // Real (TF-IDF-weight-based) topic terms: sum each term's weight across
+    // the batch and take the highest-weighted terms as topic labels.
+    let vocab_map = vectorizer.vocabulary_map(); // word -> column index
+    let mut inv_vocab = vec![String::new(); vocab_map.len()];
+    for (word, idx) in &vocab_map {
+        if *idx < inv_vocab.len() {
+            inv_vocab[*idx] = word.clone();
+        }
+    }
+    let n_top_topics = 3.min(inv_vocab.len());
+    let mut term_weights: Vec<(usize, f64)> = (0..vectors.ncols())
+        .map(|j| (j, vectors.column(j).sum()))
+        .collect();
+    term_weights.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    let total_weight: f64 = term_weights.iter().map(|(_, w)| w).sum::<f64>().max(1e-12);
+
+    let (topic_labels, topic_probabilities): (Vec<String>, Vec<f64>) = if n_top_topics == 0 {
+        (vec!["general".to_string()], vec![1.0])
+    } else {
+        term_weights
+            .iter()
+            .take(n_top_topics)
+            .map(|&(idx, w)| (inv_vocab[idx].clone(), w / total_weight))
+            .unzip()
+    };
+    let dominant_topic = topic_labels
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "general".to_string());
+    // A simple, real coherence proxy: how much of the batch's total term
+    // weight the reported topic terms actually account for.
+    let topic_coherence = topic_probabilities.iter().sum::<f64>().clamp(0.0, 1.0);
+
+    let topics = TopicModelingResult {
+        topics: topic_labels,
+        topic_probabilities,
+        dominant_topic,
+        topic_coherence,
+    };
+
+    // Real rule-based named-entity extraction over every text.
+    let ner_config = NerPatternConfig::default();
+    let mut entities = Vec::new();
+    for text in texts {
+        for e in extract_entities(text, &ner_config)? {
+            entities.push(NamedEntity {
+                text: e.text,
+                entity_type: format!("{:?}", e.entity_type),
+                start_pos: e.start,
+                end_pos: e.end,
+                confidence: e.confidence,
+            });
+        }
+    }
+
+    // Neural-output fields honestly derived from the real TF-IDF vectors
+    // (see this function's doc comment).
+    let n_texts = texts.len();
+    let n_cols = vectors.ncols().max(1);
+    let mut embeddings = Array2::zeros((n_texts, NEURAL_EMBEDDING_DIM));
+    for i in 0..n_texts {
+        for j in 0..n_cols {
+            let bucket = j % NEURAL_EMBEDDING_DIM;
+            embeddings[[i, bucket]] += vectors[[i, j]];
+        }
+    }
+    let mut attentionweights = Array2::zeros((n_texts, n_texts));
+    for i in 0..n_texts {
+        for j in 0..n_texts {
+            let row_i = vectors.row(i);
+            let row_j = vectors.row(j);
+            let dot = row_i.dot(&row_j);
+            let norm_i = row_i.dot(&row_i).sqrt();
+            let norm_j = row_j.dot(&row_j).sqrt();
+            attentionweights[[i, j]] = if norm_i > 0.0 && norm_j > 0.0 {
+                dot / (norm_i * norm_j)
+            } else {
+                0.0
+            };
+        }
+    }
+    let layer_outputs = vec![embeddings.clone()];
+
+    Ok(TextProcessingResult {
+        vectors,
+        sentiment,
+        topics,
+        entities,
+        quality_metrics: TextQualityMetrics::default(),
+        neural_outputs: NeuralProcessingOutputs {
+            embeddings,
+            attentionweights,
+            layer_outputs,
+        },
+    })
+}
+
 /// Performance optimization engine for text processing
 pub struct PerformanceOptimizer {
     /// Current optimization strategy
@@ -919,36 +1097,7 @@ impl AdvancedTextCoordinator {
     // Private helper methods
 
     fn processtexts_standard(&self, texts: &[String]) -> Result<TextProcessingResult> {
-        // Standard processing implementation
-        let vectors = Array2::zeros((texts.len(), 768)); // Placeholder
-        let sentiment = SentimentResult {
-            sentiment: crate::sentiment::Sentiment::Neutral,
-            confidence: 0.5,
-            score: 0.5,
-            word_counts: crate::sentiment::SentimentWordCounts::default(),
-        };
-        let topics = TopicModelingResult {
-            topics: vec!["general".to_string()],
-            topic_probabilities: vec![1.0],
-            dominant_topic: "general".to_string(),
-            topic_coherence: 0.5,
-        };
-        let entities = Vec::new();
-        let quality_metrics = TextQualityMetrics::default();
-        let neural_outputs = NeuralProcessingOutputs {
-            embeddings: Array2::zeros((texts.len(), 50)),
-            attentionweights: Array2::zeros((texts.len(), texts.len())),
-            layer_outputs: vec![Array2::zeros((texts.len(), 50))],
-        };
-
-        Ok(TextProcessingResult {
-            vectors,
-            sentiment,
-            topics,
-            entities,
-            quality_metrics,
-            neural_outputs,
-        })
+        compute_real_text_processing(texts)
     }
 
     fn simd_cosine_similarity(&self, a: &Array1<f64>, b: &Array1<f64>) -> Result<f64> {
@@ -1121,10 +1270,29 @@ impl AdvancedTextCoordinator {
     }
 
     fn calculate_classification_confidence(
-        self_classifications: &[ClassificationResult],
+        classifications: &[ClassificationResult],
     ) -> Result<Vec<f64>> {
-        // Calculate confidence for each classification
-        Ok(vec![0.92, 0.87, 0.91]) // Placeholder
+        // Confidence derived from each real classification's score margin:
+        // how far the top category's similarity score is above the
+        // runner-up. A clear top choice yields high confidence; a close
+        // call between the top two categories yields low confidence.
+        // Cosine similarities lie in [-1, 1], so the margin (in [0, 2]) is
+        // scaled into [0, 1]. Replaces a constant 3-element
+        // `[0.92, 0.87, 0.91]` returned regardless of how many
+        // classifications (or categories) were actually supplied.
+        Ok(classifications
+            .iter()
+            .map(|c| {
+                if c.category_scores.is_empty() {
+                    return 0.0;
+                }
+                let mut sorted = c.category_scores.clone();
+                sorted.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+                let top = sorted[0];
+                let runner_up = sorted.get(1).copied().unwrap_or(-1.0);
+                ((top - runner_up) / 2.0).clamp(0.0, 1.0)
+            })
+            .collect())
     }
 
     fn calculate_topic_quality_metrics(
@@ -1232,9 +1400,20 @@ impl SimilarityAnalytics {
     }
 }
 
-/// Classification result placeholder
-#[derive(Debug)]
-pub struct ClassificationResult;
+/// Result of classifying a single text against a set of candidate
+/// categories (zero-shot-style: each category is represented by the
+/// embedding of its own name, and the text is scored against every
+/// category by cosine similarity -- see the private
+/// `NeuralProcessingEnsemble::classify_batch_ensemble` method).
+#[derive(Debug, Clone)]
+pub struct ClassificationResult {
+    /// The candidate category with the highest similarity score.
+    pub predicted_category: String,
+    /// Cosine-similarity score for every candidate category, in the same
+    /// order as the `categories` slice passed to
+    /// [`AdvancedTextCoordinator::advanced_classify_batch`].
+    pub category_scores: Vec<f64>,
+}
 /// Enhanced topic modeling result placeholder
 #[derive(Debug, Clone)]
 pub struct EnhancedTopicModelingResult;
@@ -1327,51 +1506,7 @@ impl NeuralProcessingEnsemble {
     }
 
     fn processtexts_ensemble(&self, texts: &[String]) -> Result<TextProcessingResult> {
-        // Enhanced implementation with actual text processing
-        let numtexts = texts.len();
-        let embedding_dim = 768;
-
-        // Generate meaningful embeddings based on text content
-        let mut vectors = Array2::zeros((numtexts, embedding_dim));
-        for (i, text) in texts.iter().enumerate() {
-            // Simple but meaningful embedding based on text features
-            let text_len = text.len() as f64;
-            let word_count = text.split_whitespace().count() as f64;
-            let char_diversity =
-                text.chars().collect::<std::collections::HashSet<_>>().len() as f64;
-
-            // Create a feature vector based on text characteristics
-            for j in 0..embedding_dim {
-                let feature_index = j as f64;
-                let base_value =
-                    (text_len * 0.01 + word_count * 0.1 + char_diversity * 0.05) / 100.0;
-                let variation = (feature_index * 0.1).sin() * 0.1;
-                vectors[[i, j]] = base_value + variation;
-            }
-        }
-
-        Ok(TextProcessingResult {
-            vectors,
-            sentiment: SentimentResult {
-                sentiment: crate::sentiment::Sentiment::Neutral,
-                confidence: 0.5,
-                score: 0.5,
-                word_counts: crate::sentiment::SentimentWordCounts::default(),
-            },
-            topics: TopicModelingResult {
-                topics: vec!["general".to_string()],
-                topic_probabilities: vec![1.0],
-                dominant_topic: "general".to_string(),
-                topic_coherence: 0.5,
-            },
-            entities: Vec::new(),
-            quality_metrics: TextQualityMetrics::default(),
-            neural_outputs: NeuralProcessingOutputs {
-                embeddings: Array2::zeros((texts.len(), 50)),
-                attentionweights: Array2::zeros((texts.len(), texts.len())),
-                layer_outputs: vec![Array2::zeros((texts.len(), 50))],
-            },
-        })
+        compute_real_text_processing(texts)
     }
 
     fn get_advanced_embeddings(&self, text: &str) -> Result<Array1<f64>> {
@@ -1435,27 +1570,56 @@ impl NeuralProcessingEnsemble {
     fn classify_batch_ensemble(
         &self,
         texts: &[String],
-        _categories: &[String],
+        categories: &[String],
     ) -> Result<Vec<ClassificationResult>> {
-        // Enhanced classification using text features
-        let mut results = Vec::new();
+        if categories.is_empty() {
+            return Err(TextError::InvalidInput(
+                "advanced_classify_batch requires at least one category".to_string(),
+            ));
+        }
 
+        // Zero-shot-style classification: represent each category by the
+        // embedding of its own name/keyword, then score every text against
+        // every category by cosine similarity. This is not a trained
+        // classifier, but it is a real, text-and-category-dependent
+        // computation -- unlike the previous version, which computed a text
+        // embedding and several text features and then discarded all of
+        // them, unconditionally pushing an empty `ClassificationResult` for
+        // every text regardless of `texts` or `categories`.
+        let category_embeddings: Vec<Array1<f64>> = categories
+            .iter()
+            .map(|c| self.get_advanced_embeddings(c))
+            .collect::<Result<Vec<_>>>()?;
+
+        let mut results = Vec::with_capacity(texts.len());
         for text in texts {
-            // Generate embeddings for the text
             let text_embedding = self.get_advanced_embeddings(text)?;
 
-            // Simple classification based on text features and category matching
-            let text_lower = text.to_lowercase();
-            let word_count = text.split_whitespace().count();
-            let _avg_word_len = if word_count > 0 {
-                text.len() as f64 / word_count as f64
-            } else {
-                0.0
-            };
+            let category_scores: Vec<f64> = category_embeddings
+                .iter()
+                .map(|cat_emb| {
+                    let dot = text_embedding.dot(cat_emb);
+                    let norm_text = text_embedding.dot(&text_embedding).sqrt();
+                    let norm_cat = cat_emb.dot(cat_emb).sqrt();
+                    if norm_text > 0.0 && norm_cat > 0.0 {
+                        dot / (norm_text * norm_cat)
+                    } else {
+                        0.0
+                    }
+                })
+                .collect();
 
-            // Create a classification result placeholder
-            // In a real implementation, this would use trained models
-            results.push(ClassificationResult);
+            let best_idx = category_scores
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(idx, _)| idx)
+                .unwrap_or(0);
+
+            results.push(ClassificationResult {
+                predicted_category: categories[best_idx].clone(),
+                category_scores,
+            });
         }
 
         Ok(results)
@@ -1659,5 +1823,118 @@ mod tests {
         assert!(similarity_result.cosine_similarity >= 0.0);
         assert!(similarity_result.cosine_similarity <= 1.0);
         assert!(similarity_result.confidence_score > 0.0);
+    }
+
+    /// Regression test for `compute_real_text_processing` (shared by
+    /// `processtexts_standard` and `processtexts_ensemble`), which used to
+    /// be two independent stubs: all-zero `Array2::zeros((n, 768))`
+    /// embeddings and an unconditional `Neutral`/0.5/0.5 sentiment
+    /// regardless of text content.
+    #[test]
+    fn test_compute_real_text_processing_reflects_actual_content() {
+        let texts = vec![
+            "I absolutely love this wonderful, fantastic, amazing product!".to_string(),
+            "This is a terrible, horrible, awful experience and I hate it.".to_string(),
+            "Please contact us at info@example.com for more information.".to_string(),
+        ];
+
+        let result = compute_real_text_processing(&texts).expect("Operation failed");
+
+        // Real (TF-IDF) vectors: non-zero and different per-row, since each
+        // text uses different words. Previously this was an all-zero
+        // (texts.len(), 768) matrix regardless of content.
+        assert_eq!(result.vectors.nrows(), texts.len());
+        assert!(result.vectors.iter().any(|&v| v != 0.0));
+        assert_ne!(result.vectors.row(0), result.vectors.row(1));
+
+        // Real lexicon sentiment: a batch this polarized cannot land
+        // exactly on the old hardcoded Neutral/0.5/0.5.
+        assert!(
+            result.sentiment.score != 0.5 || result.sentiment.confidence != 0.5,
+            "sentiment should reflect actual (highly polarized) text content, got {:?}",
+            result.sentiment
+        );
+        assert!(result.sentiment.word_counts.total_words > 0);
+
+        // Real named-entity extraction should find the email address.
+        assert!(
+            result
+                .entities
+                .iter()
+                .any(|e| e.text.contains("info@example.com")),
+            "expected the email address to be extracted as an entity, got {:?}",
+            result.entities
+        );
+
+        // Real topic terms: not the hardcoded single "general" topic.
+        assert!(!result.topics.topics.is_empty());
+        assert_ne!(result.topics.dominant_topic, "");
+
+        // Neural outputs derived from the real vectors must be non-zero and
+        // non-uniform (previously always `Array2::zeros`).
+        assert_eq!(result.neural_outputs.embeddings.nrows(), texts.len());
+        assert!(result.neural_outputs.embeddings.iter().any(|&v| v != 0.0));
+        assert_eq!(
+            result.neural_outputs.attentionweights.dim(),
+            (texts.len(), texts.len())
+        );
+        // Self-similarity must be (near) 1.0 for a non-degenerate vector.
+        assert!((result.neural_outputs.attentionweights[[0, 0]] - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_compute_real_text_processing_empty_batch() {
+        let result = compute_real_text_processing(&[]).expect("Operation failed");
+        assert_eq!(result.vectors.nrows(), 0);
+        assert!(result.entities.is_empty());
+    }
+
+    /// Regression test for `classify_batch_ensemble` +
+    /// `calculate_classification_confidence`, which used to push an empty
+    /// `ClassificationResult` unit value for every text (regardless of
+    /// `texts`/`categories`) and then report a constant confidence vector
+    /// `[0.92, 0.87, 0.91]` regardless of how many classifications were
+    /// actually produced.
+    #[test]
+    fn test_advanced_classify_batch_scores_depend_on_content() {
+        let config = AdvancedTextConfig::default();
+        let coordinator = AdvancedTextCoordinator::new(config).expect("Operation failed");
+
+        let texts = vec![
+            "The quarterback threw a touchdown pass in the football game.".to_string(),
+            "The chef prepared a delicious pasta dish with fresh tomatoes.".to_string(),
+        ];
+        let categories = vec!["sports".to_string(), "cooking".to_string()];
+
+        let result = coordinator
+            .advanced_classify_batch(&texts, &categories)
+            .expect("Operation failed");
+
+        assert_eq!(result.classifications.len(), texts.len());
+        // Confidence estimates must actually track the number of
+        // classifications produced, not a hardcoded 3-element vector.
+        assert_eq!(result.confidence_estimates.len(), texts.len());
+
+        for classification in &result.classifications {
+            assert_eq!(classification.category_scores.len(), categories.len());
+            assert!(categories.contains(&classification.predicted_category));
+        }
+
+        // Confidence values must be real, non-constant numbers in [0, 1],
+        // not the old hardcoded [0.92, 0.87, 0.91].
+        for &c in &result.confidence_estimates {
+            assert!((0.0..=1.0).contains(&c));
+        }
+        assert_ne!(result.confidence_estimates, vec![0.92, 0.87, 0.91]);
+    }
+
+    #[test]
+    fn test_advanced_classify_batch_rejects_empty_categories() {
+        let config = AdvancedTextConfig::default();
+        let coordinator = AdvancedTextCoordinator::new(config).expect("Operation failed");
+        let texts = vec!["some text".to_string()];
+
+        let result = coordinator.advanced_classify_batch(&texts, &[]);
+        assert!(result.is_err());
     }
 }

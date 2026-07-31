@@ -383,7 +383,17 @@ mod tests {
 
         let custom_ensemble: EnsembleClusterer<f64> = EnsembleClusterer::new(custom_config);
 
-        // Both ensembles should be creatable without errors
-        assert!(true); // If we get here, creation succeeded
+        // The default-config ensemble should store the default config.
+        assert_eq!(
+            ensemble.config().n_estimators,
+            EnsembleConfig::default().n_estimators
+        );
+
+        // The custom-config ensemble should store exactly what was passed in,
+        // not silently fall back to defaults.
+        assert_eq!(custom_ensemble.config().n_estimators, 20);
+        assert_eq!(custom_ensemble.config().random_seed, Some(42));
+        assert_eq!(custom_ensemble.config().quality_threshold, Some(0.1));
+        assert_eq!(custom_ensemble.config().max_clusters, Some(15));
     }
 }

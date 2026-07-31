@@ -150,9 +150,104 @@ impl<F: Float> Op<F> for ParallelReductionOp {
         Ok(())
     }
 
-    fn grad<'a>(&self, _ctx: &mut GradientContext<'a, 'a, F>) {
-        // Simplified gradient implementation
-        // In practice, would implement proper gradient broadcasting
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
+        // `sum` along one axis: every element of that axis contributed exactly once, so
+        // the VJP broadcasts the cotangent back along it.
+        //
+        // The empty body this replaces made the backward pass substitute a zero gradient,
+        // i.e. `parallel_sum` silently blocked all gradient flow.
+        let x = *ctx.input(0);
+        let gy = *ctx.output_grad();
+        let g = ctx.graph();
+        let gx = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(gy, false)
+            .build(ParallelReductionGradOp { axis: self.axis });
+        ctx.append_input_grad(0, Some(gx));
+    }
+}
+
+/// Backward node of [`ParallelReductionOp`]: broadcasts the cotangent back along the
+/// reduced axis.
+///
+/// Inputs are `(x, gy)`; `x` is used only for its shape.
+pub struct ParallelReductionGradOp {
+    axis: usize,
+}
+
+impl<F: Float> Op<F> for ParallelReductionGradOp {
+    fn name(&self) -> &'static str {
+        "ParallelSumGrad"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+        let xshape = x.shape().to_vec();
+        if self.axis >= xshape.len() {
+            return Err(OpError::InvalidDims(format!(
+                "parallel_sum backward: axis {} is out of range for a {}-D input",
+                self.axis,
+                xshape.len()
+            )));
+        }
+
+        // The forward pass promotes a 0-D reduction result to a 1-element 1-D array, so
+        // the cotangent can carry either shape; only its element count has to match.
+        let expected: usize = xshape
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i != self.axis)
+            .map(|(_, d)| *d)
+            .product();
+        if gy.len() != expected {
+            return Err(OpError::IncompatibleShape(format!(
+                "parallel_sum backward: cotangent has {} elements, expected {expected}",
+                gy.len()
+            )));
+        }
+
+        let mut out = crate::ndarray_ext::NdArray::<F>::zeros(scirs2_core::ndarray::IxDyn(&xshape));
+        let gy_flat: Vec<F> = gy.iter().copied().collect();
+        let rank = xshape.len();
+        let mut full = vec![0usize; rank];
+
+        // `out` was just allocated, so its iteration order is row-major over `xshape`.
+        for (position, element) in out.iter_mut().enumerate() {
+            let mut rest = position;
+            for axis in (0..rank).rev() {
+                full[axis] = rest % xshape[axis];
+                rest /= xshape[axis];
+            }
+            // Row-major position in the reduced (cotangent) array: the same index with
+            // the reduced axis dropped.
+            let mut flat = 0usize;
+            for axis in 0..rank {
+                if axis == self.axis {
+                    continue;
+                }
+                flat = flat * xshape[axis] + full[axis];
+            }
+            *element = gy_flat[flat];
+        }
+        ctx.append_output(out);
+        Ok(())
+    }
+
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
+        // Backward of a broadcast is the same reduction again.
+        let x = *ctx.input(0);
+        let ggy = *ctx.output_grad();
+        let g = ctx.graph();
+        let reduced = Tensor::builder(g)
+            .append_input(ggy, false)
+            .build(ParallelReductionOp {
+                operation: ReductionOperation::Sum,
+                axis: self.axis,
+            });
+        let _ = x;
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, Some(reduced));
     }
 }
 

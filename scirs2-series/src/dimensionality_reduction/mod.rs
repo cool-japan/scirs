@@ -79,8 +79,25 @@ mod tests {
 
     #[test]
     fn test_pca_configuration() {
-        let data = Array2::from_shape_vec((20, 10), (0..200).map(|x| x as f64).collect())
-            .expect("Operation failed");
+        // NOTE: a purely linear sequence (i*n_features + j) collapses to a
+        // rank-1 matrix once centered (every row becomes a constant multiple
+        // of the all-ones vector), which only has one non-trivial component
+        // no matter how many are requested. Use data with genuine variation
+        // across both samples and features (a sum of several out-of-phase
+        // sinusoids) so the covariance matrix has the several independent
+        // directions of variance this test's `n_components: Some(3)` needs.
+        let n_samples = 20;
+        let n_features = 10;
+        let mut data = Array2::zeros((n_samples, n_features));
+        for i in 0..n_samples {
+            for j in 0..n_features {
+                let x = i as f64;
+                let y = j as f64;
+                data[[i, j]] = (x * 0.31 + y * 1.7).sin() * (y + 1.0)
+                    + (x * 0.53 - y * 0.9).cos() * 2.0
+                    + ((i * 7 + j * 13) % 11) as f64 * 0.05;
+            }
+        }
 
         let config = PCAConfig {
             n_components: Some(3),
@@ -94,6 +111,95 @@ mod tests {
         assert_eq!(result.n_components_selected, 3);
         assert_eq!(result.transformed_data.ncols(), 3);
         assert_eq!(result.components.ncols(), 3);
+    }
+
+    #[test]
+    fn test_pca_recovers_known_principal_components() {
+        // Construct data with an analytically-known covariance structure:
+        // two orthogonal latent signals (a full-period cosine and sine, which
+        // are exactly uncorrelated and have variance amplitude^2 / 2) with
+        // deliberately distinct variances, rotated by a known angle to
+        // produce correlated observed features. A correct PCA must recover
+        // (up to the usual sign ambiguity of eigenvectors) the rotation axes
+        // as principal components, with explained variances matching the
+        // latent amplitudes exactly.
+        //
+        // This directly guards against a fabricated eigensolver: a stub that
+        // returns identity eigenvectors and data-independent eigenvalues
+        // (e.g. the crate's former mock) would report components [1,0]/[0,1]
+        // and variances unrelated to `a`/`b` below, failing every assertion.
+        let n = 200;
+        let theta = std::f64::consts::FRAC_PI_6; // 30 degrees
+        let (cos_t, sin_t) = (theta.cos(), theta.sin());
+        let (a, b) = (6.0_f64, 2.0_f64); // latent amplitudes, a > b so PC1 dominates
+
+        let mut data = Array2::<f64>::zeros((n, 2));
+        for i in 0..n {
+            let angle = 2.0 * std::f64::consts::PI * (i as f64) / (n as f64);
+            let latent1 = a * angle.cos();
+            let latent2 = b * angle.sin();
+            data[[i, 0]] = cos_t * latent1 - sin_t * latent2;
+            data[[i, 1]] = sin_t * latent1 + cos_t * latent2;
+        }
+
+        let expected_var1 = a * a / 2.0;
+        let expected_var2 = b * b / 2.0;
+        let expected_pc1 = [cos_t, sin_t];
+        let expected_pc2 = [-sin_t, cos_t];
+
+        for use_svd in [true, false] {
+            let config = PCAConfig {
+                use_svd,
+                center_data: true,
+                scale_data: false,
+                sort_components: true,
+                ..Default::default()
+            };
+            let result = apply_pca(&data, &config)
+                .expect("PCA should succeed on well-conditioned synthetic data");
+
+            assert_eq!(
+                result.n_components_selected, 2,
+                "use_svd={use_svd}: both latent directions carry real variance"
+            );
+
+            assert!(
+                (result.explained_variance[0] - expected_var1).abs() < 1e-6,
+                "use_svd={use_svd}: pc1 variance {} != expected {expected_var1}",
+                result.explained_variance[0]
+            );
+            assert!(
+                (result.explained_variance[1] - expected_var2).abs() < 1e-6,
+                "use_svd={use_svd}: pc2 variance {} != expected {expected_var2}",
+                result.explained_variance[1]
+            );
+
+            // Eigenvectors are only determined up to sign; align signs to the
+            // expected vector before comparing components.
+            let pc1 = [result.components[[0, 0]], result.components[[1, 0]]];
+            let pc2 = [result.components[[0, 1]], result.components[[1, 1]]];
+            let sign1 = if pc1[0] * expected_pc1[0] + pc1[1] * expected_pc1[1] < 0.0 {
+                -1.0
+            } else {
+                1.0
+            };
+            let sign2 = if pc2[0] * expected_pc2[0] + pc2[1] * expected_pc2[1] < 0.0 {
+                -1.0
+            } else {
+                1.0
+            };
+
+            assert!(
+                (sign1 * pc1[0] - expected_pc1[0]).abs() < 1e-6
+                    && (sign1 * pc1[1] - expected_pc1[1]).abs() < 1e-6,
+                "use_svd={use_svd}: pc1 direction {pc1:?} doesn't match expected {expected_pc1:?}"
+            );
+            assert!(
+                (sign2 * pc2[0] - expected_pc2[0]).abs() < 1e-6
+                    && (sign2 * pc2[1] - expected_pc2[1]).abs() < 1e-6,
+                "use_svd={use_svd}: pc2 direction {pc2:?} doesn't match expected {expected_pc2:?}"
+            );
+        }
     }
 
     #[test]

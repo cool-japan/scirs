@@ -5,6 +5,7 @@
 //! can search large areas of candidate space.
 
 use crate::error::OptimizeError;
+use crate::global::qmc::SobolGenerator;
 use crate::parallel::{parallel_evaluate_batch, ParallelOptions};
 use crate::unconstrained::{
     minimize, Bounds as UnconstrainedBounds, Method, OptimizeResult, Options,
@@ -15,72 +16,6 @@ use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Random;
 use scirs2_core::random::Uniform;
 use scirs2_core::random::{Rng, RngExt, SeedableRng};
-
-/// Simplified Sobol sequence generator
-/// For production use, a full Sobol implementation with proper generating matrices would be preferred
-struct SobolState {
-    dimension: usize,
-    count: usize,
-    direction_numbers: Vec<Vec<u32>>,
-}
-
-impl SobolState {
-    fn new(dimension: usize) -> Self {
-        let mut direction_numbers = Vec::new();
-
-        // Initialize direction numbers for first few dimensions
-        // This is a simplified implementation - full Sobol needs proper generating matrices
-        for d in 0..dimension {
-            let mut dirs = Vec::new();
-            if d == 0 {
-                // First dimension uses powers of 2
-                for i in 0..32 {
-                    dirs.push(1u32 << (31 - i));
-                }
-            } else {
-                // Other dimensions use simple polynomial recurrence
-                // This is not optimal but provides better distribution than random
-                let base = (d + 1) as u32;
-                dirs.push(1u32 << 31);
-                for i in 1..32 {
-                    let prev = dirs[i - 1];
-                    dirs.push(prev ^ (prev >> base));
-                }
-            }
-            direction_numbers.push(dirs);
-        }
-
-        SobolState {
-            dimension,
-            count: 0,
-            direction_numbers,
-        }
-    }
-
-    fn next_point(&mut self) -> Vec<f64> {
-        self.count += 1;
-        let mut point = Vec::with_capacity(self.dimension);
-
-        for d in 0..self.dimension {
-            let mut x = 0u32;
-            let mut c = self.count;
-            let mut j = 0;
-
-            while c > 0 {
-                if (c & 1) == 1 {
-                    x ^= self.direction_numbers[d][j];
-                }
-                c >>= 1;
-                j += 1;
-            }
-
-            // Convert to [0, 1)
-            point.push(x as f64 / (1u64 << 32) as f64);
-        }
-
-        point
-    }
-}
 
 /// Options for Differential Evolution algorithm
 #[derive(Debug, Clone)]
@@ -347,7 +282,7 @@ where
 
     /// Initialize population using Halton sequence
     fn init_halton(&mut self) {
-        let primes = [
+        let primes: [u64; 25] = [
             2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83,
             89, 97,
         ];
@@ -357,7 +292,7 @@ where
             for j in 0..self.ndim {
                 // Use the (i+1)th term of the Halton sequence for base primes[j % primes.len()]
                 let base = primes[j % primes.len()];
-                let halton_value = self.halton_number(i + 1, base);
+                let halton_value = crate::global::qmc::halton_radical_inverse(i + 1, base);
 
                 // Scale to bounds
                 let (lb, ub) = self.bounds[j];
@@ -366,44 +301,21 @@ where
         }
     }
 
-    /// Initialize population using Sobol sequence
+    /// Initialize population using a Sobol sequence (validated direction
+    /// numbers for the first [`crate::global::qmc::MAX_SOBOL_DIM`]
+    /// dimensions, falling back to a genuine Halton sequence -- not plain
+    /// randomness -- beyond that; see [`crate::global::qmc`]).
     fn init_sobol(&mut self) {
-        // Simplified Sobol sequence using scrambled Van der Corput sequence
-        // For a full Sobol implementation, we would need generating matrices
-        let mut sobol_state = SobolState::new(self.ndim);
+        let mut sobol_gen = SobolGenerator::new(self.ndim);
 
         let popsize = self.population.nrows();
         for i in 0..popsize {
-            let sobol_point = sobol_state.next_point();
+            let sobol_point = sobol_gen.next_point();
             for j in 0..self.ndim {
-                // Scale to bounds
                 let (lb, ub) = self.bounds[j];
-                let scaled_value = if j < sobol_point.len() {
-                    lb + sobol_point[j] * (ub - lb)
-                } else {
-                    // Fallback for higher dimensions
-                    let base = 2u32.pow((j + 1) as u32);
-                    let halton_value = self.halton_number(i + 1, base as usize);
-                    lb + halton_value * (ub - lb)
-                };
-                self.population[[i, j]] = scaled_value;
+                self.population[[i, j]] = lb + sobol_point[j] * (ub - lb);
             }
         }
-    }
-
-    /// Generate the n-th number in the Halton sequence for given base
-    fn halton_number(&self, n: usize, base: usize) -> f64 {
-        let mut result = 0.0;
-        let mut f = 1.0 / base as f64;
-        let mut i = n;
-
-        while i > 0 {
-            result += f * (i % base) as f64;
-            i /= base;
-            f /= base as f64;
-        }
-
-        result
     }
 
     /// Ensure bounds for a parameter using reflection method
@@ -773,6 +685,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_abs_diff_eq;
 
     fn sphere(x: &ArrayView1<f64>) -> f64 {
         x.iter().map(|xi| xi * xi).sum()
@@ -895,6 +808,37 @@ mod tests {
         assert!(result.is_ok());
         let res = result.expect("should succeed");
         assert!(res.fun < 0.1);
+    }
+
+    #[test]
+    fn test_de_sobol_init_matches_validated_sobol_sequence() {
+        // Regression test for the ad-hoc "polynomial recurrence" SobolState
+        // this crate used to build its own direction numbers with (not a
+        // real Sobol sequence). `init_sobol` now delegates to
+        // `crate::global::qmc::SobolGenerator`, whose first two points are
+        // always exactly (0, 0, ...) and (0.5, 0.5, ...) -- verified
+        // bit-for-bit against `scipy.stats.qmc.Sobol` in the `qmc` module's
+        // own tests. The old ad-hoc generator's first two points did NOT
+        // land on these exact values (it used `1u32 << 31` as its first
+        // direction number, not the same recurrence), so this is a real,
+        // non-trivial check on the actual initial-population contents, not
+        // merely "did it fail to panic".
+        let bounds = vec![(0.0, 10.0), (0.0, 20.0), (-4.0, 4.0)];
+        let mut opts = DifferentialEvolutionOptions::default();
+        opts.seed = Some(1);
+        opts.init = "sobol".to_string();
+
+        let solver = DifferentialEvolution::new(sphere, bounds.clone(), opts, "best1bin");
+
+        // Sobol point 0 is exactly the origin of the unit cube.
+        for j in 0..bounds.len() {
+            assert_abs_diff_eq!(solver.population[[0, j]], bounds[j].0, epsilon = 1e-9);
+        }
+        // Sobol point 1 is exactly the center of the unit cube.
+        for j in 0..bounds.len() {
+            let mid = (bounds[j].0 + bounds[j].1) / 2.0;
+            assert_abs_diff_eq!(solver.population[[1, j]], mid, epsilon = 1e-9);
+        }
     }
 
     #[test]

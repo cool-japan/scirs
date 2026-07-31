@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-autograd.svg)](https://crates.io/crates/scirs2-autograd)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-autograd)](https://docs.rs/scirs2-autograd)
-[![Version](https://img.shields.io/badge/version-0.6.3-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.5-green)]()
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
 
 Automatic differentiation engine for Rust, part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
@@ -12,7 +12,9 @@ Automatic differentiation engine for Rust, part of the [SciRS2](https://github.c
 
 `scirs2-autograd` provides PyTorch-style automatic differentiation with lazy tensor evaluation, enabling efficient gradient computation for scientific computing and machine learning. It supports reverse-mode AD (backpropagation), forward-mode AD (JVP), higher-order derivatives, gradient checkpointing, and a rich set of differentiable mathematical operations.
 
-**Tests:** 1260/1260 passing (default features), 1345/1345 passing (`--all-features`) — as of 2026-07-22.
+**Tests:** 1260/1260 passing (default features), 1345/1345 passing (`--all-features`) as of 2026-07-22, plus 80 new tests added in 0.6.5 (`tests/gradient_fd_harness.rs`: 49; `tests/gradient_fd_harness_matrix.rs`: 31) — not independently re-run for this docs update.
+
+**Fixed in 0.6.5 — the headline fix of this release:** the live backward-pass dispatcher (`gradient.rs`, previously a ~670-line if/else chain keyed on `Op::name()` strings) covered only 58 of 281 differentiable op implementations; anything it didn't recognize silently fell through to an identity gradient, with no error or warning. Dispatch now consults each op's own `Op::grad()` implementation for anything the override table doesn't special-case, fixing roughly 223 wrong-or-absent gradients — including every elementary math function (`sqrt`/`exp`/`ln`/trig/hyperbolic-trig/`log2`/`log10`/`abs`) and activation (`softplus`/`elu`/`swish`/`gelu`/`mish`). Also fixed: `reduce_sum`/`transpose`/`gather` were only correct under an all-ones cotangent, `reduce_mean` lost its `1/N` factor, `sigmoid_cross_entropy` and `BatchMatMul` were misidentified by fragile substring matching (`contains("Sigmoid")`, `ends_with("MatMul")`), `concat`/`einsum`/`tensordot` panicked during backprop, and `SymmetricEigenOp` now genuinely diagonalizes via cyclic Jacobi (`tensor_ops::matrix_calculus::symmetric_eigen`) instead of separate per-size special cases. The public custom-gradient API (`custom_op`, `scale_gradient`, `selective_stop_gradient`, `detach` in `custom_gradient.rs`) was a complete no-op regardless of the user's backward closure — now genuinely functional. See [CHANGELOG.md](../CHANGELOG.md) `[0.6.5]` for full detail.
 
 ## Features
 
@@ -95,14 +97,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-autograd = "0.6.4"
+scirs2-autograd = "0.6.5"
 ```
 
 For OxiBLAS-accelerated matrix operations (recommended):
 
 ```toml
 [dependencies]
-scirs2-autograd = { version = "0.6.4", features = ["blas"] }
+scirs2-autograd = { version = "0.6.5", features = ["blas"] }
 ```
 
 ### Basic Differentiation

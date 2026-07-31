@@ -1,6 +1,7 @@
 //! Stepwise regression implementations
 
 use crate::error::{StatsError, StatsResult};
+use crate::regression::stat_tests::{f_test_p_value, t_test_p_value};
 use crate::regression::utils::*;
 use crate::regression::RegressionResults;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
@@ -566,14 +567,9 @@ where
     // Calculate t-values
     let t_values = calculate_t_values(&coefficients, &std_errors);
 
-    // Calculate p-values (simplified)
-    // In a real implementation, we would use a proper t-distribution function
-    let p_values = t_values.mapv(|t| {
-        let t_abs = scirs2_core::numeric::Float::abs(t);
-        let df_f = F::from(df_residuals).expect("Failed to convert to float");
-        F::from(2.0).expect("Failed to convert constant to float")
-            * (F::one() - t_abs / scirs2_core::numeric::Float::sqrt(df_f + t_abs * t_abs))
-    });
+    // Calculate real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
     // Calculate confidence intervals
     let mut conf_intervals = Array2::<F>::zeros((p, 2));
@@ -591,8 +587,9 @@ where
         F::infinity()
     };
 
-    // Calculate p-value for F-statistic (simplified)
-    let f_p_value = F::zero(); // In a real implementation, use F-distribution
+    // Calculate p-value for F-statistic using the real F(df_model, df_residuals)
+    // survival function (see `stat_tests::f_test_p_value`).
+    let f_p_value = f_test_p_value(f_statistic, df_model, df_residuals);
 
     // Create and return the results structure
     Ok(RegressionResults {
@@ -611,4 +608,229 @@ where
         fitted_values,
         inlier_mask: vec![true; n], // All points are inliers in stepwise regression
     })
+}
+
+// ============================================================================
+// `f_p_value` fix tests.
+//
+// Wave-1 finding: `f_p_value` was hardcoded to `F::zero()` in this file's
+// internal `linear_regression` helper (used to evaluate every candidate
+// model during the stepwise search, and to compute
+// `StepwiseResults::final_model`), unconditionally signalling maximal
+// statistical significance regardless of the actual fit. Fixed by computing
+// the true `F(df_model, df_residuals)` survival function via
+// `stat_tests::f_test_p_value`.
+//
+// Fixture reference values computed independently in Python via
+// `numpy.linalg.lstsq` + `scipy.stats.f.sf`, NOT derived from this crate:
+//   strong (df1=2, df2=17): f_stat=97408.17758838173, p_val=3.1381789231047816e-35
+//   noise  (df1=2, df2=17): f_stat=1.6747197597833423, p_val=0.21683030932143513
+// ============================================================================
+#[cfg(test)]
+mod f_p_value_fix_tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use scirs2_core::ndarray::array;
+
+    fn fixture_x1() -> Vec<f64> {
+        vec![
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
+            17.0, 18.0, 19.0, 20.0,
+        ]
+    }
+
+    fn fixture_x2() -> Vec<f64> {
+        vec![
+            5.0, 3.0, 8.0, 2.0, 9.0, 4.0, 7.0, 1.0, 6.0, 10.0, 2.0, 8.0, 3.0, 9.0, 1.0, 7.0, 4.0,
+            10.0, 5.0, 6.0,
+        ]
+    }
+
+    /// Design matrix WITH an explicit intercept column (this file's private
+    /// `linear_regression` helper does not add one itself).
+    fn fixture_x_with_intercept() -> Array2<f64> {
+        let x1 = fixture_x1();
+        let x2 = fixture_x2();
+        let n = x1.len();
+        let mut x = Array2::<f64>::zeros((n, 3));
+        for i in 0..n {
+            x[[i, 0]] = 1.0;
+            x[[i, 1]] = x1[i];
+            x[[i, 2]] = x2[i];
+        }
+        x
+    }
+
+    /// Design matrix withOUT an intercept column, for `stepwise_regression`
+    /// (which adds its own intercept internally when `include_intercept`).
+    fn fixture_x_no_intercept() -> Array2<f64> {
+        let x1 = fixture_x1();
+        let x2 = fixture_x2();
+        let n = x1.len();
+        let mut x = Array2::<f64>::zeros((n, 2));
+        for i in 0..n {
+            x[[i, 0]] = x1[i];
+            x[[i, 1]] = x2[i];
+        }
+        x
+    }
+
+    fn fixture_y_strong() -> Array1<f64> {
+        array![
+            -2.2, 3.3, -0.9, 10.6, 3.7, 14.05, 12.35, 24.75, 19.9, 17.12, 31.95, 26.18, 36.28,
+            30.58, 45.2, 39.64, 46.92, 41.22, 51.32, 53.1
+        ]
+    }
+
+    fn fixture_y_noise() -> Array1<f64> {
+        array![
+            3.0, 7.0, 2.0, 9.0, 4.0, 8.0, 1.0, 6.0, 5.0, 10.0, 2.5, 7.5, 3.5, 9.5, 1.5, 6.5, 4.5,
+            10.5, 5.5, 8.5
+        ]
+    }
+
+    /// Direct test of the exact function/line originally flagged: the
+    /// private `linear_regression` helper is a plain `lstsq` fit with no
+    /// regularization, so it must match the scipy/numpy reference to high
+    /// precision.
+    #[test]
+    fn test_internal_linear_regression_f_p_value_matches_scipy() {
+        let x = fixture_x_with_intercept();
+
+        let strong =
+            linear_regression(&x.view(), &fixture_y_strong().view()).expect("regression ok");
+        assert_relative_eq!(strong.f_statistic, 97408.17758838173, max_relative = 1e-4);
+        assert!(
+            strong.f_p_value < 1e-12,
+            "expected ~0 (near-perfect fit), got {}",
+            strong.f_p_value
+        );
+
+        let noise = linear_regression(&x.view(), &fixture_y_noise().view()).expect("regression ok");
+        assert_relative_eq!(noise.f_statistic, 1.6747197597833423, max_relative = 1e-4);
+        assert_relative_eq!(
+            noise.f_p_value,
+            0.21683030932143513,
+            max_relative = 1e-3,
+            epsilon = 1e-6
+        );
+        // This assertion would have FAILED under the old
+        // `f_p_value = F::zero()` code: the true p-value here is ~0.22
+        // (not statistically significant), but the old code always
+        // reported 0.0 (maximal significance) regardless of data.
+        assert!(
+            noise.f_p_value > 0.05,
+            "expected a large, non-significant p-value, got {}",
+            noise.f_p_value
+        );
+    }
+
+    /// End-to-end test through the public `stepwise_regression` entry
+    /// point: `StepwiseResults::final_model.f_p_value` must reflect the
+    /// real significance of whatever model the search converges to, not an
+    /// always-0.0 placeholder.
+    #[test]
+    fn test_stepwise_regression_final_model_f_p_value_distinguishes_signal_from_noise() {
+        let x = fixture_x_no_intercept();
+
+        // Backward elimination from the full model, with a very lax
+        // removal threshold on Adjusted R^2 so with the strong fixture
+        // (where both predictors are essentially perfectly informative)
+        // it converges to (and stays at) the full 2-predictor model.
+        let strong = stepwise_regression(
+            &x.view(),
+            &fixture_y_strong().view(),
+            StepwiseDirection::Backward,
+            StepwiseCriterion::AdjR2,
+            None,
+            None,
+            None,
+            true,
+        )
+        .expect("stepwise regression should succeed");
+        assert!((0.0..=1.0).contains(&strong.final_model.f_p_value));
+        assert!(
+            strong.final_model.f_p_value < 0.01,
+            "strong-signal final model should be highly significant, got {}",
+            strong.final_model.f_p_value
+        );
+
+        // Forward selection with the DEFAULT (strict) entry threshold on
+        // the noise fixture: neither predictor should look significant
+        // enough to enter, leaving an intercept-only final model.
+        let noise = stepwise_regression(
+            &x.view(),
+            &fixture_y_noise().view(),
+            StepwiseDirection::Forward,
+            StepwiseCriterion::F,
+            None,
+            None,
+            None,
+            true,
+        )
+        .expect("stepwise regression should succeed");
+        assert!((0.0..=1.0).contains(&noise.final_model.f_p_value));
+        // The bug under test: `f_p_value` was previously ALWAYS exactly
+        // 0.0 regardless of data (even for an intercept-only "model with
+        // no predictors" -- which has no valid F-test at all). Whether or
+        // not variable selection happens to pull in a predictor here, the
+        // final model's p-value must not silently look maximally
+        // significant for this noise-only response.
+        assert!(
+            noise.final_model.f_p_value > 0.05,
+            "weak-signal final model should not look significant, got {}",
+            noise.final_model.f_p_value
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // `t_test_p_value` fix tests (per-coefficient p-values).
+    //
+    // Follow-up Wave-1 finding (discovered while fixing `f_p_value` in
+    // this same file): the internal `linear_regression` helper computed
+    // per-coefficient `p_values` via
+    // `2 * (1 - |t| / sqrt(df + t^2))`, a formula that is not a valid
+    // p-value (it commonly exceeds 1.0 -- see
+    // `regularized_tests.rs::t_p_value_fix_tests / stat_tests.rs::tests` for a direct
+    // demonstration). Fixed to use the real Student's t-distribution
+    // survival function via `stat_tests::t_test_p_value`.
+    //
+    // Reference per-coefficient p-values computed independently via
+    // numpy.linalg.lstsq + scipy.stats.t.cdf, NOT derived from this crate:
+    //   strong (df=17): p_t = [2.78e-12, ~0.0, ~0.0]      (intercept, x1, x2)
+    //   noise  (df=17): p_t = [0.1124, 0.3684, 0.1644]    (intercept, x1, x2)
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn test_internal_linear_regression_p_values_matches_scipy() {
+        let x = fixture_x_with_intercept();
+
+        let strong =
+            linear_regression(&x.view(), &fixture_y_strong().view()).expect("regression ok");
+        for &p in strong.p_values.iter() {
+            assert!((0.0..=1.0).contains(&p), "p-value out of range: {p}");
+        }
+        assert_relative_eq!(strong.p_values[0], 2.77999845e-12, epsilon = 1e-9);
+        assert!(
+            strong.p_values[1] < 1e-9 && strong.p_values[2] < 1e-9,
+            "expected near-zero p-values for x1/x2, got {:?}",
+            strong.p_values
+        );
+
+        let noise = linear_regression(&x.view(), &fixture_y_noise().view()).expect("regression ok");
+        for &p in noise.p_values.iter() {
+            assert!((0.0..=1.0).contains(&p), "p-value out of range: {p}");
+        }
+        assert_relative_eq!(noise.p_values[0], 0.11240478, max_relative = 1e-3);
+        assert_relative_eq!(noise.p_values[1], 0.36838016, max_relative = 1e-3);
+        assert_relative_eq!(noise.p_values[2], 0.16437859, max_relative = 1e-3);
+        // This assertion would have FAILED under the old formula, which
+        // for these (t, df) values evaluates well above 1.0 -- an
+        // impossible p-value -- rather than these real, bounded values.
+        assert!(
+            noise.p_values[1] > 0.05 && noise.p_values[2] > 0.05,
+            "expected non-significant p-values for noise-only x1/x2, got {:?}",
+            noise.p_values
+        );
+    }
 }

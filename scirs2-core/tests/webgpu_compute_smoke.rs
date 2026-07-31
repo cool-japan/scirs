@@ -48,8 +48,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
             Err(e) => {
                 let msg = e.to_string();
-                if msg.contains("adapter") || msg.contains("Adapter") || msg.contains("GPU") {
-                    println!("No wgpu adapter available on this host — skipping GPU compile test ({msg})");
+                if scirs2_core::testing::gpu_availability::is_gpu_unavailable_error(&msg) {
+                    scirs2_core::testing::gpu_availability::print_gpu_skip(
+                        "wgsl_compile_succeeds_or_skips_gracefully",
+                        &msg,
+                    );
                     // Not a failure — CI without GPU should still pass
                 } else {
                     panic!("Unexpected error compiling WGSL write-index shader: {e}");
@@ -82,8 +85,11 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
             }
             Err(e) => {
                 let msg = e.to_string();
-                if msg.contains("adapter") || msg.contains("Adapter") || msg.contains("GPU") {
-                    println!("No wgpu adapter available on this host — skipping GPU vector-add test ({msg})");
+                if scirs2_core::testing::gpu_availability::is_gpu_unavailable_error(&msg) {
+                    scirs2_core::testing::gpu_availability::print_gpu_skip(
+                        "vector_add_runs_end_to_end_when_adapter_available",
+                        &msg,
+                    );
                     // Not a failure — CI without GPU should still pass
                 } else {
                     panic!("Unexpected error during GPU vector-add: {e}");
@@ -176,13 +182,12 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
                 }
                 Err(e) => {
                     let msg = e.to_string();
-                    if msg.contains("adapter")
-                        || msg.contains("Adapter")
-                        || msg.contains("GPU")
-                        || msg.contains("no suitable")
-                    {
-                        println!(
-                            "{label}: no wgpu adapter available — skipping GPU compile ({msg})"
+                    if scirs2_core::testing::gpu_availability::is_gpu_unavailable_error(&msg) {
+                        scirs2_core::testing::gpu_availability::print_gpu_skip(
+                            &format!(
+                                "elementwise_kernel_wgsl_compiles_or_skips_gracefully[{label}]"
+                            ),
+                            &msg,
                         );
                     } else {
                         panic!("{label}: unexpected error compiling WGSL: {e}");
@@ -222,8 +227,11 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
             }
             Err(e) => {
                 let msg = e.to_string();
-                if msg.contains("adapter") || msg.contains("Adapter") || msg.contains("GPU") {
-                    println!("No wgpu adapter — skipping 2D workgroup test ({msg})");
+                if scirs2_core::testing::gpu_availability::is_gpu_unavailable_error(&msg) {
+                    scirs2_core::testing::gpu_availability::print_gpu_skip(
+                        "workgroup_size_extraction_for_2d_workgroup",
+                        &msg,
+                    );
                 } else {
                     panic!("Unexpected error compiling 2D workgroup shader: {e}");
                 }

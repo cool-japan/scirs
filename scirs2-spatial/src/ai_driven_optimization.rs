@@ -62,6 +62,7 @@
 use crate::error::{SpatialError, SpatialResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use std::collections::{HashMap, VecDeque};
+use std::f64::consts::PI;
 use std::time::Instant;
 
 /// AI-driven algorithm selector
@@ -307,6 +308,46 @@ pub enum ActivationFunction {
     Swish,
     GELU,
     LeakyReLU(f64),
+}
+
+impl ActivationFunction {
+    /// Apply this activation function elementwise. Mirrors
+    /// `ml_optimization::ActivationFunction::apply`'s math for consistency
+    /// across the crate's neural-network-flavored modules.
+    fn apply(&self, x: f64) -> f64 {
+        match self {
+            ActivationFunction::ReLU => x.max(0.0),
+            ActivationFunction::Sigmoid => 1.0 / (1.0 + (-x).exp()),
+            ActivationFunction::Tanh => x.tanh(),
+            ActivationFunction::Swish => x * (1.0 / (1.0 + (-x).exp())),
+            ActivationFunction::GELU => {
+                0.5 * x * (1.0 + ((2.0_f64 / PI).sqrt() * (x + 0.044715 * x.powi(3))).tanh())
+            }
+            ActivationFunction::LeakyReLU(alpha) => {
+                if x > 0.0 {
+                    x
+                } else {
+                    alpha * x
+                }
+            }
+        }
+    }
+}
+
+impl NeuralLayer {
+    /// Forward pass through a single layer: the linear transform `Wx + b`
+    /// followed by the layer's activation function, applied elementwise.
+    fn forward(&self, input: &Array1<f64>) -> SpatialResult<Array1<f64>> {
+        if self.weights.ncols() != input.len() {
+            return Err(SpatialError::DimensionError(format!(
+                "Neural network layer expects {} input features, got {}",
+                self.weights.ncols(),
+                input.len()
+            )));
+        }
+        let linear_output = self.weights.dot(input) + &self.biases;
+        Ok(linear_output.mapv(|v| self.activation.apply(v)))
+    }
 }
 
 /// Graph neural network for spatial data analysis
@@ -1196,7 +1237,11 @@ impl AIAlgorithmSelector {
         candidate: &AlgorithmCandidate,
         data_characteristics: &DataCharacteristics,
     ) -> SpatialResult<PerformancePrediction> {
-        // Use neural network to predict performance
+        // Use neural network to predict performance. The network's output
+        // layer is Sigmoid-activated (see `NeuralNetwork::with_architecture`),
+        // so every raw output already lands in (0, 1); accuracy/confidence
+        // use it directly, while the magnitude-valued fields are scaled into
+        // plausible ranges before the sanity floors below.
         let input_features = self.encode_features(candidate, data_characteristics);
         let prediction = self
             .neural_networks
@@ -1204,10 +1249,10 @@ impl AIAlgorithmSelector {
             .predict(&input_features)?;
 
         Ok(PerformancePrediction {
-            expected_accuracy: prediction[0],
-            expected_time_ms: prediction[1].max(0.1),
-            expected_memory_mb: prediction[2].max(1.0),
-            expected_energy_j: prediction[3].max(0.001),
+            expected_accuracy: prediction[0].clamp(0.0, 1.0),
+            expected_time_ms: (prediction[1] * 1000.0).max(0.1),
+            expected_memory_mb: (prediction[2] * 500.0).max(1.0),
+            expected_energy_j: (prediction[3] * 10.0).max(0.001),
             confidence: prediction[4].clamp(0.0, 1.0),
         })
     }
@@ -1489,7 +1534,12 @@ impl AlgorithmKnowledgeBase {
 impl PredictionNetworks {
     fn new() -> Self {
         Self {
-            performance_network: NeuralNetwork::new(),
+            // 14 inputs matches `AIAlgorithmSelector::encode_features`'s
+            // output length (8 data-characteristic features + 1 algorithm
+            // id + 5 parameter features); 5 outputs matches the
+            // [accuracy, time_ms, memory_mb, energy_j, confidence] layout
+            // `predict_performance` decodes below.
+            performance_network: NeuralNetwork::with_architecture(&[14, 16, 5]),
             data_analysis_network: GraphNeuralNetwork::new(),
             embedding_network: TransformerNetwork::new(),
             resource_network: NeuralNetwork::new(),
@@ -1506,9 +1556,67 @@ impl NeuralNetwork {
         }
     }
 
+    /// Build a feed-forward network with the given `layer_sizes`
+    /// (`[input_dim, hidden_dim_1, ..., output_dim]`), using Xavier/Glorot
+    /// weight initialization, ReLU hidden activations, and a Sigmoid
+    /// output layer -- mirroring
+    /// `ml_optimization::NeuralSpatialOptimizer::with_network_architecture`'s
+    /// convention elsewhere in this crate. There is no training loop wired
+    /// up for this network yet, so predictions are genuine (input
+    /// dependent) forward-pass computations through freshly-initialized,
+    /// not-yet-trained weights, rather than a fabricated constant.
+    fn with_architecture(layer_sizes: &[usize]) -> Self {
+        let num_layers = layer_sizes.len().saturating_sub(1);
+        let mut layers = Vec::with_capacity(num_layers);
+
+        for i in 0..num_layers {
+            let input_size = layer_sizes[i];
+            let output_size = layer_sizes[i + 1];
+
+            let scale = (2.0_f64 / (input_size + output_size).max(1) as f64).sqrt();
+            let weights = Array2::from_shape_fn((output_size, input_size), |_| {
+                (scirs2_core::random::random::<f64>() - 0.5) * 2.0 * scale
+            });
+            let biases = Array1::zeros(output_size);
+
+            let activation = if i == num_layers - 1 {
+                ActivationFunction::Sigmoid // Output layer: bounded to (0, 1)
+            } else {
+                ActivationFunction::ReLU // Hidden layers
+            };
+
+            layers.push(NeuralLayer {
+                weights,
+                biases,
+                activation,
+                dropout_rate: 0.0,
+            });
+        }
+
+        Self {
+            layers,
+            learning_rate: 0.001,
+            training_history: Vec::new(),
+        }
+    }
+
+    /// Real forward pass: chains each layer's `Wx + b` plus activation in
+    /// sequence. Errors (rather than fabricating output) if this network
+    /// was never given an architecture via [`Self::with_architecture`].
     fn predict(&self, input: &Array1<f64>) -> SpatialResult<Array1<f64>> {
-        // Simplified neural network prediction
-        Ok(Array1::from(vec![0.5, 100.0, 50.0, 1.0, 0.8])) // Dummy prediction
+        if self.layers.is_empty() {
+            return Err(SpatialError::InvalidInput(
+                "NeuralNetwork has no layers configured; build it via \
+                 NeuralNetwork::with_architecture() before calling predict()"
+                    .to_string(),
+            ));
+        }
+
+        let mut activations = input.clone();
+        for layer in &self.layers {
+            activations = layer.forward(&activations)?;
+        }
+        Ok(activations)
     }
 }
 
@@ -1664,5 +1772,95 @@ mod tests {
         assert_eq!(candidate.algorithm, "kmeans");
         assert_eq!(candidate.parameters.len(), 2);
         assert_eq!(candidate.parameters["k"], 3.0);
+    }
+
+    /// Regression test for the `NeuralNetwork::predict()` stub: it used to
+    /// return the identical hardcoded vector `[0.5, 100.0, 50.0, 1.0, 0.8]`
+    /// for every input. This builds a small, fully deterministic network by
+    /// hand (bypassing the random Xavier initializer, so the test can never
+    /// be flaky) and checks that two very different, non-constant inputs
+    /// produce different outputs via a genuine forward pass.
+    #[test]
+    fn test_neural_network_predict_depends_on_input() {
+        let hidden = NeuralLayer {
+            weights: Array2::from_shape_vec((3, 2), vec![1.0, -1.0, 0.5, 0.5, -2.0, 1.0])
+                .expect("valid shape"),
+            biases: Array1::zeros(3),
+            activation: ActivationFunction::ReLU,
+            dropout_rate: 0.0,
+        };
+        let output_layer = NeuralLayer {
+            weights: Array2::from_shape_vec(
+                (5, 3),
+                vec![
+                    0.2, 0.1, -0.3, 0.4, -0.2, 0.1, -0.1, 0.3, 0.2, 0.5, -0.4, 0.2, 0.1, 0.1, -0.5,
+                ],
+            )
+            .expect("valid shape"),
+            biases: Array1::zeros(5),
+            activation: ActivationFunction::Sigmoid,
+            dropout_rate: 0.0,
+        };
+        let network = NeuralNetwork {
+            layers: vec![hidden, output_layer],
+            learning_rate: 0.001,
+            training_history: Vec::new(),
+        };
+
+        let input_a = Array1::from(vec![1.0, 2.0]);
+        let input_b = Array1::from(vec![-3.0, 0.5]);
+
+        let output_a = network.predict(&input_a).expect("predict failed");
+        let output_b = network.predict(&input_b).expect("predict failed");
+
+        assert_eq!(output_a.len(), 5);
+        assert_eq!(output_b.len(), 5);
+
+        let differs = output_a
+            .iter()
+            .zip(output_b.iter())
+            .any(|(a, b)| (a - b).abs() > 1e-6);
+        assert!(
+            differs,
+            "predict() must depend on the input, not return a fixed constant vector: \
+             output_a={output_a:?}, output_b={output_b:?}"
+        );
+
+        for &v in output_a.iter().chain(output_b.iter()) {
+            assert!(
+                (0.0..=1.0).contains(&v),
+                "Sigmoid output layer must produce values in [0, 1], got {v}"
+            );
+        }
+
+        // Pin down that the OLD stub's exact constant vector is gone.
+        let old_stub = [0.5_f64, 100.0, 50.0, 1.0, 0.8];
+        assert_ne!(
+            output_a.to_vec(),
+            old_stub,
+            "must not return the old hardcoded dummy prediction"
+        );
+    }
+
+    #[test]
+    fn test_neural_network_predict_without_architecture_errors() {
+        let network = NeuralNetwork::new();
+        let input = Array1::from(vec![1.0, 2.0, 3.0]);
+        assert!(network.predict(&input).is_err());
+    }
+
+    #[test]
+    fn test_neural_network_with_architecture_shapes() {
+        let network = NeuralNetwork::with_architecture(&[14, 16, 5]);
+        assert_eq!(network.layers.len(), 2);
+        assert_eq!(network.layers[0].weights.dim(), (16, 14));
+        assert_eq!(network.layers[1].weights.dim(), (5, 16));
+
+        let input = Array1::from(vec![0.0; 14]);
+        let output = network.predict(&input).expect("predict failed");
+        assert_eq!(output.len(), 5);
+        for &v in output.iter() {
+            assert!((0.0..=1.0).contains(&v));
+        }
     }
 }

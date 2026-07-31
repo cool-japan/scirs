@@ -16,6 +16,10 @@ use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::{check_finite, checkshape};
+use scirs2_linalg::{
+    det as linalg_det, eig as linalg_eig, eigh as linalg_eigh, inv as linalg_inv,
+    solve_multiple as linalg_solve_multiple,
+};
 
 #[allow(unused_imports)]
 /// Vector Autoregressive (VAR) model
@@ -694,23 +698,35 @@ fn esprit_estimation(signal: &Array1<f64>, n_signals: usize) -> SignalResult<Hig
     let es1 = signal_subspace.slice(s![0..model_order - 1, ..]).to_owned();
     let es2 = signal_subspace.slice(s![1..model_order, ..]).to_owned();
 
-    // Solve: ES2 = ES1 * Phi (where Phi contains eigenvalues)
+    // Solve: ES2 = ES1 * Phi (where Phi contains the rotational-invariance
+    // eigenvalues) via a genuine least-squares solve.
     let phi_matrix = solve_least_squares(&es1, &es2)?;
 
-    // Compute eigenvalues of Phi to get frequencies
-    let (phi_eigenvalues, _phi_vecs) = compute_eigendecomposition(&phi_matrix)?;
+    // Phi is generally NOT symmetric, so its eigenvalues are genuinely
+    // complex in general; reusing the symmetric-only `compute_eigendecomposition`
+    // here would either reject the matrix or silently discard the
+    // rotational (phase) information that IS the ESPRIT frequency estimate.
+    // In the (near-)noiseless case the eigenvalues of Phi lie on the unit
+    // circle at exp(j*2*pi*f_k); recover f_k from the eigenvalue phase.
+    let (phi_eigenvalues, _phi_vecs) = linalg_eig(&phi_matrix.view(), None).map_err(|e| {
+        SignalError::ComputationError(format!("ESPRIT eigendecomposition failed: {e}"))
+    })?;
 
-    let mut frequencies = Vec::new();
-    let mut powers = Vec::new();
-
+    let mut freq_power_pairs: Vec<(f64, f64)> = Vec::new();
     for eigenval in phi_eigenvalues.iter() {
-        let val = *eigenval;
-        if val > 0.0 && val < 1.0 {
-            let freq = val.acos() / (2.0 * PI);
-            frequencies.push(freq);
-            powers.push(1.0); // ESPRIT doesn't provide power estimates directly
+        // Real coefficients guarantee eigenvalues occur in complex-conjugate
+        // pairs; keep only one (non-negative angle) representative of each.
+        if eigenval.im < 0.0 {
+            continue;
         }
+        let angle = eigenval.im.atan2(eigenval.re);
+        let freq = angle.abs() / (2.0 * PI);
+        // Magnitude close to 1.0 indicates a genuine (well-conditioned)
+        // signal root rather than a numerical artifact.
+        freq_power_pairs.push((freq, eigenval.norm()));
     }
+    freq_power_pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    let (frequencies, powers): (Vec<f64>, Vec<f64>) = freq_power_pairs.into_iter().unzip();
 
     let n_signals = frequencies.len();
     Ok(HighResolutionResult {
@@ -723,48 +739,50 @@ fn esprit_estimation(signal: &Array1<f64>, n_signals: usize) -> SignalResult<Hig
 }
 
 /// Minimum norm algorithm
+///
+/// NOTE: this currently reuses the MUSIC noise-subspace projection (both
+/// methods share the same eigendecomposition and differ only in how the
+/// noise-subspace projector is weighted) rather than implementing the
+/// distinct minimum-norm weighting; the `method` tag on the returned result
+/// is corrected to `MinNorm` so callers are not misled about which
+/// algorithm actually produced the spectrum.
 #[allow(dead_code)]
 fn min_norm_spectrum(
     signal: &Array1<f64>,
     n_signals: usize,
     n_frequencies: usize,
 ) -> SignalResult<HighResolutionResult> {
-    // Similar to MUSIC but with minimum norm constraint
-    // Implementation would be similar to MUSIC with additional constraints
-    music_spectrum(signal, n_signals, n_frequencies) // Simplified for now
+    let mut result = music_spectrum(signal, n_signals, n_frequencies)?;
+    result.method = HighResolutionMethod::MinNorm;
+    Ok(result)
 }
 
 /// Root-MUSIC algorithm
+///
+/// NOTE: this currently reuses the ESPRIT rotational-invariance frequency
+/// estimator (a genuine eigenstructure method, not a fabricated stand-in)
+/// rather than the distinct polynomial-rooting formulation of Root-MUSIC;
+/// the `method` tag on the returned result is corrected to `RootMUSIC` so
+/// callers are not misled about which algorithm actually produced it.
 #[allow(dead_code)]
 fn root_music_estimation(
     signal: &Array1<f64>,
     n_signals: usize,
 ) -> SignalResult<HighResolutionResult> {
-    // Find roots of polynomial formed by noise subspace
-    // This is more complex and would require polynomial root finding
-    esprit_estimation(signal, n_signals) // Simplified for now
+    let mut result = esprit_estimation(signal, n_signals)?;
+    result.method = HighResolutionMethod::RootMUSIC;
+    Ok(result)
 }
 
-/// Helper function to solve linear system
+/// Helper function to solve the linear system `a * x = b` (or `a * X = B`
+/// for a matrix of right-hand sides) for a square coefficient matrix `a`.
+///
+/// Delegates to [`scirs2_linalg::solve_multiple`], a genuine LU-based
+/// solver, rather than fabricating a placeholder (partial-identity) result.
 #[allow(dead_code)]
 fn solve_linear_system(a: &Array2<f64>, b: &Array2<f64>) -> SignalResult<Array2<f64>> {
-    let n = a.nrows();
-    let m = b.ncols();
-
-    // Use LU decomposition for solving
-    // This is a simplified implementation
-    let mut result = Array2::zeros((n, m));
-
-    // Placeholder: would implement proper LU decomposition
-    for i in 0..n.min(m) {
-        for j in 0..n.min(m) {
-            if i == j {
-                result[[i, j]] = 1.0;
-            }
-        }
-    }
-
-    Ok(result)
+    linalg_solve_multiple(&a.view(), &b.view(), None)
+        .map_err(|e| SignalError::ComputationError(format!("Linear system solve failed: {e}")))
 }
 
 /// Helper function to solve least squares problem
@@ -776,62 +794,64 @@ fn solve_least_squares(a: &Array2<f64>, b: &Array2<f64>) -> SignalResult<Array2<
     solve_linear_system(&ata, &atb)
 }
 
-/// Compute eigendecomposition (simplified)
+/// Compute the eigendecomposition of a real symmetric (or numerically
+/// near-symmetric, e.g. sample-covariance) matrix.
+///
+/// Delegates to [`scirs2_linalg::eigh`], a genuine symmetric eigensolver
+/// (closed-form for small matrices, iterative for larger ones), rather than
+/// fabricating a placeholder `(ones, identity)` result. Callers such as
+/// MUSIC/ESPRIT/Pisarenko rely on the returned eigenvectors actually
+/// spanning the signal/noise subspaces of the input matrix.
 #[allow(dead_code)]
 pub fn compute_eigendecomposition(
     matrix: &Array2<f64>,
 ) -> SignalResult<(Array1<f64>, Array2<f64>)> {
     let n = matrix.nrows();
+    if n == 0 || matrix.ncols() != n {
+        return Err(SignalError::ShapeMismatch(format!(
+            "compute_eigendecomposition requires a square matrix, got {:?}",
+            matrix.dim()
+        )));
+    }
 
-    // Placeholder implementation
-    let eigenvalues = Array1::ones(n);
-    let eigenvectors = Array2::eye(n);
+    // Symmetrize defensively: callers pass sample-covariance-type matrices
+    // that are symmetric in exact arithmetic but may carry a few ULPs of
+    // floating-point asymmetry, which the underlying solver's strict
+    // symmetry check would otherwise reject outright.
+    let mut symmetric = matrix.to_owned();
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let avg = 0.5 * (symmetric[[i, j]] + symmetric[[j, i]]);
+            symmetric[[i, j]] = avg;
+            symmetric[[j, i]] = avg;
+        }
+    }
 
-    Ok((eigenvalues, eigenvectors))
+    linalg_eigh(&symmetric.view(), None)
+        .map_err(|e| SignalError::ComputationError(format!("Eigendecomposition failed: {e}")))
 }
 
-/// Compute matrix determinant (simplified)
+/// Compute matrix determinant.
+///
+/// Delegates to [`scirs2_linalg::det`] (closed-form for small matrices,
+/// LU-based for larger ones) rather than fabricating a placeholder `1.0`
+/// for matrices larger than 2x2.
 #[allow(dead_code)]
 fn compute_matrix_determinant(matrix: &Array2<f64>) -> SignalResult<f64> {
-    let n = matrix.nrows();
-
-    if n == 1 {
-        Ok(matrix[[0, 0]])
-    } else if n == 2 {
-        Ok(matrix[[0, 0]] * matrix[[1, 1]] - matrix[[0, 1]] * matrix[[1, 0]])
-    } else {
-        // Placeholder for larger matrices
-        Ok(1.0)
-    }
+    linalg_det(&matrix.view(), None)
+        .map_err(|e| SignalError::ComputationError(format!("Determinant computation failed: {e}")))
 }
 
-/// Compute matrix inverse (simplified)
+/// Compute matrix inverse.
+///
+/// Delegates to [`scirs2_linalg::inv`] (closed-form for small matrices,
+/// LU-based for larger ones) rather than fabricating a placeholder identity
+/// matrix for matrices larger than 2x2.
 #[allow(dead_code)]
 fn compute_matrix_inverse(matrix: &Array2<f64>) -> SignalResult<Array2<f64>> {
-    let n = matrix.nrows();
-    let mut result = Array2::zeros((n, n));
-
-    // Placeholder: simplified for 2x2 case
-    if n == 2 {
-        let det = compute_matrix_determinant(matrix)?;
-        if det.abs() < 1e-10 {
-            return Err(SignalError::ComputationError(
-                "Matrix is singular".to_string(),
-            ));
-        }
-
-        result[[0, 0]] = matrix[[1, 1]] / det;
-        result[[0, 1]] = -matrix[[0, 1]] / det;
-        result[[1, 0]] = -matrix[[1, 0]] / det;
-        result[[1, 1]] = matrix[[0, 0]] / det;
-    } else {
-        // Return identity for larger matrices (placeholder)
-        for i in 0..n {
-            result[[i, i]] = 1.0;
-        }
-    }
-
-    Ok(result)
+    linalg_inv(&matrix.view(), None).map_err(|e| {
+        SignalError::ComputationError(format!("Matrix inverse computation failed: {e}"))
+    })
 }
 
 #[cfg(test)]
@@ -905,5 +925,125 @@ mod tests {
             .expect("Operation failed");
 
         assert_eq!(lasso_result.dim(), (2, n_regressors)); // LASSO returns different shape than Ridge
+    }
+
+    #[test]
+    fn test_compute_eigendecomposition_is_real() {
+        // Non-trivial symmetric matrix (not the identity, not all-ones) so a
+        // fabricated `(ones, identity)` result is numerically
+        // distinguishable from a genuine eigendecomposition.
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![4.0, 1.0, 0.0, 1.0, 3.0, 1.0, 0.0, 1.0, 2.0])
+                .expect("Operation failed");
+
+        let (eigenvalues, eigenvectors) =
+            compute_eigendecomposition(&matrix).expect("eigendecomposition should succeed");
+
+        assert_eq!(eigenvalues.len(), 3);
+        assert_eq!(eigenvectors.dim(), (3, 3));
+
+        // Verify the defining property A*v = lambda*v for every eigenpair;
+        // a fabricated (ones, identity) result would fail this since
+        // A*e_0 = [4, 1, 0] != 1.0 * e_0 = [1, 0, 0].
+        for k in 0..3 {
+            let v = eigenvectors.column(k).to_owned();
+            let av = matrix.dot(&v);
+            for i in 0..3 {
+                assert!(
+                    (av[i] - eigenvalues[k] * v[i]).abs() < 1e-6,
+                    "A*v != lambda*v at eigenpair {k}, component {i}: {} vs {}",
+                    av[i],
+                    eigenvalues[k] * v[i]
+                );
+            }
+        }
+
+        // Eigenvalues must not all be 1.0 (the fabricated placeholder value).
+        assert!(eigenvalues.iter().any(|&ev| (ev - 1.0).abs() > 1e-6));
+    }
+
+    #[test]
+    fn test_esprit_estimation_finds_nonempty_frequencies() {
+        let n = 300;
+        let f0 = 0.15_f64;
+        // A single real sinusoid spans a 2-D (cosine/sine) signal subspace.
+        let signal: Array1<f64> = (0..n).map(|i| (2.0 * PI * f0 * i as f64).sin()).collect();
+
+        let result =
+            high_resolution_spectral_estimation(&signal, 2, HighResolutionMethod::ESPRIT, 256)
+                .expect("ESPRIT should succeed");
+
+        assert_eq!(result.method, HighResolutionMethod::ESPRIT);
+        // Under the previous fabricated eigendecomposition, Phi's
+        // eigenvalues were always exactly 1.0, so the `0.0 < val < 1.0`
+        // acceptance filter discarded every candidate and `frequencies`
+        // was always empty regardless of the input signal.
+        assert!(
+            !result.frequencies.is_empty(),
+            "ESPRIT should recover at least one frequency from a single-tone signal"
+        );
+        assert_eq!(result.frequencies.len(), result.powers.len());
+
+        let min_err = result
+            .frequencies
+            .iter()
+            .map(|&f| (f - f0).abs())
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            min_err < 0.03,
+            "expected a frequency near {f0}, got {:?}",
+            result.frequencies
+        );
+    }
+
+    #[test]
+    fn test_solve_linear_system_solves_real_system() {
+        // A non-trivial system with two distinct (non-constant) right-hand
+        // sides; a fabricated partial-identity result would fail A*X == B.
+        let a = Array2::from_shape_vec((3, 3), vec![2.0, 1.0, 0.0, 1.0, 3.0, 1.0, 0.0, 1.0, 4.0])
+            .expect("Operation failed");
+        let b = Array2::from_shape_vec((3, 2), vec![3.0, 1.0, 5.0, 2.0, 8.0, 3.0])
+            .expect("Operation failed");
+
+        let x = solve_linear_system(&a, &b).expect("solve should succeed");
+        assert_eq!(x.dim(), (3, 2));
+
+        let ax = a.dot(&x);
+        for i in 0..3 {
+            for j in 0..2 {
+                assert!(
+                    (ax[[i, j]] - b[[i, j]]).abs() < 1e-8,
+                    "A*X != B at ({i},{j}): {} vs {}",
+                    ax[[i, j]],
+                    b[[i, j]]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_matrix_determinant_and_inverse_for_3x3() {
+        let matrix =
+            Array2::from_shape_vec((3, 3), vec![2.0, 0.0, 1.0, 1.0, 3.0, 2.0, 0.0, 1.0, 1.0])
+                .expect("Operation failed");
+
+        // Independently-computed determinant: 2*(3*1-2*1) - 0 + 1*(1*1-3*0) = 3.0
+        let det = compute_matrix_determinant(&matrix).expect("det should succeed");
+        assert!((det - 3.0).abs() < 1e-8, "expected det=3.0, got {det}");
+        // A fabricated placeholder would have returned 1.0 for n>2.
+        assert!((det - 1.0).abs() > 1e-6);
+
+        let inv = compute_matrix_inverse(&matrix).expect("inverse should succeed");
+        let identity = matrix.dot(&inv);
+        for i in 0..3 {
+            for j in 0..3 {
+                let expected = if i == j { 1.0 } else { 0.0 };
+                assert!(
+                    (identity[[i, j]] - expected).abs() < 1e-6,
+                    "A*A^-1 != I at ({i},{j}): {}",
+                    identity[[i, j]]
+                );
+            }
+        }
     }
 }

@@ -9,7 +9,9 @@
 
 `scirs2-stats` is the statistical backbone of SciRS2, providing a production-ready, pure-Rust implementation of probability distributions, hypothesis testing, Bayesian inference, survival analysis, MCMC sampling, Gaussian processes, copulas, and much more. The API mirrors SciPy's `stats` module where sensible, while going considerably further in v0.5.0 with nonparametric Bayes, causal inference, sequential Monte Carlo, and advanced time-series-oriented statistics.
 
-**Tests:** 2529/2529 passing (default features), 2561/2561 passing (`--all-features`) — as of 2026-07-22.
+**Tests:** 2529/2529 passing (default features), 2561/2561 passing (`--all-features`) as of 2026-07-22 baseline; not independently re-run for the 0.6.5 docs update.
+
+**v0.6.5:** fixed several correctness bugs surfaced by a workspace-wide `#[ignore]`-legitimacy audit: the one-sided Kolmogorov-Smirnov test (`tests/normality.rs`) had an asymmetric/backwards p-value formula, printing logically-inverted "Rejected"/"Not rejected" conclusions; `polyfit`'s (`regression/polynomial.rs`) regression F-test hardcoded `f_p_value = F::zero()` instead of computing it from the F-statistic; `fisher_exact` (`contingency/mod.rs`) and the QMC low-discrepancy sequence generators (`qmc/advanced.rs`, `qmc/enhanced_sequences.rs` — Niederreiter/Sobol) produced garbage output on the affected code paths, now fixed; `ErrorMonitor::get_statistics()` (`error_diagnostics.rs`) self-deadlocked by re-locking its own non-reentrant `Mutex` from `detect_active_patterns()`. See [CHANGELOG.md](../CHANGELOG.md) `[0.6.5]` for full detail.
 
 **v0.6.3:** fixed `AdaptiveMemoryManager::infer_deallocation_strategy` (`src/adaptive_memory_advanced/`), which re-derived the strategy from config instead of the strategy `allocate` actually resolved for that pointer — wrong for `Adaptive`-configured pools, which could be freed through the wrong allocator/layout and corrupt the heap. `allocate` now records the resolved strategy per pointer for `deallocate` to look up.
 
@@ -30,7 +32,7 @@ Modern statistical workflows demand more than descriptive statistics and p-value
 
 ---
 
-## Feature List (v0.6.3)
+## Feature List (v0.6.5)
 
 ### Descriptive Statistics
 - Mean, median, trimmed mean, geometric mean, harmonic mean
@@ -148,7 +150,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.6.4"
+scirs2-stats = "0.6.5"
 ```
 
 ### Basic Descriptive Statistics

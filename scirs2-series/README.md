@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-series.svg)](https://crates.io/crates/scirs2-series)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-series)](https://docs.rs/scirs2-series)
-[![Version](https://img.shields.io/badge/version-0.6.3-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.5-green)]()
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
 **Comprehensive time series analysis for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
@@ -25,7 +25,7 @@ Key design goals:
 
 ---
 
-## Feature List (v0.6.3)
+## Feature List (v0.6.5)
 
 ### Decomposition
 - STL (Seasonal-Trend decomposition using Loess) with robustness iterations
@@ -179,7 +179,7 @@ Key design goals:
 
 ```toml
 [dependencies]
-scirs2-series = "0.6.4"
+scirs2-series = "0.6.5"
 ```
 
 ### ARIMA Forecasting
@@ -347,14 +347,19 @@ does not depend on `rayon`.
 "Known Issues" for several public API methods that silently return placeholder/fabricated
 results instead of panicking or erroring, which a `todo!()` grep cannot catch.
 
-Freshly measured 2026-07-15:
+Freshly measured 2026-07-15 (predates the 0.6.5 `out_of_core` fixes — see below):
 
 ```bash
 cargo nextest run -p scirs2-series               # default features: 1752 tests run, 1752 passed, 1 skipped
 cargo nextest run -p scirs2-series --all-features # all-features:     1805 tests run, 1805 passed, 1 skipped
 ```
 
-Both runs: 0 failed. (The 1 skipped test is `#[ignore]`d in both modes.)
+Both runs: 0 failed. **0.6.5 update:** the 1 skipped test above was
+`out_of_core::tests::test_csv_processing`, `#[ignore]`d for "Test has infinite loop bug - progress
+counter exceeds 397702600%"; the underlying bug is now fixed (see [TODO.md](./TODO.md) "Status:
+v0.6.5") and the `#[ignore]` has been removed, so the crate currently has zero `#[ignore]`d tests
+(verified via `grep -rn "#\[ignore" src/ tests/`) — the two dated totals above no longer reflect
+that test's outcome and are not being re-quoted as exact current figures.
 
 ---
 

@@ -7,6 +7,47 @@
 //! - Temporal event understanding
 //! - Abstract concept recognition
 //! - Multi-modal reasoning integration
+//!
+//! # Implementation status
+//!
+//! This module is **experimental**. There is no trained model behind it, so
+//! nothing here is genuine open-ended visual question answering, learned
+//! analogical mapping, or learned causal inference. What *is* computed for
+//! real, from the actual (non-semantic) detections in
+//! [`crate::scene_understanding`]:
+//!
+//! - Answer-formatting paths like `VisualReasoningEngine::reason_what_is_happening`
+//!   genuinely summarize real detections.
+//! - `VisualReasoningEngine::generate_causal_explanations` surfaces the
+//!   real rule-based conclusions [`crate::scene_understanding`] already
+//!   computed (or honestly says none fired); it does not perform new causal
+//!   inference.
+//! - `VisualReasoningEngine::predict_future_events` is a real (heuristic)
+//!   object-count trend read across the supplied temporal context, not
+//!   genuine event prediction.
+//! - `VisualReasoningEngine::analyze_causal_structure` reports the real
+//!   spatial relationships already detected, as *candidate* (not confirmed)
+//!   causal structure.
+//! - `AnalogicalReasoningEngine::find_analogy` (via
+//!   [`VisualReasoningEngine::find_analogies`]) is a real, classical
+//!   structural-similarity comparison (object-class/count/relationship
+//!   overlap), not learned analogical mapping.
+//! - Confidence/uncertainty aggregation
+//!   (`VisualReasoningEngine::estimate_overall_confidence`,
+//!   `VisualReasoningEngine::quantify_uncertainty`'s `confidence_interval`
+//!   and `sensitivity_analysis`) are real statistics over the underlying
+//!   step/evidence values.
+//!
+//! Still an honest placeholder, pending either a trained model or a
+//! dedicated follow-up: [`VisualReasoningEngine::infer_causality`]'s
+//! temporal-pattern extraction and causal-graph construction/inference
+//! (`extract_temporal_patterns`/`build_causal_graph`/`infer_effects`),
+//! [`VisualReasoningEngine::recognize_abstract_concepts`] (always empty),
+//! and `quantify_uncertainty`'s `epistemic_uncertainty`/
+//! `aleatoric_uncertainty` split (a principled model-vs-data decomposition
+//! needs a trained/probabilistic model this crate does not have). Treat any
+//! output from those specific paths with caution until they are
+//! implemented.
 
 #![allow(dead_code)]
 #![allow(missing_docs)]
@@ -830,8 +871,12 @@ impl VisualReasoningEngine {
         let evidence = vec![Evidence {
             evidence_type: "object_detection".to_string(),
             description: format!("Found {} objects in scene", scene_analysis.objects.len()),
-            support_strength: 0.8,
-            visual_anchors: Vec::new(),
+            support_strength: scene_analysis.scene_confidence,
+            visual_anchors: scene_analysis
+                .objects
+                .iter()
+                .map(|o| (o.bbox.0 + o.bbox.2 / 2.0, o.bbox.1 + o.bbox.3 / 2.0))
+                .collect(),
             temporal_anchors: Vec::new(),
         }];
 
@@ -899,24 +944,75 @@ impl VisualReasoningEngine {
         ))
     }
 
+    /// Real confidence aggregation: the mean of the individual reasoning
+    /// steps' `confidence` values and the evidence entries'
+    /// `support_strength` values (equally weighted), falling back to a
+    /// neutral `0.5` when there is nothing to aggregate. Replaces a
+    /// previous unconditional `0.75` that ignored `steps`/`evidence`
+    /// entirely.
     fn estimate_overall_confidence(
         &self,
         steps: &[ReasoningStep],
-        _evidence: &[Evidence],
+        evidence: &[Evidence],
     ) -> Result<f32> {
-        Ok(0.75) // Placeholder
+        let all_values: Vec<f32> = steps
+            .iter()
+            .map(|s| s.confidence)
+            .chain(evidence.iter().map(|e| e.support_strength))
+            .collect();
+        if all_values.is_empty() {
+            return Ok(0.5);
+        }
+        let mean = all_values.iter().sum::<f32>() / all_values.len() as f32;
+        Ok(mean.clamp(0.0, 1.0))
     }
 
+    /// `confidence_interval` and `sensitivity_analysis` are computed for
+    /// real from `evidence`'s actual `support_strength` values (mean +/- one
+    /// standard deviation, and mean strength grouped by `evidence_type`,
+    /// respectively) rather than fixed constants. `epistemic_uncertainty`/
+    /// `aleatoric_uncertainty` -- a principled model-vs-data uncertainty
+    /// *decomposition* -- would need a trained/probabilistic model this
+    /// crate does not have, so those two fields remain a documented
+    /// placeholder (see the module-level doc comment) rather than an
+    /// invented split.
     fn quantify_uncertainty(
         &self,
-        answer: &ReasoningAnswer,
-        _evidence: &[Evidence],
+        _answer: &ReasoningAnswer,
+        evidence: &[Evidence],
     ) -> Result<UncertaintyQuantification> {
+        let confidence_interval = if evidence.is_empty() {
+            (0.5, 0.5)
+        } else {
+            let strengths: Vec<f32> = evidence.iter().map(|e| e.support_strength).collect();
+            let mean = strengths.iter().sum::<f32>() / strengths.len() as f32;
+            let variance =
+                strengths.iter().map(|s| (s - mean).powi(2)).sum::<f32>() / strengths.len() as f32;
+            let std_dev = variance.sqrt();
+            (
+                (mean - std_dev).clamp(0.0, 1.0),
+                (mean + std_dev).clamp(0.0, 1.0),
+            )
+        };
+
+        let mut sensitivity_sums: HashMap<String, (f32, usize)> = HashMap::new();
+        for e in evidence {
+            let entry = sensitivity_sums
+                .entry(e.evidence_type.clone())
+                .or_insert((0.0, 0));
+            entry.0 += e.support_strength;
+            entry.1 += 1;
+        }
+        let sensitivity_analysis = sensitivity_sums
+            .into_iter()
+            .map(|(evidence_type, (sum, count))| (evidence_type, sum / count as f32))
+            .collect();
+
         Ok(UncertaintyQuantification {
             epistemic_uncertainty: 0.2,
             aleatoric_uncertainty: 0.1,
-            confidence_interval: (0.6, 0.9),
-            sensitivity_analysis: HashMap::new(),
+            confidence_interval,
+            sensitivity_analysis,
         })
     }
 
@@ -953,26 +1049,93 @@ impl VisualReasoningEngine {
         Ok(activities)
     }
 
-    fn generate_causal_explanations(
-        &self,
-        _scene_analysis: &SceneAnalysisResult,
-    ) -> Result<String> {
-        Ok(
-            "Scene appears to be in its current state due to normal object placement patterns"
-                .to_string(),
-        )
+    /// Surface the *real* rule-based conclusions
+    /// [`SceneAnalysisResult::reasoning_results`] already computed by
+    /// [`crate::scene_understanding`]'s [`ContextualReasoningEngine`], rather
+    /// than a fixed generic sentence. This is not novel causal inference
+    /// (that would need a trained model this crate doesn't have); it
+    /// honestly reports what the classical reasoning rules already
+    /// concluded, or says plainly that no rule fired.
+    ///
+    /// [`ContextualReasoningEngine`]: crate::scene_understanding::ContextualReasoningEngine
+    fn generate_causal_explanations(&self, scene_analysis: &SceneAnalysisResult) -> Result<String> {
+        if scene_analysis.reasoning_results.is_empty() {
+            return Ok(format!(
+                "No reasoning rule matched this scene ({} objects, {} relationships); \
+                 no explanation available.",
+                scene_analysis.objects.len(),
+                scene_analysis.relationships.len()
+            ));
+        }
+
+        let explanations: Vec<String> = scene_analysis
+            .reasoning_results
+            .iter()
+            .map(|r| format!("{} (confidence {:.2})", r.conclusion, r.confidence))
+            .collect();
+        Ok(explanations.join("; "))
     }
 
+    /// Compare the current scene's object count against the trailing
+    /// temporal `context` to report a real (if coarse) stability judgement,
+    /// rather than an unconditional "likely to remain stable" regardless of
+    /// input. This is a heuristic trend read on object *count*, not genuine
+    /// event prediction.
     fn predict_future_events(
         &self,
         scene: &SceneAnalysisResult,
-        _context: &[SceneAnalysisResult],
+        context: &[SceneAnalysisResult],
     ) -> Result<String> {
-        Ok("Based on temporal patterns, the _scene is likely to remain stable".to_string())
+        if context.is_empty() {
+            return Ok("Insufficient temporal context for prediction".to_string());
+        }
+
+        let mean_context_count =
+            context.iter().map(|s| s.objects.len() as f32).sum::<f32>() / context.len() as f32;
+        let current_count = scene.objects.len() as f32;
+        let delta = current_count - mean_context_count;
+
+        let trend = if delta.abs() < 0.5 {
+            "stable (object count roughly unchanged)"
+        } else if delta > 0.0 {
+            "increasingly active (object count rising)"
+        } else {
+            "quieting down (object count falling)"
+        };
+
+        Ok(format!(
+            "Based on {} prior frame(s) averaging {:.1} objects vs. {} now, \
+             the scene appears {trend}.",
+            context.len(),
+            mean_context_count,
+            scene.objects.len()
+        ))
     }
 
-    fn analyze_causal_structure(&self, _sceneanalysis: &SceneAnalysisResult) -> Result<String> {
-        Ok("No strong causal relationships detected in current scene".to_string())
+    /// Summarize the real spatial relationships already detected by
+    /// [`crate::scene_understanding`] as candidate causal structure (spatial
+    /// co-location is evidence for, not proof of, a causal link) rather than
+    /// an unconditional "no relationships" message.
+    fn analyze_causal_structure(&self, scene_analysis: &SceneAnalysisResult) -> Result<String> {
+        if scene_analysis.relationships.is_empty() {
+            return Ok(
+                "No spatial relationships detected in current scene; no candidate \
+                causal structure to report."
+                    .to_string(),
+            );
+        }
+
+        Ok(format!(
+            "{} spatial relationship(s) detected between objects, offering candidate (not \
+             confirmed) causal structure; mean relationship confidence {:.2}.",
+            scene_analysis.relationships.len(),
+            scene_analysis
+                .relationships
+                .iter()
+                .map(|r| r.confidence)
+                .sum::<f32>()
+                / scene_analysis.relationships.len() as f32
+        ))
     }
 }
 
@@ -1126,15 +1289,74 @@ impl AnalogicalReasoningEngine {
         }
     }
 
+    /// Real (classical, non-learned) structural-similarity analogy: how much
+    /// two scenes' object-class composition, object count, and relationship
+    /// count resemble each other. This is not learned analogical mapping
+    /// (genuinely out of scope without a trained model, per the module doc),
+    /// but a real, deterministic feature comparison rather than a fixed
+    /// `0.7` regardless of the two scenes' actual content.
     fn find_analogy(
         &self,
         source: &SceneAnalysisResult,
-        _target: &SceneAnalysisResult,
+        target: &SceneAnalysisResult,
     ) -> Result<AnalogyResult> {
+        let source_classes: std::collections::HashSet<&str> =
+            source.objects.iter().map(|o| o.class.as_str()).collect();
+        let target_classes: std::collections::HashSet<&str> =
+            target.objects.iter().map(|o| o.class.as_str()).collect();
+
+        let intersection = source_classes.intersection(&target_classes).count();
+        let union = source_classes.union(&target_classes).count().max(1);
+        let class_similarity = intersection as f32 / union as f32;
+
+        let ratio_similarity = |a: usize, b: usize| -> f32 {
+            let (a, b) = (a as f32, b as f32);
+            if a.max(b) > 0.0 {
+                1.0 - (a - b).abs() / a.max(b)
+            } else {
+                1.0
+            }
+        };
+        let count_similarity = ratio_similarity(source.objects.len(), target.objects.len());
+        let relationship_similarity =
+            ratio_similarity(source.relationships.len(), target.relationships.len());
+
+        let similarity_score =
+            (class_similarity + count_similarity + relationship_similarity) / 3.0;
+
+        let mut matching_patterns: Vec<PatternMatch> = source_classes
+            .intersection(&target_classes)
+            .map(|&class| PatternMatch {
+                source_element: class.to_string(),
+                target_element: class.to_string(),
+                similarity: 1.0,
+            })
+            .collect();
+        matching_patterns.sort_by(|a, b| a.source_element.cmp(&b.source_element));
+
+        let explanation = if matching_patterns.is_empty() {
+            format!(
+                "No shared object classes between scenes ({} vs {} objects); \
+                 similarity score {similarity_score:.2} reflects only count/relationship overlap.",
+                source.objects.len(),
+                target.objects.len()
+            )
+        } else {
+            let shared: Vec<&str> = matching_patterns
+                .iter()
+                .map(|m| m.source_element.as_str())
+                .collect();
+            format!(
+                "Shared object classes: {}; similarity score {similarity_score:.2} combines \
+                 class, count, and relationship overlap.",
+                shared.join(", ")
+            )
+        };
+
         Ok(AnalogyResult {
-            similarity_score: 0.7,
-            matching_patterns: Vec::new(),
-            explanation: "Structural similarity detected".to_string(),
+            similarity_score,
+            matching_patterns,
+            explanation,
         })
     }
 }
@@ -1212,4 +1434,281 @@ pub fn perform_advanced_visual_reasoning(
     };
 
     engine.process_query(&query, scene, context)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scene_understanding::{
+        DetectedObject, ReasoningResult, SceneGraph, SpatialRelation, SpatialRelationType,
+    };
+
+    fn object(class: &str, bbox: (f32, f32, f32, f32)) -> DetectedObject {
+        DetectedObject {
+            class: class.to_string(),
+            bbox,
+            confidence: 0.9,
+            features: Array2::zeros((1, 4)),
+            mask: None,
+            attributes: HashMap::new(),
+        }
+    }
+
+    fn relation(source_id: usize, target_id: usize, confidence: f32) -> SpatialRelation {
+        SpatialRelation {
+            source_id,
+            target_id,
+            relation_type: SpatialRelationType::NextTo,
+            confidence,
+            parameters: HashMap::new(),
+        }
+    }
+
+    fn scene(
+        objects: Vec<DetectedObject>,
+        relationships: Vec<SpatialRelation>,
+        reasoning_results: Vec<ReasoningResult>,
+    ) -> SceneAnalysisResult {
+        SceneAnalysisResult {
+            objects,
+            relationships,
+            scene_class: "test_scene".to_string(),
+            scene_confidence: 0.8,
+            segmentation_map: Array2::zeros((2, 2)),
+            scene_graph: SceneGraph {
+                nodes: Vec::new(),
+                edges: Vec::new(),
+                global_properties: HashMap::new(),
+            },
+            temporal_info: None,
+            reasoning_results,
+        }
+    }
+
+    #[test]
+    fn test_generate_causal_explanations_uses_real_reasoning_results() {
+        let engine = VisualReasoningEngine::new();
+
+        let empty = scene(Vec::new(), Vec::new(), Vec::new());
+        let empty_explanation = engine
+            .generate_causal_explanations(&empty)
+            .expect("generate_causal_explanations failed");
+        assert!(empty_explanation.contains("No reasoning rule matched"));
+
+        let with_results = scene(
+            Vec::new(),
+            Vec::new(),
+            vec![ReasoningResult {
+                rule_name: "test_rule".to_string(),
+                conclusion: "objects are clustered".to_string(),
+                confidence: 0.42,
+                evidence: Vec::new(),
+            }],
+        );
+        let real_explanation = engine
+            .generate_causal_explanations(&with_results)
+            .expect("generate_causal_explanations failed");
+        assert!(real_explanation.contains("objects are clustered"));
+        assert!(real_explanation.contains("0.42"));
+        assert_ne!(real_explanation, empty_explanation);
+    }
+
+    #[test]
+    fn test_predict_future_events_reads_real_trend_not_hardcoded() {
+        let engine = VisualReasoningEngine::new();
+
+        let no_context = scene(
+            vec![object("person", (0.0, 0.0, 1.0, 1.0))],
+            Vec::new(),
+            Vec::new(),
+        );
+        let no_context_result = engine
+            .predict_future_events(&no_context, &[])
+            .expect("predict_future_events failed");
+        assert_eq!(
+            no_context_result,
+            "Insufficient temporal context for prediction"
+        );
+
+        let quiet_history = vec![
+            scene(Vec::new(), Vec::new(), Vec::new()),
+            scene(Vec::new(), Vec::new(), Vec::new()),
+        ];
+        let busy_now = scene(
+            vec![
+                object("person", (0.0, 0.0, 1.0, 1.0)),
+                object("person", (2.0, 0.0, 1.0, 1.0)),
+                object("car", (4.0, 0.0, 1.0, 1.0)),
+            ],
+            Vec::new(),
+            Vec::new(),
+        );
+        let trend_result = engine
+            .predict_future_events(&busy_now, &quiet_history)
+            .expect("predict_future_events failed");
+        assert!(
+            trend_result.contains("increasingly active"),
+            "expected an activity increase to be detected, got: {trend_result}"
+        );
+        assert_ne!(
+            trend_result,
+            "Based on temporal patterns, the _scene is likely to remain stable"
+        );
+    }
+
+    #[test]
+    fn test_analyze_causal_structure_reports_real_relationship_count() {
+        let engine = VisualReasoningEngine::new();
+
+        let none = scene(Vec::new(), Vec::new(), Vec::new());
+        let none_result = engine
+            .analyze_causal_structure(&none)
+            .expect("analyze_causal_structure failed");
+        assert!(none_result.contains("No spatial relationships"));
+
+        let with_rels = scene(
+            vec![
+                object("object", (0.0, 0.0, 1.0, 1.0)),
+                object("object", (1.0, 1.0, 1.0, 1.0)),
+            ],
+            vec![relation(0, 1, 0.6), relation(1, 0, 0.8)],
+            Vec::new(),
+        );
+        let with_rels_result = engine
+            .analyze_causal_structure(&with_rels)
+            .expect("analyze_causal_structure failed");
+        assert!(
+            with_rels_result.contains('2'),
+            "should report the real count of 2 relationships"
+        );
+        assert!(
+            with_rels_result.contains("0.70"),
+            "mean confidence of 0.6 and 0.8 is 0.70"
+        );
+    }
+
+    #[test]
+    fn test_find_analogy_computes_real_similarity_not_hardcoded() {
+        let engine = VisualReasoningEngine::new();
+
+        let scene_a = scene(
+            vec![
+                object("person", (0.0, 0.0, 1.0, 1.0)),
+                object("car", (1.0, 0.0, 1.0, 1.0)),
+            ],
+            vec![relation(0, 1, 0.5)],
+            Vec::new(),
+        );
+        let identical = scene(
+            vec![
+                object("person", (0.0, 0.0, 1.0, 1.0)),
+                object("car", (1.0, 0.0, 1.0, 1.0)),
+            ],
+            vec![relation(0, 1, 0.5)],
+            Vec::new(),
+        );
+        let disjoint = scene(
+            vec![
+                object("chair", (0.0, 0.0, 1.0, 1.0)),
+                object("table", (1.0, 0.0, 1.0, 1.0)),
+                object("lamp", (2.0, 0.0, 1.0, 1.0)),
+            ],
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let identical_analogy = engine
+            .analogical_reasoning
+            .find_analogy(&scene_a, &identical)
+            .expect("find_analogy failed");
+        let disjoint_analogy = engine
+            .analogical_reasoning
+            .find_analogy(&scene_a, &disjoint)
+            .expect("find_analogy failed");
+
+        assert!(
+            (identical_analogy.similarity_score - 1.0).abs() < 1e-6,
+            "identical scenes should score ~1.0, got {}",
+            identical_analogy.similarity_score
+        );
+        assert!(
+            disjoint_analogy.similarity_score < identical_analogy.similarity_score,
+            "a scene with no shared classes must score lower"
+        );
+        assert_ne!(disjoint_analogy.similarity_score, 0.7);
+        assert_eq!(identical_analogy.matching_patterns.len(), 2);
+    }
+
+    #[test]
+    fn test_quantify_uncertainty_uses_real_evidence_spread() {
+        let engine = VisualReasoningEngine::new();
+        let answer = ReasoningAnswer::Text("test".to_string());
+
+        let empty = engine
+            .quantify_uncertainty(&answer, &[])
+            .expect("quantify_uncertainty failed");
+        assert_eq!(empty.confidence_interval, (0.5, 0.5));
+
+        let agreeing = engine
+            .quantify_uncertainty(&answer, &[evidence(0.8), evidence(0.8)])
+            .expect("quantify_uncertainty failed");
+        assert!(
+            (agreeing.confidence_interval.1 - agreeing.confidence_interval.0).abs() < 1e-6,
+            "identical evidence should yield a zero-width interval, got {:?}",
+            agreeing.confidence_interval
+        );
+
+        let disagreeing = engine
+            .quantify_uncertainty(&answer, &[evidence(0.1), evidence(0.9)])
+            .expect("quantify_uncertainty failed");
+        assert!(
+            disagreeing.confidence_interval.1 - disagreeing.confidence_interval.0
+                > agreeing.confidence_interval.1 - agreeing.confidence_interval.0,
+            "disagreeing evidence must widen the interval"
+        );
+    }
+
+    fn step(confidence: f32) -> ReasoningStep {
+        ReasoningStep {
+            step_id: 0,
+            step_type: "test".to_string(),
+            description: "test step".to_string(),
+            input_data: Vec::new(),
+            output_data: Vec::new(),
+            confidence,
+        }
+    }
+
+    fn evidence(support_strength: f32) -> Evidence {
+        Evidence {
+            evidence_type: "test".to_string(),
+            description: "test evidence".to_string(),
+            support_strength,
+            visual_anchors: Vec::new(),
+            temporal_anchors: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn test_estimate_overall_confidence_responds_to_inputs() {
+        // Regression guard: the original implementation returned an
+        // unconditional `0.75` regardless of `steps`/`evidence`.
+        let engine = VisualReasoningEngine::new();
+
+        let empty_confidence = engine
+            .estimate_overall_confidence(&[], &[])
+            .expect("estimate_overall_confidence failed");
+        assert_eq!(empty_confidence, 0.5);
+
+        let high_confidence = engine
+            .estimate_overall_confidence(&[step(0.95), step(0.9)], &[evidence(0.85)])
+            .expect("estimate_overall_confidence failed");
+        let low_confidence = engine
+            .estimate_overall_confidence(&[step(0.1), step(0.05)], &[evidence(0.15)])
+            .expect("estimate_overall_confidence failed");
+
+        assert!(high_confidence > 0.8);
+        assert!(low_confidence < 0.2);
+        assert!(high_confidence > low_confidence);
+    }
 }

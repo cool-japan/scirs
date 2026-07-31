@@ -1640,7 +1640,6 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     #[test]
-    #[ignore = "GPU availability varies by environment"]
     fn test_gpu_metrics_computer_creation() {
         let computer =
             GpuMetricsComputer::new(GpuAccelConfig::default()).expect("Operation failed");
@@ -1668,7 +1667,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "GPU availability varies by environment"]
+    #[ignore = "requires-gpu: GPU availability varies by environment"]
     fn test_should_use_gpu() {
         let computer =
             GpuMetricsComputer::new(GpuAccelConfig::default()).expect("Operation failed");

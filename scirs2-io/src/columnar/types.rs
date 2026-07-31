@@ -12,7 +12,12 @@ use crate::error::{IoError, Result};
 pub const COLUMNAR_MAGIC: &[u8; 8] = b"SCIRCOL\x01";
 
 /// Current format version
-pub const FORMAT_VERSION: u32 = 1;
+///
+/// Version 2 adds an optional per-column null/validity bitmap (see
+/// [`Column::null_mask`]) written directly after each column's encoded data.
+/// Version 1 files (no null section) are still readable: [`super::reader`]
+/// treats every column in a v1 file as having no null mask.
+pub const FORMAT_VERSION: u32 = 2;
 
 /// Column data type tag stored in the file header
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -219,39 +224,115 @@ pub struct Column {
     pub name: String,
     /// Column data
     pub data: ColumnData,
+    /// Optional per-row null/validity bitmap: `null_mask[i] == true` means row
+    /// `i` is null/missing. `None` means the column has no null tracking (every
+    /// row is a valid, present value) -- the case for all columns created via
+    /// the plain `float64`/`int64`/`string`/`boolean` constructors.
+    ///
+    /// The underlying `ColumnData` vector still holds a concrete placeholder
+    /// value at null positions (there being no other way to represent "no
+    /// value" in a plain `Vec<T>`); the mask is what determines whether that
+    /// placeholder is a real value or should be treated as missing by
+    /// `ColumnStats` and other consumers.
+    pub null_mask: Option<Vec<bool>>,
 }
 
 impl Column {
-    /// Create a new column with f64 data
+    /// Create a new column with f64 data (no null tracking)
     pub fn float64(name: impl Into<String>, data: Vec<f64>) -> Self {
         Column {
             name: name.into(),
             data: ColumnData::Float64(data),
+            null_mask: None,
         }
     }
 
-    /// Create a new column with i64 data
+    /// Create a new column with i64 data (no null tracking)
     pub fn int64(name: impl Into<String>, data: Vec<i64>) -> Self {
         Column {
             name: name.into(),
             data: ColumnData::Int64(data),
+            null_mask: None,
         }
     }
 
-    /// Create a new column with string data
+    /// Create a new column with string data (no null tracking)
     pub fn string(name: impl Into<String>, data: Vec<String>) -> Self {
         Column {
             name: name.into(),
             data: ColumnData::Str(data),
+            null_mask: None,
         }
     }
 
-    /// Create a new column with bool data
+    /// Create a new column with bool data (no null tracking)
     pub fn boolean(name: impl Into<String>, data: Vec<bool>) -> Self {
         Column {
             name: name.into(),
             data: ColumnData::Bool(data),
+            null_mask: None,
         }
+    }
+
+    /// Create a new column with f64 data and an explicit null mask.
+    ///
+    /// `null_mask[i] == true` marks row `i` as null; the corresponding entry
+    /// in `data` is a placeholder and is excluded from `ColumnStats`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `null_mask.len() != data.len()`.
+    pub fn float64_with_nulls(
+        name: impl Into<String>,
+        data: Vec<f64>,
+        null_mask: Vec<bool>,
+    ) -> Result<Self> {
+        Self::with_nulls(name, ColumnData::Float64(data), null_mask)
+    }
+
+    /// Create a new column with i64 data and an explicit null mask (see
+    /// [`Column::float64_with_nulls`]).
+    pub fn int64_with_nulls(
+        name: impl Into<String>,
+        data: Vec<i64>,
+        null_mask: Vec<bool>,
+    ) -> Result<Self> {
+        Self::with_nulls(name, ColumnData::Int64(data), null_mask)
+    }
+
+    /// Create a new column with string data and an explicit null mask (see
+    /// [`Column::float64_with_nulls`]).
+    pub fn string_with_nulls(
+        name: impl Into<String>,
+        data: Vec<String>,
+        null_mask: Vec<bool>,
+    ) -> Result<Self> {
+        Self::with_nulls(name, ColumnData::Str(data), null_mask)
+    }
+
+    /// Create a new column with bool data and an explicit null mask (see
+    /// [`Column::float64_with_nulls`]).
+    pub fn boolean_with_nulls(
+        name: impl Into<String>,
+        data: Vec<bool>,
+        null_mask: Vec<bool>,
+    ) -> Result<Self> {
+        Self::with_nulls(name, ColumnData::Bool(data), null_mask)
+    }
+
+    fn with_nulls(name: impl Into<String>, data: ColumnData, null_mask: Vec<bool>) -> Result<Self> {
+        if null_mask.len() != data.len() {
+            return Err(IoError::FormatError(format!(
+                "null_mask has {} entries, expected {} (one per row)",
+                null_mask.len(),
+                data.len()
+            )));
+        }
+        Ok(Column {
+            name: name.into(),
+            data,
+            null_mask: Some(null_mask),
+        })
     }
 
     /// Returns the length (number of rows) of this column
@@ -262,6 +343,25 @@ impl Column {
     /// Returns true if column is empty
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
+    }
+
+    /// Returns `true` if row `row` is null. Always `false` when the column
+    /// has no null mask.
+    pub fn is_null(&self, row: usize) -> bool {
+        self.null_mask
+            .as_ref()
+            .and_then(|mask| mask.get(row))
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Returns the number of null rows in this column (0 when there is no
+    /// null mask).
+    pub fn null_count(&self) -> usize {
+        self.null_mask
+            .as_ref()
+            .map(|mask| mask.iter().filter(|&&is_null| is_null).count())
+            .unwrap_or(0)
     }
 }
 

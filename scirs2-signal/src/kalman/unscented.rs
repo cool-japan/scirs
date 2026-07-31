@@ -15,11 +15,11 @@
 //! * Wan, E.A. & van der Merwe, R. (2000). "The Unscented Kalman Filter for
 //!   Nonlinear Estimation". *Proc. IEEE ASSPCC*, 153–158.
 
-use crate::error::{SignalError, SignalResult};
 use super::matrix_utils::{
-    cholesky_decomp, mat_add, mat_eye, mat_inv, mat_mul, mat_sub, mat_transpose,
-    mat_vec_mul, outer_product, vec_add, vec_sub, vec_scale,
+    cholesky_decomp, mat_add, mat_eye, mat_inv, mat_mul, mat_sub, mat_transpose, mat_vec_mul,
+    outer_product, vec_add, vec_scale, vec_sub,
 };
+use crate::error::{SignalError, SignalResult};
 
 /// Unscented Kalman Filter using the Julier/Uhlmann sigma-point method.
 ///
@@ -103,7 +103,9 @@ impl UnscentedKalmanFilter {
     /// * `kappa` - Secondary scaling parameter (often 0 or 3-n)
     pub fn set_parameters(&mut self, alpha: f64, beta: f64, kappa: f64) -> SignalResult<()> {
         if alpha <= 0.0 {
-            return Err(SignalError::ValueError("alpha must be positive".to_string()));
+            return Err(SignalError::ValueError(
+                "alpha must be positive".to_string(),
+            ));
         }
         self.alpha = alpha;
         self.beta = beta;
@@ -115,7 +117,9 @@ impl UnscentedKalmanFilter {
     #[allow(non_snake_case)]
     pub fn set_Q(&mut self, q: Vec<Vec<f64>>) -> SignalResult<()> {
         if q.len() != self.dim_x || q.iter().any(|r| r.len() != self.dim_x) {
-            return Err(SignalError::ValueError("Q must be dim_x × dim_x".to_string()));
+            return Err(SignalError::ValueError(
+                "Q must be dim_x × dim_x".to_string(),
+            ));
         }
         self.q = q;
         Ok(())
@@ -125,7 +129,9 @@ impl UnscentedKalmanFilter {
     #[allow(non_snake_case)]
     pub fn set_R(&mut self, r: Vec<Vec<f64>>) -> SignalResult<()> {
         if r.len() != self.dim_z || r.iter().any(|row| row.len() != self.dim_z) {
-            return Err(SignalError::ValueError("R must be dim_z × dim_z".to_string()));
+            return Err(SignalError::ValueError(
+                "R must be dim_z × dim_z".to_string(),
+            ));
         }
         self.r = r;
         Ok(())
@@ -148,7 +154,9 @@ impl UnscentedKalmanFilter {
     #[allow(non_snake_case)]
     pub fn set_P(&mut self, p: Vec<Vec<f64>>) -> SignalResult<()> {
         if p.len() != self.dim_x || p.iter().any(|r| r.len() != self.dim_x) {
-            return Err(SignalError::ValueError("P must be dim_x × dim_x".to_string()));
+            return Err(SignalError::ValueError(
+                "P must be dim_x × dim_x".to_string(),
+            ));
         }
         self.p = p;
         Ok(())
@@ -177,7 +185,7 @@ impl UnscentedKalmanFilter {
     /// Generate 2n+1 sigma points from current state estimate.
     fn sigma_points(&self, lambda: f64) -> SignalResult<Vec<Vec<f64>>> {
         let n = self.dim_x;
-        let scale = ((n as f64 + lambda)).sqrt();
+        let scale = (n as f64 + lambda).sqrt();
 
         // Cholesky decomposition of P
         let l = cholesky_decomp(&self.p)?;
@@ -329,7 +337,12 @@ impl UnscentedKalmanFilter {
             .p
             .iter()
             .zip(pt.iter())
-            .map(|(r1, r2)| r1.iter().zip(r2.iter()).map(|(a, b)| 0.5 * (a + b)).collect())
+            .map(|(r1, r2)| {
+                r1.iter()
+                    .zip(r2.iter())
+                    .map(|(a, b)| 0.5 * (a + b))
+                    .collect()
+            })
             .collect();
         self.p = p_sym;
 
@@ -358,29 +371,28 @@ mod tests {
     #[test]
     fn test_bearing_only_tracking() {
         // dt = 1, constant velocity
-        let f = |x: &[f64]| -> Vec<f64> {
-            vec![x[0] + x[2], x[1] + x[3], x[2], x[3]]
-        };
+        let f = |x: &[f64]| -> Vec<f64> { vec![x[0] + x[2], x[1] + x[3], x[2], x[3]] };
         // Observe bearing only
-        let h = |x: &[f64]| -> Vec<f64> {
-            vec![(x[1]).atan2(x[0])]
-        };
+        let h = |x: &[f64]| -> Vec<f64> { vec![(x[1]).atan2(x[0])] };
 
         let mut ukf = UnscentedKalmanFilter::new(Box::new(f), Box::new(h), 4, 1);
-        ukf.set_initial_state(&[1.0, 1.0, 0.1, 0.1]).expect("set initial state");
+        ukf.set_initial_state(&[1.0, 1.0, 0.1, 0.1])
+            .expect("set initial state");
         ukf.set_Q(vec![
             vec![1e-4, 0.0, 0.0, 0.0],
             vec![0.0, 1e-4, 0.0, 0.0],
             vec![0.0, 0.0, 1e-4, 0.0],
             vec![0.0, 0.0, 0.0, 1e-4],
-        ]).expect("set Q");
+        ])
+        .expect("set Q");
         ukf.set_R(vec![vec![0.01]]).expect("set R");
         ukf.set_P(vec![
             vec![1.0, 0.0, 0.0, 0.0],
             vec![0.0, 1.0, 0.0, 0.0],
             vec![0.0, 0.0, 1.0, 0.0],
             vec![0.0, 0.0, 0.0, 1.0],
-        ]).expect("set P");
+        ])
+        .expect("set P");
 
         // True trajectory: straight line at 45 degrees
         let mut true_x = 1.0_f64;
@@ -423,7 +435,11 @@ mod tests {
         assert_eq!(wc.len(), 7);
         // Weights should sum to 1
         let wm_sum: f64 = wm.iter().sum();
-        assert!((wm_sum - 1.0).abs() < 1e-10, "Mean weights should sum to 1, got {:.6}", wm_sum);
+        assert!(
+            (wm_sum - 1.0).abs() < 1e-10,
+            "Mean weights should sum to 1, got {:.6}",
+            wm_sum
+        );
         let _ = lambda; // used
     }
 
@@ -434,8 +450,10 @@ mod tests {
         let h = |x: &[f64]| -> Vec<f64> { vec![x[0]] };
 
         let mut ukf = UnscentedKalmanFilter::new(Box::new(f), Box::new(h), 2, 1);
-        ukf.set_initial_state(&[0.0, 1.0]).expect("set initial state");
-        ukf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]]).expect("set Q");
+        ukf.set_initial_state(&[0.0, 1.0])
+            .expect("set initial state");
+        ukf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]])
+            .expect("set Q");
         ukf.set_R(vec![vec![0.1]]).expect("set R");
 
         // Should not error over many steps
@@ -444,6 +462,9 @@ mod tests {
             ukf.update(&[k as f64]).expect("update");
         }
         let state = ukf.state();
-        assert!(state[0].is_finite() && state[1].is_finite(), "UKF state should be finite");
+        assert!(
+            state[0].is_finite() && state[1].is_finite(),
+            "UKF state should be finite"
+        );
     }
 }

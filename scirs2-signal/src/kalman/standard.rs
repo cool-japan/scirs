@@ -16,11 +16,11 @@
 //! * Kalman, R.E. (1960). "A New Approach to Linear Filtering and Prediction Problems".
 //!   *Journal of Basic Engineering*, 82(1), 35–45.
 
-use crate::error::{SignalError, SignalResult};
 use super::matrix_utils::{
-    dot, mat_add, mat_eye, mat_inv, mat_mul, mat_sub, mat_transpose, mat_vec_mul,
-    outer_product, vec_add, vec_sub,
+    dot, mat_add, mat_eye, mat_inv, mat_mul, mat_sub, mat_transpose, mat_vec_mul, outer_product,
+    vec_add, vec_sub,
 };
+use crate::error::{SignalError, SignalResult};
 
 /// Standard Kalman filter for linear Gaussian systems.
 ///
@@ -292,7 +292,12 @@ impl KalmanFilter {
             .p
             .iter()
             .zip(pt.iter())
-            .map(|(r1, r2)| r1.iter().zip(r2.iter()).map(|(a, b)| 0.5 * (a + b)).collect())
+            .map(|(r1, r2)| {
+                r1.iter()
+                    .zip(r2.iter())
+                    .map(|(a, b)| 0.5 * (a + b))
+                    .collect()
+            })
             .collect();
         self.p = p_sym;
 
@@ -356,10 +361,16 @@ impl KalmanFilter {
         // Compute log|S| via Cholesky: log|S| = 2 * sum(log(diag(L)))
         use super::matrix_utils::cholesky_decomp;
         let l = cholesky_decomp(&s)?;
-        let log_det_s: f64 = l.iter().enumerate().map(|(i, row)| row[i].ln()).sum::<f64>() * 2.0;
+        let log_det_s: f64 = l
+            .iter()
+            .enumerate()
+            .map(|(i, row)| row[i].ln())
+            .sum::<f64>()
+            * 2.0;
 
         let k = self.dim_z as f64;
-        let ll = -0.5 * (mahal + log_det_s + k * (std::f64::consts::LN_2 + std::f64::consts::PI.ln()));
+        let ll =
+            -0.5 * (mahal + log_det_s + k * (std::f64::consts::LN_2 + std::f64::consts::PI.ln()));
         Ok(ll)
     }
 }
@@ -376,15 +387,18 @@ mod tests {
         let mut kf = KalmanFilter::new(2, 1);
         // x_{k+1} = x_k + v_k * dt, v_{k+1} = v_k
         let dt = 1.0;
-        kf.set_F(vec![vec![1.0, dt], vec![0.0, 1.0]]).expect("set F");
+        kf.set_F(vec![vec![1.0, dt], vec![0.0, 1.0]])
+            .expect("set F");
         // Observe position only
         kf.set_H(vec![vec![1.0, 0.0]]).expect("set H");
         // Small process noise
-        kf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]]).expect("set Q");
+        kf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]])
+            .expect("set Q");
         // Measurement noise variance
         kf.set_R(vec![vec![1.0]]).expect("set R");
         // Initial state: position=0, velocity=1
-        kf.set_initial_state(&[0.0, 1.0]).expect("set initial state");
+        kf.set_initial_state(&[0.0, 1.0])
+            .expect("set initial state");
 
         // True trajectory: position = k, velocity = 1.0
         let true_positions: Vec<f64> = (0..20).map(|k| k as f64).collect();
@@ -395,7 +409,9 @@ mod tests {
             .map(|(i, &p)| vec![p + (i as f64 % 3.0 - 1.0) * 0.5])
             .collect();
 
-        let states = kf.filter_sequence(&measurements).expect("filter should succeed");
+        let states = kf
+            .filter_sequence(&measurements)
+            .expect("filter should succeed");
 
         assert_eq!(states.len(), 20);
 
@@ -411,7 +427,8 @@ mod tests {
     #[test]
     fn test_predict_update_cycle() {
         let mut kf = KalmanFilter::new(2, 2);
-        kf.set_initial_state(&[1.0, 2.0]).expect("set initial state");
+        kf.set_initial_state(&[1.0, 2.0])
+            .expect("set initial state");
         kf.predict().expect("predict");
         kf.update(&[1.1, 2.1]).expect("update");
         let s = kf.state();

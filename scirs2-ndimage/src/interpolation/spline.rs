@@ -301,89 +301,99 @@ where
     Ok(())
 }
 
+/// Build the local, uniformly-spaced knot vector for the centered, symmetric
+/// cardinal B-spline basis function of the given polynomial `order`
+/// (degree `n = order`): `order + 2` knots
+/// `-(n+1)/2, -(n+1)/2 + 1, ..., (n+1)/2`, giving a basis function supported
+/// on `[-(n+1)/2, (n+1)/2]`.
+#[allow(dead_code)]
+fn bspline_knots<T: Float + FromPrimitive>(order: usize) -> Vec<T> {
+    let half_span = T::from_f64((order + 1) as f64 / 2.0).expect("Operation failed");
+    (0..=order + 1)
+        .map(|i| T::from_usize(i).expect("Operation failed") - half_span)
+        .collect()
+}
+
+/// Evaluate the Cox-de Boor recursion for the degree-`k` B-spline segment
+/// `B_{i,k}` defined by the local knot vector `knots`, at position `x`.
+#[allow(dead_code)]
+fn cox_de_boor<T: Float + FromPrimitive>(i: usize, k: usize, x: T, knots: &[T]) -> T {
+    if k == 0 {
+        return if knots[i] <= x && x < knots[i + 1] {
+            T::one()
+        } else {
+            T::zero()
+        };
+    }
+
+    let mut result = T::zero();
+
+    let denom_left = knots[i + k] - knots[i];
+    if denom_left != T::zero() {
+        result = result + (x - knots[i]) / denom_left * cox_de_boor(i, k - 1, x, knots);
+    }
+
+    let denom_right = knots[i + k + 1] - knots[i + 1];
+    if denom_right != T::zero() {
+        result =
+            result + (knots[i + k + 1] - x) / denom_right * cox_de_boor(i + 1, k - 1, x, knots);
+    }
+
+    result
+}
+
+/// Evaluate the `d`-th derivative of the Cox-de Boor basis function
+/// `B_{i,k}` at position `x`, using the standard B-spline derivative
+/// recursion applied `d` times:
+/// `B'_{i,k}(x) = k * (B_{i,k-1}(x)/(t[i+k]-t[i]) - B_{i+1,k-1}(x)/(t[i+k+1]-t[i+1]))`.
+#[allow(dead_code)]
+fn cox_de_boor_derivative<T: Float + FromPrimitive>(
+    i: usize,
+    k: usize,
+    x: T,
+    knots: &[T],
+    d: usize,
+) -> T {
+    if d == 0 {
+        return cox_de_boor(i, k, x, knots);
+    }
+    if k == 0 {
+        // The derivative of a piecewise-constant segment is zero wherever
+        // it is defined (ignoring the measure-zero jump discontinuities).
+        return T::zero();
+    }
+
+    let k_t = T::from_usize(k).expect("Operation failed");
+    let mut result = T::zero();
+
+    let denom_left = knots[i + k] - knots[i];
+    if denom_left != T::zero() {
+        result = result + cox_de_boor_derivative(i, k - 1, x, knots, d - 1) / denom_left;
+    }
+
+    let denom_right = knots[i + k + 1] - knots[i + 1];
+    if denom_right != T::zero() {
+        result = result - cox_de_boor_derivative(i + 1, k - 1, x, knots, d - 1) / denom_right;
+    }
+
+    k_t * result
+}
+
 /// Evaluate B-spline basis function at a given position
+///
+/// Implements the general Cox-de Boor recursion, which covers every spline
+/// order and every derivative order uniformly (unlike hand-coded piecewise
+/// polynomials, which would need a distinct closed form per order/derivative
+/// combination and were previously only worked out for orders 0-3 at
+/// derivative 0).
 #[allow(dead_code)]
 fn evaluate_bspline_basis<T: Float + FromPrimitive>(x: T, order: usize, derivative: usize) -> T {
     if derivative > order {
         return T::zero();
     }
 
-    // For simplicity, we implement only the basic cases
-    // More sophisticated implementations would use the Cox-de Boor recursion
-    match order {
-        0 => {
-            if derivative == 0 {
-                if x >= T::zero() && x < T::one() {
-                    T::one()
-                } else {
-                    T::zero()
-                }
-            } else {
-                T::zero()
-            }
-        }
-        1 => {
-            if derivative == 0 {
-                let abs_x = x.abs();
-                if abs_x < T::one() {
-                    T::one() - abs_x
-                } else {
-                    T::zero()
-                }
-            } else if derivative == 1 {
-                if x > T::zero() && x < T::one() {
-                    -T::one()
-                } else if x > -T::one() && x < T::zero() {
-                    T::one()
-                } else {
-                    T::zero()
-                }
-            } else {
-                T::zero()
-            }
-        }
-        2 => {
-            // Quadratic B-spline
-            let abs_x = x.abs();
-            if derivative == 0 {
-                if abs_x < T::from_f64(0.5).expect("Operation failed") {
-                    let _half = T::from_f64(0.5).expect("Operation failed");
-                    let three_quarters = T::from_f64(0.75).expect("Operation failed");
-                    three_quarters - x * x
-                } else if abs_x < T::from_f64(1.5).expect("Operation failed") {
-                    let half = T::from_f64(0.5).expect("Operation failed");
-                    let val = abs_x - T::from_f64(1.5).expect("Operation failed");
-                    half * val * val
-                } else {
-                    T::zero()
-                }
-            } else {
-                // Derivatives for higher orders are more complex
-                T::zero()
-            }
-        }
-        3 => {
-            // Cubic B-spline (most common)
-            let abs_x = x.abs();
-            if derivative == 0 {
-                if abs_x < T::one() {
-                    let two_thirds = T::from_f64(2.0 / 3.0).expect("Operation failed");
-                    let half = T::from_f64(0.5).expect("Operation failed");
-                    two_thirds - abs_x * abs_x + half * abs_x * abs_x * abs_x
-                } else if abs_x < T::from_f64(2.0).expect("Operation failed") {
-                    let one_sixth = T::from_f64(1.0 / 6.0).expect("Operation failed");
-                    let val = T::from_f64(2.0).expect("Operation failed") - abs_x;
-                    one_sixth * val * val * val
-                } else {
-                    T::zero()
-                }
-            } else {
-                // Derivatives for cubic are more complex
-                T::zero()
-            }
-        }
-        _ => T::zero(), // Higher orders not implemented
-    }
+    let knots: Vec<T> = bspline_knots(order);
+    cox_de_boor_derivative(0, order, x, &knots, derivative)
 }
 
 #[cfg(test)]
@@ -410,5 +420,97 @@ mod tests {
         let positions = Array1::linspace(0.0, 2.0, 5);
         let result = bspline(&positions, None, None).expect("Operation failed");
         assert_eq!(result.len(), positions.len());
+    }
+
+    #[test]
+    fn test_bspline_orders_and_derivatives_vs_analytic() {
+        // Reference values independently computed via exact rational
+        // Cox-de Boor evaluation plus symbolic differentiation (see
+        // scratchpad/bspline_ref.py). Covers every advertised order 1..=5
+        // and every derivative 0..=order at two representative interior,
+        // non-breakpoint positions -- the pre-fix implementation only
+        // handled orders 0-3 at derivative 0 and silently fell back to 0.0
+        // for everything else (order 4, order 5, or any nonzero
+        // derivative), which would fail essentially every case below.
+        let cases: &[(usize, usize, f64, f64)] = &[
+            // order, derivative, x, expected
+            (1, 0, 0.3, 0.7),
+            (1, 0, 1.3, 0.0),
+            (1, 1, 0.3, -1.0),
+            (1, 1, 1.3, 0.0),
+            (2, 0, 0.3, 0.66),
+            (2, 0, 1.3, 0.02),
+            (2, 1, 0.3, -0.6),
+            (2, 1, 1.3, -0.2),
+            (2, 2, 0.3, -2.0),
+            (2, 2, 1.3, 1.0),
+            (3, 0, 0.3, 0.5901666667),
+            (3, 0, 1.3, 0.0571666667),
+            (3, 1, 0.3, -0.465),
+            (3, 1, 1.3, -0.245),
+            (3, 2, 0.3, -1.1),
+            (3, 2, 1.3, 0.7),
+            (3, 3, 0.3, 3.0),
+            (3, 3, 1.3, -1.0),
+            (4, 0, 0.3, 0.5447333333),
+            (4, 0, 1.3, 0.0860666667),
+            (4, 1, 0.3, -0.348),
+            (4, 1, 1.3, -0.2813333333),
+            (4, 2, 0.3, -0.98),
+            (4, 2, 1.3, 0.62),
+            (4, 3, 0.3, 1.8),
+            (4, 3, 1.3, -0.2),
+            (4, 4, 0.3, 6.0),
+            (4, 4, 1.3, -4.0),
+            (5, 0, 0.3, 0.5068225),
+            (5, 0, 1.3, 0.1099179167),
+            (5, 1, 0.3, -0.276375),
+            (5, 1, 1.3, -0.2879791667),
+            (5, 2, 0.3, -0.775),
+            (5, 2, 1.3, 0.4758333333),
+            (5, 3, 0.3, 1.35),
+            (5, 3, 1.3, 0.025),
+            (5, 4, 0.3, 3.0),
+            (5, 4, 1.3, -2.5),
+            (5, 5, 0.3, -10.0),
+            (5, 5, 1.3, 5.0),
+        ];
+
+        for &(order, deriv, x, expected) in cases {
+            let positions = Array1::from_vec(vec![x]);
+            let result = bspline(&positions, Some(order), Some(deriv)).unwrap_or_else(|e| {
+                panic!("bspline(order={order}, deriv={deriv}, x={x}) failed: {e}")
+            });
+            assert!(
+                (result[0] - expected).abs() < 1e-9,
+                "order={order} deriv={deriv} x={x}: got {} expected {expected}",
+                result[0]
+            );
+        }
+    }
+
+    #[test]
+    fn test_bspline_is_symmetric_about_zero() {
+        // A B-spline basis function of any order is an even function
+        // (symmetric about 0) at derivative 0.
+        for order in 1..=5usize {
+            let positions = Array1::from_vec(vec![0.3, -0.3, 1.3, -1.3]);
+            let result = bspline(&positions, Some(order), Some(0)).expect("Operation failed");
+            assert!((result[0] - result[1]).abs() < 1e-9, "order {order}");
+            assert!((result[2] - result[3]).abs() < 1e-9, "order {order}");
+        }
+    }
+
+    #[test]
+    fn test_bspline_rejects_invalid_order() {
+        let positions = Array1::from_vec(vec![0.0]);
+        assert!(bspline(&positions, Some(0), None).is_err());
+        assert!(bspline(&positions, Some(6), None).is_err());
+    }
+
+    #[test]
+    fn test_bspline_rejects_derivative_above_order() {
+        let positions = Array1::from_vec(vec![0.0]);
+        assert!(bspline(&positions, Some(2), Some(3)).is_err());
     }
 }

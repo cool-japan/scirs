@@ -641,6 +641,14 @@ where
 }
 
 /// Vector norm
+///
+/// `ord` follows the SciPy `scipy.linalg.norm` convention for vectors:
+/// `None` or `Some(2)` is the Euclidean (L2) norm, `Some(1)` is the
+/// Manhattan (L1) norm, `Some(0)` counts the non-zero entries, and any other
+/// (possibly negative) integer `p` computes the general `(sum(|x_i|^p))^(1/p)`
+/// formula. Unlike the sibling matrix [`norm`] function (which returns an
+/// error for an unsupported `ord`), every integer `ord` has a well-defined
+/// value here, so this function does not need to fail.
 pub fn vector_norm<A, S>(a: &ArrayBase<S, Ix1>, ord: Option<i32>) -> A
 where
     A: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
@@ -649,7 +657,19 @@ where
     match ord {
         None | Some(2) => a.iter().map(|&x| x * x).sum::<A>().sqrt(),
         Some(1) => a.iter().map(|&x| x.abs()).sum::<A>(),
-        _ => a.iter().map(|&x| x * x).sum::<A>().sqrt(), // Default to L2
+        Some(0) => {
+            // SciPy convention: the "0-norm" counts non-zero entries.
+            let count = a.iter().filter(|&&x| x != A::zero()).count();
+            A::from(count).unwrap_or(A::zero())
+        }
+        Some(p) => {
+            // General L^p (quasi-)norm: (sum |x_i|^p)^(1/p), valid for any
+            // nonzero integer p (SciPy also accepts negative orders, e.g.
+            // ord=-1, ord=-2, for vectors).
+            let p_float = A::from(p).unwrap_or(A::one());
+            let sum = a.iter().fold(A::zero(), |acc, &x| acc + x.abs().powi(p));
+            sum.powf(A::one() / p_float)
+        }
     }
 }
 
@@ -827,5 +847,40 @@ mod tests_compat {
         let singular = array![[0.0_f64, 0.0], [1.0, 2.0]];
         let b = array![1.0_f64, 1.0];
         assert!(solve_triangular(&singular, &b, true).is_err());
+    }
+
+    #[test]
+    fn test_vector_norm_general_lp_not_silently_l2() {
+        // Non-constant vector: L1=6, L2=sqrt(14)=3.7416..., L3=36^(1/3)=3.3019...
+        // These are all genuinely different, so an `ord` that silently fell
+        // back to L2 would fail this check.
+        let v = array![1.0_f64, 2.0, 3.0];
+
+        let l1 = vector_norm(&v, Some(1));
+        let l2 = vector_norm(&v, Some(2));
+        let l3 = vector_norm(&v, Some(3));
+
+        assert_abs_diff_eq!(l1, 6.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(l2, 14.0_f64.sqrt(), epsilon = 1e-10);
+        let expected_l3 = 36.0_f64.powf(1.0 / 3.0);
+        assert_abs_diff_eq!(l3, expected_l3, epsilon = 1e-9);
+        // The whole point: L3 must NOT equal the (previously hard-coded) L2 fallback.
+        assert!((l3 - l2).abs() > 0.1, "L3 collapsed onto L2: {l3} vs {l2}");
+    }
+
+    #[test]
+    fn test_vector_norm_zero_norm_counts_nonzero() {
+        let v = array![0.0_f64, 3.0, 0.0, -5.0, 2.0];
+        let l0 = vector_norm(&v, Some(0));
+        assert_abs_diff_eq!(l0, 3.0, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn test_vector_norm_negative_order_matches_general_formula() {
+        // Non-zero, non-constant vector so ord=-1 is well defined:
+        // (sum |x_i|^-1)^(1/-1) = (1/2 + 1/4)^(-1) = (0.75)^(-1) = 4/3.
+        let v = array![2.0_f64, 4.0];
+        let neg1 = vector_norm(&v, Some(-1));
+        assert_abs_diff_eq!(neg1, 4.0 / 3.0, epsilon = 1e-10);
     }
 }

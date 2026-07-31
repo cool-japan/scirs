@@ -240,6 +240,13 @@ impl OverlapAdd {
     ///
     /// * `spectra` - Frequency-domain frames: `n_frames` vectors each of length `nfft`.
     /// * `signal_len` - Target output length.
+    /// * `window` - The analysis window used to produce `spectra` (via
+    ///   [`Self::stft`]), if any. Each output sample is a weighted overlap-add
+    ///   of `window[k] * signal[i]` across every frame that touches it, so it
+    ///   must be normalised by the *sum of the window's own values* at that
+    ///   position -- not simply by how many frames overlap there -- to
+    ///   recover the original (unwindowed) amplitude. Pass `None` only when
+    ///   `spectra` was produced from unwindowed (rectangular-window) frames.
     ///
     /// # Returns
     ///
@@ -248,7 +255,18 @@ impl OverlapAdd {
         &self,
         spectra: &[Vec<Complex64>],
         signal_len: usize,
+        window: Option<&[f64]>,
     ) -> SignalResult<Vec<f64>> {
+        if let Some(win) = window {
+            if win.len() != self.frame_len {
+                return Err(SignalError::DimensionMismatch(format!(
+                    "Window length {} != frame_len {}",
+                    win.len(),
+                    self.frame_len
+                )));
+            }
+        }
+
         let mut output = vec![0.0f64; signal_len];
         let mut weights = vec![0.0f64; signal_len];
 
@@ -268,14 +286,15 @@ impl OverlapAdd {
             for k in 0..self.frame_len.min(self.nfft) {
                 if start + k < signal_len {
                     output[start + k] += frame_time[k];
-                    weights[start + k] += 1.0;
+                    weights[start + k] += window.map_or(1.0, |w| w[k]);
                 }
             }
         }
 
-        // Normalise by overlap count
+        // Normalise by the local overlap-added window sum (== overlap count
+        // when no window / a rectangular window was used).
         for i in 0..signal_len {
-            if weights[i] > 0.0 {
+            if weights[i].abs() > 1e-12 {
                 output[i] /= weights[i];
             }
         }
@@ -405,11 +424,7 @@ impl PermutationAlignment {
             // Apply permutation to separated[bin] and demix[bin]
             let perm_clone = perm.clone();
             let old_row: Vec<Vec<Complex64>> = (0..n_sources)
-                .map(|s| {
-                    (0..n_frames)
-                        .map(|t| separated[[bin, s, t]])
-                        .collect()
-                })
+                .map(|s| (0..n_frames).map(|t| separated[[bin, s, t]]).collect())
                 .collect();
 
             for (new_s, &old_s) in perm.iter().enumerate() {
@@ -424,8 +439,7 @@ impl PermutationAlignment {
                 let old_demix = demix[bin].clone();
                 for (new_s, &old_s) in perm_clone.iter().enumerate() {
                     for j in 0..n_sources {
-                        demix[bin][new_s * n_sources + j] =
-                            old_demix[old_s * n_sources + j];
+                        demix[bin][new_s * n_sources + j] = old_demix[old_s * n_sources + j];
                     }
                 }
             }
@@ -468,9 +482,7 @@ impl PermutationAlignment {
                 }
                 // Correlation: sum |curr[new_s, j] * conj(prev[old_s, j])|
                 let score: f64 = (0..n)
-                    .map(|j| {
-                        (curr[new_s * n + j] * prev[old_s * n + j].conj()).norm()
-                    })
+                    .map(|j| (curr[new_s * n + j] * prev[old_s * n + j].conj()).norm())
                     .sum();
                 if score > best_score {
                     best_score = score;
@@ -678,8 +690,7 @@ impl FrequencyDomainICA {
                 // Outer product φ(y_t) y_t^H
                 for i in 0..n {
                     for j in 0..n {
-                        phi_y_yh[i * n + j] =
-                            phi_y_yh[i * n + j] + phi_t[i] * y_t[j].conj();
+                        phi_y_yh[i * n + j] = phi_y_yh[i * n + j] + phi_t[i] * y_t[j].conj();
                     }
                 }
             }
@@ -714,8 +725,7 @@ impl FrequencyDomainICA {
                 let row: Vec<Complex64> = (0..n).map(|j| w_final[i * n + j]).collect();
                 (0..t)
                     .map(|s_idx| {
-                        let x_col: Vec<Complex64> =
-                            (0..n).map(|ch| x_bin[ch][s_idx]).collect();
+                        let x_col: Vec<Complex64> = (0..n).map(|ch| x_bin[ch][s_idx]).collect();
                         cmat_vec_row(&row, &x_col)
                     })
                     .collect()
@@ -967,10 +977,7 @@ pub fn conv_bss(
     );
 
     // separated[bin][source][frame] = Complex64
-    let mut separated = Array3::from_elem(
-        (n_bins, n_sources, n_frames),
-        Complex64::new(0.0, 0.0),
-    );
+    let mut separated = Array3::from_elem((n_bins, n_sources, n_frames), Complex64::new(0.0, 0.0));
     let mut demix_matrices: Vec<Vec<Complex64>> = Vec::with_capacity(n_bins);
 
     for bin in 0..n_bins {
@@ -1016,7 +1023,7 @@ pub fn conv_bss(
             spectra.push(spectrum);
         }
 
-        let signal = ola.synthesise(&spectra, n_samples)?;
+        let signal = ola.synthesise(&spectra, n_samples, Some(&win))?;
         sources_out.push(signal);
     }
 
@@ -1046,8 +1053,12 @@ mod tests {
         let ola = OverlapAdd::new(256, 128, 256).expect("failed to create ola");
         let win = hann_window(256);
 
-        let spectra = ola.stft(&signal, Some(&win)).expect("failed to create spectra");
-        let reconstructed = ola.synthesise(&spectra, n_samples).expect("failed to create reconstructed");
+        let spectra = ola
+            .stft(&signal, Some(&win))
+            .expect("failed to create spectra");
+        let reconstructed = ola
+            .synthesise(&spectra, n_samples, Some(&win))
+            .expect("failed to create reconstructed");
 
         // Overlap-add with Hann window (50% overlap) should reconstruct well
         // Check middle portion (avoid boundary effects)
@@ -1056,10 +1067,7 @@ mod tests {
         let max_err = (start..end)
             .map(|i| (signal[i] - reconstructed[i]).abs())
             .fold(0.0f64, f64::max);
-        assert!(
-            max_err < 0.05,
-            "Reconstruction error too large: {max_err}"
-        );
+        assert!(max_err < 0.05, "Reconstruction error too large: {max_err}");
     }
 
     #[test]
@@ -1083,8 +1091,16 @@ mod tests {
         let s2 = sine(880.0, n_samples, fs);
 
         // Simple instantaneous mixing (convolutive with length-1 filters)
-        let x1: Vec<f64> = s1.iter().zip(s2.iter()).map(|(&a, &b)| 0.7 * a + 0.3 * b).collect();
-        let x2: Vec<f64> = s1.iter().zip(s2.iter()).map(|(&a, &b)| 0.4 * a + 0.6 * b).collect();
+        let x1: Vec<f64> = s1
+            .iter()
+            .zip(s2.iter())
+            .map(|(&a, &b)| 0.7 * a + 0.3 * b)
+            .collect();
+        let x2: Vec<f64> = s1
+            .iter()
+            .zip(s2.iter())
+            .map(|(&a, &b)| 0.4 * a + 0.6 * b)
+            .collect();
 
         let config = ConvBSSConfig {
             frame_len: 256,
@@ -1109,12 +1125,12 @@ mod tests {
         let n_frames = 16;
         let mut separated =
             Array3::from_elem((n_bins, n_sources, n_frames), Complex64::new(1.0, 0.0));
-        let mut demix: Vec<Vec<Complex64>> = (0..n_bins)
-            .map(|_| cmat_eye(n_sources))
-            .collect();
+        let mut demix: Vec<Vec<Complex64>> = (0..n_bins).map(|_| cmat_eye(n_sources)).collect();
 
         let aligner = PermutationAlignment::default();
-        let perms = aligner.align(&mut separated, &mut demix).expect("failed to create perms");
+        let perms = aligner
+            .align(&mut separated, &mut demix)
+            .expect("failed to create perms");
 
         // Identity permutation case should return [0,1] everywhere
         for perm in &perms {
@@ -1126,7 +1142,9 @@ mod tests {
     fn test_frequency_domain_ica_trivial() {
         // Single source → demixing should be trivial
         let t = 128;
-        let x_bin = vec![(0..t).map(|i| Complex64::new((i as f64 * 0.1).sin(), 0.0)).collect::<Vec<_>>()];
+        let x_bin = vec![(0..t)
+            .map(|i| Complex64::new((i as f64 * 0.1).sin(), 0.0))
+            .collect::<Vec<_>>()];
         let ica = FrequencyDomainICA::default();
         let (demix, sources) = ica.run_bin(&x_bin).expect("unexpected None or Err");
         assert_eq!(demix.len(), 1);

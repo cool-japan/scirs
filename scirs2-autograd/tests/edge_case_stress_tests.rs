@@ -723,7 +723,13 @@ fn test_cross_feature_integration_stress() {
         input_data[2] = -f32::MAX / 1e6;
         input_data[100] = 0.0;
 
-        let input = T::convert_to_tensor(
+        // Differentiated below via T::grad, so `input` must be `T::variable`:
+        // `T::convert_to_tensor` marks the node non-differentiable, which
+        // used to make `gradients[0]` silently the exact-zero fallback for
+        // every element -- a state the `finite_ratio` check below could never
+        // distinguish from "the 7-step pipeline genuinely backprops to zero"
+        // (zero is always finite).
+        let input = T::variable(
             Array::from_shape_vec(IxDyn(&[batch_size, feature_size]), input_data)
                 .expect("Test: operation failed"),
             ctx,
@@ -789,6 +795,22 @@ fn test_cross_feature_integration_stress() {
             finite_ratio > 0.8,
             "Too many non-finite gradients: {:.2}%",
             (1.0 - finite_ratio) * 100.0
+        );
+
+        // Regression guard for the footgun this test used to hit: before the
+        // fix, `gradients[0]` was identically zero everywhere (the
+        // non-differentiable fallback), which `finite_ratio` alone cannot
+        // catch. Most of `input_data` is the benign value 1.0 (only 4 out of
+        // 4096 entries are the deliberately extreme/edge values), so real
+        // backprop through this pipeline must leave at least some entries
+        // genuinely non-zero.
+        let nonzero_finite_count = grad_output
+            .iter()
+            .filter(|&&x| x.is_finite() && x != 0.0)
+            .count();
+        assert!(
+            nonzero_finite_count > 0,
+            "gradient must not be identically zero across the whole 7-step pipeline"
         );
 
         println!("✅ Cross-feature integration stress test passed");

@@ -31,7 +31,7 @@ use std::fmt::Debug;
 /// # Examples
 ///
 /// ```
-/// use scirs2_signal::detrend;
+/// use scirs2_signal::detrend::detrend;
 ///
 /// // Create a signal with a linear trend
 /// let mut x = vec![0.0, 1.0, 2.0, 3.0, 4.0];
@@ -51,7 +51,7 @@ use std::fmt::Debug;
 /// Remove just the mean value:
 ///
 /// ```
-/// use scirs2_signal::detrend;
+/// use scirs2_signal::detrend::detrend;
 ///
 /// // Create a signal with a constant offset
 /// let x = vec![5.0, 6.0, 7.0, 8.0, 9.0];
@@ -74,7 +74,7 @@ where
     }
 
     // Default to linear detrending
-    let detrend_str = detrend_type.unwrap_or("linear");
+    let detrend_str = detrendtype.unwrap_or("linear");
 
     // Convert input to f64
     let x_f64: Vec<f64> = x
@@ -150,7 +150,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use scirs2_signal::detrend_axis;
+/// use scirs2_signal::detrend::detrend_axis;
 /// use scirs2_core::ndarray::array;
 ///
 /// // Create a 2D array with a trend along columns
@@ -168,7 +168,7 @@ where
 ///     let col_view = detrended.column(col);
 ///     
 ///     // Check if the sum of products with position is close to zero (indicating no trend)
-///     let mut trend_measure = 0.0;
+///     let mut trend_measure = 0.0_f64;
 ///     for (i, &val) in col_view.iter().enumerate() {
 ///         trend_measure += val * i as f64;
 ///     }
@@ -275,7 +275,7 @@ pub fn detrend_axis(
 /// # Examples
 ///
 /// ```
-/// use scirs2_signal::detrend_poly;
+/// use scirs2_signal::detrend::detrend_poly;
 ///
 /// // Create a signal with a quadratic trend: y = 0.1*x^2 + 0.5*x + 1
 /// let n = 10;

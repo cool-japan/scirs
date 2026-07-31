@@ -44,7 +44,7 @@
 //! // reg is now in the Bell state (|00⟩ + |11⟩) / √2
 //! ```
 
-use ndarray::{Array2, s};
+use ndarray::{s, Array2};
 use num_complex::Complex;
 use std::f64::consts::PI;
 
@@ -75,9 +75,13 @@ pub trait QuantumGate: Send + Sync {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Build a 2×2 complex matrix from row-major entries.
-fn mat2(a: Complex<f64>, b: Complex<f64>, c: Complex<f64>, d: Complex<f64>) -> Array2<Complex<f64>> {
-    Array2::from_shape_vec((2, 2), vec![a, b, c, d])
-        .expect("2x2 matrix construction is infallible")
+fn mat2(
+    a: Complex<f64>,
+    b: Complex<f64>,
+    c: Complex<f64>,
+    d: Complex<f64>,
+) -> Array2<Complex<f64>> {
+    Array2::from_shape_vec((2, 2), vec![a, b, c, d]).expect("2x2 matrix construction is infallible")
 }
 
 fn c(re: f64, im: f64) -> Complex<f64> {
@@ -103,8 +107,12 @@ impl QuantumGate for Identity {
     fn matrix(&self) -> Array2<Complex<f64>> {
         mat2(cr(1.0), cr(0.0), cr(0.0), cr(1.0))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "I" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "I"
+    }
 }
 
 /// Pauli-X gate (bit-flip / NOT): |0⟩↔|1⟩.
@@ -114,8 +122,12 @@ impl QuantumGate for PauliX {
     fn matrix(&self) -> Array2<Complex<f64>> {
         mat2(cr(0.0), cr(1.0), cr(1.0), cr(0.0))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "X" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "X"
+    }
 }
 
 /// Pauli-Y gate.
@@ -125,8 +137,12 @@ impl QuantumGate for PauliY {
     fn matrix(&self) -> Array2<Complex<f64>> {
         mat2(cr(0.0), ci(-1.0), ci(1.0), cr(0.0))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "Y" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "Y"
+    }
 }
 
 /// Pauli-Z gate (phase-flip): |1⟩ → −|1⟩.
@@ -136,8 +152,12 @@ impl QuantumGate for PauliZ {
     fn matrix(&self) -> Array2<Complex<f64>> {
         mat2(cr(1.0), cr(0.0), cr(0.0), cr(-1.0))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "Z" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "Z"
+    }
 }
 
 /// Hadamard gate H: (|0⟩+|1⟩)/√2 ← |0⟩, (|0⟩−|1⟩)/√2 ← |1⟩.
@@ -148,8 +168,12 @@ impl QuantumGate for Hadamard {
         let s = 1.0 / 2.0_f64.sqrt();
         mat2(cr(s), cr(s), cr(s), cr(-s))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "H" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "H"
+    }
 }
 
 /// S gate (phase gate): |1⟩ → i|1⟩ (π/2 phase shift).
@@ -159,8 +183,12 @@ impl QuantumGate for PhaseS {
     fn matrix(&self) -> Array2<Complex<f64>> {
         mat2(cr(1.0), cr(0.0), cr(0.0), ci(1.0))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "S" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "S"
+    }
 }
 
 /// S† (S-dagger / inverse S) gate: |1⟩ → −i|1⟩.
@@ -170,8 +198,12 @@ impl QuantumGate for PhaseSdg {
     fn matrix(&self) -> Array2<Complex<f64>> {
         mat2(cr(1.0), cr(0.0), cr(0.0), ci(-1.0))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "Sdg" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "Sdg"
+    }
 }
 
 /// T gate: |1⟩ → e^{iπ/4}|1⟩ (π/4 phase shift).
@@ -182,8 +214,12 @@ impl QuantumGate for PhaseT {
         let phase = Complex::from_polar(1.0, PI / 4.0);
         mat2(cr(1.0), cr(0.0), cr(0.0), phase)
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "T" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "T"
+    }
 }
 
 /// T† (T-dagger / inverse T) gate: |1⟩ → e^{−iπ/4}|1⟩.
@@ -194,8 +230,12 @@ impl QuantumGate for PhaseTdg {
         let phase = Complex::from_polar(1.0, -PI / 4.0);
         mat2(cr(1.0), cr(0.0), cr(0.0), phase)
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "Tdg" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "Tdg"
+    }
 }
 
 /// Rx(θ): rotation by angle `theta` around the X-axis.
@@ -211,8 +251,12 @@ impl QuantumGate for RotX {
         let (s, co) = (self.theta / 2.0).sin_cos();
         mat2(cr(co), ci(-s), ci(-s), cr(co))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "Rx" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "Rx"
+    }
 }
 
 /// Ry(θ): rotation by angle `theta` around the Y-axis.
@@ -228,8 +272,12 @@ impl QuantumGate for RotY {
         let (s, co) = (self.theta / 2.0).sin_cos();
         mat2(cr(co), cr(-s), cr(s), cr(co))
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "Ry" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "Ry"
+    }
 }
 
 /// Rz(θ): rotation by angle `theta` around the Z-axis.
@@ -246,8 +294,12 @@ impl QuantumGate for RotZ {
         let pos = Complex::from_polar(1.0, self.theta / 2.0);
         mat2(neg, cr(0.0), cr(0.0), pos)
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "Rz" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "Rz"
+    }
 }
 
 /// Arbitrary phase-shift gate P(λ): |1⟩ → e^{iλ}|1⟩.
@@ -261,8 +313,12 @@ impl QuantumGate for PhaseShift {
         let phase = Complex::from_polar(1.0, self.lambda);
         mat2(cr(1.0), cr(0.0), cr(0.0), phase)
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "P" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "P"
+    }
 }
 
 /// General single-qubit unitary U(θ, φ, λ) — IBM convention:
@@ -284,8 +340,12 @@ impl QuantumGate for Unitary1Q {
         let eiphilambda = Complex::from_polar(1.0, self.phi + self.lambda);
         mat2(cr(co), -eilambda * s, eiphi * s, eiphilambda * co)
     }
-    fn n_qubits(&self) -> usize { 1 }
-    fn name(&self) -> &str { "U" }
+    fn n_qubits(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "U"
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -307,19 +367,15 @@ impl QuantumGate for CNOT {
     fn matrix(&self) -> Array2<Complex<f64>> {
         let o = cr(0.0);
         let i = cr(1.0);
-        Array2::from_shape_vec(
-            (4, 4),
-            vec![
-                i, o, o, o,
-                o, i, o, o,
-                o, o, o, i,
-                o, o, i, o,
-            ],
-        )
-        .expect("4x4 matrix construction is infallible")
+        Array2::from_shape_vec((4, 4), vec![i, o, o, o, o, i, o, o, o, o, o, i, o, o, i, o])
+            .expect("4x4 matrix construction is infallible")
     }
-    fn n_qubits(&self) -> usize { 2 }
-    fn name(&self) -> &str { "CNOT" }
+    fn n_qubits(&self) -> usize {
+        2
+    }
+    fn name(&self) -> &str {
+        "CNOT"
+    }
 }
 
 /// CZ (Controlled-Z) gate: applies Z to target when control is |1⟩.
@@ -330,19 +386,15 @@ impl QuantumGate for CZ {
         let o = cr(0.0);
         let i = cr(1.0);
         let m = cr(-1.0);
-        Array2::from_shape_vec(
-            (4, 4),
-            vec![
-                i, o, o, o,
-                o, i, o, o,
-                o, o, i, o,
-                o, o, o, m,
-            ],
-        )
-        .expect("4x4 matrix construction is infallible")
+        Array2::from_shape_vec((4, 4), vec![i, o, o, o, o, i, o, o, o, o, i, o, o, o, o, m])
+            .expect("4x4 matrix construction is infallible")
     }
-    fn n_qubits(&self) -> usize { 2 }
-    fn name(&self) -> &str { "CZ" }
+    fn n_qubits(&self) -> usize {
+        2
+    }
+    fn name(&self) -> &str {
+        "CZ"
+    }
 }
 
 /// SWAP gate: swaps two qubits.
@@ -352,19 +404,15 @@ impl QuantumGate for SWAP {
     fn matrix(&self) -> Array2<Complex<f64>> {
         let o = cr(0.0);
         let i = cr(1.0);
-        Array2::from_shape_vec(
-            (4, 4),
-            vec![
-                i, o, o, o,
-                o, o, i, o,
-                o, i, o, o,
-                o, o, o, i,
-            ],
-        )
-        .expect("4x4 matrix construction is infallible")
+        Array2::from_shape_vec((4, 4), vec![i, o, o, o, o, o, i, o, o, i, o, o, o, o, o, i])
+            .expect("4x4 matrix construction is infallible")
     }
-    fn n_qubits(&self) -> usize { 2 }
-    fn name(&self) -> &str { "SWAP" }
+    fn n_qubits(&self) -> usize {
+        2
+    }
+    fn name(&self) -> &str {
+        "SWAP"
+    }
 }
 
 /// iSWAP gate: SWAP with additional i phase on swapped states.
@@ -377,17 +425,16 @@ impl QuantumGate for ISWAP {
         let i_im = ci(1.0);
         Array2::from_shape_vec(
             (4, 4),
-            vec![
-                i_re, o,    o,    o,
-                o,    o,    i_im, o,
-                o,    i_im, o,    o,
-                o,    o,    o,    i_re,
-            ],
+            vec![i_re, o, o, o, o, o, i_im, o, o, i_im, o, o, o, o, o, i_re],
         )
         .expect("4x4 matrix construction is infallible")
     }
-    fn n_qubits(&self) -> usize { 2 }
-    fn name(&self) -> &str { "iSWAP" }
+    fn n_qubits(&self) -> usize {
+        2
+    }
+    fn name(&self) -> &str {
+        "iSWAP"
+    }
 }
 
 /// Controlled-U gate: applies an arbitrary 1-qubit gate `u` to the target
@@ -405,7 +452,9 @@ impl CU {
                 supplied: 1,
             });
         }
-        Ok(Self { inner: Box::new(gate) })
+        Ok(Self {
+            inner: Box::new(gate),
+        })
     }
 }
 
@@ -420,17 +469,16 @@ impl QuantumGate for CU {
         let u11 = u[[1, 1]];
         Array2::from_shape_vec(
             (4, 4),
-            vec![
-                i,   o,   o,   o,
-                o,   i,   o,   o,
-                o,   o,   u00, u01,
-                o,   o,   u10, u11,
-            ],
+            vec![i, o, o, o, o, i, o, o, o, o, u00, u01, o, o, u10, u11],
         )
         .expect("4x4 matrix construction is infallible")
     }
-    fn n_qubits(&self) -> usize { 2 }
-    fn name(&self) -> &str { "CU" }
+    fn n_qubits(&self) -> usize {
+        2
+    }
+    fn name(&self) -> &str {
+        "CU"
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -456,8 +504,12 @@ impl QuantumGate for Toffoli {
         m[[7, 6]] = i;
         m
     }
-    fn n_qubits(&self) -> usize { 3 }
-    fn name(&self) -> &str { "Toffoli" }
+    fn n_qubits(&self) -> usize {
+        3
+    }
+    fn name(&self) -> &str {
+        "Toffoli"
+    }
 }
 
 /// Fredkin (CSWAP) gate: swaps target qubits when control qubit is |1⟩.
@@ -481,8 +533,12 @@ impl QuantumGate for Fredkin {
         m[[6, 5]] = i;
         m
     }
-    fn n_qubits(&self) -> usize { 3 }
-    fn name(&self) -> &str { "Fredkin" }
+    fn n_qubits(&self) -> usize {
+        3
+    }
+    fn name(&self) -> &str {
+        "Fredkin"
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -547,9 +603,7 @@ pub fn apply_gate(
 
         // Map gate-space index → full-state index.
         let indices: Vec<usize> = (0..gate_dim)
-            .map(|g| {
-                gate_idx_to_full_idx(g, outer, target_qubits, total_qubits)
-            })
+            .map(|g| gate_idx_to_full_idx(g, outer, target_qubits, total_qubits))
             .collect();
 
         for (g, &full_idx) in indices.iter().enumerate() {
@@ -676,7 +730,11 @@ pub fn check_unitary(u: &Array2<Complex<f64>>, tol: f64) -> QuantumResult<()> {
         for j in 0..n {
             // (U†U)_{ij} = Σ_k conj(U_{ki}) * U_{kj}
             let val: Complex<f64> = (0..n).map(|k| u[[k, i]].conj() * u[[k, j]]).sum();
-            let expected = if i == j { Complex::new(1.0, 0.0) } else { Complex::new(0.0, 0.0) };
+            let expected = if i == j {
+                Complex::new(1.0, 0.0)
+            } else {
+                Complex::new(0.0, 0.0)
+            };
             let dev = (val - expected).norm();
             if dev > max_dev {
                 max_dev = dev;
@@ -717,8 +775,8 @@ pub fn matrix_product(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::qubits::QubitRegister;
+    use super::*;
 
     const TOL: f64 = 1e-12;
 
@@ -825,7 +883,11 @@ mod tests {
         apply_gate(&mut reg, &SWAP, &[0, 1]).expect("SWAP ok");
         // After swap: index 1 = |01⟩ (qubit0=1, qubit1=0)
         let p1 = reg.probability(1).expect("ok");
-        assert!((p1 - 1.0).abs() < TOL, "SWAP should move |10⟩ to |01⟩, got p1={}", p1);
+        assert!(
+            (p1 - 1.0).abs() < TOL,
+            "SWAP should move |10⟩ to |01⟩, got p1={}",
+            p1
+        );
     }
 
     #[test]

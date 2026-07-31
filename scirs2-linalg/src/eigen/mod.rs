@@ -46,6 +46,7 @@
 
 // Re-export submodules
 pub mod feast;
+pub(crate) mod general;
 pub mod generalized;
 pub mod iterative;
 pub mod sparse;
@@ -395,9 +396,44 @@ where
         // Treat as symmetric with enhanced precision
         advanced_precision_symmetric_eigensolver(a, tolerance)
     } else {
-        // Use standard solver with warning - full complex eigenvalue support would be needed
-        eprintln!("Warning: Advanced-precision solver for general non-symmetric matrices is limited. Using standard solver.");
-        eigh(a, None)
+        // Genuinely non-symmetric: compute the real general eigendecomposition
+        // (Hessenberg reduction + Francis double-shift implicit QR with
+        // deflation; see `crate::eigen::general`) instead of silently running
+        // the symmetric-only `eigh` solver on non-symmetric input (which
+        // returns mathematically invalid eigenvalues for such matrices).
+        let (complex_eigenvalues, complex_eigenvectors) = general::general_eig(a)?;
+
+        // This function's contract is real-only (`Array1<F>`/`Array2<F>`).
+        // When every eigenvalue is (numerically) real, report the real
+        // parts; otherwise the contract cannot represent the result
+        // honestly, so return an explicit error instead of silently
+        // discarding the imaginary parts.
+        let scale = complex_eigenvalues.iter().fold(F::one(), |acc, c| {
+            if c.re.abs() > acc {
+                c.re.abs()
+            } else {
+                acc
+            }
+        });
+        let complex_tol = F::epsilon() * F::from(100.0).unwrap_or(F::one()) * scale;
+        if complex_eigenvalues.iter().any(|c| c.im.abs() > complex_tol) {
+            return Err(LinalgError::NotImplementedError(format!(
+                "advanced_precision_eig: {n}x{n} non-symmetric matrix has complex eigenvalues, \
+                 which this function's real-valued return contract cannot represent; use \
+                 `scirs2_linalg::eigen::eig`, which returns complex eigenvalues/eigenvectors, \
+                 instead"
+            )));
+        }
+
+        let mut eigenvalues = Array1::<F>::zeros(n);
+        let mut eigenvectors = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            eigenvalues[i] = complex_eigenvalues[i].re;
+            for j in 0..n {
+                eigenvectors[[j, i]] = complex_eigenvectors[[j, i]].re;
+            }
+        }
+        Ok((eigenvalues, eigenvectors))
     }
 }
 
@@ -905,6 +941,48 @@ mod tests {
         let (w, v) = result.expect("Operation failed");
         assert_eq!(w.len(), 2);
         assert_eq!(v.dim(), (2, 2));
+    }
+
+    #[test]
+    fn test_advanced_precision_eig_nonsymmetric_real_spectrum() {
+        // Genuinely non-symmetric (a[0][1] != a[1][0]) but with a known real
+        // spectrum: companion matrix of (x-1)(x-2)(x-3). Previously this
+        // path silently ran the symmetric-only `eigh` solver on non-symmetric
+        // input, which is mathematically invalid.
+        let a = array![[6.0_f64, -11.0, 6.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let (w, v) = advanced_precision_eig(&a.view(), 1e-10).expect("real spectrum expected");
+
+        let mut sorted: Vec<f64> = w.iter().copied().collect();
+        sorted.sort_by(|x, y| x.partial_cmp(y).expect("no NaNs"));
+        assert_relative_eq!(sorted[0], 1.0, epsilon = 1e-6);
+        assert_relative_eq!(sorted[1], 2.0, epsilon = 1e-6);
+        assert_relative_eq!(sorted[2], 3.0, epsilon = 1e-6);
+
+        // A v = lambda v for every reported eigenpair.
+        for col in 0..3 {
+            let lambda = w[col];
+            for row in 0..3 {
+                let av: f64 = (0..3).map(|k| a[[row, k]] * v[[k, col]]).sum();
+                assert!(
+                    (av - lambda * v[[row, col]]).abs() < 1e-6,
+                    "A*v != lambda*v at col {col}, row {row}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_advanced_precision_eig_nonsymmetric_complex_spectrum_errors() {
+        // Genuinely non-symmetric with a genuinely complex spectrum
+        // (eigenvalues 3 +/- 2i): must return an explicit error instead of
+        // silently running the symmetric-only solver on it.
+        let a = array![[3.0_f64, -2.0], [2.0, 3.0]];
+        let result = advanced_precision_eig(&a.view(), 1e-10);
+        assert!(
+            result.is_err(),
+            "expected an explicit error for a complex spectrum, got {:?}",
+            result.map(|(w, _)| w)
+        );
     }
 
     #[test]

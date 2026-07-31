@@ -121,7 +121,19 @@ pub mod helpers {
         )
     }
 
-    /// Create diagonal matrix from vector (workaround)
+    /// Create diagonal matrix from vector (workaround).
+    ///
+    /// This is a **value helper**: it reads `diagonal`'s current concrete
+    /// entries via [`Tensor::eval`] and rebuilds the result with
+    /// [`ag::tensor_ops::convert_to_tensor`], which does not carry any
+    /// gradient connection back to `diagonal`. It is *not* a differentiable
+    /// graph op — calling `grad()` with `diagonal` as one of the `xs` will
+    /// not backpropagate through this function (any downstream gradient
+    /// contribution through the returned tensor is silently dropped, not an
+    /// error). If a differentiable diagonal-matrix construction is needed,
+    /// build it from graph ops (e.g. multiplying by a constant identity-like
+    /// pattern tensor, as [`trace_workaround`] does for the trace) instead of
+    /// this helper.
     pub fn diag_workaround<'g, F: ag::Float>(
         diagonal: &ag::Tensor<'g, F>,
         ctx: &'g ag::Context<'g, F>,

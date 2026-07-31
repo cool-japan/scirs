@@ -47,6 +47,29 @@ impl RecurrentActivation {
             }
         }
     }
+    /// Derivative of the activation, expressed in terms of its own output
+    ///
+    /// For all three supported activations the derivative at `x` can be
+    /// recovered from `y = f(x)` alone, which lets backpropagation reuse the
+    /// hidden states cached by the forward pass instead of re-deriving the
+    /// pre-activations:
+    /// * `tanh`: `1 - y^2`
+    /// * `sigmoid`: `y (1 - y)`
+    /// * `relu`: `1` where `y > 0`, else `0` (`y > 0` iff `x > 0`)
+    pub fn derivative_from_output<F: Float>(&self, y: F) -> F {
+        match self {
+            RecurrentActivation::Tanh => F::one() - y * y,
+            RecurrentActivation::Sigmoid => y * (F::one() - y),
+            RecurrentActivation::ReLU => {
+                if y > F::zero() {
+                    F::one()
+                } else {
+                    F::zero()
+                }
+            }
+        }
+    }
+
     /// Apply the activation function to an array
     #[allow(dead_code)]
     pub fn apply_array<F: Float + ScalarOperand>(&self, x: &Array<F, IxDyn>) -> Array<F, IxDyn> {
@@ -92,14 +115,14 @@ pub struct RNN<F: Float + Debug + Send + Sync + NumAssign> {
     bias_ih: Array<F, IxDyn>,
     /// Hidden-to-hidden bias
     bias_hh: Array<F, IxDyn>,
-    /// Gradient of input-to-hidden weights
-    dweight_ih: Array<F, IxDyn>,
-    /// Gradient of hidden-to-hidden weights
-    dweight_hh: Array<F, IxDyn>,
-    /// Gradient of input-to-hidden bias
-    dbias_ih: Array<F, IxDyn>,
-    /// Gradient of hidden-to-hidden bias
-    dbias_hh: Array<F, IxDyn>,
+    /// Gradient of input-to-hidden weights, written by `backward`
+    dweight_ih: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of hidden-to-hidden weights, written by `backward`
+    dweight_hh: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of input-to-hidden bias, written by `backward`
+    dbias_ih: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of hidden-to-hidden bias, written by `backward`
+    dbias_hh: Arc<RwLock<Array<F, IxDyn>>>,
     /// Input cache for backward pass
     input_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
     /// Hidden states cache for backward pass
@@ -165,10 +188,10 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
         let bias_ih = Array::zeros(IxDyn(&[hidden_size]));
         let bias_hh = Array::zeros(IxDyn(&[hidden_size]));
         // Initialize gradients
-        let dweight_ih = Array::zeros(weight_ih.dim());
-        let dweight_hh = Array::zeros(weight_hh.dim());
-        let dbias_ih = Array::zeros(bias_ih.dim());
-        let dbias_hh = Array::zeros(bias_hh.dim());
+        let dweight_ih = Arc::new(RwLock::new(Array::zeros(weight_ih.dim())));
+        let dweight_hh = Arc::new(RwLock::new(Array::zeros(weight_hh.dim())));
+        let dbias_ih = Arc::new(RwLock::new(Array::zeros(bias_ih.dim())));
+        let dbias_hh = Arc::new(RwLock::new(Array::zeros(bias_hh.dim())));
         Ok(Self {
             input_size,
             hidden_size,
@@ -376,59 +399,174 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
         Ok(all_hidden_states.into_dyn())
     }
 
+    /// Backpropagation through time for the whole cached sequence.
+    ///
+    /// `grad_output` holds the gradient of the loss with respect to every
+    /// hidden state emitted by [`Layer::forward`] (shape
+    /// `[batch, seq_len, hidden]`). Weight and bias gradients are accumulated
+    /// over the batch and the sequence and stored internally for
+    /// [`Layer::update`] / [`ParamLayer::get_gradients`]; the returned array is
+    /// the gradient with respect to the layer input.
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
         // Retrieve cached values
-        let input_ref = match self.input_cache.read() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return Err(NeuralError::InferenceError(
-                    "Failed to acquire read lock on input cache".to_string(),
-                ))
-            }
-        };
-        let hidden_states_ref = match self.hidden_states_cache.read() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return Err(NeuralError::InferenceError(
-                    "Failed to acquire read lock on hidden states cache".to_string(),
-                ))
-            }
-        };
-        if input_ref.is_none() || hidden_states_ref.is_none() {
-            return Err(NeuralError::InferenceError(
+        let input_ref = self.input_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on input cache".to_string())
+        })?;
+        let hidden_states_ref = self.hidden_states_cache.read().map_err(|_| {
+            NeuralError::InferenceError(
+                "Failed to acquire read lock on hidden states cache".to_string(),
+            )
+        })?;
+
+        let missing = || {
+            NeuralError::InferenceError(
                 "No cached values for backward pass. Call forward() first.".to_string(),
-            ));
+            )
+        };
+        let cached_input = input_ref.as_ref().ok_or_else(missing)?;
+        let hidden_states = hidden_states_ref.as_ref().ok_or_else(missing)?;
+
+        if cached_input.shape() != input.shape() {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Backward input shape {:?} does not match the cached forward input shape {:?}",
+                input.shape(),
+                cached_input.shape()
+            )));
         }
-        // In a real implementation, we would compute gradients for all parameters
-        // and return the gradient with respect to the input
-        // Here we're providing a simplified version that returns a gradient of zeros
-        // with the correct shape
-        let grad_input = Array::zeros(input.dim());
+
+        let batch_size = cached_input.shape()[0];
+        let seq_len = cached_input.shape()[1];
+        let hidden_size = self.hidden_size;
+        let input_size = self.input_size;
+
+        if grad_output.shape() != [batch_size, seq_len, hidden_size] {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Expected output gradient of shape [{batch_size}, {seq_len}, {hidden_size}], got {:?}",
+                grad_output.shape()
+            )));
+        }
+
+        let mut dweight_ih: Array<F, IxDyn> = Array::zeros(self.weight_ih.dim());
+        let mut dweight_hh: Array<F, IxDyn> = Array::zeros(self.weight_hh.dim());
+        let mut dbias_ih: Array<F, IxDyn> = Array::zeros(self.bias_ih.dim());
+        let mut dbias_hh: Array<F, IxDyn> = Array::zeros(self.bias_hh.dim());
+
+        let mut grad_input: Array<F, IxDyn> = Array::zeros(cached_input.dim());
+        let mut dh_next: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+        // Pre-activation gradient of a single sample.
+        let mut dz = vec![F::zero(); hidden_size];
+
+        for t in (0..seq_len).rev() {
+            let mut dh_prev: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+
+            for b in 0..batch_size {
+                for i in 0..hidden_size {
+                    let h_t = hidden_states[[b, t, i]];
+                    let dh = grad_output[[b, t, i]] + dh_next[[b, i]];
+                    dz[i] = dh * self.activation.derivative_from_output(h_t);
+                }
+
+                for i in 0..hidden_size {
+                    let g = dz[i];
+                    // Both bias vectors are added to the same pre-activation,
+                    // so they receive identical gradients.
+                    dbias_ih[i] += g;
+                    dbias_hh[i] += g;
+                    for j in 0..input_size {
+                        dweight_ih[[i, j]] += g * cached_input[[b, t, j]];
+                    }
+                    for j in 0..hidden_size {
+                        let h_prev = if t == 0 {
+                            F::zero()
+                        } else {
+                            hidden_states[[b, t - 1, j]]
+                        };
+                        dweight_hh[[i, j]] += g * h_prev;
+                    }
+                }
+
+                for j in 0..input_size {
+                    let mut sum = F::zero();
+                    for (i, &g) in dz.iter().enumerate() {
+                        sum += g * self.weight_ih[[i, j]];
+                    }
+                    grad_input[[b, t, j]] = sum;
+                }
+                for j in 0..hidden_size {
+                    let mut sum = F::zero();
+                    for (i, &g) in dz.iter().enumerate() {
+                        sum += g * self.weight_hh[[i, j]];
+                    }
+                    dh_prev[[b, j]] = sum;
+                }
+            }
+
+            dh_next = dh_prev;
+        }
+
+        let lock_err =
+            || NeuralError::InferenceError("Failed to acquire write lock on gradients".to_string());
+        *self.dweight_ih.write().map_err(|_| lock_err())? = dweight_ih;
+        *self.dweight_hh.write().map_err(|_| lock_err())? = dweight_hh;
+        *self.dbias_ih.write().map_err(|_| lock_err())? = dbias_ih;
+        *self.dbias_hh.write().map_err(|_| lock_err())? = dbias_hh;
+
         Ok(grad_input)
     }
 
     fn update(&mut self, learningrate: F) -> Result<()> {
-        // Apply a small update to parameters (placeholder)
-        let small_change = F::from(0.001).expect("Failed to convert constant to float");
-        let lr = small_change * learningrate;
-        // Update weights and biases
-        for w in self.weight_ih.iter_mut() {
-            *w -= lr;
+        let lock_err =
+            || NeuralError::InferenceError("Failed to acquire read lock on gradients".to_string());
+        let dweight_ih = self.dweight_ih.read().map_err(|_| lock_err())?.clone();
+        let dweight_hh = self.dweight_hh.read().map_err(|_| lock_err())?.clone();
+        let dbias_ih = self.dbias_ih.read().map_err(|_| lock_err())?.clone();
+        let dbias_hh = self.dbias_hh.read().map_err(|_| lock_err())?.clone();
+
+        for (param, grad) in [
+            (&mut self.weight_ih, &dweight_ih),
+            (&mut self.weight_hh, &dweight_hh),
+            (&mut self.bias_ih, &dbias_ih),
+            (&mut self.bias_hh, &dbias_hh),
+        ] {
+            if param.shape() != grad.shape() {
+                return Err(NeuralError::ShapeMismatch(format!(
+                    "Parameter shape {:?} does not match gradient shape {:?}",
+                    param.shape(),
+                    grad.shape()
+                )));
+            }
+            scirs2_core::ndarray::Zip::from(&mut *param)
+                .and(grad)
+                .for_each(|w, &g| *w -= learningrate * g);
         }
-        for w in self.weight_hh.iter_mut() {
-            *w -= lr;
-        }
-        for b in self.bias_ih.iter_mut() {
-            *b -= lr;
-        }
-        for b in self.bias_hh.iter_mut() {
-            *b -= lr;
-        }
+
         Ok(())
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        ParamLayer::get_gradients(self)
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        ParamLayer::get_parameters(self)
+    }
+
+    fn set_params(&mut self, params: &[Array<F, IxDyn>]) -> Result<()> {
+        ParamLayer::set_parameters(self, params.to_vec())
+    }
+
+    fn layer_type(&self) -> &str {
+        "RNN"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.hidden_size * self.input_size
+            + self.hidden_size * self.hidden_size
+            + 2 * self.hidden_size
     }
 }
 
@@ -444,12 +582,20 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
         ]
     }
 
+    /// Gradients of `[weight_ih, weight_hh, bias_ih, bias_hh]`, in the same
+    /// order as [`ParamLayer::get_parameters`].
+    ///
+    /// They are zero until [`Layer::backward`] has run at least once.
     fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
+        let read = |cell: &Arc<RwLock<Array<F, IxDyn>>>| match cell.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Array::zeros(IxDyn(&[0])),
+        };
         vec![
-            self.dweight_ih.clone(),
-            self.dweight_hh.clone(),
-            self.dbias_ih.clone(),
-            self.dbias_hh.clone(),
+            read(&self.dweight_ih),
+            read(&self.dweight_hh),
+            read(&self.dbias_ih),
+            read(&self.dbias_hh),
         ]
     }
     fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {

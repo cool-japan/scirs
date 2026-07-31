@@ -683,7 +683,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored run_sample_benchmarks
+    #[ignore = "bench: run_sample_benchmarks -- [[bench]] target (harness=false, its own fn main() exists only to avoid nextest parsing issues), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored run_sample_benchmarks`"]
     fn run_sample_benchmarks() {
         let config = BenchmarkConfig {
             suites: vec!["graph_benchmarks".to_string()],

@@ -163,9 +163,7 @@ mod tests {
             assert!(matches!(result.model, SystemModel::ARX { .. }));
         }
     }
-    // Slow test: order selection + 5-fold CV with max_order=10 requires ~300s in debug mode
     #[test]
-    #[ignore]
     fn test_adaptive_identifier() {
         let mut identifier = AdaptiveIdentifier::new(EnhancedSysIdConfig::default());
         let n = 100;
@@ -188,9 +186,7 @@ mod tests {
             .expect("Operation failed");
         assert!(identifier.get_current_model().is_some());
     }
-    // Slow test: multi-structure selection (ARX/ARMAX/OE) with order selection + CV requires >120s in debug mode
     #[test]
-    #[ignore]
     fn test_model_selection() {
         let n = 200;
         let input = Array1::from_shape_fn(n, |i| (i as f64 * 0.05).sin());

@@ -24,6 +24,19 @@ pub fn simd_argmin_f32(input: &ArrayView1<f32>) -> Option<usize> {
         return None;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        let mut min_val = input[0];
+        let mut min_idx = 0;
+        for (i, &val) in input.iter().enumerate().skip(1) {
+            if val < min_val {
+                min_val = val;
+                min_idx = i;
+            }
+        }
+        return Some(min_idx);
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -36,7 +49,7 @@ pub fn simd_argmin_f32(input: &ArrayView1<f32>) -> Option<usize> {
 
                 // Process 8 f32s at a time
                 while i + 8 <= len {
-                    let slice = &input.as_slice().expect("Operation failed")[i..i + 8];
+                    let slice = &input.as_slice().expect("contiguity checked above")[i..i + 8];
                     let vec = _mm256_loadu_ps(slice.as_ptr());
 
                     // Extract and compare
@@ -76,7 +89,7 @@ pub fn simd_argmin_f32(input: &ArrayView1<f32>) -> Option<usize> {
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let slice = &input.as_slice().expect("Operation failed")[i..i + 4];
+                    let slice = &input.as_slice().expect("contiguity checked above")[i..i + 4];
                     let vec = vld1q_f32(slice.as_ptr());
 
                     let mut temp = [0.0f32; 4];
@@ -123,6 +136,19 @@ pub fn simd_argmin_f64(input: &ArrayView1<f64>) -> Option<usize> {
         return None;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        let mut min_val = input[0];
+        let mut min_idx = 0;
+        for (i, &val) in input.iter().enumerate().skip(1) {
+            if val < min_val {
+                min_val = val;
+                min_idx = i;
+            }
+        }
+        return Some(min_idx);
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -134,7 +160,7 @@ pub fn simd_argmin_f64(input: &ArrayView1<f64>) -> Option<usize> {
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let slice = &input.as_slice().expect("Operation failed")[i..i + 4];
+                    let slice = &input.as_slice().expect("contiguity checked above")[i..i + 4];
                     let vec = _mm256_loadu_pd(slice.as_ptr());
 
                     let mut temp = [0.0f64; 4];
@@ -172,7 +198,7 @@ pub fn simd_argmin_f64(input: &ArrayView1<f64>) -> Option<usize> {
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let slice = &input.as_slice().expect("Operation failed")[i..i + 2];
+                    let slice = &input.as_slice().expect("contiguity checked above")[i..i + 2];
                     let vec = vld1q_f64(slice.as_ptr());
 
                     let mut temp = [0.0f64; 2];
@@ -219,6 +245,19 @@ pub fn simd_argmax_f32(input: &ArrayView1<f32>) -> Option<usize> {
         return None;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        let mut max_val = input[0];
+        let mut max_idx = 0;
+        for (i, &val) in input.iter().enumerate().skip(1) {
+            if val > max_val {
+                max_val = val;
+                max_idx = i;
+            }
+        }
+        return Some(max_idx);
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -230,7 +269,7 @@ pub fn simd_argmax_f32(input: &ArrayView1<f32>) -> Option<usize> {
                 let mut i = 0;
 
                 while i + 8 <= len {
-                    let slice = &input.as_slice().expect("Operation failed")[i..i + 8];
+                    let slice = &input.as_slice().expect("contiguity checked above")[i..i + 8];
                     let vec = _mm256_loadu_ps(slice.as_ptr());
 
                     let mut temp = [0.0f32; 8];
@@ -268,7 +307,7 @@ pub fn simd_argmax_f32(input: &ArrayView1<f32>) -> Option<usize> {
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let slice = &input.as_slice().expect("Operation failed")[i..i + 4];
+                    let slice = &input.as_slice().expect("contiguity checked above")[i..i + 4];
                     let vec = vld1q_f32(slice.as_ptr());
 
                     let mut temp = [0.0f32; 4];
@@ -315,6 +354,19 @@ pub fn simd_argmax_f64(input: &ArrayView1<f64>) -> Option<usize> {
         return None;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        let mut max_val = input[0];
+        let mut max_idx = 0;
+        for (i, &val) in input.iter().enumerate().skip(1) {
+            if val > max_val {
+                max_val = val;
+                max_idx = i;
+            }
+        }
+        return Some(max_idx);
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -326,7 +378,7 @@ pub fn simd_argmax_f64(input: &ArrayView1<f64>) -> Option<usize> {
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let slice = &input.as_slice().expect("Operation failed")[i..i + 4];
+                    let slice = &input.as_slice().expect("contiguity checked above")[i..i + 4];
                     let vec = _mm256_loadu_pd(slice.as_ptr());
 
                     let mut temp = [0.0f64; 4];
@@ -364,7 +416,7 @@ pub fn simd_argmax_f64(input: &ArrayView1<f64>) -> Option<usize> {
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let slice = &input.as_slice().expect("Operation failed")[i..i + 2];
+                    let slice = &input.as_slice().expect("contiguity checked above")[i..i + 2];
                     let vec = vld1q_f64(slice.as_ptr());
 
                     let mut temp = [0.0f64; 2];
@@ -410,9 +462,14 @@ pub fn simd_argmax_f64(input: &ArrayView1<f64>) -> Option<usize> {
 /// Clips all values to be within [min_val, max_val]
 #[allow(dead_code)]
 pub fn simd_clip_f32(input: &ArrayView1<f32>, min_val: f32, max_val: f32) -> Array1<f32> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.max(min_val).min(max_val));
+    }
+
     let len = input.len();
     let mut result = Array1::zeros(len);
-    let input_slice = input.as_slice().expect("Operation failed");
+    let input_slice = input.as_slice().expect("contiguity checked above");
     let result_slice: &mut [f32] = result.as_slice_mut().expect("Operation failed");
 
     #[cfg(target_arch = "x86_64")]
@@ -481,9 +538,14 @@ pub fn simd_clip_f32(input: &ArrayView1<f32>, min_val: f32, max_val: f32) -> Arr
 /// SIMD-accelerated clip for f64 arrays
 #[allow(dead_code)]
 pub fn simd_clip_f64(input: &ArrayView1<f64>, min_val: f64, max_val: f64) -> Array1<f64> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.max(min_val).min(max_val));
+    }
+
     let len = input.len();
     let mut result = Array1::zeros(len);
-    let input_slice = input.as_slice().expect("Operation failed");
+    let input_slice = input.as_slice().expect("contiguity checked above");
     let result_slice: &mut [f64] = result.as_slice_mut().expect("Operation failed");
 
     #[cfg(target_arch = "x86_64")]

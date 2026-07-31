@@ -90,5 +90,8 @@ impl<T: Float> op::Op<T> for ConvertToTensor<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, _ctx: &mut crate::op::GradientContext<'a, 'a, T>) {}
+    /// A source constant: the node owns its array and has **no inputs**, so there is no
+    /// gradient to append.  (The tensor built from it is also marked non-differentiable,
+    /// which is why `convert_to_tensor` is unsuitable for building test inputs.)
+    fn grad<'a, 'g>(&self, _ctx: &mut crate::op::GradientContext<'a, 'g, T>) {}
 }

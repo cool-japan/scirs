@@ -431,9 +431,9 @@ where
         .build(math_ops::Lgamma)
 }
 
-/// Elementwise digamma function
+/// Elementwise digamma function (the logarithmic derivative of the gamma function, ψ(x)).
 ///
-/// NOTE: derivative not implemented
+/// Differentiable: `d/dx digamma(x) = trigamma(x)`.
 #[allow(dead_code)]
 pub fn digamma_f32<'graph, A>(x: A) -> Tensor<'graph, f32>
 where
@@ -446,9 +446,9 @@ where
         .build(math_ops::Digamma)
 }
 
-/// Elementwise digamma function
+/// Elementwise digamma function (the logarithmic derivative of the gamma function, ψ(x)).
 ///
-/// NOTE: derivative not implemented
+/// Differentiable: `d/dx digamma(x) = trigamma(x)`.
 #[allow(dead_code)]
 pub fn digamma_f64<'graph, A>(x: A) -> Tensor<'graph, f64>
 where
@@ -459,6 +459,40 @@ where
     Tensor::builder(g)
         .append_input(x, false)
         .build(math_ops::Digamma)
+}
+
+/// Elementwise trigamma function (the polygamma function of order 1, ψ'(x)).
+///
+/// This is the derivative of [`digamma_f32`]. Its own derivative (the order-2 polygamma
+/// function, "tetragamma") is not implemented, so differentiating a graph that uses
+/// `trigamma_f32` a second time reports an error rather than a fabricated value.
+#[allow(dead_code)]
+pub fn trigamma_f32<'graph, A>(x: A) -> Tensor<'graph, f32>
+where
+    A: AsRef<Tensor<'graph, f32>> + Copy,
+{
+    let x = x.as_ref();
+    let g = x.graph();
+    Tensor::builder(g)
+        .append_input(x, false)
+        .build(math_ops::Trigamma)
+}
+
+/// Elementwise trigamma function (the polygamma function of order 1, ψ'(x)).
+///
+/// This is the derivative of [`digamma_f64`]. Its own derivative (the order-2 polygamma
+/// function, "tetragamma") is not implemented, so differentiating a graph that uses
+/// `trigamma_f64` a second time reports an error rather than a fabricated value.
+#[allow(dead_code)]
+pub fn trigamma_f64<'graph, A>(x: A) -> Tensor<'graph, f64>
+where
+    A: AsRef<Tensor<'graph, f64>> + Copy,
+{
+    let x = x.as_ref();
+    let g = x.graph();
+    Tensor::builder(g)
+        .append_input(x, false)
+        .build(math_ops::Trigamma)
 }
 
 /// Returns the max of x and y (i.e. x > y ? x : y) element-wise.

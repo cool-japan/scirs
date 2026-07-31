@@ -7,6 +7,7 @@
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::Array1;
 use scirs2_core::numeric::Complex64;
+use std::f64::consts::PI;
 
 use super::basic::linear_interpolate;
 use super::core::{find_nearest_valid_index, InterpolationConfig, InterpolationMethod};
@@ -37,7 +38,7 @@ use super::core::{find_nearest_valid_index, InterpolationConfig, InterpolationMe
 /// // Result contains bandlimited interpolated values
 /// ```
 #[allow(dead_code)]
-pub fn sinc_interpolate(_signal: &Array1<f64>, cutofffreq: f64) -> SignalResult<Array1<f64>> {
+pub fn sinc_interpolate(signal: &Array1<f64>, cutoff_freq: f64) -> SignalResult<Array1<f64>> {
     if cutoff_freq <= 0.0 || cutoff_freq > 0.5 {
         return Err(SignalError::ValueError(
             "Cutoff frequency must be in the range (0, 0.5]".to_string(),
@@ -49,7 +50,7 @@ pub fn sinc_interpolate(_signal: &Array1<f64>, cutofffreq: f64) -> SignalResult<
     // Check if input has any missing values
     let has_missing = signal.iter().any(|&x| x.is_nan());
     if !has_missing {
-        return Ok(_signal.clone());
+        return Ok(signal.clone());
     }
 
     // Find indices of missing and non-missing points
@@ -62,13 +63,13 @@ pub fn sinc_interpolate(_signal: &Array1<f64>, cutofffreq: f64) -> SignalResult<
             missing_indices.push(i);
         } else {
             valid_indices.push(i);
-            valid_values.push(_signal[i]);
+            valid_values.push(signal[i]);
         }
     }
 
     if valid_indices.is_empty() {
         return Err(SignalError::ValueError(
-            "All values are missing in the input _signal".to_string(),
+            "All values are missing in the input signal".to_string(),
         ));
     }
 
@@ -305,12 +306,12 @@ pub fn auto_interpolate(
         let n_valid = valid_indices.len();
 
         if n_valid < 5 {
-            // Not enough points for cross-_validation
+            // Not enough points for cross-validation
             let result = linear_interpolate(signal)?;
             return Ok((result, InterpolationMethod::Linear));
         }
 
-        // Prepare for k-fold cross-_validation (k=5)
+        // Prepare for k-fold cross-validation (k=5)
         let k = 5.min(n_valid);
         let fold_size = n_valid / k;
 
@@ -320,7 +321,7 @@ pub fn auto_interpolate(
         for &method in &methods {
             let mut total_error = 0.0;
 
-            // K-fold cross-_validation
+            // K-fold cross-validation
             for fold in 0..k {
                 let start = fold * fold_size;
                 let end = if fold == k - 1 {
@@ -332,7 +333,7 @@ pub fn auto_interpolate(
                 // Create temporary signal with additional missing values
                 let mut temp_signal = signal.clone();
 
-                // Mask out _validation fold
+                // Mask out validation fold
                 for &idx in valid_indices.iter().skip(start).take(end - start) {
                     temp_signal[idx] = f64::NAN;
                 }
@@ -340,7 +341,7 @@ pub fn auto_interpolate(
                 // Interpolate with current method
                 let interpolated = super::core::interpolate(&temp_signal, method, config)?;
 
-                // Calculate error on _validation fold
+                // Calculate error on validation fold
                 let mut fold_error = 0.0;
                 for &idx in valid_indices.iter().skip(start).take(end - start) {
                     let error = interpolated[idx] - signal[idx];
@@ -390,6 +391,7 @@ pub fn auto_interpolate(
 
 pub mod resampling {
     use crate::error::{SignalError, SignalResult};
+    use std::f64::consts::PI;
 
     /// Advanced resampling utilities for signal interpolation and sample rate conversion
     //
@@ -448,7 +450,7 @@ pub mod resampling {
 
         if target_length == 0 {
             return Err(SignalError::ValueError(
-                "Target _length must be positive".to_string(),
+                "Target length must be positive".to_string(),
             ));
         }
 
@@ -521,7 +523,9 @@ pub mod resampling {
     }
 
     /// Evaluates the sinc kernel at a fractional position
-    fn evaluate_sinc_kernel(_kernel: &[f64], position: f64, cutoff: f64) -> f64 {
+    fn evaluate_sinc_kernel(kernel: &[f64], position: f64, cutoff: f64) -> f64 {
+        let _ = cutoff; // reserved: nearest-tap lookup below relies on the kernel already
+                        // being densely oversampled by `create_sinc_kernel`'s `cutoff_frequency`
         let idx = position.round() as i32 + kernel.len() as i32 / 2;
 
         if idx >= 0 && (idx as usize) < kernel.len() {
@@ -622,7 +626,7 @@ pub mod polynomial {
                         let denominator = x_known[i] - x_known[j];
                         if denominator.abs() < 1e-12 {
                             return Err(SignalError::ValueError(
-                                "Duplicate x-coordinates in _known points".to_string(),
+                                "Duplicate x-coordinates in known points".to_string(),
                             ));
                         }
                         product *= (x - x_known[j]) / denominator;
@@ -759,14 +763,14 @@ pub mod polynomial {
                 let denominator = x_known[i + j] - x_known[i];
                 if denominator.abs() < 1e-12 {
                     return Err(SignalError::ValueError(
-                        "Duplicate x-coordinates in _known points".to_string(),
+                        "Duplicate x-coordinates in known points".to_string(),
                     ));
                 }
                 dd_table[i][j] = (dd_table[i + 1][j - 1] - dd_table[i][j - 1]) / denominator;
             }
         }
 
-        // Evaluate Newton polynomial at _target points
+        // Evaluate Newton polynomial at target points
         let mut result = vec![0.0; x_target.len()];
 
         for (target_idx, &x) in x_target.iter().enumerate() {
@@ -829,8 +833,6 @@ mod tests {
 
     #[test]
     fn test_auto_interpolate() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
         let config = InterpolationConfig::default();
 

@@ -406,7 +406,7 @@ where
     }
 
     fn dtype(&self) -> &str {
-        "float" // Placeholder, ideally we would return the actual type
+        std::any::type_name::<T>()
     }
 
     fn to_array(&self) -> Array2<T> {
@@ -1254,6 +1254,36 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[test]
+    fn test_csr_array_dtype_reflects_actual_element_type() {
+        let indices = Array1::from_vec(vec![0, 1, 2]);
+        let indptr = Array1::from_vec(vec![0, 1, 2, 3]);
+        let shape = (3, 3);
+
+        let csr_f64 = CsrArray::new(
+            Array1::from_vec(vec![1.0f64, 2.0, 3.0]),
+            indices.clone(),
+            indptr.clone(),
+            shape,
+        )
+        .expect("Operation failed");
+        let csr_f32 = CsrArray::new(
+            Array1::from_vec(vec![1.0f32, 2.0, 3.0]),
+            indices,
+            indptr,
+            shape,
+        )
+        .expect("Operation failed");
+
+        // Previously `dtype()` always returned the literal string "float"
+        // regardless of the actual generic element type.
+        assert_eq!(csr_f64.dtype(), "f64");
+        assert_eq!(csr_f32.dtype(), "f32");
+        assert_ne!(csr_f64.dtype(), "float");
+        assert_ne!(csr_f32.dtype(), "float");
+        assert_ne!(csr_f64.dtype(), csr_f32.dtype());
+    }
 
     #[test]
     fn test_csr_array_construction() {

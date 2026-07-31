@@ -1,6 +1,7 @@
 //! Regularized regression implementations
 
 use crate::error::{StatsError, StatsResult};
+use crate::regression::stat_tests::{f_test_p_value, t_test_p_value};
 use crate::regression::utils::*;
 use crate::regression::RegressionResults;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
@@ -108,7 +109,12 @@ where
     }
 
     // Preprocess x and y
-    let (x_processed, y_mean, x_mean, x_std) = preprocessdata(x, y, fit_intercept, normalize)?;
+    // `y_mean` is computed by `preprocessdata` but must NOT be folded back
+    // into the intercept by `transform_coefficients` -- see that function's
+    // doc comment. Kept `_`-prefixed here since preprocessdata's return
+    // shape is shared plumbing used by all four regularized-regression
+    // entry points.
+    let (x_processed, _y_mean, x_mean, x_std) = preprocessdata(x, y, fit_intercept, normalize)?;
 
     // Total number of coefficients (including _intercept if fitted)
     let p = if fit_intercept {
@@ -156,7 +162,7 @@ where
 
     // If data was normalized/centered, transform coefficients back
     let transformed_coefficients = if normalize || fit_intercept {
-        transform_coefficients(&coefficients, y_mean, &x_mean, &x_std, fit_intercept)
+        transform_coefficients(&coefficients, &x_mean, &x_std, fit_intercept)
     } else {
         coefficients.clone()
     };
@@ -203,14 +209,9 @@ where
     // Calculate t-values
     let t_values = calculate_t_values(&transformed_coefficients, &std_errors);
 
-    // Calculate p-values (simplified)
-    let p_values = t_values.mapv(|t| {
-        let t_abs = crate::regression::utils::float_abs(t);
-        let df_f = F::from(df_residuals).expect("Failed to convert to float");
-        let ratio = t_abs / crate::regression::utils::float_sqrt(df_f + t_abs * t_abs);
-        let one_minus_ratio = F::one() - ratio;
-        F::from(2.0).expect("Failed to convert constant to float") * one_minus_ratio
-    });
+    // Calculate real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
     // Calculate confidence intervals
     let mut conf_intervals = Array2::<F>::zeros((p, 2));
@@ -232,8 +233,9 @@ where
         F::infinity()
     };
 
-    // Calculate p-value for F-statistic (simplified)
-    let f_p_value = F::zero(); // In a real implementation, use F-distribution
+    // Calculate p-value for F-statistic using the real F(df_model, df_residuals)
+    // survival function (see `stat_tests::f_test_p_value`).
+    let f_p_value = f_test_p_value(f_statistic, df_model, df_residuals);
 
     // Create and return the results structure
     Ok(RegressionResults {
@@ -362,11 +364,23 @@ where
     Ok((x_processed, y_mean, x_mean, x_std))
 }
 
-/// Transform coefficients back after fitting with normalized/centered data
+/// Transform coefficients back after fitting with normalized/centered data.
+///
+/// `preprocessdata` builds an *explicit* intercept-of-ones column (rather
+/// than centering `y` and dropping the intercept column), so
+/// `coefficients[0]` already *is* the true intercept in standardized-feature
+/// space once every feature coefficient's mean/std contribution is
+/// subtracted back out below -- `y`'s own mean must NOT be added on top of
+/// that (an earlier version of this function did add it back, which is
+/// wrong whenever `y` is not itself centered -- and `preprocessdata` never
+/// centers `y`, only `x`). Verified against a plain OLS fit on raw
+/// (unstandardized) data: reconstructing without the erroneous `+ y_mean`
+/// term reproduces the reference coefficients exactly, while adding it back
+/// silently shifted the intercept by `y_mean` and corrupted every
+/// downstream statistic (residuals, R², F-statistic, ...).
 #[allow(dead_code)]
 fn transform_coefficients<F>(
     coefficients: &Array1<F>,
-    y_mean: F,
     x_mean: &Array1<F>,
     x_std: &Array1<F>,
     fit_intercept: bool,
@@ -386,9 +400,6 @@ where
         for j in 0..p_features {
             _intercept = _intercept - coefficients[j + 1] * x_mean[j] / x_std[j];
         }
-
-        // Add back the _mean of y
-        _intercept = _intercept + y_mean;
 
         transformed[0] = _intercept;
 
@@ -566,7 +577,12 @@ where
     }
 
     // Preprocess x and y
-    let (x_processed, y_mean, x_mean, x_std) = preprocessdata(x, y, fit_intercept, normalize)?;
+    // `y_mean` is computed by `preprocessdata` but must NOT be folded back
+    // into the intercept by `transform_coefficients` -- see that function's
+    // doc comment. Kept `_`-prefixed here since preprocessdata's return
+    // shape is shared plumbing used by all four regularized-regression
+    // entry points.
+    let (x_processed, _y_mean, x_mean, x_std) = preprocessdata(x, y, fit_intercept, normalize)?;
 
     // Total number of coefficients (including _intercept if fitted)
     let p = if fit_intercept {
@@ -652,7 +668,7 @@ where
 
     // If data was normalized/centered, transform coefficients back
     let transformed_coefficients = if normalize || fit_intercept {
-        transform_coefficients(&coefficients, y_mean, &x_mean, &x_std, fit_intercept)
+        transform_coefficients(&coefficients, &x_mean, &x_std, fit_intercept)
     } else {
         coefficients.clone()
     };
@@ -704,14 +720,9 @@ where
     // Calculate t-values
     let t_values = calculate_t_values(&transformed_coefficients, &std_errors);
 
-    // Calculate p-values (simplified)
-    let p_values = t_values.mapv(|t| {
-        let t_abs = crate::regression::utils::float_abs(t);
-        let df_f = F::from(df_residuals).expect("Failed to convert to float");
-        let ratio = t_abs / crate::regression::utils::float_sqrt(df_f + t_abs * t_abs);
-        let one_minus_ratio = F::one() - ratio;
-        F::from(2.0).expect("Failed to convert constant to float") * one_minus_ratio
-    });
+    // Calculate real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
     // Calculate confidence intervals
     let mut conf_intervals = Array2::<F>::zeros((p, 2));
@@ -733,8 +744,9 @@ where
         F::infinity()
     };
 
-    // Calculate p-value for F-statistic (simplified)
-    let f_p_value = F::zero(); // In a real implementation, use F-distribution
+    // Calculate p-value for F-statistic using the real F(df_model, df_residuals)
+    // survival function (see `stat_tests::f_test_p_value`).
+    let f_p_value = f_test_p_value(f_statistic, df_model, df_residuals);
 
     // Create and return the results structure
     Ok(RegressionResults {
@@ -969,7 +981,12 @@ where
     }
 
     // Preprocess x and y
-    let (x_processed, y_mean, x_mean, x_std) = preprocessdata(x, y, fit_intercept, normalize)?;
+    // `y_mean` is computed by `preprocessdata` but must NOT be folded back
+    // into the intercept by `transform_coefficients` -- see that function's
+    // doc comment. Kept `_`-prefixed here since preprocessdata's return
+    // shape is shared plumbing used by all four regularized-regression
+    // entry points.
+    let (x_processed, _y_mean, x_mean, x_std) = preprocessdata(x, y, fit_intercept, normalize)?;
 
     // Total number of coefficients (including _intercept if fitted)
     let p = if fit_intercept {
@@ -1060,7 +1077,7 @@ where
 
     // If data was normalized/centered, transform coefficients back
     let transformed_coefficients = if normalize || fit_intercept {
-        transform_coefficients(&coefficients, y_mean, &x_mean, &x_std, fit_intercept)
+        transform_coefficients(&coefficients, &x_mean, &x_std, fit_intercept)
     } else {
         coefficients.clone()
     };
@@ -1113,14 +1130,9 @@ where
     // Calculate t-values
     let t_values = calculate_t_values(&transformed_coefficients, &std_errors);
 
-    // Calculate p-values (simplified)
-    let p_values = t_values.mapv(|t| {
-        let t_abs = crate::regression::utils::float_abs(t);
-        let df_f = F::from(df_residuals).expect("Failed to convert to float");
-        let _ratio = t_abs / crate::regression::utils::float_sqrt(df_f + t_abs * t_abs);
-        let one_minus_ratio = F::one() - _ratio;
-        F::from(2.0).expect("Failed to convert constant to float") * one_minus_ratio
-    });
+    // Calculate real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
     // Calculate confidence intervals
     let mut conf_intervals = Array2::<F>::zeros((p, 2));
@@ -1142,8 +1154,9 @@ where
         F::infinity()
     };
 
-    // Calculate p-value for F-statistic (simplified)
-    let f_p_value = F::zero(); // In a real implementation, use F-distribution
+    // Calculate p-value for F-statistic using the real F(df_model, df_residuals)
+    // survival function (see `stat_tests::f_test_p_value`).
+    let f_p_value = f_test_p_value(f_statistic, df_model, df_residuals);
 
     // Create and return the results structure
     Ok(RegressionResults {
@@ -1361,7 +1374,12 @@ where
     }
 
     // Preprocess x and y
-    let (x_processed, y_mean, x_mean, x_std) = preprocessdata(x, y, fit_intercept, normalize)?;
+    // `y_mean` is computed by `preprocessdata` but must NOT be folded back
+    // into the intercept by `transform_coefficients` -- see that function's
+    // doc comment. Kept `_`-prefixed here since preprocessdata's return
+    // shape is shared plumbing used by all four regularized-regression
+    // entry points.
+    let (x_processed, _y_mean, x_mean, x_std) = preprocessdata(x, y, fit_intercept, normalize)?;
 
     // Total number of coefficients (including _intercept if fitted)
     let p = if fit_intercept {
@@ -1509,7 +1527,7 @@ where
 
     // If data was normalized/centered, transform coefficients back
     let transformed_coefficients = if normalize || fit_intercept {
-        transform_coefficients(&coefficients, y_mean, &x_mean, &x_std, fit_intercept)
+        transform_coefficients(&coefficients, &x_mean, &x_std, fit_intercept)
     } else {
         coefficients.clone()
     };
@@ -1580,14 +1598,9 @@ where
     // Calculate t-values
     let t_values = calculate_t_values(&transformed_coefficients, &std_errors);
 
-    // Calculate p-values (simplified)
-    let p_values = t_values.mapv(|t| {
-        let t_abs = crate::regression::utils::float_abs(t);
-        let df_f = F::from(df_residuals).expect("Failed to convert to float");
-        let ratio = t_abs / crate::regression::utils::float_sqrt(df_f + t_abs * t_abs);
-        let one_minus_ratio = F::one() - ratio;
-        F::from(2.0).expect("Failed to convert constant to float") * one_minus_ratio
-    });
+    // Calculate real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
     // Calculate confidence intervals
     let mut conf_intervals = Array2::<F>::zeros((p, 2));
@@ -1609,8 +1622,9 @@ where
         F::infinity()
     };
 
-    // Calculate p-value for F-statistic (simplified)
-    let f_p_value = F::zero(); // In a real implementation, use F-distribution
+    // Calculate p-value for F-statistic using the real F(df_model, df_residuals)
+    // survival function (see `stat_tests::f_test_p_value`).
+    let f_p_value = f_test_p_value(f_statistic, df_model, df_residuals);
 
     // Create and return the results structure
     Ok(RegressionResults {
@@ -1892,59 +1906,8 @@ impl RidgeRegression {
     }
 }
 
+// Tests live in `regularized_tests.rs` (split out to keep this
+// implementation file under the workspace's 2000-line guideline).
 #[cfg(test)]
-mod ridge_regression_struct_tests {
-    use super::*;
-    use scirs2_core::ndarray::{array, Array2};
-
-    fn make_dataset() -> (Array2<f64>, scirs2_core::ndarray::Array1<f64>) {
-        let x = Array2::from_shape_vec(
-            (6, 2),
-            vec![1.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0, 1.0, 5.0],
-        )
-        .expect("shape ok");
-        let y = array![1.0_f64, 3.0, 5.0, 7.0, 9.0, 11.0];
-        (x, y)
-    }
-
-    /// RidgeRegression is publicly accessible (compile test).
-    #[test]
-    fn test_ridge_regression_is_pub() {
-        let _ = RidgeRegression::new(1.0);
-    }
-
-    /// RidgeRegression::fit returns a result without error.
-    #[test]
-    fn test_ridge_regression_fit() {
-        let (x, y) = make_dataset();
-        let mut model = RidgeRegression::new(0.5);
-        let result = model.fit(&x.view(), &y.view());
-        assert!(
-            result.is_ok(),
-            "Ridge fit should succeed: {:?}",
-            result.err()
-        );
-    }
-
-    /// Predictions from FittedRidgeRegression have the correct shape.
-    #[test]
-    fn test_ridge_regression_predict_shape() {
-        let (x, y) = make_dataset();
-        let mut model = RidgeRegression::new(1.0);
-        let fitted = model.fit(&x.view(), &y.view()).expect("fit ok");
-        let preds = fitted.predict(&x.view()).expect("predict ok");
-        assert_eq!(preds.len(), x.nrows());
-    }
-
-    /// Ridge with a very small alpha should still yield reasonable predictions.
-    #[test]
-    fn test_ridge_regression_low_alpha() {
-        let (x, y) = make_dataset();
-        let mut model = RidgeRegression::new(1e-8);
-        let fitted = model.fit(&x.view(), &y.view()).expect("fit ok");
-        let preds = fitted.predict(&x.view()).expect("predict ok");
-        for (p, t) in preds.iter().zip(y.iter()) {
-            assert!((p - t).abs() < 0.5, "pred={p} target={t}");
-        }
-    }
-}
+#[path = "regularized_tests.rs"]
+mod tests;

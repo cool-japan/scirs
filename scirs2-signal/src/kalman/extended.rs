@@ -16,11 +16,10 @@
 //! * Jazwinski, A.H. (1970). *Stochastic Processes and Filtering Theory*.
 //! * Welch & Bishop (1995). "An Introduction to the Kalman Filter".
 
-use crate::error::{SignalError, SignalResult};
 use super::matrix_utils::{
-    mat_add, mat_eye, mat_inv, mat_mul, mat_sub, mat_transpose, mat_vec_mul,
-    vec_add, vec_sub,
+    mat_add, mat_eye, mat_inv, mat_mul, mat_sub, mat_transpose, mat_vec_mul, vec_add, vec_sub,
 };
+use crate::error::{SignalError, SignalResult};
 
 /// Extended Kalman Filter for nonlinear Gaussian systems.
 ///
@@ -241,7 +240,12 @@ impl ExtendedKalmanFilter {
         self.p = p_new
             .iter()
             .zip(pt.iter())
-            .map(|(r1, r2)| r1.iter().zip(r2.iter()).map(|(a, b)| 0.5 * (a + b)).collect())
+            .map(|(r1, r2)| {
+                r1.iter()
+                    .zip(r2.iter())
+                    .map(|(a, b)| 0.5 * (a + b))
+                    .collect()
+            })
             .collect();
 
         Ok(())
@@ -305,19 +309,12 @@ mod tests {
         let dt = 0.01_f64;
         let g_l = 9.81_f64;
 
-        let f = move |x: &[f64]| -> Vec<f64> {
-            vec![
-                x[0] + x[1] * dt,
-                x[1] - g_l * x[0].sin() * dt,
-            ]
-        };
+        let f =
+            move |x: &[f64]| -> Vec<f64> { vec![x[0] + x[1] * dt, x[1] - g_l * x[0].sin() * dt] };
         let h = |x: &[f64]| -> Vec<f64> { vec![x[0]] };
 
         let f_jac = move |x: &[f64]| -> Vec<Vec<f64>> {
-            vec![
-                vec![1.0, dt],
-                vec![-g_l * x[0].cos() * dt, 1.0],
-            ]
+            vec![vec![1.0, dt], vec![-g_l * x[0].cos() * dt, 1.0]]
         };
         let h_jac = |_x: &[f64]| -> Vec<Vec<f64>> { vec![vec![1.0, 0.0]] };
 
@@ -329,10 +326,13 @@ mod tests {
             2,
             1,
         );
-        ekf.set_initial_state(&[0.1, 0.0]).expect("set initial state");
-        ekf.set_Q(vec![vec![1e-5, 0.0], vec![0.0, 1e-5]]).expect("set Q");
+        ekf.set_initial_state(&[0.1, 0.0])
+            .expect("set initial state");
+        ekf.set_Q(vec![vec![1e-5, 0.0], vec![0.0, 1e-5]])
+            .expect("set Q");
         ekf.set_R(vec![vec![0.01]]).expect("set R");
-        ekf.set_P(vec![vec![0.1, 0.0], vec![0.0, 0.1]]).expect("set P");
+        ekf.set_P(vec![vec![0.1, 0.0], vec![0.0, 0.1]])
+            .expect("set P");
 
         // Simulate pendulum and add observations
         let mut true_theta = 0.1_f64;
@@ -363,16 +363,20 @@ mod tests {
 
     #[test]
     fn test_numerical_jacobian_accuracy() {
-        let f = |x: &[f64]| -> Vec<f64> {
-            vec![x[0] * x[0], x[0] * x[1], x[1].sin()]
-        };
+        let f = |x: &[f64]| -> Vec<f64> { vec![x[0] * x[0], x[0] * x[1], x[1].sin()] };
         let x = vec![2.0, 1.0];
         let jac = numerical_jacobian(&f, &x, 1e-6);
 
         // ∂(x0²)/∂x0 = 2*x0 = 4
-        assert!((jac[0][0] - 4.0).abs() < 1e-5, "Jacobian [0][0] should be 4.0");
+        assert!(
+            (jac[0][0] - 4.0).abs() < 1e-5,
+            "Jacobian [0][0] should be 4.0"
+        );
         // ∂(x0*x1)/∂x0 = x1 = 1
-        assert!((jac[1][0] - 1.0).abs() < 1e-5, "Jacobian [1][0] should be 1.0");
+        assert!(
+            (jac[1][0] - 1.0).abs() < 1e-5,
+            "Jacobian [1][0] should be 1.0"
+        );
         // ∂(sin(x1))/∂x1 = cos(x1) ≈ cos(1)
         assert!(
             (jac[2][1] - x[1].cos()).abs() < 1e-5,
@@ -397,21 +401,24 @@ mod tests {
             2,
             1,
         );
-        ekf.set_initial_state(&[0.0, 1.0]).expect("set initial state");
-        ekf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]]).expect("set Q");
+        ekf.set_initial_state(&[0.0, 1.0])
+            .expect("set initial state");
+        ekf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]])
+            .expect("set Q");
         ekf.set_R(vec![vec![1.0]]).expect("set R");
 
         use super::super::standard::KalmanFilter;
         let mut kf = KalmanFilter::new(2, 1);
-        kf.set_F(vec![vec![1.0, dt], vec![0.0, 1.0]]).expect("set F");
+        kf.set_F(vec![vec![1.0, dt], vec![0.0, 1.0]])
+            .expect("set F");
         kf.set_H(vec![vec![1.0, 0.0]]).expect("set H");
-        kf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]]).expect("set Q");
+        kf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]])
+            .expect("set Q");
         kf.set_R(vec![vec![1.0]]).expect("set R");
-        kf.set_initial_state(&[0.0, 1.0]).expect("set initial state");
+        kf.set_initial_state(&[0.0, 1.0])
+            .expect("set initial state");
 
-        let meas_seq = vec![
-            vec![1.0], vec![2.1], vec![3.0], vec![3.9], vec![5.0],
-        ];
+        let meas_seq = vec![vec![1.0], vec![2.1], vec![3.0], vec![3.9], vec![5.0]];
         for z in &meas_seq {
             ekf.predict().expect("ekf predict");
             ekf.update(z).expect("ekf update");
@@ -425,7 +432,10 @@ mod tests {
             assert!(
                 (ekf_state[i] - kf_state[i]).abs() < 1e-8,
                 "EKF and KF should agree for linear system: EKF[{}]={:.6}, KF[{}]={:.6}",
-                i, ekf_state[i], i, kf_state[i]
+                i,
+                ekf_state[i],
+                i,
+                kf_state[i]
             );
         }
     }

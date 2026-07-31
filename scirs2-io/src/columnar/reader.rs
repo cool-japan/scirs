@@ -39,6 +39,10 @@ pub fn read_columnar<P: AsRef<Path>>(path: P) -> Result<ColumnarTable> {
         )));
     }
 
+    // Version 2 added a per-column null/validity bitmap written directly after
+    // each column's encoded data; version 1 files simply omit it.
+    let has_null_section = version >= 2;
+
     // Read column count
     let col_count = reader
         .read_u32::<LittleEndian>()
@@ -102,7 +106,38 @@ pub fn read_columnar<P: AsRef<Path>>(path: P) -> Result<ColumnarTable> {
         let mut cursor = std::io::Cursor::new(data_buf);
         let data = decode_column(&mut cursor, type_tag, encoding, row_count)?;
 
-        columns.push(Column { name, data });
+        // Read the null/validity bitmap, if this file's format version includes one.
+        let null_mask = if has_null_section {
+            let has_nulls = reader.read_u8().map_err(|e| {
+                IoError::FormatError(format!(
+                    "Failed to read column {} null-mask flag: {}",
+                    col_idx, e
+                ))
+            })?;
+            if has_nulls != 0 {
+                let mut mask = Vec::with_capacity(row_count);
+                for row in 0..row_count {
+                    let b = reader.read_u8().map_err(|e| {
+                        IoError::FormatError(format!(
+                            "Failed to read column {} null-mask byte {}: {}",
+                            col_idx, row, e
+                        ))
+                    })?;
+                    mask.push(b != 0);
+                }
+                Some(mask)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        columns.push(Column {
+            name,
+            data,
+            null_mask,
+        });
     }
 
     ColumnarTable::from_columns(columns)

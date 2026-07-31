@@ -30,12 +30,28 @@ pub fn get_local_ip() -> Option<String> {
     // Try to get the actual local IP address
     #[cfg(feature = "sysinfo")]
     {
-        use std::net::TcpStream;
+        use std::net::UdpSocket;
 
-        // Try to connect to a remote address to determine local IP
-        if let Ok(stream) = TcpStream::connect("8.8.8.8:80") {
-            if let Ok(local_addr) = stream.local_addr() {
-                return Some(local_addr.ip().to_string());
+        // Determine the local IP via a UDP "connect": for a datagram socket
+        // this only asks the OS routing table which local interface/address
+        // would be used to reach the given destination -- no handshake and no
+        // packet is ever actually sent on the wire, so it resolves instantly
+        // regardless of network reachability.
+        //
+        // NOTE: this previously used `TcpStream::connect("8.8.8.8:80")`,
+        // which performs a real SYN and blocks for the platform's full TCP
+        // connect timeout (~75s observed on macOS) whenever the destination
+        // is unreachable -- e.g. in firewalled/air-gapped/network-restricted
+        // deployments. Because `include_system_context` defaults to `true`,
+        // that made every default-configured audit-logged event pay a ~75s
+        // stall in exactly the kind of environment audit logging is normally
+        // deployed into. The UDP-based lookup below cannot block on the
+        // network at all.
+        if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
+            if socket.connect("8.8.8.8:80").is_ok() {
+                if let Ok(local_addr) = socket.local_addr() {
+                    return Some(local_addr.ip().to_string());
+                }
             }
         }
 

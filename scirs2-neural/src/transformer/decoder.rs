@@ -45,6 +45,12 @@ pub struct TransformerDecoderLayer<F: Float + Debug + Send + Sync + SimdUnifiedO
     cross_attn_output_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
     /// Normalized cross-attention output cache for backward pass
     norm2_output_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+    /// Cache of the tensor fed into the final layer normalization
+    /// (`norm_input + FFN(norm_input)`), needed by the backward pass
+    norm3_input_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+    /// Whether the last forward pass went through cross-attention
+    /// (`forward_with_encoder`) or the encoder-free `Layer::forward` path
+    used_cross_attention: Arc<RwLock<bool>>,
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps + NumAssign> Clone
@@ -64,6 +70,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
             norm1_output_cache: Arc::new(RwLock::new(None)),
             cross_attn_output_cache: Arc::new(RwLock::new(None)),
             norm2_output_cache: Arc::new(RwLock::new(None)),
+            norm3_input_cache: Arc::new(RwLock::new(None)),
+            used_cross_attention: Arc::new(RwLock::new(false)),
         }
     }
 }
@@ -146,6 +154,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
             norm1_output_cache: Arc::new(RwLock::new(None)),
             cross_attn_output_cache: Arc::new(RwLock::new(None)),
             norm2_output_cache: Arc::new(RwLock::new(None)),
+            norm3_input_cache: Arc::new(RwLock::new(None)),
+            used_cross_attention: Arc::new(RwLock::new(false)),
         })
     }
 
@@ -209,12 +219,11 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         let norm1_output = self.norm1.forward(&self_attn_output_residual)?;
         *self.norm1_output_cache.write().expect("Operation failed") = Some(norm1_output.clone());
 
-        // 3. Cross-attention with encoder output
-        // For cross-attention, query comes from decoder, key/value from encoder
-        // MultiHeadAttention.forward expects query input, so we pass norm1_output
-        // In a full implementation, we'd use a separate method that takes encoder_output
-        // For now, we'll use a simplified approach
-        let cross_attn_output = self.cross_attn.forward(&norm1_output)?;
+        // 3. Cross-attention: queries come from the decoder, keys and values
+        // from the encoder output.
+        let cross_attn_output = self
+            .cross_attn
+            .forward_with_kv(&norm1_output, encoder_output)?;
         *self
             .cross_attn_output_cache
             .write()
@@ -232,15 +241,70 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
 
         // Add residual connection
         let output = &norm2_output + &ff_output;
+        *self.norm3_input_cache.write().expect("Operation failed") = Some(output.clone());
+        *self.used_cross_attention.write().expect("Operation failed") = true;
 
         // 6. Layer normalization after feed-forward
         let final_output = self.norm3.forward(&output)?;
 
-        // Suppress unused variable warning for encoder_output
-        // In a full implementation, encoder_output would be used in cross-attention
-        let _ = encoder_output;
-
         Ok(final_output)
+    }
+
+    /// Backpropagate through [`TransformerDecoderLayer::forward_with_encoder`].
+    ///
+    /// # Returns
+    /// `(grad_input, grad_encoder_output)` - the gradients with respect to the
+    /// decoder input and to the encoder output that fed cross-attention.
+    pub fn backward_with_encoder(
+        &self,
+        input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
+    ) -> Result<(Array<F, IxDyn>, Array<F, IxDyn>)> {
+        let cached = |cell: &Arc<RwLock<Option<Array<F, IxDyn>>>>, what: &str| {
+            cell.read()
+                .map_err(|_| {
+                    NeuralError::InferenceError(format!("Failed to read the {what} cache"))
+                })?
+                .clone()
+                .ok_or_else(|| {
+                    NeuralError::InferenceError(
+                        "No cached values for backward pass. Call forward_with_encoder() first."
+                            .to_string(),
+                    )
+                })
+        };
+        let self_attn_output = cached(&self.self_attn_output_cache, "self-attention")?;
+        let norm1_output = cached(&self.norm1_output_cache, "norm1")?;
+        let cross_attn_output = cached(&self.cross_attn_output_cache, "cross-attention")?;
+        let norm2_output = cached(&self.norm2_output_cache, "norm2")?;
+        let norm3_input = cached(&self.norm3_input_cache, "norm3 input")?;
+
+        // 6. final layer normalization
+        let grad_norm3_input = self.norm3.backward(&norm3_input, grad_output)?;
+
+        // 5. feed-forward residual branch
+        let grad_ff = self
+            .feed_forward
+            .backward(&norm2_output, &grad_norm3_input)?;
+        let grad_norm2_output = &grad_norm3_input + &grad_ff;
+
+        // 4. layer normalization after cross-attention
+        let cross_residual = &norm1_output + &cross_attn_output;
+        let grad_cross_residual = self.norm2.backward(&cross_residual, &grad_norm2_output)?;
+
+        // 3. cross-attention: split the gradient between the decoder query path
+        // and the encoder key/value path.
+        let (grad_cross_query, grad_encoder) =
+            self.cross_attn.backward_with_kv(&grad_cross_residual)?;
+        let grad_norm1_output = &grad_cross_residual + &grad_cross_query;
+
+        // 2. layer normalization after self-attention
+        let self_residual = input + &self_attn_output;
+        let grad_self_residual = self.norm1.backward(&self_residual, &grad_norm1_output)?;
+
+        // 1. self-attention residual branch
+        let grad_self_input = self.self_attn.backward(input, &grad_self_residual)?;
+        Ok((&grad_self_residual + &grad_self_input, grad_encoder))
     }
 
     /// Get the model dimension
@@ -282,14 +346,21 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
 
         // 1. Self-attention with residual connection
         let self_attn_output = self.self_attn.forward(input)?;
+        *self
+            .self_attn_output_cache
+            .write()
+            .expect("Operation failed") = Some(self_attn_output.clone());
         let self_attn_output_residual = input + &self_attn_output;
 
         // 2. Layer normalization after self-attention
         let norm1_output = self.norm1.forward(&self_attn_output_residual)?;
+        *self.norm1_output_cache.write().expect("Operation failed") = Some(norm1_output.clone());
 
         // 3. Feed-forward network with residual connection
         let ff_output = self.feed_forward.forward(&norm1_output)?;
         let output = &norm1_output + &ff_output;
+        *self.norm3_input_cache.write().expect("Operation failed") = Some(output.clone());
+        *self.used_cross_attention.write().expect("Operation failed") = false;
 
         // 4. Apply final normalization
         let final_output = self.norm3.forward(&output)?;
@@ -297,19 +368,56 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         Ok(final_output)
     }
 
+    /// Backpropagate through whichever forward path was last executed.
+    ///
+    /// After [`TransformerDecoderLayer::forward_with_encoder`] this returns the
+    /// gradient with respect to the decoder input only; use
+    /// [`TransformerDecoderLayer::backward_with_encoder`] when the encoder-side
+    /// gradient is needed as well.
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // In a complete implementation, this would compute gradients through all components
-        // For simplicity, this is just a placeholder that returns a gradient of the same shape
+        let used_cross = *self.used_cross_attention.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to read the decoder forward mode".to_string())
+        })?;
+        if used_cross {
+            return Ok(self.backward_with_encoder(input, grad_output)?.0);
+        }
 
-        // Create a placeholder gradient for the input
-        let grad_input = Array::zeros(input.dim());
+        let cached = |cell: &Arc<RwLock<Option<Array<F, IxDyn>>>>, what: &str| {
+            cell.read()
+                .map_err(|_| {
+                    NeuralError::InferenceError(format!("Failed to read the {what} cache"))
+                })?
+                .clone()
+                .ok_or_else(|| {
+                    NeuralError::InferenceError(
+                        "No cached values for backward pass. Call forward() first.".to_string(),
+                    )
+                })
+        };
+        let self_attn_output = cached(&self.self_attn_output_cache, "self-attention")?;
+        let norm1_output = cached(&self.norm1_output_cache, "norm1")?;
+        let norm3_input = cached(&self.norm3_input_cache, "norm3 input")?;
 
-        // Return gradient with respect to input
-        Ok(grad_input)
+        // 4. final layer normalization
+        let grad_norm3_input = self.norm3.backward(&norm3_input, grad_output)?;
+
+        // 3. feed-forward residual branch
+        let grad_ff = self
+            .feed_forward
+            .backward(&norm1_output, &grad_norm3_input)?;
+        let grad_norm1_output = &grad_norm3_input + &grad_ff;
+
+        // 2. layer normalization after self-attention
+        let self_residual = input + &self_attn_output;
+        let grad_self_residual = self.norm1.backward(&self_residual, &grad_norm1_output)?;
+
+        // 1. self-attention residual branch
+        let grad_self_input = self.self_attn.backward(input, &grad_self_residual)?;
+        Ok(&grad_self_residual + &grad_self_input)
     }
 
     fn update(&mut self, learning_rate: F) -> Result<()> {
@@ -322,6 +430,39 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         self.norm3.update(learning_rate)?;
 
         Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        let mut params = self.self_attn.params();
+        params.extend(self.norm1.params());
+        params.extend(self.cross_attn.params());
+        params.extend(self.norm2.params());
+        params.extend(self.feed_forward.params());
+        params.extend(self.norm3.params());
+        params
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        let mut grads = self.self_attn.gradients();
+        grads.extend(self.norm1.gradients());
+        grads.extend(self.cross_attn.gradients());
+        grads.extend(self.norm2.gradients());
+        grads.extend(self.feed_forward.gradients());
+        grads.extend(self.norm3.gradients());
+        grads
+    }
+
+    fn layer_type(&self) -> &str {
+        "TransformerDecoderLayer"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.self_attn.parameter_count()
+            + self.norm1.parameter_count()
+            + self.cross_attn.parameter_count()
+            + self.norm2.parameter_count()
+            + self.feed_forward.parameter_count()
+            + self.norm3.parameter_count()
     }
 }
 
@@ -416,6 +557,53 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         Ok(output)
     }
 
+    /// Backpropagate through the stack executed by
+    /// [`TransformerDecoder::forward_with_encoder`].
+    ///
+    /// # Returns
+    /// `(grad_input, grad_encoder_output)`; the encoder-side gradient is the
+    /// sum of every layer's cross-attention contribution.
+    pub fn backward_with_encoder(
+        &self,
+        input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
+    ) -> Result<(Array<F, IxDyn>, Array<F, IxDyn>)> {
+        let outputs = self
+            .layer_outputs
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on layer outputs".to_string(),
+                )
+            })?
+            .clone();
+        if outputs.len() != self.layers.len() {
+            return Err(NeuralError::InferenceError(format!(
+                "Cached {} layer outputs for {} decoder layers. Call forward_with_encoder() first.",
+                outputs.len(),
+                self.layers.len()
+            )));
+        }
+
+        let mut grad = grad_output.clone();
+        let mut grad_encoder: Option<Array<F, IxDyn>> = None;
+        for (idx, layer) in self.layers.iter().enumerate().rev() {
+            let layer_input = if idx == 0 { input } else { &outputs[idx - 1] };
+            let (grad_in, grad_enc) = layer.backward_with_encoder(layer_input, &grad)?;
+            grad = grad_in;
+            grad_encoder = Some(match grad_encoder {
+                Some(acc) => acc + grad_enc,
+                None => grad_enc,
+            });
+        }
+        let grad_encoder = grad_encoder.ok_or_else(|| {
+            NeuralError::InferenceError(
+                "A transformer decoder needs at least one layer".to_string(),
+            )
+        })?;
+        Ok((grad, grad_encoder))
+    }
+
     /// Get the number of layers
     pub fn num_layers(&self) -> usize {
         self.layers.len()
@@ -461,15 +649,36 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         Ok(output)
     }
 
+    /// Backpropagate through the stack, feeding each layer the input it saw
+    /// during the forward pass (the previous layer's cached output).
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // In a complete implementation, this would compute gradients through all layers
-        // For simplicity, this is just a placeholder that returns a gradient of the same shape
-        let grad_input = Array::zeros(input.dim());
-        Ok(grad_input)
+        let outputs = self
+            .layer_outputs
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on layer outputs".to_string(),
+                )
+            })?
+            .clone();
+        if outputs.len() != self.layers.len() {
+            return Err(NeuralError::InferenceError(format!(
+                "Cached {} layer outputs for {} decoder layers. Call forward() first.",
+                outputs.len(),
+                self.layers.len()
+            )));
+        }
+
+        let mut grad = grad_output.clone();
+        for (idx, layer) in self.layers.iter().enumerate().rev() {
+            let layer_input = if idx == 0 { input } else { &outputs[idx - 1] };
+            grad = layer.backward(layer_input, &grad)?;
+        }
+        Ok(grad)
     }
 
     fn update(&mut self, learning_rate: F) -> Result<()> {
@@ -479,6 +688,22 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         }
 
         Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        self.layers.iter().flat_map(|l| l.params()).collect()
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        self.layers.iter().flat_map(|l| l.gradients()).collect()
+    }
+
+    fn layer_type(&self) -> &str {
+        "TransformerDecoder"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.layers.iter().map(|l| l.parameter_count()).sum()
     }
 }
 

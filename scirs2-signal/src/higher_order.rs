@@ -209,7 +209,7 @@ pub fn bicoherence(
 
     // Compute bispectrum and power spectrum for normalization
     let (bis_complex, f1_axis, f2_axis) = compute_bispectrum(signal, &config)?;
-    let power_spectrum = compute_power_spectrum(signal, &config)?;
+    let (power_spectrum, _freq_axis) = compute_power_spectrum(signal, &config)?;
 
     // Create the bicoherence
     let mut bicoherence = Array2::zeros(bis_complex.raw_dim());
@@ -437,15 +437,15 @@ fn compute_welch_bispectrum(
 
 /// Apply a window function to a signal
 #[allow(dead_code)]
-fn apply_window(_signal: &Array1<f64>, windowname: &str) -> SignalResult<Array1<f64>> {
+fn apply_window(signal: &Array1<f64>, windowname: &str) -> SignalResult<Array1<f64>> {
     let n = signal.len();
 
     // Get the window function
-    let win = window::get_window(window_name, n, true)?;
+    let win = window::get_window(windowname, n, true)?;
 
     // Apply the window
     let win_arr = Array1::from(win);
-    let windowed = _signal * &win_arr;
+    let windowed = signal * &win_arr;
 
     Ok(windowed)
 }
@@ -574,7 +574,7 @@ fn compute_2d_fft(matrix: &Array2<f64>, nfft: usize) -> SignalResult<Array2<Comp
     let mut complex_matrix = Array2::zeros((rows, cols));
     for i in 0..rows {
         for j in 0..cols {
-            complex_matrix[[i, j]] = Complex64::new(_matrix[[i, j]], 0.0);
+            complex_matrix[[i, j]] = Complex64::new(matrix[[i, j]], 0.0);
         }
     }
 
@@ -780,7 +780,7 @@ pub fn cumulative_bispectrum(
     fs: f64,
 ) -> SignalResult<(Array1<f64>, Array1<f64>)> {
     // Compute bispectrum
-    let (bis_mag) = bispectrum(signal, nfft, window, None, fs)?;
+    let (bis_mag, _f1_axis, _f2_axis) = bispectrum(signal, nfft, window, None, fs)?;
 
     // Number of frequency bins
     let n_bins = bis_mag.dim().0;
@@ -845,10 +845,10 @@ pub fn skewness_spectrum(
     };
 
     // Compute bispectrum for diagonal slice (f1 = f2)
-    let (bis_complex, f1_axis) = compute_bispectrum(signal, &config)?;
+    let (bis_complex, f1_axis, _f2_axis) = compute_bispectrum(signal, &config)?;
 
     // Compute power spectrum for normalization
-    let (power_spectrum) = compute_power_spectrum(signal, &config)?;
+    let (power_spectrum, _frequency_axis) = compute_power_spectrum(signal, &config)?;
 
     // Number of frequency bins
     let n_bins = (nfft / 2) + 1;

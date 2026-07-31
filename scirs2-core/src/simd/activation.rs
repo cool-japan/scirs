@@ -155,6 +155,11 @@ pub fn simd_relu_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         return Array1::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.max(0.0));
+    }
+
     let len = input.len();
     let mut result = Vec::with_capacity(len);
 
@@ -168,7 +173,8 @@ pub fn simd_relu_f32(input: &ArrayView1<f32>) -> Array1<f32> {
                 let mut i = 0;
 
                 while i + 8 <= len {
-                    let input_slice = &input.as_slice().expect("Operation failed")[i..i + 8];
+                    let input_slice =
+                        &input.as_slice().expect("contiguity checked above")[i..i + 8];
                     let input_vec = _mm256_loadu_ps(input_slice.as_ptr());
                     let relu_vec = _mm256_max_ps(input_vec, zero);
 
@@ -197,7 +203,8 @@ pub fn simd_relu_f32(input: &ArrayView1<f32>) -> Array1<f32> {
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let input_slice = &input.as_slice().expect("Operation failed")[i..i + 4];
+                    let input_slice =
+                        &input.as_slice().expect("contiguity checked above")[i..i + 4];
                     let input_vec = vld1q_f32(input_slice.as_ptr());
                     let relu_vec = vmaxq_f32(input_vec, zero);
 
@@ -230,6 +237,11 @@ pub fn simd_relu_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         return Array1::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.max(0.0));
+    }
+
     let len = input.len();
     let mut result = Vec::with_capacity(len);
 
@@ -243,7 +255,8 @@ pub fn simd_relu_f64(input: &ArrayView1<f64>) -> Array1<f64> {
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let input_slice = &input.as_slice().expect("Operation failed")[i..i + 4];
+                    let input_slice =
+                        &input.as_slice().expect("contiguity checked above")[i..i + 4];
                     let input_vec = _mm256_loadu_pd(input_slice.as_ptr());
                     let relu_vec = _mm256_max_pd(input_vec, zero);
 
@@ -272,7 +285,8 @@ pub fn simd_relu_f64(input: &ArrayView1<f64>) -> Array1<f64> {
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let input_slice = &input.as_slice().expect("Operation failed")[i..i + 2];
+                    let input_slice =
+                        &input.as_slice().expect("contiguity checked above")[i..i + 2];
                     let input_vec = vld1q_f64(input_slice.as_ptr());
                     let relu_vec = vmaxq_f64(input_vec, zero);
 
@@ -307,6 +321,11 @@ pub fn simd_leaky_relu_f32(input: &ArrayView1<f32>, alpha: f32) -> Array1<f32> {
         return Array1::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| if x > 0.0 { x } else { alpha * x });
+    }
+
     let len = input.len();
     let mut result = Vec::with_capacity(len);
 
@@ -321,7 +340,8 @@ pub fn simd_leaky_relu_f32(input: &ArrayView1<f32>, alpha: f32) -> Array1<f32> {
                 let mut i = 0;
 
                 while i + 8 <= len {
-                    let input_slice = &input.as_slice().expect("Operation failed")[i..i + 8];
+                    let input_slice =
+                        &input.as_slice().expect("contiguity checked above")[i..i + 8];
                     let input_vec = _mm256_loadu_ps(input_slice.as_ptr());
 
                     // negative_part = alpha * x (for when x < 0)
@@ -356,7 +376,8 @@ pub fn simd_leaky_relu_f32(input: &ArrayView1<f32>, alpha: f32) -> Array1<f32> {
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let input_slice = &input.as_slice().expect("Operation failed")[i..i + 4];
+                    let input_slice =
+                        &input.as_slice().expect("contiguity checked above")[i..i + 4];
                     let input_vec = vld1q_f32(input_slice.as_ptr());
 
                     let scaled = vmulq_f32(input_vec, alpha_vec);
@@ -393,6 +414,11 @@ pub fn simd_leaky_relu_f64(input: &ArrayView1<f64>, alpha: f64) -> Array1<f64> {
         return Array1::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| if x > 0.0 { x } else { alpha * x });
+    }
+
     let len = input.len();
     let mut result = Vec::with_capacity(len);
 
@@ -407,7 +433,8 @@ pub fn simd_leaky_relu_f64(input: &ArrayView1<f64>, alpha: f64) -> Array1<f64> {
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let input_slice = &input.as_slice().expect("Operation failed")[i..i + 4];
+                    let input_slice =
+                        &input.as_slice().expect("contiguity checked above")[i..i + 4];
                     let input_vec = _mm256_loadu_pd(input_slice.as_ptr());
 
                     let scaled = _mm256_mul_pd(input_vec, alpha_vec);
@@ -440,7 +467,8 @@ pub fn simd_leaky_relu_f64(input: &ArrayView1<f64>, alpha: f64) -> Array1<f64> {
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let input_slice = &input.as_slice().expect("Operation failed")[i..i + 2];
+                    let input_slice =
+                        &input.as_slice().expect("contiguity checked above")[i..i + 2];
                     let input_vec = vld1q_f64(input_slice.as_ptr());
 
                     let scaled = vmulq_f64(input_vec, alpha_vec);

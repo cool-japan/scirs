@@ -363,11 +363,37 @@ impl<A: Float> Default for ArrayRng<A> {
     }
 }
 
-/// Check if a shape represents a scalar value (empty or `[1]` shape)
+/// Check whether `shape` is the empty shape `[]`, i.e. the shape of a
+/// genuinely 0-dimensional (rank-0) array.
+///
+/// A rank-0 array is the *only* shape that can be read with the
+/// zero-length index `scirs2_core::ndarray::IxDyn(&[])`; every call site in
+/// this crate that branches on `is_scalarshape` before doing exactly that
+/// read relies on this.
+///
+/// This deliberately does **not** also match `[1]` (a rank-1 array holding
+/// a single element), even though a previous version of this predicate did
+/// (and its doc comment said so). `[1]` is *not* index-compatible with
+/// `IxDyn(&[])`: indexing a rank-1 array with a zero-length index is a
+/// dimensionality mismatch and panics. Treating `[1]` as scalar caused
+/// exactly that panic in the comparison ops (`Equal`, `NotEqual`,
+/// `Greater`, `Lesser`, ... in `tensor_ops::math_ops`) and in `DivOp`
+/// whenever an operand happened to have shape `[1]`:
+/// `is_scalarshape(&[1])` returned `true`, so the caller took the
+/// "extract the scalar via `x[IxDyn(&[])]`" branch and crashed instead of
+/// falling through to ordinary (correct) broadcasting.
+///
+/// Callers that instead want "does this shape have exactly one element,
+/// whatever its rank" (some broadcast/reduction shortcuts do) should
+/// compare `shape.iter().product::<usize>() == 1` directly rather than
+/// reusing this predicate -- ndarray's own `broadcast()` already
+/// right-aligns and pads missing leading dimensions with an implicit size
+/// of 1, so a shape-`[1]` operand still broadcasts correctly even when it
+/// is no longer routed through the 0-d fast path here.
 #[inline]
 #[allow(dead_code)]
 pub fn is_scalarshape(shape: &[usize]) -> bool {
-    shape.is_empty() || (shape.len() == 1 && shape[0] == 1)
+    shape.is_empty()
 }
 
 /// Create a scalar shape (empty shape)
@@ -576,5 +602,113 @@ pub mod array_gen {
 
         NdArray::<T>::from_shape_vec(scirs2_core::ndarray::IxDyn(&[data.len()]), data)
             .expect("Shape conversion failed - this is a bug")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_scalarshape_matches_rank_zero_only() {
+        // The bug: `[1]` used to be misclassified as scalar, which then made
+        // callers index it with the rank-0 index `IxDyn(&[])` and panic.
+        assert!(is_scalarshape(&[]));
+        assert!(!is_scalarshape(&[1]));
+        assert!(!is_scalarshape(&[1, 1]));
+        assert!(!is_scalarshape(&[3]));
+        assert!(!is_scalarshape(&[0]));
+    }
+
+    /// Regression test for the `Equal`/`NotEqual`/... comparison ops
+    /// (`tensor_ops::math_ops::impl_cmp_op!`): before the `is_scalarshape`
+    /// fix, a shape-`[1]` operand was misidentified as scalar, so the op
+    /// indexed it with the rank-0 index `IxDyn(&[])` and panicked. Uses
+    /// non-constant data so a fabricated/garbage result would be caught,
+    /// not just a crash.
+    #[test]
+    fn equal_on_shape_one_operands_does_not_panic_and_is_correct() {
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let a = crate::tensor_ops::convert_to_tensor(
+                NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[1]), vec![5.0f64])
+                    .expect("Operation failed"),
+                ctx,
+            );
+            let b = crate::tensor_ops::convert_to_tensor(
+                NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[1]), vec![7.0f64])
+                    .expect("Operation failed"),
+                ctx,
+            );
+
+            let eq_self = crate::tensor_ops::equal(a, a);
+            let result_self = eq_self.eval(ctx).expect("Operation failed");
+            assert_eq!(result_self.shape(), &[1]);
+            assert_eq!(
+                result_self.iter().copied().collect::<Vec<_>>(),
+                vec![1.0f64]
+            );
+
+            let eq_diff = crate::tensor_ops::equal(a, b);
+            let result_diff = eq_diff.eval(ctx).expect("Operation failed");
+            assert_eq!(
+                result_diff.iter().copied().collect::<Vec<_>>(),
+                vec![0.0f64]
+            );
+        });
+    }
+
+    /// Regression test for `DivOp` on shape-`[1]` operands (same root cause
+    /// as above). Uses distinct non-constant values so a wrong (e.g.
+    /// fabricated-zero or mismatched-shape) result would be caught.
+    #[test]
+    fn div_on_shape_one_operands_does_not_panic_and_is_correct() {
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let a = crate::tensor_ops::convert_to_tensor(
+                NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[1]), vec![10.0f64])
+                    .expect("Operation failed"),
+                ctx,
+            );
+            let b = crate::tensor_ops::convert_to_tensor(
+                NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[1]), vec![4.0f64])
+                    .expect("Operation failed"),
+                ctx,
+            );
+
+            let result = crate::tensor_ops::div(a, b)
+                .eval(ctx)
+                .expect("Operation failed");
+            assert_eq!(result.shape(), &[1]);
+            assert_eq!(result.iter().copied().collect::<Vec<_>>(), vec![2.5f64]);
+        });
+    }
+
+    /// A shape-`[1]` operand against a larger tensor must still broadcast
+    /// correctly (not just avoid panicking) now that it is no longer routed
+    /// through the 0-d fast path.
+    #[test]
+    fn div_broadcasts_shape_one_against_larger_tensor() {
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let a = crate::tensor_ops::convert_to_tensor(
+                NdArray::from_shape_vec(
+                    scirs2_core::ndarray::IxDyn(&[3]),
+                    vec![10.0f64, 20.0, 30.0],
+                )
+                .expect("Operation failed"),
+                ctx,
+            );
+            let b = crate::tensor_ops::convert_to_tensor(
+                NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[1]), vec![2.0f64])
+                    .expect("Operation failed"),
+                ctx,
+            );
+
+            let result = crate::tensor_ops::div(a, b)
+                .eval(ctx)
+                .expect("Operation failed");
+            assert_eq!(
+                result.iter().copied().collect::<Vec<_>>(),
+                vec![5.0f64, 10.0, 15.0]
+            );
+        });
     }
 }

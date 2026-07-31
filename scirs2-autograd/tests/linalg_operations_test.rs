@@ -6,7 +6,6 @@ use scirs2_autograd as ag;
 use scirs2_core::ndarray::array;
 
 #[test]
-#[ignore = "Gradient shape propagation architectural limitation - see issue #1"]
 #[allow(dead_code)]
 fn test_matrix_inverse_and_gradient() {
     ag::run(|g| {
@@ -58,7 +57,6 @@ fn test_matrix_inverse_and_gradient() {
 }
 
 #[test]
-#[ignore = "Gradient shape propagation architectural limitation - see issue #1"]
 #[allow(dead_code)]
 fn test_determinant_and_gradient() {
     ag::run(|g| {
@@ -357,7 +355,6 @@ fn test_solve_linear_system() {
 }
 
 #[test]
-#[ignore = "Gradient shape propagation architectural limitation"]
 #[allow(dead_code)]
 fn test_complex_linear_algebra_chain() {
     ag::run(|g| {

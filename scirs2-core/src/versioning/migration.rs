@@ -487,7 +487,7 @@ impl MigrationManager {
     }
 
     /// Get migration execution status
-    pub fn id_2(&self, executionid: &str) -> Option<&MigrationExecution> {
+    pub fn get_migration_status(&self, executionid: &str) -> Option<&MigrationExecution> {
         self.active_migrations.get(executionid)
     }
 
@@ -637,9 +637,12 @@ mod tests {
             .start_migration(plan, executionid.clone())
             .expect("Operation failed");
 
-        // let status = manager.get_migration_status(&executionid);
-        // assert!(status.is_some());
-        // assert_eq!(status.expect("Operation failed").status, ExecutionStatus::NotStarted);
+        let status = manager.get_migration_status(&executionid);
+        assert!(status.is_some());
+        assert_eq!(
+            status.expect("checked is_some above").status,
+            ExecutionStatus::NotStarted
+        );
     }
 
     #[test]

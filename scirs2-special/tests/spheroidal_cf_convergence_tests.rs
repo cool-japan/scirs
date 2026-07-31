@@ -179,13 +179,19 @@ fn obl_ang1_c_eq_30_converges() {
 
 /// `obl_ang1` at `c = 50.0` is the documented stretch goal. Watson's
 /// asymptotic expansion is not yet implemented; the Flammer-CF pipeline
-/// alone may not converge to full precision at this c. We mark this test
-/// `#[ignore]` to flag it for a future implementation pass.
+/// alone may not converge to full precision at this c. Like its `c = 30`
+/// sibling above, we assert finiteness only (function value precision is
+/// not yet verified against a reference at this `c`); full-precision
+/// verification is left for a future Watson asymptotic implementation pass.
 #[test]
-#[ignore = "Watson's asymptotic for |c| > 30 deferred — Flammer-CF converges to ~3 digits at c=50"]
 fn obl_ang1_c_eq_50_asymptotic_path() {
     // Reference: scipy.special.obl_ang1(0, 1, 50.0, 0.5) = ?
-    let _result = obl_ang1(0, 1, 50.0, 0.5).expect("obl_ang1 c=50");
+    let (val, der) = obl_ang1(0, 1, 50.0, 0.5).expect("obl_ang1 c=50");
+    assert!(
+        val.is_finite(),
+        "obl_ang1(0, 1, 50, 0.5) must produce finite value"
+    );
+    assert!(der.is_finite(), "derivative must be finite");
     // Exact tolerance is left for future Watson asymptotic implementation.
 }
 

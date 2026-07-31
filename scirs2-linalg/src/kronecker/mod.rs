@@ -14,6 +14,68 @@ fn shape_err_to_linalg(err: scirs2_core::ndarray::ShapeError) -> crate::error::L
     crate::error::LinalgError::ShapeError(err.to_string())
 }
 
+/// Invert a general square matrix via Gauss-Jordan elimination with partial
+/// pivoting (augmenting with the identity and row-reducing both sides
+/// together). Returns `None` if the matrix is (numerically) singular.
+/// Used as a real fallback for [`BlockDiagonalFisher::stable_inverse`] when
+/// Cholesky fails, instead of discarding all off-diagonal structure.
+fn lu_inverse<F>(matrix: &ArrayView2<F>) -> Option<Array2<F>>
+where
+    F: Float + NumAssign,
+{
+    let n = matrix.nrows();
+    let mut m = matrix.to_owned();
+    let mut inv = Array2::<F>::eye(n);
+
+    for col in 0..n {
+        let mut pivot_row = col;
+        let mut pivot_val = m[[col, col]].abs();
+        for row in (col + 1)..n {
+            let val = m[[row, col]].abs();
+            if val > pivot_val {
+                pivot_val = val;
+                pivot_row = row;
+            }
+        }
+        if pivot_val <= F::epsilon() {
+            return None;
+        }
+
+        if pivot_row != col {
+            for k in 0..n {
+                let tmp = m[[col, k]];
+                m[[col, k]] = m[[pivot_row, k]];
+                m[[pivot_row, k]] = tmp;
+                let tmp_inv = inv[[col, k]];
+                inv[[col, k]] = inv[[pivot_row, k]];
+                inv[[pivot_row, k]] = tmp_inv;
+            }
+        }
+
+        let pivot = m[[col, col]];
+        for k in 0..n {
+            m[[col, k]] /= pivot;
+            inv[[col, k]] /= pivot;
+        }
+
+        for row in 0..n {
+            if row != col {
+                let factor = m[[row, col]];
+                if factor != F::zero() {
+                    for k in 0..n {
+                        let m_col_k = m[[col, k]];
+                        m[[row, k]] -= factor * m_col_k;
+                        let inv_col_k = inv[[col, k]];
+                        inv[[row, k]] -= factor * inv_col_k;
+                    }
+                }
+            }
+        }
+    }
+
+    Some(inv)
+}
+
 use crate::decomposition::cholesky;
 use crate::error::{LinalgError, LinalgResult};
 use crate::norm::matrix_norm;
@@ -955,18 +1017,34 @@ where
             return Ok(inv);
         }
 
-        // Fallback: regularize more heavily and use basic inversion
+        // Fallback: Cholesky failed (the factor is not exactly positive
+        // definite, e.g. due to accumulated numerical noise). Regularize
+        // more heavily, then compute a *real* general inverse via
+        // Gauss-Jordan elimination with partial pivoting, rather than
+        // silently discarding all off-diagonal structure and returning a
+        // diagonal-only approximation.
+        eprintln!(
+            "Warning: BlockDiagonalFisher::stable_inverse: Cholesky failed for a {n}x{n} \
+             Kronecker factor; falling back to a heavily-regularized general LU-based inverse."
+        );
         let mut regularized = matrix.to_owned();
         for i in 0..n {
             regularized[[i, i]] +=
                 self.damping * F::from(10.0).expect("Failed to convert constant to float");
         }
 
-        // Simple inversion using basic LU decomposition (placeholder)
-        // In practice, this would use a robust matrix inversion routine
-        let mut inv = Array2::eye(n);
+        if let Some(inv) = lu_inverse(&regularized.view()) {
+            return Ok(inv);
+        }
 
-        // For now, return a heavily damped diagonal matrix as fallback
+        // Even the heavily-regularized matrix is (numerically) singular:
+        // fall back to a damped diagonal approximation as an absolute last
+        // resort, but say so explicitly rather than doing it silently.
+        eprintln!(
+            "Warning: BlockDiagonalFisher::stable_inverse: regularized {n}x{n} factor is still \
+             singular; falling back to a diagonal-only approximation of its inverse."
+        );
+        let mut inv = Array2::eye(n);
         for i in 0..n {
             inv[[i, i]] = F::one() / (regularized[[i, i]] + self.damping);
         }
@@ -1495,6 +1573,79 @@ mod tests {
         let memory_info = fisher.memory_info();
         assert_eq!(memory_info.num_layers, 2);
         assert!(memory_info.compression_ratio > 1.0);
+    }
+
+    #[test]
+    fn test_lu_inverse_matches_known_result() {
+        // det = 1*(5*10-6*8) - 2*(4*10-6*7) + 3*(4*8-5*7) = 2+4-9 = -3 (nonsingular).
+        let m = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 10.0]];
+        let inv = lu_inverse(&m.view()).expect("matrix is invertible");
+
+        let product = m.dot(&inv);
+        for i in 0..3 {
+            for j in 0..3 {
+                let expected = if i == j { 1.0 } else { 0.0 };
+                assert!(
+                    (product[[i, j]] - expected).abs() < 1e-9,
+                    "M*M^-1 != I at ({i},{j}): {}",
+                    product[[i, j]]
+                );
+            }
+        }
+
+        // The inverse must have genuinely non-zero off-diagonal entries
+        // (unlike the old diagonal-only fallback it replaces).
+        assert!(inv[[0, 1]].abs() > 1e-6);
+        assert!(inv[[1, 2]].abs() > 1e-6);
+    }
+
+    #[test]
+    fn test_lu_inverse_singular_returns_none() {
+        let singular = array![[1.0, 2.0], [2.0, 4.0]];
+        assert!(lu_inverse(&singular.view()).is_none());
+    }
+
+    #[test]
+    fn test_stable_inverse_fallback_preserves_off_diagonal_structure() {
+        // Indefinite (eigenvalues 3 and -1 in the leading 2x2 block), so
+        // Cholesky genuinely fails and the fallback path is exercised.
+        let indefinite = array![[1.0, 2.0, 0.0], [2.0, 1.0, 0.0], [0.0, 0.0, 5.0]];
+        assert!(
+            cholesky(&indefinite.view(), None).is_err(),
+            "test matrix must be non-positive-definite so the fallback path is exercised"
+        );
+
+        let fisher = BlockDiagonalFisher::<f64>::new(vec![(3, 3)], 0.05);
+        let inv = fisher
+            .stable_inverse(&indefinite.view())
+            .expect("fallback inverse should succeed");
+
+        // The old code's fallback forced every off-diagonal entry to be
+        // *exactly* zero, discarding the true inverse's structure entirely.
+        assert!(
+            inv[[0, 1]].abs() > 1e-6,
+            "off-diagonal structure was discarded: inv[0,1]={}",
+            inv[[0, 1]]
+        );
+
+        // The result must actually be (close to) the inverse of the
+        // regularized matrix `indefinite + damping*10*I` that `stable_inverse`
+        // documents computing.
+        let mut regularized = indefinite.clone();
+        for i in 0..3 {
+            regularized[[i, i]] += fisher.damping * 10.0;
+        }
+        let product = regularized.dot(&inv);
+        for i in 0..3 {
+            for j in 0..3 {
+                let expected = if i == j { 1.0 } else { 0.0 };
+                assert!(
+                    (product[[i, j]] - expected).abs() < 1e-6,
+                    "regularized*inv != I at ({i},{j}): {}",
+                    product[[i, j]]
+                );
+            }
+        }
     }
 
     #[test]

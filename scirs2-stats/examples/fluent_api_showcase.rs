@@ -311,19 +311,22 @@ mod tests {
 
     #[test]
     fn test_fluent_api_creation() {
+        // This test's only purpose is to verify `stats::<f64>()` compiles
+        // and constructs without panicking; a passing test run already
+        // demonstrates that with no assertion needed.
         let _stats = stats::<f64>();
-        assert!(true); // Compilation test
     }
 
     #[test]
     fn test_quick_functions() {
+        // Compilation/construction smoke test — see `test_fluent_api_creation`.
         let _desc = quick_descriptive::<f64>();
         let _corr = quick_correlation::<f64>();
-        assert!(true); // Compilation test
     }
 
     #[test]
     fn test_method_chaining() {
+        // Compilation/construction smoke test — see `test_fluent_api_creation`.
         let _chain = stats::<f64>()
             .parallel(true)
             .simd(true)
@@ -332,8 +335,6 @@ mod tests {
             .mean()
             .variance(1)
             .and();
-
-        assert!(true); // Compilation test
     }
 
     #[test]
@@ -344,8 +345,15 @@ mod tests {
             result_format: ResultFormat::Comprehensive,
             ..Default::default()
         };
+        // Verify the struct-update literal actually produced the intended
+        // field values, instead of a tautological assertion.
+        assert_eq!(
+            config.auto_optimization_level,
+            AutoOptimizationLevel::Intelligent
+        );
+        assert_eq!(config.memory_strategy, MemoryStrategy::Adaptive);
+        assert_eq!(config.result_format, ResultFormat::Comprehensive);
 
         let _stats = scirs2_stats::api_standardization_enhanced::stats_with::<f64>(config);
-        assert!(true); // Compilation test
     }
 }

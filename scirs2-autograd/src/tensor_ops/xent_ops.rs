@@ -114,9 +114,14 @@ impl<T: Float> op::Op<T> for SparseSoftmaxCrossEntropy {
 
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let s = ctx.graph();
+        let x = ctx.input(0);
         let t = ctx.input(1);
         let gy = ctx.output_grad();
-        let log_x = nth_tensor(ctx.output(), 1);
+        // Recompute log-softmax instead of reading output 1 of this node: the evaluator
+        // retains only output 0, so `nth_tensor(output, 1)` actually returned the
+        // *loss* (shape `[batch, 1]`) and the backward op then indexed class ids into a
+        // one-column row.
+        let log_x = log_softmax(x, 1);
 
         let gx1 = Tensor::builder(s)
             .append_input(log_x, false)
@@ -124,15 +129,11 @@ impl<T: Float> op::Op<T> for SparseSoftmaxCrossEntropy {
             .append_input(gy, false)
             .build(SparseSoftmaxCrossEntropyGrad);
 
-        // gx2 won't be used in most cases.
-        let gx2 = {
-            let x = exp(log_x);
-            let sum = reduce_sum(x * log_x, &[1], true);
-            x * gy * (sum - log_x)
-        };
-
         ctx.append_input_grad(0, Some(gx1));
-        ctx.append_input_grad(1, Some(gx2));
+        // `t` holds discrete class ids; the loss is a step function of them and has no
+        // meaningful derivative. `None` is the honest answer (the previous expression
+        // fabricated one from a mis-shaped tensor).
+        ctx.append_input_grad(1, None);
     }
 }
 
@@ -177,24 +178,27 @@ impl<T: Float> op::Op<T> for SoftmaxCrossEntropy {
     }
 
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
-        let output = ctx.output();
-        let log_x = nth_tensor(output, 1);
-        let gy = ctx.output_grad();
-        let x = exp(log_x);
+        let x_in = ctx.input(0);
         let t = ctx.input(1);
+        let gy = ctx.output_grad();
 
-        // x = softmax, gy = dy/dx
-        // = {gy - Σ(x * gy)} * x
-        // = {-t/x - Σ(x * -t/x)} * x
-        // = {-t/x + Σt} * x
-        // = -t + x
-        let gx1 = (x - t) * gy;
+        // Recompute log-softmax: this node's second output (log_x) is not reachable,
+        // because the evaluator retains only output 0.  `nth_tensor(output, 1)`
+        // therefore returned the loss itself, of shape `[batch]`.
+        let log_x = log_softmax(x_in, 1);
+        let x = exp(log_x);
 
-        // gx2 won't be used in most cases
-        let gx2 = {
-            let sum = reduce_sum(x * log_x, &[-1], true);
-            gy * (sum - log_x) * output
-        };
+        // The loss reduces the class axis away, so `gy` is `[batch]`. Re-add the class
+        // axis so it broadcasts over `[batch, num_classes]`.
+        let gy_col = expand_dims(gy, &[1]);
+
+        // d/dx_j of -Σ_j t_j·log_softmax(x)_j  =  softmax(x)_j·Σ_k t_k − t_j.
+        // The one-hot convention (Σ_k t_k = 1) reduces that to `softmax(x) − t`.
+        let t_sum = reduce_sum(t, &[1], true);
+        let gx1 = (x * t_sum - t) * gy_col;
+
+        // d/dt_j of -Σ_j t_j·log_softmax(x)_j = -log_softmax(x)_j.
+        let gx2 = neg(log_x) * gy_col;
 
         ctx.append_input_grad(0, Some(gx1));
         ctx.append_input_grad(1, Some(gx2));

@@ -584,6 +584,17 @@ where
 
 /// Computes the eigenvalues and eigenvectors of a square matrix.
 ///
+/// Uses a real general (possibly non-symmetric) eigendecomposition: Hessenberg
+/// reduction followed by the Francis double-shift implicit QR algorithm with
+/// deflation (see the crate-private `eigen::general` module), not merely the diagonal of `a`.
+///
+/// Because [`EigDecomposition`] represents only real eigenvalues/eigenvectors,
+/// a matrix with genuinely complex eigenvalues cannot be represented by this
+/// function's return contract; in that case an
+/// [`LinalgError::NotImplementedError`] is returned instead of silently
+/// discarding the imaginary parts. Use [`crate::eigen::eig`] (which returns
+/// complex eigenvalues/eigenvectors) for such matrices.
+///
 /// # Arguments
 ///
 /// * `a` - Input square matrix
@@ -602,16 +613,19 @@ where
 /// let eig_result = eig(&a.view()).expect("Operation failed");
 ///
 /// // Check that A*V = V*diag(eigenvalues)
-/// // (implementation dependent, so not shown here)
+/// for col in 0..2 {
+///     let lambda = eig_result.eigenvalues[col];
+///     for row in 0..2 {
+///         let av: f64 = (0..2).map(|k| a[[row, k]] * eig_result.eigenvectors[[k, col]]).sum();
+///         assert!((av - lambda * eig_result.eigenvectors[[row, col]]).abs() < 1e-8);
+///     }
+/// }
 /// ```
 #[allow(dead_code)]
 pub fn eig<F>(a: &ArrayView2<F>) -> LinalgResult<EigDecomposition<F>>
 where
-    F: Float + NumAssign,
+    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
 {
-    // This is a placeholder implementation. A proper eigenvalue decomposition would use
-    // more efficient numerical methods like the QR algorithm.
-
     let n = a.nrows();
     let m = a.ncols();
 
@@ -627,18 +641,35 @@ where
         ));
     }
 
-    // Create placeholder eigenvalues and eigenvectors
-    let mut eigenvalues = Array1::zeros(n);
-    let eigenvectors = Array2::eye(n);
+    let (complex_eigenvalues, complex_eigenvectors) = crate::eigen::general::general_eig(a)?;
 
-    // For demonstration, set diagonal elements as the eigenvalues
-    // This is only correct for diagonal matrices!
-    for i in 0..n {
-        eigenvalues[i] = a[[i, i]];
+    // `EigDecomposition`'s contract is real-only. When every eigenvalue is
+    // (numerically) real, report the real parts; otherwise this contract
+    // cannot represent the result honestly, so return an explicit error
+    // instead of silently discarding the imaginary parts.
+    let tol = F::epsilon() * F::from(100.0).unwrap_or(F::one());
+    let scale =
+        complex_eigenvalues.iter().fold(
+            F::one(),
+            |acc, c| if c.re.abs() > acc { c.re.abs() } else { acc },
+        );
+    if complex_eigenvalues.iter().any(|c| c.im.abs() > tol * scale) {
+        return Err(LinalgError::NotImplementedError(format!(
+            "eig: {n}x{n} matrix has complex eigenvalues, which `lapack::EigDecomposition<F>` \
+             (real-valued eigenvalues/eigenvectors) cannot represent; use \
+             `scirs2_linalg::eigen::eig`, which returns complex eigenvalues/eigenvectors, instead"
+        )));
     }
 
-    // Return the placeholder result
-    // In a real implementation, we would compute the actual eigenvalues and eigenvectors
+    let mut eigenvalues = Array1::<F>::zeros(n);
+    let mut eigenvectors = Array2::<F>::zeros((n, n));
+    for i in 0..n {
+        eigenvalues[i] = complex_eigenvalues[i].re;
+        for j in 0..n {
+            eigenvectors[[j, i]] = complex_eigenvectors[[j, i]].re;
+        }
+    }
+
     Ok(EigDecomposition {
         eigenvalues,
         eigenvectors,
@@ -809,5 +840,52 @@ mod tests {
         assert_relative_eq!(q_orthogonal[[0, 1]], 0.0, epsilon = 1e-5);
         assert_relative_eq!(q_orthogonal[[1, 0]], 0.0, epsilon = 1e-5);
         assert_relative_eq!(q_orthogonal[[1, 1]], 1.0, epsilon = 1e-5);
+    }
+
+    #[test]
+    fn test_eig_companion_matrix_known_spectrum() {
+        // Companion matrix of (x-1)(x-2)(x-3) = x^3 - 6x^2 + 11x - 6: a
+        // genuinely non-symmetric matrix with a hand-computable spectrum.
+        // The old placeholder returned the matrix's own diagonal ([6, 0, 0])
+        // and the identity as "eigenvectors" for any input; this would fail
+        // every assertion below.
+        let a = array![[6.0, -11.0, 6.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let result = eig(&a.view()).expect("companion matrix has a real spectrum");
+
+        let mut eigenvalues: Vec<f64> = result.eigenvalues.iter().copied().collect();
+        eigenvalues.sort_by(|x, y| x.partial_cmp(y).expect("no NaNs"));
+        assert_relative_eq!(eigenvalues[0], 1.0, epsilon = 1e-6);
+        assert_relative_eq!(eigenvalues[1], 2.0, epsilon = 1e-6);
+        assert_relative_eq!(eigenvalues[2], 3.0, epsilon = 1e-6);
+
+        // Every returned eigenpair must actually satisfy A v = lambda v (this
+        // fails hard against an identity-eigenvector placeholder).
+        for col in 0..3 {
+            let lambda = result.eigenvalues[col];
+            for row in 0..3 {
+                let av: f64 = (0..3)
+                    .map(|k| a[[row, k]] * result.eigenvectors[[k, col]])
+                    .sum();
+                let lv = lambda * result.eigenvectors[[row, col]];
+                assert!(
+                    (av - lv).abs() < 1e-6,
+                    "A*v != lambda*v at col {col}, row {row}: {av} vs {lv}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_eig_complex_spectrum_returns_honest_error() {
+        // Eigenvalues 3 +/- 2i: genuinely complex, so `EigDecomposition<F>`
+        // (real-only) cannot represent the result. Must not silently drop
+        // the imaginary part or fabricate a real answer.
+        let a = array![[3.0, -2.0], [2.0, 3.0]];
+        let result = eig(&a.view());
+        assert!(
+            result.is_err(),
+            "expected an explicit error for a complex spectrum, got {:?}",
+            result.map(|r| r.eigenvalues)
+        );
     }
 }

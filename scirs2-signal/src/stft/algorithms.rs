@@ -145,7 +145,13 @@ impl ShortTimeFft {
         let k_max = if let Some(k1_val) = k1 {
             k1_val as isize
         } else {
-            k_min + (p_min + p_num as isize) * self.hop as isize + self.m_num as isize
+            // Equivalent to `self.k_max(n)` for the `n` that produced `p_num`
+            // frames (i.e. `p_min + p_num == self.p_max(n)`), re-derived here
+            // from `p_num` directly since `istft` is not given `n`: the last
+            // included slice is `p_min + p_num - 1`, whose window ends at
+            // `(p_min + p_num - 1) * hop - m_num_mid + m_num`.
+            (p_min + p_num as isize - 1) * self.hop as isize - self.m_num_mid as isize
+                + self.m_num as isize
         };
 
         let k0_val = k0.map(|k| k as isize).unwrap_or(k_min);
@@ -217,9 +223,8 @@ impl ShortTimeFft {
 
         // Use scirs2_fft for O(n log n) FFT
         let frame_slice: Vec<f64> = frame.to_vec();
-        let fft_vec = fft_compute(&frame_slice, Some(n)).map_err(|e| {
-            SignalError::ComputationError(format!("FFT computation failed: {e}"))
-        })?;
+        let fft_vec = fft_compute(&frame_slice, Some(n))
+            .map_err(|e| SignalError::ComputationError(format!("FFT computation failed: {e}")))?;
         let fft_result = Array1::from(fft_vec);
 
         // Handle different FFT modes
@@ -285,9 +290,8 @@ impl ShortTimeFft {
 
         // Apply inverse FFT using scirs2_fft for O(n log n) performance
         let full_spectrum_slice: Vec<Complex64> = full_spectrum.to_vec();
-        let ifft_vec = ifft_compute(&full_spectrum_slice, Some(n)).map_err(|e| {
-            SignalError::ComputationError(format!("IFFT computation failed: {e}"))
-        })?;
+        let ifft_vec = ifft_compute(&full_spectrum_slice, Some(n))
+            .map_err(|e| SignalError::ComputationError(format!("IFFT computation failed: {e}")))?;
         let result = Array1::from(ifft_vec);
 
         Ok(result)

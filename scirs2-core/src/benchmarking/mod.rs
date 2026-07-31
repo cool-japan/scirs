@@ -25,6 +25,34 @@ use crate::performance_optimization::OptimizationStrategy;
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
+/// Best-effort real reading of this process's current resident memory
+/// (bytes), shared by [`BenchmarkRunner`] and
+/// [`cross_module::CrossModuleBenchmarkRunner`].
+///
+/// Reads `/proc/self/status`'s `VmRSS` on Linux (a real measurement).
+/// There is no portable, dependency-free way to read RSS on other
+/// platforms from pure `std`, so this honestly returns `0` there rather
+/// than fabricating a plausible-looking constant; callers already treat
+/// `0` as "not measured" (see [`BenchmarkRunner::get_memory_usage`]).
+pub(crate) fn current_process_memory_bytes() -> usize {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+            for line in status.lines() {
+                if let Some(rest) = line.strip_prefix("VmRSS:") {
+                    if let Some(kb_str) = rest.split_whitespace().next() {
+                        if let Ok(kb) = kb_str.parse::<usize>() {
+                            return kb * 1024;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    0
+}
+
 /// Benchmark configuration
 #[derive(Debug, Clone)]
 pub struct BenchmarkConfig {
@@ -645,34 +673,10 @@ impl BenchmarkRunner {
         Ok(measurements)
     }
 
-    /// Get current memory usage
+    /// Get current memory usage (real `VmRSS` on Linux; `0` — "not
+    /// measured", not a fabricated value — on other platforms).
     fn get_memory_usage(&self) -> CoreResult<usize> {
-        #[cfg(target_os = "linux")]
-        {
-            use std::fs;
-            let status = fs::read_to_string("/proc/self/status").map_err(|e| {
-                CoreError::IoError(ErrorContext::new(format!(
-                    "Failed to read memory status: {e}"
-                )))
-            })?;
-
-            for line in status.lines() {
-                if line.starts_with("VmRSS:") {
-                    let parts: Vec<&str> = line.split_whitespace().collect();
-                    if parts.len() >= 2 {
-                        let kb: usize = parts[1].parse().map_err(|e| {
-                            CoreError::ValidationError(crate::error::ErrorContext::new(format!(
-                                "Failed to parse memory: {e}"
-                            )))
-                        })?;
-                        return Ok(kb * 1024);
-                    }
-                }
-            }
-        }
-
-        // Fallback for non-Linux systems
-        Ok(0)
+        Ok(current_process_memory_bytes())
     }
 }
 

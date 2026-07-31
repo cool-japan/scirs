@@ -27,49 +27,41 @@ impl<F: Float> Op<F> for FrobeniusNormOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
+        // d ||x||_F / dx = x / ||x||_F, built entirely out of tensor operations so the
+        // gradient is a real node in the graph.
+        //
+        // This op used to `.eval()` its input and the incoming cotangent *while the
+        // backward graph was being constructed* and splice the numbers back in with
+        // `convert_to_tensor`. That is a snapshot, not a gradient, and both of its
+        // failure arms were silent:
+        //
+        //   * whenever either eval failed -- the operand is not evaluable yet at
+        //     backward-construction time -- it reported *no* gradient at all, which the
+        //     backward pass reads back as zero. Measured on the old code: a fed
+        //     placeholder and a `VariableEnvironment` variable both came back 0 instead
+        //     of x / ||x||_F (see `norm_frobenius_gradient_flows_through_a_placeholder`
+        //     and `norm_frobenius_gradient_tracks_the_current_variable_value` in
+        //     tests/gradient_fd_harness.rs);
+        //   * when the evals did succeed, the spliced `convert_to_tensor` constant froze
+        //     the gradient at the value the input happened to have, and, being a
+        //     constant, carried no derivative of its own -- so second-order
+        //     differentiation through the Frobenius norm collapsed to zero.
+        //
+        // The output tensor (`||x||_F`, already a node) is reused as the denominator
+        // instead of recomputing the sum of squares.
         let grad_output = ctx.output_grad();
         let input = ctx.input(0);
+        let output = ctx.output();
         let g = ctx.graph();
 
-        // Evaluate the values we need for gradient computation
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Compute the norm for gradient calculation
-        let mut sum_squared = F::zero();
-        for &elem in input_array.iter() {
-            sum_squared += elem * elem;
-        }
-
-        // Avoid division by zero - check BEFORE sqrt for better numerical stability
-        if sum_squared < F::epsilon() * F::from(10.0).expect("Failed to convert constant to float")
-        {
-            ctx.append_input_grad(0, None);
-            return;
-        }
-
-        let norm = sum_squared.sqrt();
-
-        // Compute gradient: input / norm * grad_output
-        let grad_scalar = grad_output_array[[]];
-        let grad_array = input_array.mapv(|x| x / norm * grad_scalar);
-
-        // Convert back to tensor
-        let grad_tensor = tensor_ops::convert_to_tensor(grad_array, g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // The Frobenius norm is not differentiable at x = 0; flooring the denominator
+        // makes that point report a zero gradient (0 / eps) instead of NaN, and is
+        // otherwise inert -- a norm at or below `F::epsilon()` cannot carry meaningful
+        // directional information in this precision anyway.
+        let floor = tensor_ops::scalar(F::epsilon(), g);
+        let safe_norm = tensor_ops::maximum(output, floor);
+        let grad_input = tensor_ops::mul(tensor_ops::div(input, safe_norm), grad_output);
+        ctx.append_input_grad(0, Some(grad_input));
     }
 }
 

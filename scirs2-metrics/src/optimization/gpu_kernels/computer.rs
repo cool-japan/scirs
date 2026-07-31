@@ -236,7 +236,10 @@ impl AdvancedGpuComputer {
     }
 
     /// Check if Metal is available (macOS only)
-    fn is_metal_available() -> bool {
+    ///
+    /// `pub(crate)` so [`super::runtime::MetalRuntime::is_available`] can
+    /// reuse this real filesystem probe instead of a fabricated result.
+    pub(crate) fn is_metal_available() -> bool {
         // Check for macOS platform
         if cfg!(target_os = "macos") {
             // Check for Metal framework
@@ -255,7 +258,10 @@ impl AdvancedGpuComputer {
     }
 
     /// Check if Vulkan is available
-    fn is_vulkan_available() -> bool {
+    ///
+    /// `pub(crate)` so [`super::runtime::VulkanRuntime::is_available`] can
+    /// reuse this real filesystem probe instead of a fabricated result.
+    pub(crate) fn is_vulkan_available() -> bool {
         // Check for Vulkan loader libraries
         let vulkan_libs = [
             "/usr/lib/x86_64-linux-gnu/libvulkan.so.1",

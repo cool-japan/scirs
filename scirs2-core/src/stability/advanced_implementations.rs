@@ -7,7 +7,61 @@ use super::*;
 use crate::performance_optimization::PerformanceMetrics;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
+
+/// A concrete, runnable measurement of the API under verification.
+///
+/// [`FormalVerificationEngine::verify_contract`] cannot confirm a
+/// contract's performance/memory/thread-safety bounds against nothing:
+/// those are runtime properties of actually *calling* the API. Without a
+/// probe, verification honestly reports [`VerificationStatus::NotVerified`]
+/// (via a `verified: false` [`VerificationResult`]) rather than fabricating
+/// a pass.
+pub struct VerificationProbe {
+    /// Invokes the API under test once, returning the wall-clock duration
+    /// of the call and, if determinable, the net memory-usage delta caused
+    /// by the call (in bytes). Measuring a memory delta is inherently
+    /// caller-specific (e.g. via an allocator hook or process RSS sample),
+    /// so `None` is an honest "not measured" rather than a fabricated zero.
+    pub invoke: Box<dyn Fn() -> (Duration, Option<usize>) + Send + Sync>,
+    /// Number of sequential invocations used to build the timing/memory
+    /// sample; the *maximum* observed value is compared against the
+    /// contract (a conservative choice for a safety bound).
+    pub iterations: usize,
+    /// Number of concurrent threads used for the thread-safety smoke test
+    /// when the contract claims `ThreadSafety::ThreadSafe`. `0` or `1`
+    /// disables the concurrent check.
+    pub concurrency: usize,
+}
+
+impl VerificationProbe {
+    /// Convenience constructor for a single-threaded, single-iteration
+    /// probe that does not report a memory measurement.
+    pub fn from_timing(invoke: impl Fn() + Send + Sync + 'static) -> Self {
+        Self {
+            invoke: Box::new(move || {
+                let start = Instant::now();
+                invoke();
+                (start.elapsed(), None)
+            }),
+            iterations: 1,
+            concurrency: 1,
+        }
+    }
+}
+
+/// Best-effort extraction of a human-readable message from a caught panic
+/// payload (as produced by `std::panic::catch_unwind`).
+fn panic_payload_to_string(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "<non-string panic payload>".to_string()
+    }
+}
 
 impl Default for FormalVerificationEngine {
     fn default() -> Self {
@@ -24,8 +78,20 @@ impl FormalVerificationEngine {
         }
     }
 
-    /// Start formal verification for an API contract
-    pub fn verify_contract(&self, contract: &ApiContract) -> CoreResult<()> {
+    /// Start formal verification for an API contract.
+    ///
+    /// `probe` supplies a real, runnable measurement of the API under
+    /// test. Without one, none of the contract's performance/memory/
+    /// thread-safety bounds can be honestly confirmed, so verification
+    /// completes with `VerificationStatus::Failed` and a `verified: false`
+    /// result explaining why — never a fabricated `Verified`. With a
+    /// probe, the bounds declared in `contract` are checked against real
+    /// measurements (see the private `perform_verification` method below).
+    pub fn verify_contract(
+        &self,
+        contract: &ApiContract,
+        probe: Option<VerificationProbe>,
+    ) -> CoreResult<()> {
         let taskid = format!("{}-{}", contract.module, contract.apiname);
 
         let properties = self.extract_verification_properties(contract);
@@ -33,7 +99,7 @@ impl FormalVerificationEngine {
         let task = VerificationTask {
             apiname: contract.apiname.clone(),
             module: contract.module.clone(),
-            properties,
+            properties: properties.clone(),
             status: VerificationStatus::InProgress,
             started_at: Instant::now(),
         };
@@ -43,12 +109,23 @@ impl FormalVerificationEngine {
             tasks.insert(taskid.clone(), task);
         }
 
-        // Spawn verification thread (simplified for demonstration)
+        // Spawn a background thread so a slow probe (many iterations, or a
+        // concurrent thread-safety smoke test) never blocks the caller.
         let tasks_clone = Arc::clone(&self.verification_tasks);
         let results_clone = Arc::clone(&self.results_cache);
+        let performance = contract.performance.clone();
+        let memory = contract.memory.clone();
+        let thread_safety = contract.concurrency.thread_safety;
 
         thread::spawn(move || {
-            let result = Self::perform_verification(&taskid, &tasks_clone);
+            let result = Self::perform_verification(
+                &properties,
+                &performance,
+                &memory,
+                thread_safety,
+                probe,
+            );
+            let verified = result.verified;
 
             // Store result
             {
@@ -56,11 +133,17 @@ impl FormalVerificationEngine {
                 results.insert(taskid.clone(), result);
             }
 
-            // Update task status
+            // Update task status: honestly reflect whether verification
+            // actually confirmed the contract, rather than always marking
+            // `Verified`.
             {
                 let mut tasks = tasks_clone.lock().expect("Operation failed");
                 if let Some(task) = tasks.get_mut(&taskid) {
-                    task.status = VerificationStatus::Verified;
+                    task.status = if verified {
+                        VerificationStatus::Verified
+                    } else {
+                        VerificationStatus::Failed
+                    };
                 }
             }
         });
@@ -104,43 +187,6 @@ impl FormalVerificationEngine {
         }
 
         properties
-    }
-
-    /// Perform actual verification (simplified)
-    fn verify_task(
-        taskid: &str,
-        tasks: &Arc<Mutex<HashMap<String, VerificationTask>>>,
-    ) -> VerificationResult {
-        // In a real implementation, this would use formal verification tools
-        // like CBMC, KLEE, or custom model checkers
-
-        let start_time = Instant::now();
-
-        // Simulate verification process
-        thread::sleep(Duration::from_millis(100));
-
-        let task = {
-            let tasks_guard = tasks.lock().expect("Operation failed");
-            tasks_guard.get(taskid).cloned()
-        };
-
-        if let Some(task) = task {
-            VerificationResult {
-                verified: true, // Simplified - always pass
-                verification_time: start_time.elapsed(),
-                checked_properties: task.properties.iter().map(|p| p.name.clone()).collect(),
-                counterexample: None,
-                method: VerificationMethod::StaticAnalysis,
-            }
-        } else {
-            VerificationResult {
-                verified: false,
-                verification_time: start_time.elapsed(),
-                checked_properties: vec![],
-                counterexample: Some("Task not found".to_string()),
-                method: VerificationMethod::StaticAnalysis,
-            }
-        }
     }
 
     /// Get verification status for an API
@@ -191,19 +237,209 @@ impl FormalVerificationEngine {
         }
     }
 
-    /// Perform verification for a specific task
+    /// Actually check `properties` against real measurements taken from
+    /// `probe`.
+    ///
+    /// Without a probe, nothing was executed, so none of the declared
+    /// bounds can be confirmed: this honestly returns `verified: false`
+    /// with an explanatory counterexample rather than the previous
+    /// unconditional `verified: true`. This crate has no formal-methods
+    /// backend (no CBMC/KLEE/model-checker integration, and adding one is
+    /// out of scope for a general-purpose core utility crate); what *is*
+    /// tractable — and implemented here — is checking the contract's own
+    /// numeric bounds against a real invocation of the API.
     fn perform_verification(
-        _taskid: &str,
-        _tasks: &Arc<Mutex<HashMap<String, VerificationTask>>>,
+        properties: &[VerificationProperty],
+        performance: &PerformanceContract,
+        memory: &MemoryContract,
+        thread_safety: ThreadSafety,
+        probe: Option<VerificationProbe>,
     ) -> VerificationResult {
-        // Simplified verification implementation
-        VerificationResult {
-            verified: true,
-            verification_time: Duration::from_millis(100),
-            checked_properties: vec!["safety_check".to_string()],
-            counterexample: None,
-            method: VerificationMethod::StaticAnalysis,
+        let start_time = Instant::now();
+
+        let Some(probe) = probe else {
+            return VerificationResult {
+                verified: false,
+                verification_time: start_time.elapsed(),
+                checked_properties: vec![],
+                counterexample: Some(format!(
+                    "no VerificationProbe was supplied: {} declared propert{} could not be \
+                     executed against a real workload and so cannot be confirmed",
+                    properties.len(),
+                    if properties.len() == 1 { "y" } else { "ies" }
+                )),
+                method: VerificationMethod::StaticAnalysis,
+            };
+        };
+
+        // Measure the real API under test. A probe that panics is itself a
+        // genuine finding (the API under test is not safe to call) and
+        // must be caught here: left uncaught, it would unwind straight out
+        // of the background thread `verify_contract` spawned to run this
+        // function, which would silently abandon the task in `InProgress`
+        // forever (nothing left running to ever update its status).
+        let iterations = probe.iterations.max(1);
+        let mut max_elapsed = Duration::ZERO;
+        let mut max_memory_delta: Option<usize> = None;
+        let mut probe_panic_message: Option<String> = None;
+        for _ in 0..iterations {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| (probe.invoke)())) {
+                Ok((elapsed, memory_delta)) => {
+                    max_elapsed = max_elapsed.max(elapsed);
+                    if let Some(delta) = memory_delta {
+                        max_memory_delta =
+                            Some(max_memory_delta.map_or(delta, |current| current.max(delta)));
+                    }
+                }
+                Err(payload) => {
+                    probe_panic_message = Some(panic_payload_to_string(&payload));
+                    break;
+                }
+            }
         }
+
+        if let Some(message) = probe_panic_message {
+            return VerificationResult {
+                verified: false,
+                verification_time: start_time.elapsed(),
+                checked_properties: vec![],
+                counterexample: Some(format!(
+                    "the supplied probe panicked during measurement: {message}"
+                )),
+                method: VerificationMethod::SymbolicExecution,
+            };
+        }
+
+        let mut checked_properties = Vec::new();
+        let mut counterexamples = Vec::new();
+
+        for property in properties {
+            match property.name.as_str() {
+                "performance_bound" => {
+                    checked_properties.push(property.name.clone());
+                    if let Some(bound) = performance.maxexecution_time {
+                        if max_elapsed > bound {
+                            counterexamples.push(format!(
+                                "performance_bound violated: measured max execution time \
+                                 {max_elapsed:?} exceeds the contract bound {bound:?} (over \
+                                 {iterations} iteration(s))"
+                            ));
+                        }
+                    }
+                }
+                "memory_bound" => {
+                    checked_properties.push(property.name.clone());
+                    match (memory.max_memory, max_memory_delta) {
+                        (Some(bound), Some(delta)) if delta > bound => {
+                            counterexamples.push(format!(
+                                "memory_bound violated: measured memory delta {delta} bytes \
+                                 exceeds the contract bound {bound} bytes"
+                            ));
+                        }
+                        (Some(_), None) => {
+                            counterexamples.push(
+                                "memory_bound could not be confirmed: the supplied probe never \
+                                 reported a memory measurement"
+                                    .to_string(),
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+                "thread_safety" => {
+                    checked_properties.push(property.name.clone());
+                    if thread_safety == ThreadSafety::ThreadSafe && probe.concurrency > 1 {
+                        if let Some(failure) = Self::concurrent_smoke_test(&probe) {
+                            counterexamples.push(failure);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let verified = counterexamples.is_empty();
+        VerificationResult {
+            verified,
+            verification_time: start_time.elapsed(),
+            checked_properties,
+            counterexample: if counterexamples.is_empty() {
+                None
+            } else {
+                Some(counterexamples.join("; "))
+            },
+            // `SymbolicExecution` is the closest available label for "the
+            // API was actually invoked and measured" (as opposed to the
+            // purely-static techniques in this enum); it is concrete
+            // rather than symbolic execution, but no better-fitting
+            // variant exists.
+            method: VerificationMethod::SymbolicExecution,
+        }
+    }
+
+    /// Runs `probe.invoke` concurrently across `probe.concurrency` threads
+    /// (each performing `probe.iterations` calls) and reports a failure
+    /// message if any worker panics — a real, if coarse, signal that a
+    /// `ThreadSafe` claim does not hold — or if the workers do not all
+    /// complete within a generous timeout (a suspected deadlock/hang).
+    fn concurrent_smoke_test(probe: &VerificationProbe) -> Option<String> {
+        const TIMEOUT: Duration = Duration::from_secs(10);
+
+        let concurrency = probe.concurrency.max(1);
+        let iterations_per_thread = probe.iterations.max(1);
+        let invoke = &probe.invoke;
+        let panic_count = AtomicUsize::new(0);
+        let (tx, rx) = mpsc::channel::<()>();
+
+        thread::scope(|scope| {
+            for _ in 0..concurrency {
+                let tx = tx.clone();
+                let panic_count = &panic_count;
+                scope.spawn(move || {
+                    for _ in 0..iterations_per_thread {
+                        let outcome =
+                            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                (invoke)();
+                            }));
+                        if outcome.is_err() {
+                            panic_count.fetch_add(1, Ordering::SeqCst);
+                        }
+                    }
+                    let _ = tx.send(());
+                });
+            }
+            drop(tx);
+
+            let deadline = Instant::now() + TIMEOUT;
+            let mut completed = 0usize;
+            while completed < concurrency {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    break;
+                }
+                match rx.recv_timeout(remaining) {
+                    Ok(()) => completed += 1,
+                    Err(_) => break,
+                }
+            }
+
+            if completed < concurrency {
+                return Some(format!(
+                    "thread_safety smoke test timed out: only {completed}/{concurrency} worker \
+                     thread(s) completed within {TIMEOUT:?} (suspected deadlock/hang)"
+                ));
+            }
+
+            let panics = panic_count.load(Ordering::SeqCst);
+            if panics > 0 {
+                return Some(format!(
+                    "thread_safety smoke test failed: {panics} panic(s) observed across \
+                     {concurrency} concurrent thread(s) x {iterations_per_thread} iteration(s)"
+                ));
+            }
+
+            None
+        })
     }
 }
 
@@ -1005,15 +1241,17 @@ impl Default for SystemState {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_formal_verification_engine() {
-        let engine = FormalVerificationEngine::new();
-        assert_eq!(engine.get_verification_coverage(), 0.0);
-
-        // Test with a mock contract
-        let contract = ApiContract {
-            apiname: "test_api".to_string(),
-            module: "test_module".to_string(),
+    /// Build a minimal `ApiContract` for verification tests.
+    fn make_contract(
+        apiname: &str,
+        module: &str,
+        max_exec: Option<Duration>,
+        max_memory: Option<usize>,
+        thread_safe: bool,
+    ) -> ApiContract {
+        ApiContract {
+            apiname: apiname.to_string(),
+            module: module.to_string(),
             contract_hash: "test_hash".to_string(),
             created_at: SystemTime::now(),
             verification_status: VerificationStatus::NotVerified,
@@ -1022,7 +1260,7 @@ mod tests {
             performance: PerformanceContract {
                 time_complexity: ComplexityBound::Linear,
                 space_complexity: ComplexityBound::Constant,
-                maxexecution_time: Some(Duration::from_millis(100)),
+                maxexecution_time: max_exec,
                 min_throughput: None,
                 memorybandwidth: None,
             },
@@ -1041,7 +1279,11 @@ mod tests {
                 },
             },
             concurrency: ConcurrencyContract {
-                thread_safety: ThreadSafety::ThreadSafe,
+                thread_safety: if thread_safe {
+                    ThreadSafety::ThreadSafe
+                } else {
+                    ThreadSafety::NotThreadSafe
+                },
                 atomicity: AtomicityGuarantee::OperationAtomic,
                 lock_free: false,
                 wait_free: false,
@@ -1049,19 +1291,286 @@ mod tests {
             },
             memory: MemoryContract {
                 allocation_pattern: AllocationPattern::SingleAllocation,
-                max_memory: Some(1024),
+                max_memory,
                 alignment: None,
                 locality: LocalityGuarantee::GoodSpatial,
                 gc_behavior: GcBehavior::MinimalGc,
             },
             deprecation: None,
+        }
+    }
+
+    /// Poll until verification for `(module, apiname)` leaves the
+    /// `InProgress` state (the background thread resolves near-instantly
+    /// for these tests), panicking if it never does.
+    fn wait_for_verification(
+        engine: &FormalVerificationEngine,
+        apiname: &str,
+        module: &str,
+    ) -> VerificationStatus {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let status = engine.get_verification_status(apiname, module);
+            if status != VerificationStatus::InProgress {
+                return status;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "verification for {module}-{apiname} did not complete within the test timeout"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    #[test]
+    fn test_formal_verification_engine() {
+        let engine = FormalVerificationEngine::new();
+        assert_eq!(engine.get_verification_coverage(), 0.0);
+
+        let contract = make_contract(
+            "test_api",
+            "test_module",
+            Some(Duration::from_millis(100)),
+            Some(1024),
+            true,
+        );
+
+        // No probe supplied: nothing was actually executed, so this must
+        // honestly resolve to Failed rather than a fabricated Verified.
+        engine
+            .verify_contract(&contract, None)
+            .expect("Operation failed");
+
+        let status = wait_for_verification(&engine, "test_api", "test_module");
+        assert_eq!(
+            status,
+            VerificationStatus::Failed,
+            "verification with no executable probe must not fabricate Verified"
+        );
+
+        let results = engine.get_all_results();
+        let result = results
+            .get("test_module-test_api")
+            .expect("result recorded");
+        assert!(!result.verified);
+        assert!(result.counterexample.is_some());
+    }
+
+    #[test]
+    fn test_verify_contract_passes_with_probe_within_bounds() {
+        let engine = FormalVerificationEngine::new();
+        let contract = make_contract(
+            "fast_api",
+            "perf_module",
+            Some(Duration::from_millis(50)),
+            Some(1024),
+            false,
+        );
+
+        let probe = VerificationProbe {
+            invoke: Box::new(|| (Duration::from_millis(1), Some(10))),
+            iterations: 5,
+            concurrency: 1,
         };
 
-        engine.verify_contract(&contract).expect("Operation failed");
+        engine
+            .verify_contract(&contract, Some(probe))
+            .expect("start verification");
+        let status = wait_for_verification(&engine, "fast_api", "perf_module");
+        assert_eq!(status, VerificationStatus::Verified);
 
-        // Verification should have started (not NotVerified anymore)
-        let status = engine.get_verification_status("test_api", "test_module");
-        assert_ne!(status, VerificationStatus::NotVerified);
+        let results = engine.get_all_results();
+        let result = results
+            .get("perf_module-fast_api")
+            .expect("result recorded");
+        assert!(result.verified);
+        assert!(result
+            .checked_properties
+            .contains(&"performance_bound".to_string()));
+        assert!(result
+            .checked_properties
+            .contains(&"memory_bound".to_string()));
+    }
+
+    #[test]
+    fn test_verify_contract_detects_real_performance_violation() {
+        let engine = FormalVerificationEngine::new();
+        let contract = make_contract(
+            "slow_api",
+            "perf_module",
+            Some(Duration::from_millis(10)),
+            None,
+            false,
+        );
+
+        // A real measured duration that genuinely exceeds the contract
+        // bound; under the old hardcoded-`true` implementation this would
+        // have been reported Verified regardless.
+        let probe = VerificationProbe {
+            invoke: Box::new(|| (Duration::from_millis(200), None)),
+            iterations: 1,
+            concurrency: 1,
+        };
+
+        engine
+            .verify_contract(&contract, Some(probe))
+            .expect("start verification");
+        let status = wait_for_verification(&engine, "slow_api", "perf_module");
+        assert_eq!(status, VerificationStatus::Failed);
+
+        let results = engine.get_all_results();
+        let result = results
+            .get("perf_module-slow_api")
+            .expect("result recorded");
+        assert!(!result.verified);
+        let counterexample = result
+            .counterexample
+            .as_ref()
+            .expect("counterexample present");
+        assert!(
+            counterexample.contains("performance_bound"),
+            "got: {counterexample}"
+        );
+    }
+
+    #[test]
+    fn test_verify_contract_detects_real_memory_violation() {
+        let engine = FormalVerificationEngine::new();
+        let contract = make_contract("greedy_api", "mem_module", None, Some(100), false);
+
+        let probe = VerificationProbe {
+            invoke: Box::new(|| (Duration::from_micros(1), Some(500))),
+            iterations: 1,
+            concurrency: 1,
+        };
+
+        engine
+            .verify_contract(&contract, Some(probe))
+            .expect("start verification");
+        let status = wait_for_verification(&engine, "greedy_api", "mem_module");
+        assert_eq!(status, VerificationStatus::Failed);
+
+        let results = engine.get_all_results();
+        let result = results
+            .get("mem_module-greedy_api")
+            .expect("result recorded");
+        let counterexample = result
+            .counterexample
+            .as_ref()
+            .expect("counterexample present");
+        assert!(
+            counterexample.contains("memory_bound"),
+            "got: {counterexample}"
+        );
+    }
+
+    #[test]
+    fn test_verify_contract_concurrent_smoke_test_catches_real_panics() {
+        let engine = FormalVerificationEngine::new();
+        let contract = make_contract("racy_api", "concurrency_module", None, None, true);
+
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count_probe = Arc::clone(&call_count);
+        let probe = VerificationProbe {
+            invoke: Box::new(move || {
+                let n = call_count_probe.fetch_add(1, Ordering::SeqCst);
+                // The sequential performance/memory warm-up consumes calls
+                // 0..iterations (4) first; only fail calls from the
+                // concurrent phase (n >= 4) so this test exercises the
+                // concurrent smoke test specifically; a probe that panics
+                // during the *sequential* pass is covered by a separate
+                // test (`test_formal_verification_engine`-adjacent
+                // behavior lives in `perform_verification`'s own
+                // panic-safety, not this concurrency-focused test).
+                assert!(n < 4 || n % 5 != 0, "simulated concurrency bug (call #{n})");
+                (Duration::from_micros(1), None)
+            }),
+            iterations: 4,
+            concurrency: 4,
+        };
+
+        engine
+            .verify_contract(&contract, Some(probe))
+            .expect("start verification");
+        let status = wait_for_verification(&engine, "racy_api", "concurrency_module");
+        assert_eq!(status, VerificationStatus::Failed);
+
+        let results = engine.get_all_results();
+        let result = results
+            .get("concurrency_module-racy_api")
+            .expect("result recorded");
+        let counterexample = result
+            .counterexample
+            .as_ref()
+            .expect("counterexample present");
+        assert!(
+            counterexample.contains("thread_safety"),
+            "got: {counterexample}"
+        );
+    }
+
+    #[test]
+    fn test_verify_contract_concurrent_smoke_test_passes_when_actually_safe() {
+        let engine = FormalVerificationEngine::new();
+        let contract = make_contract("safe_api", "concurrency_module2", None, None, true);
+
+        let probe = VerificationProbe {
+            invoke: Box::new(|| (Duration::from_micros(1), None)),
+            iterations: 4,
+            concurrency: 4,
+        };
+
+        engine
+            .verify_contract(&contract, Some(probe))
+            .expect("start verification");
+        let status = wait_for_verification(&engine, "safe_api", "concurrency_module2");
+        assert_eq!(status, VerificationStatus::Verified);
+    }
+
+    /// Regression test: a probe that panics during the sequential
+    /// performance/memory measurement pass (before the concurrent
+    /// thread-safety smoke test even runs) must resolve to `Failed` with
+    /// an explanatory counterexample — not silently hang the background
+    /// verification thread forever (an uncaught panic there would abandon
+    /// the task in `InProgress` with nothing left running to ever update
+    /// it).
+    #[test]
+    fn test_verify_contract_probe_panic_during_sequential_pass_reports_failure_not_hang() {
+        let engine = FormalVerificationEngine::new();
+        let contract = make_contract(
+            "panicky_api",
+            "panic_module",
+            Some(Duration::from_millis(50)),
+            None,
+            false,
+        );
+
+        let probe = VerificationProbe {
+            invoke: Box::new(|| panic!("probe always panics")),
+            iterations: 1,
+            concurrency: 1,
+        };
+
+        engine
+            .verify_contract(&contract, Some(probe))
+            .expect("start verification");
+        let status = wait_for_verification(&engine, "panicky_api", "panic_module");
+        assert_eq!(
+            status,
+            VerificationStatus::Failed,
+            "a probe that panics must resolve to Failed, not hang or fabricate Verified"
+        );
+
+        let results = engine.get_all_results();
+        let result = results
+            .get("panic_module-panicky_api")
+            .expect("result recorded");
+        assert!(!result.verified);
+        let counterexample = result
+            .counterexample
+            .as_ref()
+            .expect("counterexample present");
+        assert!(counterexample.contains("panicked"), "got: {counterexample}");
     }
 
     #[test]

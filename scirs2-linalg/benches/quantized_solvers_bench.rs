@@ -105,7 +105,8 @@ fn bench_conjugate_gradient(c: &mut Criterion) {
                     .positive_definite();
 
                     // Convert to standard LinearOperator
-                    let quantized_linear_op = quantized_to_linear_operator(&quantized_op);
+                    let (quantized_linear_op, _apply_failed) =
+                        quantized_to_linear_operator(&quantized_op);
 
                     bench.iter(|| {
                         black_box(
@@ -278,7 +279,8 @@ fn bench_gmres(c: &mut Criterion) {
                     .expect("Operation failed");
 
                     // Convert to standard LinearOperator
-                    let quantized_linear_op = quantized_to_linear_operator(&quantized_op);
+                    let (quantized_linear_op, _apply_failed) =
+                        quantized_to_linear_operator(&quantized_op);
 
                     bench.iter(|| {
                         black_box(

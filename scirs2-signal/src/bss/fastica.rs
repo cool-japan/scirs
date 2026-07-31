@@ -37,7 +37,7 @@ pub fn fast_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        scirs2_core::random::rngs::StdRng::seed_from_u64([seed as u8; 32])
+        scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
     } else {
         {
             // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG

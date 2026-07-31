@@ -104,7 +104,14 @@ fn test_hdr_super_resolution_pipeline() -> Result<()> {
 
 /// Test denoising with neural feature detection
 #[test]
-#[ignore] // GPU-intensive test - times out in CI
+// NOT GPU-related: neither `AdvancedDenoiser(DenoisingMethod::NonLocalMeans)`
+// nor `LearnedSIFT` touch any GPU/CUDA/wgpu code path; the real cost is
+// pure-CPU O(patches^2) Non-Local-Means over a 240x320 image plus SIFT
+// keypoint/descriptor extraction on both the noisy and denoised copies.
+#[ignore = "slow: measured 289.1s in a bounded 600s retry (0.6.5 ignore audit) -- pure-CPU O(patches^2) \
+            Non-Local-Means denoising + SIFT keypoint/descriptor extraction on a 240x320 image (run \
+            twice, noisy + denoised copies); well past the workspace's 120s default nextest hard-kill \
+            but completes and passes given enough time, so not a hang"]
 #[allow(dead_code)]
 fn test_denoising_feature_detection_pipeline() -> Result<()> {
     // Create noisy image

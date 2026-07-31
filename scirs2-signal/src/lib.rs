@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-signal = "0.6.4"
+//! scirs2-signal = "0.6.5"
 //! ```
 //!
 //! ```rust
@@ -49,7 +49,7 @@
 //! let filtered = convolve(&signal, &kernel, "same").expect("operation should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.6.4 (July 22, 2026)
+//! ## 🔒 Version: 0.6.5 (July 22, 2026)
 
 // Core error handling - ESSENTIAL
 pub mod error;
@@ -114,24 +114,62 @@ pub mod waveforms;
 pub mod lombscargle;
 pub mod lombscargle_enhanced;
 pub mod lombscargle_scipy_validation;
-// pub mod utilities;
+// Spectral-shape descriptor utilities (centroid, spread, rolloff, etc.)
 pub mod cqt;
 pub mod simd_advanced;
-// Chirp Z-Transform (generalisation of the DFT)
+pub mod utilities;
+// Chirp Z-Transform (generalisation of the DFT); also hosts Zoom FFT,
+// Goertzel, and Sliding DFT (merged in from the former `zoom_fft` module).
 pub mod czt;
-// pub mod wvd;
-// pub mod nlm;
-// pub mod wiener;
-// pub mod dwt2d;
-// pub mod swt2d;
-// pub mod wavelet_vis;
-// pub mod reassigned;
-// pub mod deconvolution;
 pub mod savgol;
 
-// Signal processing submodules (temporarily disabled)
-// pub mod bss;
-// pub mod features;
+// Deconvolution (Wiener/Tikhonov/Richardson-Lucy/CLEAN/max-entropy/blind/TV-regularized)
+pub mod deconvolution;
+// scipy.signal.detrend-equivalent preprocessing
+pub mod detrend;
+// Advanced 2D DWT variants: undecimated/directional/complex decomposition,
+// edge-preservation and multiscale analysis metrics
+pub mod dwt2d_advanced_algorithms;
+// Additional 2D-wavelet application-layer features (non-duplicated with dwt2d_advanced/enhanced):
+// texture analysis, wavelet-domain edge detection, content-aware compression
+pub mod dwt2d_advanced_applications;
+// Context-adaptive / multiscale edge-preserving 2D wavelet denoising
+pub mod dwt2d_advanced_denoising;
+// 2D wavelet feature extraction (edge metrics, texture features, multiscale decomposition)
+pub mod dwt2d_advanced_features;
+// Sophisticated 2D-specific boundary extension for DWT2D (restored: a WIRE-list
+// dependency of dwt2d_advanced_denoising.rs; contains unique functionality not
+// covered by dwt2d_advanced's simpler EdgeMode2D handling)
+pub mod dwt2d_boundary_enhanced;
+// QMF/wavelet/cosine-modulated filter-bank design
+pub mod filter_banks;
+// Higher-order spectral analysis (bispectrum, bicoherence, trispectrum, ...)
+pub mod higher_order;
+// Hilbert-Huang Transform (HHT) and Variational Mode Decomposition (VMD)
+pub mod multiscale;
+// Non-Local Means denoising (1D/2D/multiscale/color/block-matching)
+pub mod nlm;
+// Phase vocoder (STFT-based time-stretching / pitch-shifting)
+pub mod phase_vocoder;
+// Radar signal-processing pipeline (chirp, pulse compression, CFAR, range-Doppler)
+pub mod radar;
+// Sampling-theory techniques (jittered/Poisson-disk sampling, random demodulation)
+pub mod random_sampling;
+// Harmonic-Percussive Source Separation (HPSS) and multiband separation
+pub mod separation;
+// 2D Stationary/Undecimated Wavelet Transform
+pub mod swt2d;
+// Synchrosqueezed transform (CWT- and STFT-based)
+pub mod synchrosqueezing;
+// Wavelet coefficient visualization support
+pub mod wavelet_vis;
+// Wiener filtering (frequency/time domain, iterative, 2D, spectral subtraction, PSD-based)
+pub mod wiener;
+
+// Signal processing submodules
+pub mod bss;
+pub mod compressed_sensing;
+pub mod features;
 pub mod multitaper;
 
 // v0.3.0 Enhanced Spectral Analysis (multitaper, Lomb-Scargle, parametric)
@@ -212,6 +250,17 @@ pub use model_weights::{SignalWeightFormat, SignalWeightStore};
 pub mod phase_estimation;
 // Real-time DSP pipeline
 pub mod realtime_dsp;
+// Image feature extraction (color/edge/texture/Haralick/LBP/moments)
+pub mod image_features;
+// General-purpose interpolation toolkit (linear/spline/spectral/advanced)
+pub mod interpolate;
+// Kalman filter family (standard/extended/unscented/particle/ensemble/information)
+pub mod kalman;
+// Class-based Short-Time Fourier Transform (SciPy ShortTimeFFT port), memory-efficient
+// chunked/streaming variant, and COLA/window utilities. Note: this `stft` *module*
+// coexists with the unrelated `stft` *function* re-exported from `spectral` below --
+// legal in Rust (distinct type/value namespaces) and intentional per the wave-1 audit.
+pub mod stft;
 
 // Re-export core functionality
 pub use convolve::{convolve, convolve_simd_ultra, correlate};
@@ -289,6 +338,11 @@ pub use adaptive::{
 pub use cepstral::{
     complex_cepstrum, compute_deltas, mel_filter_bank, mfcc, mfcc_extract, mfcc_frame,
     real_cepstrum, MelFilterBankConfig, MfccConfig,
+};
+// Re-export extended cepstral analysis (inverse cepstrum, min-phase reconstruction,
+// liftering, cepstral pitch detection) merged in from the former `cepstrum` module.
+pub use cepstral::{
+    cepstral_pitch_detect, inverse_complex_cepstrum, lifter, min_phase_reconstruction, LifterType,
 };
 
 // Re-export v0.3.0 modulation/demodulation functionality
@@ -387,6 +441,12 @@ pub use resampling::{
     decimate, design_anti_alias_filter, downsample, fractional_delay, interpolate,
     lagrange_delay_filter, resample, resample_poly, resample_to_length, sinc_delay_filter,
     upsample, ResamplingConfig, ResamplingQuality, WindowType as ResamplingWindowType,
+};
+// Re-export perfect-reconstruction filter bank / arbitrary-ratio multirate conversion
+// (merged in from the former standalone `multirate` module)
+pub use resampling::{
+    FilterBankProperties, MultirateConverter, PerfectReconstructionConfig,
+    PerfectReconstructionFilterBank, PrFilterDesign,
 };
 
 // Re-export batched Welch PSD

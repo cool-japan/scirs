@@ -4,8 +4,8 @@
 //! to optimal sizes for FFT computation, improving performance by
 //! ensuring the FFT size has small prime factors.
 
-use crate::{next_fast_len, FFTResult};
-use scirs2_core::ndarray::{s, Array1, ArrayBase, ArrayD, Data, Dimension};
+use crate::{next_fast_len, FFTError, FFTResult};
+use scirs2_core::ndarray::{s, Array1, ArrayBase, ArrayD, Data, Dimension, IxDyn, Slice};
 use scirs2_core::numeric::Complex;
 use scirs2_core::numeric::Zero;
 
@@ -350,7 +350,19 @@ where
         .to_owned()
 }
 
-/// Automatic padding for N-dimensional arrays
+/// Automatic padding for N-dimensional arrays of any dimensionality.
+///
+/// Every axis listed in `axes` (all axes, by default) is padded up to the
+/// size [`AutoPadConfig`] computes for it, and the newly-added border
+/// region is filled according to `config.mode`. All [`PaddingMode`]
+/// variants are supported, for arbitrary `ndim` (not just 1D/2D).
+///
+/// Border fills are applied one axis at a time, in ascending axis order,
+/// each pass building on the previous axis's already-filled data. This
+/// mirrors NumPy's own `numpy.pad`, which composes independent per-axis 1D
+/// fills the same way for `edge`/`reflect`/`symmetric`/`wrap` -- so corner
+/// values (where two or more padded axes meet) match NumPy for those modes
+/// too, not just the interior border.
 #[allow(dead_code)]
 pub fn auto_pad_nd<S, D>(
     x: &ArrayBase<S, D>,
@@ -361,14 +373,25 @@ where
     S: Data<Elem = Complex<f64>>,
     D: Dimension,
 {
-    let shape = x.shape();
-    let default_axes = (0..shape.len()).collect::<Vec<_>>();
-    let axes = axes.unwrap_or(&default_axes[..]);
+    let shape = x.shape().to_vec();
+    let ndim = shape.len();
+    let default_axes: Vec<usize> = (0..ndim).collect();
+    let axes: Vec<usize> = axes.map(<[usize]>::to_vec).unwrap_or(default_axes);
 
-    let mut paddedshape = shape.to_vec();
+    for &axis in &axes {
+        if axis >= ndim {
+            return Err(FFTError::ValueError(format!(
+                "Axis {axis} is out of bounds for array of dimension {ndim}"
+            )));
+        }
+    }
 
-    // Calculate padded sizes for specified axes
-    for &axis in axes {
+    let mut paddedshape = shape.clone();
+    // Offset of the original data along each axis within the padded array.
+    let mut start_idx = vec![0usize; ndim];
+
+    // Calculate padded sizes (and placement offsets) for the specified axes.
+    for &axis in &axes {
         let n = shape[axis];
         let target_size = if config.power_of_2 {
             let min_size = n + config.min_pad;
@@ -381,78 +404,240 @@ where
             next_fast_len(n + config.min_pad, false)
         };
 
-        paddedshape[axis] = if let Some(max_pad) = config.max_pad {
+        let padded_axis_len = if let Some(max_pad) = config.max_pad {
             target_size.min(n + max_pad)
         } else {
             target_size
         };
+        paddedshape[axis] = padded_axis_len;
+        start_idx[axis] = if config.center {
+            (padded_axis_len - n) / 2
+        } else {
+            0
+        };
     }
 
-    // Create padded array
-    let mut padded = ArrayD::zeros(paddedshape.clone());
-
-    // Copy original data - simplified implementation
-    let x_dyn = x
-        .to_owned()
-        .into_shape_with_order(x.shape().to_vec())
-        .expect("Operation failed")
-        .into_dyn();
-
-    // For simplicity, copy to origin (0,0,...) - a full implementation would handle centering
-    match x_dyn.ndim() {
-        1 => {
-            let start = if config.center {
-                (paddedshape[0] - shape[0]) / 2
-            } else {
-                0
-            };
-            padded.slice_mut(s![start..start + shape[0]]).assign(&x_dyn);
-        }
-        2 => {
-            let start0 = if config.center && axes.contains(&0) {
-                (paddedshape[0] - shape[0]) / 2
-            } else {
-                0
-            };
-            let start1 = if config.center && axes.contains(&1) {
-                (paddedshape[1] - shape[1]) / 2
-            } else {
-                0
-            };
-            padded
-                .slice_mut(s![start0..start0 + shape[0], start1..start1 + shape[1]])
-                .assign(
-                    &x_dyn
-                        .view()
-                        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-                        .expect("Operation failed"),
-                );
-        }
-        _ => {
-            // For higher dimensions, just copy to origin
-            // A full implementation would handle arbitrary dimensions
-            return Err(crate::FFTError::ValueError(
-                "auto_pad_nd currently only supports 1D and 2D arrays".to_string(),
-            ));
-        }
+    // Nothing to do: every requested axis is already at its target size.
+    if paddedshape == shape {
+        return Ok(x.to_owned().into_dyn());
     }
 
-    // Apply padding based on mode (simplified for N-D case)
-    match config.mode {
-        PaddingMode::None | PaddingMode::Zero => {
-            // Already zero-initialized
-        }
-        PaddingMode::Constant(value) => {
-            // Would need to fill regions outside original data
-            let _const_val = Complex::new(value, 0.0);
-            // Implementation would be complex for N-D case
-        }
-        _ => {
-            // Other modes would require axis-specific handling
+    let mut padded = ArrayD::<Complex<f64>>::zeros(paddedshape.clone());
+
+    // Place the original data into its (possibly centered) sub-block. This
+    // works for any `ndim` via `slice_each_axis_mut`, unlike the previous
+    // hand-written 1D/2D-only implementation.
+    {
+        let mut core = padded.slice_each_axis_mut(|desc| {
+            let axis = desc.axis.index();
+            let s = start_idx[axis];
+            Slice::from(s..s + shape[axis])
+        });
+        core.assign(&x.view().into_dyn());
+    }
+
+    // Fill the newly-added border region for every padded axis, in
+    // ascending axis order (see doc comment above for why the order
+    // matters for modes that depend on already-padded neighboring data).
+    if !matches!(config.mode, PaddingMode::None | PaddingMode::Zero) {
+        let mut ordered_axes = axes.clone();
+        ordered_axes.sort_unstable();
+        ordered_axes.dedup();
+        for axis in ordered_axes {
+            let n = shape[axis];
+            let total = paddedshape[axis];
+            if n == 0 || total == n {
+                continue;
+            }
+            fill_axis_border(&mut padded, axis, start_idx[axis], n, total, config.mode);
         }
     }
 
     Ok(padded)
+}
+
+/// Enumerate every fixed combination of indices for all axes other than
+/// `axis`, as full `shape.len()`-length index vectors (the slot at `axis`
+/// is left at `0`; callers overwrite it while walking the fiber along that
+/// axis). This is what lets [`fill_axis_border`] sweep *every* row/column/
+/// etc. along an axis instead of just the one at the origin.
+fn other_axis_index_combinations(shape: &[usize], axis: usize) -> Vec<Vec<usize>> {
+    let ndim = shape.len();
+    let mut combos: Vec<Vec<usize>> = vec![vec![0; ndim]];
+    for (dim, &size) in shape.iter().enumerate() {
+        if dim == axis {
+            continue;
+        }
+        let mut expanded = Vec::with_capacity(combos.len() * size.max(1));
+        for combo in &combos {
+            for v in 0..size {
+                let mut next = combo.clone();
+                next[dim] = v;
+                expanded.push(next);
+            }
+        }
+        combos = expanded;
+    }
+    combos
+}
+
+/// Source index within `[0, n)` for NumPy's `reflect` padding mode (mirrors
+/// without repeating the edge sample; period `2*(n-1)`), given a logical
+/// position `p` relative to the start of the original data (`p` in
+/// `[0, n)` is the data itself; `p < 0` or `p >= n` is padding).
+fn reflect_source_index(p: isize, n: usize) -> usize {
+    if n <= 1 {
+        return 0;
+    }
+    let period = 2 * (n as isize - 1);
+    let m = p.rem_euclid(period);
+    if m < n as isize {
+        m as usize
+    } else {
+        (period - m) as usize
+    }
+}
+
+/// Source index within `[0, n)` for NumPy's `symmetric` padding mode
+/// (mirrors *including* the edge sample; period `2*n`).
+fn symmetric_source_index(p: isize, n: usize) -> usize {
+    if n == 0 {
+        return 0;
+    }
+    let period = 2 * n as isize;
+    let m = p.rem_euclid(period);
+    if m < n as isize {
+        m as usize
+    } else {
+        (period - 1 - m) as usize
+    }
+}
+
+/// Source index within `[0, n)` for NumPy's `wrap` (circular) padding mode.
+fn wrap_source_index(p: isize, n: usize) -> usize {
+    if n == 0 {
+        return 0;
+    }
+    p.rem_euclid(n as isize) as usize
+}
+
+/// Fill the border region of `padded` along `axis` (positions before
+/// `start` and from `start + n` to `total`) from the `n` already-placed
+/// elements at `[start, start + n)`, per `mode`. Every fiber along `axis`
+/// (every combination of the *other* axes' indices) is swept
+/// independently, so this handles arrays of any dimensionality.
+fn fill_axis_border(
+    padded: &mut ArrayD<Complex<f64>>,
+    axis: usize,
+    start: usize,
+    n: usize,
+    total: usize,
+    mode: PaddingMode,
+) {
+    let shape = padded.shape().to_vec();
+    let end_value = Complex::new(0.0, 0.0);
+
+    for mut indices in other_axis_index_combinations(&shape, axis) {
+        // Snapshot the current core fiber. On the second (and later) axis
+        // processed by `auto_pad_nd`, this may itself already contain
+        // border values filled in by an earlier axis's pass, which is
+        // exactly what makes corner regions come out right.
+        let mut core = Vec::with_capacity(n);
+        for i in 0..n {
+            indices[axis] = start + i;
+            core.push(padded[IxDyn(&indices)]);
+        }
+
+        match mode {
+            PaddingMode::None | PaddingMode::Zero => {}
+            PaddingMode::Constant(value) => {
+                let fill = Complex::new(value, 0.0);
+                for i in 0..start {
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = fill;
+                }
+                for i in (start + n)..total {
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = fill;
+                }
+            }
+            PaddingMode::Edge => {
+                let left = core[0];
+                let right = core[n - 1];
+                for i in 0..start {
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = left;
+                }
+                for i in (start + n)..total {
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = right;
+                }
+            }
+            PaddingMode::Reflect => {
+                for i in 0..start {
+                    let src = reflect_source_index(i as isize - start as isize, n);
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = core[src];
+                }
+                for i in (start + n)..total {
+                    let src = reflect_source_index(i as isize - start as isize, n);
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = core[src];
+                }
+            }
+            PaddingMode::Symmetric => {
+                for i in 0..start {
+                    let src = symmetric_source_index(i as isize - start as isize, n);
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = core[src];
+                }
+                for i in (start + n)..total {
+                    let src = symmetric_source_index(i as isize - start as isize, n);
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = core[src];
+                }
+            }
+            PaddingMode::Wrap => {
+                for i in 0..start {
+                    let src = wrap_source_index(i as isize - start as isize, n);
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = core[src];
+                }
+                for i in (start + n)..total {
+                    let src = wrap_source_index(i as isize - start as isize, n);
+                    indices[axis] = i;
+                    padded[IxDyn(&indices)] = core[src];
+                }
+            }
+            PaddingMode::LinearRamp => {
+                // Linearly ramp from the edge sample down to `end_value`
+                // (0) at the outermost padded position, independently on
+                // each side (matching NumPy's `linear_ramp` with its
+                // default `end_values=0`).
+                let left_edge = core[0];
+                if start > 0 {
+                    let w = start as f64;
+                    for i in 0..start {
+                        let k = (start - 1 - i) as f64;
+                        let val = left_edge - (left_edge - end_value) * ((k + 1.0) / w);
+                        indices[axis] = i;
+                        padded[IxDyn(&indices)] = val;
+                    }
+                }
+                let right_edge = core[n - 1];
+                let right_len = total - (start + n);
+                if right_len > 0 {
+                    let w = right_len as f64;
+                    for i in (start + n)..total {
+                        let k = (i - (start + n)) as f64;
+                        let val = right_edge - (right_edge - end_value) * ((k + 1.0) / w);
+                        indices[axis] = i;
+                        padded[IxDyn(&indices)] = val;
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -518,5 +703,278 @@ mod tests {
         assert_abs_diff_eq!(padded[start].re, 1.0, epsilon = 1e-10);
         assert_abs_diff_eq!(padded[start + 1].re, 2.0, epsilon = 1e-10);
         assert_abs_diff_eq!(padded[start + 2].re, 3.0, epsilon = 1e-10);
+    }
+
+    fn complex_vec(vals: &[f64]) -> Array1<Complex<f64>> {
+        Array1::from_vec(vals.iter().map(|&v| Complex::new(v, 0.0)).collect())
+    }
+
+    fn assert_real_close(actual: &ArrayD<Complex<f64>>, expected: &[f64], eps: f64) {
+        assert_eq!(actual.len(), expected.len());
+        for (a, e) in actual.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(a.re, e, epsilon = eps);
+            assert_abs_diff_eq!(a.im, 0.0, epsilon = eps);
+        }
+    }
+
+    // Reference values throughout this section were computed with
+    // `numpy.pad` for the exact input and pad widths described in each
+    // test (non-constant data throughout, so a fabricated/constant stub
+    // could not pass).
+
+    #[test]
+    fn test_auto_pad_nd_1d_noncentered_all_modes() {
+        // x has length 5; `power_of_2` rounds up to 8, so all 3 padding
+        // elements land on the right (non-centered). Reference: `np.pad(x,
+        // (0, 3), mode=...)`.
+        let x = complex_vec(&[1.0, 2.0, 3.0, 4.0, 5.0]);
+        let cases: [(PaddingMode, [f64; 8]); 6] = [
+            (
+                PaddingMode::Constant(9.0),
+                [1.0, 2.0, 3.0, 4.0, 5.0, 9.0, 9.0, 9.0],
+            ),
+            (PaddingMode::Edge, [1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0]),
+            (
+                PaddingMode::Reflect,
+                [1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0],
+            ),
+            (
+                PaddingMode::Symmetric,
+                [1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 4.0, 3.0],
+            ),
+            (PaddingMode::Wrap, [1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0]),
+            (
+                PaddingMode::LinearRamp,
+                [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    3.333_333_333_333_333_5,
+                    1.666_666_666_666_666_7,
+                    0.0,
+                ],
+            ),
+        ];
+        for (mode, expected) in cases {
+            let config = AutoPadConfig::new(mode).with_power_of_2();
+            let result = auto_pad_nd(&x, &config, None).expect("auto_pad_nd failed");
+            assert_eq!(result.shape(), &[8]);
+            assert_real_close(&result, &expected, 1e-9);
+        }
+    }
+
+    #[test]
+    fn test_auto_pad_nd_1d_centered_all_modes() {
+        // x has length 3; `power_of_2` with `min_pad(5)` forces a minimum
+        // size of 8, split as 2 left / 3 right when centered. Reference:
+        // `np.pad(x, (2, 3), mode=...)`.
+        let x = complex_vec(&[1.0, 2.0, 3.0]);
+        let cases: [(PaddingMode, [f64; 8]); 6] = [
+            (PaddingMode::Edge, [1.0, 1.0, 1.0, 2.0, 3.0, 3.0, 3.0, 3.0]),
+            (
+                PaddingMode::Reflect,
+                [3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0],
+            ),
+            (
+                PaddingMode::Symmetric,
+                [2.0, 1.0, 1.0, 2.0, 3.0, 3.0, 2.0, 1.0],
+            ),
+            (PaddingMode::Wrap, [2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0]),
+            (
+                PaddingMode::LinearRamp,
+                [0.0, 0.5, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0],
+            ),
+            (
+                PaddingMode::Constant(-4.0),
+                [-4.0, -4.0, 1.0, 2.0, 3.0, -4.0, -4.0, -4.0],
+            ),
+        ];
+        for (mode, expected) in cases {
+            let config = AutoPadConfig::new(mode)
+                .with_power_of_2()
+                .with_min_pad(5)
+                .with_center();
+            let result = auto_pad_nd(&x, &config, None).expect("auto_pad_nd failed");
+            assert_eq!(result.shape(), &[8]);
+            assert_real_close(&result, &expected, 1e-9);
+        }
+    }
+
+    #[test]
+    fn test_auto_pad_nd_invalid_axis_is_an_error() {
+        let x = complex_vec(&[1.0, 2.0, 3.0]);
+        let config = AutoPadConfig::new(PaddingMode::Zero);
+        let err = auto_pad_nd(&x, &config, Some(&[5])).unwrap_err();
+        assert!(matches!(err, FFTError::ValueError(_)));
+    }
+
+    /// Build a real 3x5 `Complex<f64>` array from a row-major flat `Vec`.
+    fn complex_2d(
+        rows: usize,
+        cols: usize,
+        vals: &[f64],
+    ) -> scirs2_core::ndarray::Array2<Complex<f64>> {
+        scirs2_core::ndarray::Array2::from_shape_vec(
+            (rows, cols),
+            vals.iter().map(|&v| Complex::new(v, 0.0)).collect(),
+        )
+        .expect("valid shape")
+    }
+
+    #[test]
+    fn test_auto_pad_nd_2d_corners_match_numpy() {
+        // shape (3,5); `power_of_2` rounds axis0 3->4 (pad 1) and axis1
+        // 5->8 (pad 3), non-centered. This exercises the sequential
+        // per-axis composition (the corner region depends on axis-0's
+        // padding already being present when axis-1 is padded), which a
+        // naive "pad each axis independently from the original data only"
+        // implementation would get wrong. Reference: `np.pad(x, ((0,1),
+        // (0,3)), mode=...)`.
+        #[rustfmt::skip]
+        let input = [
+            1.0, 2.0, 3.0, 4.0, 5.0,
+            6.0, 7.0, 8.0, 9.0, 10.0,
+            11.0, 12.0, 13.0, 14.0, 15.0,
+        ];
+        let x = complex_2d(3, 5, &input);
+
+        let cases: [(PaddingMode, [f64; 32]); 6] = [
+            (
+                PaddingMode::Edge,
+                [
+                    1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 5.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 10.0, 10.0,
+                    10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 15.0, 15.0, 15.0, 11.0, 12.0, 13.0, 14.0,
+                    15.0, 15.0, 15.0, 15.0,
+                ],
+            ),
+            (
+                PaddingMode::Reflect,
+                [
+                    1.0, 2.0, 3.0, 4.0, 5.0, 4.0, 3.0, 2.0, 6.0, 7.0, 8.0, 9.0, 10.0, 9.0, 8.0,
+                    7.0, 11.0, 12.0, 13.0, 14.0, 15.0, 14.0, 13.0, 12.0, 6.0, 7.0, 8.0, 9.0, 10.0,
+                    9.0, 8.0, 7.0,
+                ],
+            ),
+            (
+                PaddingMode::Symmetric,
+                [
+                    1.0, 2.0, 3.0, 4.0, 5.0, 5.0, 4.0, 3.0, 6.0, 7.0, 8.0, 9.0, 10.0, 10.0, 9.0,
+                    8.0, 11.0, 12.0, 13.0, 14.0, 15.0, 15.0, 14.0, 13.0, 11.0, 12.0, 13.0, 14.0,
+                    15.0, 15.0, 14.0, 13.0,
+                ],
+            ),
+            (
+                PaddingMode::Wrap,
+                [
+                    1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 6.0, 7.0, 8.0, 9.0, 10.0, 6.0, 7.0,
+                    8.0, 11.0, 12.0, 13.0, 14.0, 15.0, 11.0, 12.0, 13.0, 1.0, 2.0, 3.0, 4.0, 5.0,
+                    1.0, 2.0, 3.0,
+                ],
+            ),
+            (
+                PaddingMode::Constant(7.0),
+                [
+                    1.0, 2.0, 3.0, 4.0, 5.0, 7.0, 7.0, 7.0, 6.0, 7.0, 8.0, 9.0, 10.0, 7.0, 7.0,
+                    7.0, 11.0, 12.0, 13.0, 14.0, 15.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0,
+                    7.0, 7.0,
+                ],
+            ),
+            (
+                PaddingMode::LinearRamp,
+                [
+                    1.0,
+                    2.0,
+                    3.0,
+                    4.0,
+                    5.0,
+                    3.333_333_333_333_333_5,
+                    1.666_666_666_666_666_7,
+                    0.0,
+                    6.0,
+                    7.0,
+                    8.0,
+                    9.0,
+                    10.0,
+                    6.666_666_666_666_667,
+                    3.333_333_333_333_333_5,
+                    0.0,
+                    11.0,
+                    12.0,
+                    13.0,
+                    14.0,
+                    15.0,
+                    10.0,
+                    5.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+            ),
+        ];
+
+        for (mode, expected) in cases {
+            let config = AutoPadConfig::new(mode).with_power_of_2();
+            let result = auto_pad_nd(&x, &config, None).expect("auto_pad_nd failed");
+            assert_eq!(result.shape(), &[4, 8]);
+            assert_real_close(&result, &expected, 1e-9);
+        }
+    }
+
+    #[test]
+    fn test_auto_pad_nd_3d_reflect_matches_numpy() {
+        // shape (2,3,4); `power_of_2` + per-axis `min_pad(1)` (applied via
+        // 3 separate calls is not supported by `AutoPadConfig`, so instead
+        // this uses axis sizes chosen so the *same* config -- power_of_2
+        // with min_pad=1, centered -- produces pad (1,1) on axis 0, (0,1)
+        // on axis 1, and (2,2) on axis 2). Confirms `auto_pad_nd` no
+        // longer rejects 3D input, and that corner blending across all 3
+        // axes matches NumPy. Reference: `np.pad(x, ((1,1),(0,1),(2,2)),
+        // mode='reflect')`.
+        let input: Vec<f64> = (0..24).map(|v| v as f64).collect();
+        let x = ArrayD::from_shape_vec(vec![2, 3, 4], input)
+            .expect("valid shape")
+            .mapv(|v| Complex::new(v, 0.0));
+
+        let config = AutoPadConfig::new(PaddingMode::Reflect)
+            .with_power_of_2()
+            .with_min_pad(1)
+            .with_center();
+        let result = auto_pad_nd(&x, &config, None).expect("auto_pad_nd failed");
+        assert_eq!(result.shape(), &[4, 4, 8]);
+
+        #[rustfmt::skip]
+        let expected = [
+            14.0, 13.0, 12.0, 13.0, 14.0, 15.0, 14.0, 13.0, 18.0, 17.0, 16.0, 17.0, 18.0, 19.0, 18.0, 17.0,
+            22.0, 21.0, 20.0, 21.0, 22.0, 23.0, 22.0, 21.0, 18.0, 17.0, 16.0, 17.0, 18.0, 19.0, 18.0, 17.0, 2.0,
+            1.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 6.0, 5.0, 4.0, 5.0, 6.0, 7.0, 6.0, 5.0, 10.0, 9.0, 8.0, 9.0,
+            10.0, 11.0, 10.0, 9.0, 6.0, 5.0, 4.0, 5.0, 6.0, 7.0, 6.0, 5.0, 14.0, 13.0, 12.0, 13.0, 14.0, 15.0,
+            14.0, 13.0, 18.0, 17.0, 16.0, 17.0, 18.0, 19.0, 18.0, 17.0, 22.0, 21.0, 20.0, 21.0, 22.0, 23.0,
+            22.0, 21.0, 18.0, 17.0, 16.0, 17.0, 18.0, 19.0, 18.0, 17.0, 2.0, 1.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0,
+            6.0, 5.0, 4.0, 5.0, 6.0, 7.0, 6.0, 5.0, 10.0, 9.0, 8.0, 9.0, 10.0, 11.0, 10.0, 9.0, 6.0, 5.0, 4.0,
+            5.0, 6.0, 7.0, 6.0, 5.0,
+        ];
+        assert_real_close(&result, &expected, 1e-9);
+    }
+
+    #[test]
+    fn test_auto_pad_nd_no_padding_needed_returns_input() {
+        // Every axis is already at its `power_of_2` target size, so
+        // `auto_pad_nd` must return the data unchanged (not an all-zero
+        // array of the same shape, which a careless implementation might
+        // produce by always allocating a fresh `ArrayD::zeros` and
+        // forgetting the early-return).
+        let x = complex_vec(&[1.0, 2.0, 3.0, 4.0]);
+        let config = AutoPadConfig::new(PaddingMode::Reflect).with_power_of_2();
+        let result = auto_pad_nd(&x, &config, None).expect("auto_pad_nd failed");
+        assert_eq!(result.shape(), &[4]);
+        assert_real_close(&result, &[1.0, 2.0, 3.0, 4.0], 1e-9);
     }
 }

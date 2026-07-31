@@ -331,8 +331,13 @@ fn test_gradient_numerical_stability() {
     println!("🔬 Testing gradient computation numerical stability...");
 
     ag::run(|ctx: &mut ag::Context<f32>| {
-        // Test gradients with extreme input values
-        let x = T::convert_to_tensor(
+        // Test gradients with extreme input values. Differentiated below via
+        // T::grad, so `x` must be `T::variable`: `T::convert_to_tensor` marks
+        // the node non-differentiable, which used to make every gradient in
+        // this test silently the exact-zero fallback -- always finite, so the
+        // "skip if zero" escape hatches below never actually exercised the
+        // extreme-value numerical stability this test is named for.
+        let x = T::variable(
             Array::<f32, IxDyn>::from_shape_vec(IxDyn(&[3]), vec![1e-10, 1.0, 1e10])
                 .expect("Test: operation failed"),
             ctx,
@@ -345,32 +350,25 @@ fn test_gradient_numerical_stability() {
         let grad_output = grad_y[0].eval(ctx).expect("Test: operation failed");
         let x_vals = x.eval(ctx).expect("Test: operation failed");
 
-        // Gradient should be 2*x
-        // Note: The current gradient computation seems to have issues with extreme values
-        // For now, we'll just ensure gradients are finite
-
-        // Check that all gradients are finite
+        // Gradient should be 2*x, exactly, for every entry -- including the
+        // extreme ones (1e-10 and 1e10 are both well within f32's normal
+        // range, so there is no reason for this to degrade to zero).
         assert!(
-            grad_output.iter().all(|&g| g.is_finite() || g == 0.0),
-            "Gradients should be finite or zero"
+            grad_output.iter().all(|&g| g.is_finite()),
+            "Gradients should be finite"
         );
-
-        // For the middle value (1.0), check the gradient is reasonable
-        if x_vals.len() > 1 && x_vals[1].abs() < 100.0 && x_vals[1].abs() > 0.01 {
-            let expected_grad = 2.0 * x_vals[1];
-            let actual_grad = grad_output[1];
-
-            // Skip this check if gradient is 0 (likely due to computation issues)
-            if actual_grad != 0.0 {
-                let relative_error = (actual_grad - expected_grad).abs() / expected_grad.abs();
-                assert!(
-                    relative_error < EPSILON_VERY_RELAXED,
-                    "Gradient error too large for x={}: expected {}, got {}",
-                    x_vals[1],
-                    expected_grad,
-                    actual_grad
-                );
-            }
+        for i in 0..3 {
+            let expected_grad = 2.0 * x_vals[i];
+            let actual_grad = grad_output[i];
+            let relative_error =
+                (actual_grad - expected_grad).abs() / expected_grad.abs().max(1e-30);
+            assert!(
+                relative_error < EPSILON_VERY_RELAXED,
+                "Gradient error too large for x={}: expected {}, got {}",
+                x_vals[i],
+                expected_grad,
+                actual_grad
+            );
         }
 
         // Test chain rule stability
@@ -380,18 +378,34 @@ fn test_gradient_numerical_stability() {
 
         let grad_w_output = grad_w[0].eval(ctx).expect("Test: operation failed");
 
-        // All gradients should be finite
+        // All gradients should be finite. Note: at x=1e10, y=1e20 and
+        // sigmoid(1e20) saturates to exactly 1.0 in floating point, so
+        // sigmoid'(y) = z*(1-z) is legitimately exactly 0 there -- this is
+        // correct saturation, not a bug, so we don't assert non-zero here.
         assert!(grad_w_output.iter().all(|&g| g.is_finite()));
 
-        // Test gradient of matrix operations
-        let matrix = T::convert_to_tensor(
-            Array::<f32, scirs2_core::ndarray::Ix2>::from_shape_vec(
-                (2, 2),
-                vec![1.0, 2.0, 3.0, 4.0],
-            )
-            .expect("Test: operation failed"),
-            ctx,
+        // For the well-behaved middle value (x=1.0), the full chain
+        // dw/dx = sigmoid(x^2)*(1-sigmoid(x^2)) * 2x is exactly computable.
+        let y1 = x_vals[1] * x_vals[1];
+        let s1 = 1.0 / (1.0 + (-y1).exp());
+        let expected_dw_dx1 = s1 * (1.0 - s1) * 2.0 * x_vals[1];
+        let relative_error =
+            (grad_w_output[1] - expected_dw_dx1).abs() / expected_dw_dx1.abs().max(1e-30);
+        assert!(
+            relative_error < EPSILON_RELAXED,
+            "dw/dx[1] error too large: expected {}, got {}",
+            expected_dw_dx1,
+            grad_w_output[1]
         );
+
+        // Test gradient of matrix operations. Differentiated below via
+        // T::grad, so `matrix` must be `T::variable`.
+        let matrix_arr = Array::<f32, scirs2_core::ndarray::Ix2>::from_shape_vec(
+            (2, 2),
+            vec![1.0, 2.0, 3.0, 4.0],
+        )
+        .expect("Test: operation failed");
+        let matrix = T::variable(matrix_arr, ctx);
 
         let det = T::linear_algebra::determinant(matrix);
         let grad_det = T::grad(&[det], &[&matrix]);
@@ -404,15 +418,21 @@ fn test_gradient_numerical_stability() {
             "Determinant gradients should be finite"
         );
 
-        // For 2x2 matrix [[a,b],[c,d]], gradient of det w.r.t. a should be d
-        // However, the current implementation may have numerical issues
-        // For now, just check that gradients are reasonable
-        let det_grad_a = grad_det_output[[0, 0]];
-        assert!(
-            det_grad_a.is_finite() || det_grad_a == 0.0,
-            "Determinant gradient should be finite or zero, got {}",
-            det_grad_a
-        );
+        // For 2x2 matrix [[a,b],[c,d]] = [[1,2],[3,4]], the gradient of det
+        // is the cofactor matrix [[d,-c],[-b,a]] = [[4,-3],[-2,1]].
+        let expected_det_grad = [[4.0_f32, -3.0], [-2.0, 1.0]];
+        for i in 0..2 {
+            for j in 0..2 {
+                assert!(
+                    (grad_det_output[[i, j]] - expected_det_grad[i][j]).abs() < EPSILON_RELAXED,
+                    "Determinant gradient[{}][{}] = {}, expected {}",
+                    i,
+                    j,
+                    grad_det_output[[i, j]],
+                    expected_det_grad[i][j]
+                );
+            }
+        }
 
         println!("✅ Gradient computations maintain numerical stability");
     });

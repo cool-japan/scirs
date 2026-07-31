@@ -132,7 +132,11 @@ fn irfft(x: &[Complex], n: usize) -> Vec<f64> {
 
 /// Next power-of-two >= n.
 fn next_pow2(n: usize) -> usize {
-    if n <= 1 { 1 } else { 1usize << (usize::BITS - (n - 1).leading_zeros()) as usize }
+    if n <= 1 {
+        1
+    } else {
+        1usize << (usize::BITS - (n - 1).leading_zeros()) as usize
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,9 +187,7 @@ pub fn hilbert_transform(signal: &[f64]) -> Vec<[f64; 2]> {
     }
     fft_complex(&mut spec2, true);
 
-    (0..n)
-        .map(|i| [spec2[i].0, spec2[i].1])
-        .collect()
+    (0..n).map(|i| [spec2[i].0, spec2[i].1]).collect()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -252,10 +254,7 @@ pub fn hht(signal: &[f64], sample_rate: f64) -> Vec<(Vec<f64>, Vec<f64>)> {
                 .collect();
 
             // Instantaneous phase
-            let phase: Vec<f64> = analytic
-                .iter()
-                .map(|&[re, im]| im.atan2(re))
-                .collect();
+            let phase: Vec<f64> = analytic.iter().map(|&[re, im]| im.atan2(re)).collect();
 
             // Unwrap phase
             let mut unwrapped = phase.clone();
@@ -371,10 +370,14 @@ pub fn vmd(
 ) -> SignalResult<VmdResult> {
     let n = signal.len();
     if n == 0 {
-        return Err(SignalError::ValueError("Signal must not be empty".to_string()));
+        return Err(SignalError::ValueError(
+            "Signal must not be empty".to_string(),
+        ));
     }
     if n_modes == 0 {
-        return Err(SignalError::ValueError("n_modes must be at least 1".to_string()));
+        return Err(SignalError::ValueError(
+            "n_modes must be at least 1".to_string(),
+        ));
     }
 
     // Mirror-pad to length 2N to reduce boundary effects
@@ -393,15 +396,16 @@ pub fn vmd(
 
     // Frequency axis [0, 1) normalized, only positive half
     let n_half = n_fft / 2;
-    let freqs: Vec<f64> = (0..n_fft)
-        .map(|k| k as f64 / n_fft as f64)
-        .collect();
+    let freqs: Vec<f64> = (0..n_fft).map(|k| k as f64 / n_fft as f64).collect();
 
     // Initialize mode spectra u_hat_k and center frequencies omega_k
     let mut u_hat: Vec<Vec<Complex>> = (0..n_modes)
         .map(|k| {
             // Initialize with uniform distribution
-            f_hat.iter().map(|&v| c_scale(v, 1.0 / n_modes as f64)).collect()
+            f_hat
+                .iter()
+                .map(|&v| c_scale(v, 1.0 / n_modes as f64))
+                .collect()
         })
         .collect();
 
@@ -500,7 +504,13 @@ pub fn vmd(
     let modes: Vec<Vec<f64>> = u_hat
         .iter()
         .map(|u_k| {
-            // Mirror the negative frequencies for real IFFT
+            // `u_k` already holds the full two-sided spectral content matched
+            // against `f_hat` (both were carried through the ADMM loop over
+            // *all* `n_fft` bins, not a half-strength one-sided spectrum), so
+            // rebuilding a real, Hermitian-symmetric spectrum from its
+            // positive half needs no extra amplitude compensation: mirroring
+            // `full[0..n_half]` onto the negative-frequency bins already
+            // reconstitutes 100% of the signal's energy.
             let mut full: Vec<Complex> = u_k.clone();
             // For real signal, conjugate symmetry
             for i in 1..n_half {
@@ -511,10 +521,7 @@ pub fn vmd(
             // But after zero-padding to n_fft, scaling differs; take [n..2n] from length-n_pad
             // We padded from n_pad to n_fft, so the actual signal is at [n..2n] of n_pad
             let start = n; // skip the left-mirror half
-            time_domain[start..start + n]
-                .iter()
-                .map(|&v| v * 2.0) // factor 2 for one-sided spectrum
-                .collect()
+            time_domain[start..start + n].to_vec()
         })
         .collect();
 
@@ -619,7 +626,11 @@ mod tests {
         let result = hht(&signal, sr);
         for (amp, _) in &result {
             for &a in amp {
-                assert!(a >= 0.0, "Instantaneous amplitude must be non-negative: {}", a);
+                assert!(
+                    a >= 0.0,
+                    "Instantaneous amplitude must be non-negative: {}",
+                    a
+                );
             }
         }
     }
@@ -634,8 +645,7 @@ mod tests {
             })
             .collect();
 
-        let result = vmd(&signal, 2, 2000.0, 0.0, 200, 1e-6)
-            .expect("VMD should succeed");
+        let result = vmd(&signal, 2, 2000.0, 0.0, 200, 1e-6).expect("VMD should succeed");
 
         assert_eq!(result.modes.len(), 2, "Should produce 2 modes");
         assert_eq!(result.center_frequencies.len(), 2);
@@ -655,8 +665,7 @@ mod tests {
             })
             .collect();
 
-        let result = vmd(&signal, 2, 2000.0, 0.0, 300, 1e-7)
-            .expect("VMD should succeed");
+        let result = vmd(&signal, 2, 2000.0, 0.0, 300, 1e-7).expect("VMD should succeed");
 
         let reconstructed: Vec<f64> = (0..n)
             .map(|i| result.modes.iter().map(|m| m[i]).sum::<f64>())
@@ -670,7 +679,11 @@ mod tests {
             / n as f64;
         let rmse = rmse.sqrt();
         // Reconstruction error should be reasonably small
-        assert!(rmse < 0.5, "RMSE {} should be small for VMD reconstruction", rmse);
+        assert!(
+            rmse < 0.5,
+            "RMSE {} should be small for VMD reconstruction",
+            rmse
+        );
     }
 
     #[test]
@@ -685,14 +698,17 @@ mod tests {
             })
             .collect();
 
-        let result = vmd(&signal, 2, 2000.0, 0.0, 300, 1e-7)
-            .expect("VMD should succeed");
+        let result = vmd(&signal, 2, 2000.0, 0.0, 300, 1e-7).expect("VMD should succeed");
 
         let freqs = &result.center_frequencies;
         assert_eq!(freqs.len(), 2);
         // Frequencies should be in [0, 0.5]
         for &f in freqs {
-            assert!(f >= 0.0 && f <= 0.5, "Frequency {} out of range [0, 0.5]", f);
+            assert!(
+                f >= 0.0 && f <= 0.5,
+                "Frequency {} out of range [0, 0.5]",
+                f
+            );
         }
         // The two frequencies should differ
         assert!(
@@ -713,8 +729,8 @@ mod tests {
             })
             .collect();
 
-        let result = vmd(&signal, 1, 2000.0, 0.0, 100, 1e-6)
-            .expect("VMD with 1 mode should succeed");
+        let result =
+            vmd(&signal, 1, 2000.0, 0.0, 100, 1e-6).expect("VMD with 1 mode should succeed");
 
         assert_eq!(result.modes.len(), 1);
         assert_eq!(result.modes[0].len(), n);

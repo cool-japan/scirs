@@ -70,9 +70,8 @@ mod descriptive_stats_properties {
     use super::*;
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn mean_bounds_property(data: Vec<f64>) -> TestResult {
-        if data.is_empty() || data.iter().any(|x| !x.is_finite()) {
+        if data.is_empty() || !has_valid_magnitude(&data) {
             return TestResult::discard();
         }
 
@@ -85,9 +84,8 @@ mod descriptive_stats_properties {
     }
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn variance_non_negative_property(data: Vec<f64>) -> TestResult {
-        if data.len() < 2 || data.iter().any(|x| !x.is_finite()) {
+        if data.len() < 2 || !has_valid_magnitude(&data) {
             return TestResult::discard();
         }
 
@@ -115,12 +113,13 @@ mod descriptive_stats_properties {
     }
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn mean_linearity_property(data: Vec<f64>, a: f64, b: f64) -> TestResult {
         if data.is_empty()
-            || data.iter().any(|x| !x.is_finite())
+            || !has_valid_magnitude(&data)
             || !a.is_finite()
             || !b.is_finite()
+            || a.abs() > 1e6
+            || b.abs() > 1e50
         {
             return TestResult::discard();
         }
@@ -130,21 +129,22 @@ mod descriptive_stats_properties {
 
         // Transform: y = a*x + b
         let transformed = arr.mapv(|x| a * x + b);
+        if transformed
+            .iter()
+            .any(|&v| !v.is_finite() || v.abs() > 1e50)
+        {
+            return TestResult::discard();
+        }
         let transformed_mean = mean(&transformed.view()).expect("Test: operation failed");
 
         let expected_mean = a * original_mean + b;
 
-        TestResult::from_bool((transformed_mean - expected_mean).abs() < 1e-10)
+        TestResult::from_bool(approx_eq_rel(transformed_mean, expected_mean, 1e-9, 1e-10))
     }
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn variance_scaling_property(data: Vec<f64>, a: f64) -> TestResult {
-        if data.len() < 2
-            || data.iter().any(|x| !x.is_finite())
-            || !a.is_finite()
-            || a.abs() > 1000.0
-        {
+        if data.len() < 2 || !has_valid_magnitude(&data) || !a.is_finite() || a.abs() > 1000.0 {
             return TestResult::discard();
         }
 
@@ -153,19 +153,22 @@ mod descriptive_stats_properties {
 
         // Transform: y = a*x
         let transformed = arr.mapv(|x| a * x);
+        if transformed
+            .iter()
+            .any(|&v| !v.is_finite() || v.abs() > 1e50)
+        {
+            return TestResult::discard();
+        }
         let transformed_var = var(&transformed.view(), 0, None).expect("Test: operation failed");
 
         let expected_var = a * a * original_var;
 
-        TestResult::from_bool(
-            (transformed_var - expected_var).abs() < 1e-8 * expected_var.abs().max(1.0),
-        )
+        TestResult::from_bool(approx_eq_rel(transformed_var, expected_var, 1e-8, 1e-10))
     }
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn skewness_bounds_property(data: Vec<f64>) -> TestResult {
-        if data.len() < 3 || data.iter().any(|x| !x.is_finite()) {
+        if data.len() < 3 || !has_valid_magnitude(&data) {
             return TestResult::discard();
         }
 
@@ -211,13 +214,12 @@ mod correlation_properties {
     use super::*;
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn correlation_bounds_property(xdata: Vec<f64>, y_data: Vec<f64>) -> TestResult {
         if xdata.len() != y_data.len() || xdata.len() < 2 {
             return TestResult::discard();
         }
 
-        if xdata.iter().any(|x| !x.is_finite()) || y_data.iter().any(|x| !x.is_finite()) {
+        if !has_valid_magnitude(&xdata) || !has_valid_magnitude(&y_data) {
             return TestResult::discard();
         }
 
@@ -237,13 +239,12 @@ mod correlation_properties {
     }
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn correlation_symmetry_property(xdata: Vec<f64>, y_data: Vec<f64>) -> TestResult {
         if xdata.len() != y_data.len() || xdata.len() < 2 {
             return TestResult::discard();
         }
 
-        if xdata.iter().any(|x| !x.is_finite()) || y_data.iter().any(|x| !x.is_finite()) {
+        if !has_valid_magnitude(&xdata) || !has_valid_magnitude(&y_data) {
             return TestResult::discard();
         }
 
@@ -260,7 +261,7 @@ mod correlation_properties {
         let corr_xy = pearson_r(&x.view(), &y.view()).expect("Test: operation failed");
         let corr_yx = pearson_r(&y.view(), &x.view()).expect("Test: operation failed");
 
-        TestResult::from_bool((corr_xy - corr_yx).abs() < 1e-10)
+        TestResult::from_bool(approx_eq_rel(corr_xy, corr_yx, 1e-9, 1e-10))
     }
 
     #[quickcheck]
@@ -455,9 +456,8 @@ mod extended_properties {
     use super::*;
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn range_property(data: Vec<f64>) -> TestResult {
-        if data.len() < 2 || data.iter().any(|x| !x.is_finite()) {
+        if data.len() < 2 || !has_valid_magnitude(&data) {
             return TestResult::discard();
         }
 
@@ -559,9 +559,8 @@ mod extended_properties {
     }
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn standardization_property(data: Vec<f64>) -> TestResult {
-        if data.len() < 3 || data.iter().any(|x| !x.is_finite()) {
+        if data.len() < 3 || !has_valid_magnitude(&data) {
             return TestResult::discard();
         }
 
@@ -579,7 +578,9 @@ mod extended_properties {
         let std_mean = mean(&standardized.view()).expect("Test: operation failed");
         let std_var = var(&standardized.view(), 0, None).expect("Test: operation failed");
 
-        TestResult::from_bool(std_mean.abs() < 1e-10 && (std_var - 1.0).abs() < 1e-10)
+        TestResult::from_bool(
+            approx_eq_rel(std_mean, 0.0, 1e-9, 1e-9) && approx_eq_rel(std_var, 1.0, 1e-9, 1e-10),
+        )
     }
 }
 
@@ -589,13 +590,12 @@ mod robust_statistics_properties {
     use super::*;
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn median_outlier_resistance(data: Vec<f64>, outlierfactor: f64) -> TestResult {
-        if data.len() < 5 || data.iter().any(|x| !x.is_finite()) {
+        if data.len() < 5 || !has_valid_magnitude(&data) {
             return TestResult::discard();
         }
 
-        if !outlierfactor.is_finite() || outlierfactor.abs() < 1.0 {
+        if !outlierfactor.is_finite() || outlierfactor.abs() < 1.0 || outlierfactor.abs() > 1e6 {
             return TestResult::discard();
         }
 
@@ -607,7 +607,11 @@ mod robust_statistics_properties {
         let max_val = with_outlier
             .iter()
             .fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-        with_outlier.push(max_val * outlierfactor);
+        let outlier_val = max_val * outlierfactor;
+        if !outlier_val.is_finite() || outlier_val.abs() > 1e50 {
+            return TestResult::discard();
+        }
+        with_outlier.push(outlier_val);
         let outlier_arr = Array1::from_vec(with_outlier);
         let outlier_median = median(&outlier_arr.view()).expect("Test: operation failed");
 
@@ -762,9 +766,8 @@ mod simd_consistency_properties {
     use super::*;
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn simd_scalar_consistency_mean(data: Vec<f64>) -> TestResult {
-        if data.is_empty() || data.iter().any(|x| !x.is_finite()) {
+        if data.is_empty() || !has_valid_magnitude(&data) {
             return TestResult::discard();
         }
 
@@ -774,7 +777,7 @@ mod simd_consistency_properties {
         // Compute scalar version manually
         let scalar_result = data.iter().sum::<f64>() / data.len() as f64;
 
-        TestResult::from_bool((simd_result - scalar_result).abs() < 1e-10)
+        TestResult::from_bool(approx_eq_rel(simd_result, scalar_result, 1e-9, 1e-10))
     }
 
     #[quickcheck]
@@ -898,9 +901,8 @@ mod multivariate_properties {
     use super::*;
 
     #[quickcheck]
-    #[ignore = "timeout"]
     fn correlation_matrix_properties(data: Vec<Vec<f64>>) -> TestResult {
-        // Limit matrix size to prevent timeout - max 50x50 matrix
+        // Limit matrix size to keep runtime reasonable - max 50x50 matrix
         if data.len() < 2
             || data.len() > 50
             || data.iter().any(|row| row.len() < 3 || row.len() > 50)
@@ -914,9 +916,9 @@ mod multivariate_properties {
             return TestResult::discard();
         }
 
-        // Check for finite values
+        // Check for valid (finite, non-extreme) values
         for row in &data {
-            if row.iter().any(|x| !x.is_finite()) {
+            if !has_valid_magnitude(row) {
                 return TestResult::discard();
             }
         }

@@ -440,7 +440,7 @@ impl GPUKernel for SparseFFTKernel {
 }
 
 /// Kernel factory for creating optimized kernels
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KernelFactory {
     /// Target GPU architecture
     #[allow(dead_code)]
@@ -456,6 +456,26 @@ pub struct KernelFactory {
 }
 
 impl KernelFactory {
+    /// Read-only view of the reported compute capabilities, e.g. for
+    /// external heuristics (like the `KernelFactoryExt` auto-tuning
+    /// extension) that need to branch on GPU generation without
+    /// duplicating a whole new factory constructor.
+    pub(crate) fn compute_capabilities(&self) -> &[(i32, i32)] {
+        &self.compute_capabilities
+    }
+
+    /// Read-only accessor for the maximum threads per block this factory
+    /// was configured with.
+    pub(crate) fn max_threads_per_block(&self) -> usize {
+        self.max_threads_per_block
+    }
+
+    /// Read-only accessor for the shared memory budget (bytes) per block
+    /// this factory was configured with.
+    pub(crate) fn shared_memory_per_block(&self) -> usize {
+        self.shared_memory_per_block
+    }
+
     /// Create a new kernel factory
     pub fn new(
         arch: String,

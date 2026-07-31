@@ -9,7 +9,7 @@ use std::fs;
 use std::path::Path;
 
 use scirs2_core::memory_efficient::{
-    create_mmap, AccessMode, ChunkingStrategy, MemoryMappedArray, MemoryMappedChunkIter,
+    create_mmap, open_mmap, AccessMode, ChunkingStrategy, MemoryMappedArray, MemoryMappedChunkIter,
     MemoryMappedChunks,
 };
 
@@ -30,6 +30,13 @@ use crate::error::{NdimageError, NdimageResult};
 /// # Returns
 ///
 /// A memory-mapped array that can be used like a regular ndarray
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be opened, if the file is too small
+/// for the requested shape, or if the file's actual shape (as recorded in
+/// its header, for files written by [`saveimage_mmap`]) does not match the
+/// requested `shape`.
 #[allow(dead_code)]
 pub fn loadimage_mmap<T, D, P>(
     path: P,
@@ -42,30 +49,21 @@ where
     D: Dimension,
     P: AsRef<Path>,
 {
-    // Calculate total size
-    let total_elements: usize = shape.iter().product();
-    let element_size = std::mem::size_of::<T>();
-    let total_bytes = total_elements * element_size;
+    // `saveimage_mmap` (via `create_mmap`, `AccessMode::Write`) prepends a
+    // serialized header before the array data. Use the header-aware
+    // `open_mmap` here rather than re-deriving a raw offset ourselves:
+    // mapping directly at the caller-supplied `offset` (as this function
+    // previously did, via `create_mmap` with a shape-only dummy array)
+    // ignores that header entirely, silently shifting every element read
+    // back by the header size instead of failing loudly.
+    let mmap = open_mmap::<T, D>(path.as_ref(), access, offset).map_err(NdimageError::CoreError)?;
 
-    // Check if file exists and has correct size
-    let file_size = std::fs::metadata(path.as_ref())
-        .map_err(NdimageError::IoError)?
-        .len() as usize;
-
-    if file_size < offset + total_bytes {
+    if mmap.shape != shape {
         return Err(NdimageError::InvalidInput(format!(
-            "File too small: expected at least {} bytes, got {}",
-            offset + total_bytes,
-            file_size
+            "Shape mismatch: file contains shape {:?}, expected {:?}",
+            mmap.shape, shape
         )));
     }
-
-    // Create a dummy array for shape information
-    let dummy_array = Array::<T, IxDyn>::zeros(IxDyn(shape));
-
-    // Create memory-mapped array
-    let mmap = create_mmap(&dummy_array.view(), path.as_ref(), access, offset)
-        .map_err(NdimageError::CoreError)?;
 
     Ok(mmap)
 }
@@ -234,72 +232,28 @@ where
     D: Dimension + 'static,
     P: AsRef<Path>,
 {
-    use std::fs::File;
-    use std::io::Read;
+    // `saveimage_mmap` (via `create_mmap`/`AccessMode::Write`) prepends a
+    // serialized header before the array data -- see `loadimage_mmap`'s fix
+    // above for the full rationale. This function previously hand-parsed
+    // the file at raw byte offset 0 (ignoring that header entirely, which
+    // silently shifted every element read back by the header size) and
+    // only supported f32/f64 via a hand-rolled little-endian decode loop.
+    // Delegate to the already header-aware, already-tested `open_mmap` +
+    // `MemoryMappedArray::as_array` instead of re-deriving the (variable
+    // length, versioned, aligned) header layout a second time -- this also
+    // removes the f32/f64-only restriction as a side effect, since
+    // `as_array` works for any `T`.
+    let mmap = open_mmap::<T, D>(path.as_ref(), AccessMode::ReadOnly, 0)
+        .map_err(NdimageError::CoreError)?;
 
-    let total_elements: usize = shape.iter().product();
-    let element_size = std::mem::size_of::<T>();
-    let expected_bytes = total_elements * element_size;
-
-    // Open and read the file
-    let mut file = File::open(path.as_ref()).map_err(NdimageError::IoError)?;
-
-    // Check file size
-    let file_size = file.metadata().map_err(NdimageError::IoError)?.len() as usize;
-
-    if file_size < expected_bytes {
+    if mmap.shape != shape {
         return Err(NdimageError::InvalidInput(format!(
-            "File too small: expected {} bytes, got {}",
-            expected_bytes, file_size
+            "Shape mismatch: file contains shape {:?}, expected {:?}",
+            mmap.shape, shape
         )));
     }
 
-    // Read the binary data
-    let mut buffer = vec![0u8; expected_bytes];
-    file.read_exact(&mut buffer)
-        .map_err(NdimageError::IoError)?;
-
-    // Convert bytes to the target type
-    let mut data = Vec::with_capacity(total_elements);
-
-    if std::mem::size_of::<T>() == std::mem::size_of::<f64>() {
-        // Handle f64 case
-        for chunk in buffer.chunks_exact(8) {
-            let bytes: [u8; 8] = chunk
-                .try_into()
-                .map_err(|_| NdimageError::ProcessingError("Invalid byte alignment".into()))?;
-            let value = f64::from_le_bytes(bytes);
-            let converted = T::from_f64(value).ok_or_else(|| {
-                NdimageError::ProcessingError("Failed to convert f64 to target type".into())
-            })?;
-            data.push(converted);
-        }
-    } else if std::mem::size_of::<T>() == std::mem::size_of::<f32>() {
-        // Handle f32 case
-        for chunk in buffer.chunks_exact(4) {
-            let bytes: [u8; 4] = chunk
-                .try_into()
-                .map_err(|_| NdimageError::ProcessingError("Invalid byte alignment".into()))?;
-            let value = f32::from_le_bytes(bytes);
-            let converted = T::from_f32(value).ok_or_else(|| {
-                NdimageError::ProcessingError("Failed to convert f32 to target type".into())
-            })?;
-            data.push(converted);
-        }
-    } else {
-        return Err(NdimageError::NotImplementedError(
-            "Only f32 and f64 types are currently supported for regular array loading".into(),
-        ));
-    }
-
-    // Create the array with the specified shape
-    let raw_dim = D::from_dimension(&scirs2_core::ndarray::IxDyn(shape))
-        .ok_or_else(|| NdimageError::DimensionError("Invalid shape for dimension type".into()))?;
-
-    let array = Array::from_shape_vec(raw_dim, data)
-        .map_err(|e| NdimageError::ProcessingError(format!("Failed to create array: {}", e)))?;
-
-    Ok(array)
+    mmap.as_array::<D>().map_err(NdimageError::CoreError)
 }
 
 /// Smart image loader that automatically decides between regular and memory-mapped loading
@@ -446,26 +400,32 @@ mod tests {
         let temp_dir = tempdir().expect("Operation failed");
         let file_path = temp_dir.path().join("testimage.bin");
 
-        // Create test data
-        let data = Array2::<f64>::from_elem((50, 50), std::f64::consts::PI);
+        // Use per-cell distinct values (not a constant fill) so a
+        // misaligned or otherwise corrupted round trip would actually be
+        // detected: a uniform array would still "look right" even if every
+        // element were silently read from the wrong file offset.
+        let mut data = Array2::<f64>::zeros((50, 50));
+        for i in 0..50 {
+            for j in 0..50 {
+                data[[i, j]] = (i * 50 + j) as f64 + 0.5;
+            }
+        }
 
         // Save as memory-mapped
         let _saved_mmap = saveimage_mmap(&data.view(), &file_path, 0).expect("Operation failed");
-        // Note: MemoryMappedArray might not have shape() method
-        // The test success indicates proper save functionality
 
         // Load back
         let loaded_mmap =
             loadimage_mmap::<f64, Ix2, _>(&file_path, &[50, 50], 0, AccessMode::ReadOnly)
                 .expect("Operation failed");
 
-        // Verify data (if as_array method exists)
-        // Note: MemoryMappedArray functionality may be limited in current implementation
-        // let loaded_view = loaded_mmap.as_array::<Ix2>().expect("Operation failed");
-        // assert_eq!(loaded_view[[25, 25]], 3.14);
-
-        // Test passes if loading completes without error
-        assert!(file_path.exists());
+        // Verify the round trip preserves the actual data, at several
+        // distinct locations (start, middle, end).
+        let loaded_view = loaded_mmap.as_array::<Ix2>().expect("Operation failed");
+        assert_eq!(loaded_view[[0, 0]], data[[0, 0]]);
+        assert_eq!(loaded_view[[0, 1]], data[[0, 1]]);
+        assert_eq!(loaded_view[[25, 25]], data[[25, 25]]);
+        assert_eq!(loaded_view[[49, 49]], data[[49, 49]]);
     }
 
     #[test]
@@ -478,5 +438,69 @@ mod tests {
 
         assert_eq!(chunks.len(), 10);
         assert_eq!(chunks[0].len(), 100);
+    }
+
+    #[test]
+    fn test_load_regular_array_respects_header() {
+        // `load_regular_array` previously hand-parsed the file starting at
+        // raw byte offset 0, ignoring the header that `saveimage_mmap`
+        // actually writes -- this would have silently returned
+        // header-shifted garbage (or, for non-f32/f64 `T`, an outright
+        // NotImplementedError) instead of the real data. Per-cell distinct
+        // values (not a constant fill) so a misaligned/corrupted round
+        // trip would actually be detected.
+        let temp_dir = tempdir().expect("Operation failed");
+        let file_path = temp_dir.path().join("regular.bin");
+
+        let mut data = Array2::<f64>::zeros((20, 20));
+        for i in 0..20 {
+            for j in 0..20 {
+                data[[i, j]] = (i * 20 + j) as f64 + 0.25;
+            }
+        }
+
+        saveimage_mmap(&data.view(), &file_path, 0).expect("Operation failed");
+
+        let loaded = load_regular_array::<f64, scirs2_core::ndarray::Ix2, _>(&file_path, &[20, 20])
+            .expect("Operation failed");
+
+        assert_eq!(loaded.shape(), data.shape());
+        assert_eq!(loaded[[0, 0]], data[[0, 0]]);
+        assert_eq!(loaded[[0, 1]], data[[0, 1]]);
+        assert_eq!(loaded[[10, 10]], data[[10, 10]]);
+        assert_eq!(loaded[[19, 19]], data[[19, 19]]);
+    }
+
+    #[test]
+    fn test_load_regular_array_rejects_shape_mismatch() {
+        let temp_dir = tempdir().expect("Operation failed");
+        let file_path = temp_dir.path().join("regular_mismatch.bin");
+
+        let data = Array2::<f64>::from_shape_fn((5, 5), |(i, j)| (i * 5 + j) as f64);
+        saveimage_mmap(&data.view(), &file_path, 0).expect("Operation failed");
+
+        let result = load_regular_array::<f64, scirs2_core::ndarray::Ix2, _>(&file_path, &[7, 7]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_smart_loadimage_small_file_uses_regular_array() {
+        // Below the default `auto_mmap_threshold`, `smart_loadimage` should
+        // route through `load_regular_array` and return real data (not the
+        // header-shifted garbage the pre-fix implementation would have
+        // produced).
+        let temp_dir = tempdir().expect("Operation failed");
+        let file_path = temp_dir.path().join("smart_small.bin");
+
+        let data = Array2::<f64>::from_shape_fn((4, 4), |(i, j)| (i * 4 + j) as f64 + 0.1);
+        saveimage_mmap(&data.view(), &file_path, 0).expect("Operation failed");
+
+        let loaded =
+            smart_loadimage::<f64, scirs2_core::ndarray::Ix2, _>(&file_path, &[4, 4], None)
+                .expect("Operation failed");
+        assert!(!loaded.is_mmap());
+
+        let array = loaded.to_array().expect("Operation failed");
+        assert_eq!(array, data);
     }
 }

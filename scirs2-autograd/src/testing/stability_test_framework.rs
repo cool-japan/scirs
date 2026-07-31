@@ -78,7 +78,7 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
     /// Run all stability tests with graph context
     pub fn run_all_tests_with_context(
         &mut self,
-        graph: &'a mut crate::Context<F>,
+        graph: &'a crate::Context<F>,
     ) -> Result<TestSummary, StabilityError> {
         let start_time = Instant::now();
 
@@ -151,14 +151,11 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
         }
 
         if self.config.run_benchmarks {
-            // Add placeholder benchmark results
-            let benchmark = BenchmarkResult {
-                tensor_size: 1000,
-                analysis_duration: Duration::from_millis(50),
-                memory_usage: 8000,
-                operations_per_second: 20000,
-            };
-            self.benchmarks.push(benchmark);
+            self.run_performance_benchmarks(graph)?;
+        }
+
+        if self.config.run_scenario_tests && !self.scenarios.is_empty() {
+            self.run_scenario_tests()?;
         }
 
         let total_duration = start_time.elapsed();
@@ -443,12 +440,10 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
     }
     */
 
-    /*
-    /// Run performance benchmarks
-    #[allow(dead_code)]
+    /// Run performance benchmarks across a range of tensor sizes.
     fn run_performance_benchmarks(
         &mut self,
-        graph: &'a mut crate::Context<F>,
+        graph: &'a crate::Context<F>,
     ) -> Result<(), StabilityError> {
         let sizes = vec![100, 1000, 10000, 100000];
 
@@ -459,7 +454,6 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
 
         Ok(())
     }
-    */
 
     /// Run scenario-specific tests
     #[allow(dead_code)]
@@ -474,11 +468,7 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
 
     /// Helper methods
     #[allow(dead_code)]
-    fn create_test_tensor(
-        &self,
-        shape: Vec<usize>,
-        graph: &'a mut crate::Context<F>,
-    ) -> Tensor<'a, F> {
+    fn create_test_tensor(&self, shape: Vec<usize>, graph: &'a crate::Context<F>) -> Tensor<'a, F> {
         use crate::tensor_ops as T;
         use scirs2_core::ndarray::{Array, IxDyn};
 
@@ -501,7 +491,7 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
         &self,
         shape: Vec<usize>,
         magnitude: f64,
-        graph: &'a mut crate::Context<F>,
+        graph: &'a crate::Context<F>,
     ) -> Tensor<'a, F> {
         use crate::tensor_ops as T;
         use scirs2_core::ndarray::{Array, IxDyn};
@@ -589,24 +579,24 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
         })
     }
 
-    #[allow(dead_code)]
     fn run_size_benchmark(
         &self,
         size: usize,
-        graph: &'a mut crate::Context<F>,
+        graph: &'a crate::Context<F>,
     ) -> Result<BenchmarkResult, StabilityError> {
-        let _input = self.create_test_tensor(vec![size], graph);
-        // Skip forward stability computation to avoid lifetime issues
+        // Time real, size-dependent work (tensor allocation + graph-node
+        // construction) rather than a fixed `sleep` — a hardcoded duration
+        // produced identical "operations_per_second" figures regardless of
+        // `size`, which is not a benchmark of anything.
         let start_time = Instant::now();
-        // Simulate some computation time
-        std::thread::sleep(std::time::Duration::from_millis(1));
+        let _input = self.create_test_tensor(vec![size], graph);
         let duration = start_time.elapsed();
 
         Ok(BenchmarkResult {
             tensor_size: size,
             analysis_duration: duration,
             memory_usage: size * std::mem::size_of::<F>(),
-            operations_per_second: (size as f64 / duration.as_secs_f64()) as u64,
+            operations_per_second: (size as f64 / duration.as_secs_f64().max(1e-12)) as u64,
         })
     }
 
@@ -637,13 +627,32 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
     }
 
     fn create_test_summary(&self, totalduration: Duration) -> TestSummary {
-        let total_tests = self.results.test_results.len();
+        // Scenario and edge-case results (added via add_scenario/
+        // run_scenario_tests, and the run_edge_case_tests branch above) are
+        // distinct collections from the basic-test placeholders; fold them
+        // in here so total_tests/success_rate reflect real pass/fail across
+        // every category actually run, not only the basic-test stubs.
+        let total_tests = self.results.test_results.len()
+            + self.results.scenario_results.len()
+            + self.results.edge_case_results.len();
         let passed_tests = self
             .results
             .test_results
             .iter()
             .filter(|r| r.passed)
-            .count();
+            .count()
+            + self
+                .results
+                .scenario_results
+                .iter()
+                .filter(|r| r.passed)
+                .count()
+            + self
+                .results
+                .edge_case_results
+                .iter()
+                .filter(|r| r.passed)
+                .count();
 
         TestSummary {
             total_tests,
@@ -661,6 +670,11 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
 
         for result in &self.results.test_results {
             *distribution.entry(result.actual_grade).or_insert(0) += 1;
+        }
+        for result in &self.results.scenario_results {
+            *distribution
+                .entry(result.forward_metrics.stability_grade)
+                .or_insert(0) += 1;
         }
 
         distribution

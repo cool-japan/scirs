@@ -1,8 +1,8 @@
 # scirs2-cluster TODO
 
-## Status: v0.6.3 (reviewed 2026-07-27)
+## Status: v0.6.5 (reviewed 2026-07-31)
 
-Untouched by this release's fix work (no cluster-specific changes shipped in 0.6.3); the review
+Untouched by this release's fix work (no cluster-specific changes shipped in 0.6.5); the review
 below — last performed against source on 2026-07-15 — remains accurate since the crate source is
 unchanged.
 

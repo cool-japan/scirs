@@ -57,6 +57,10 @@ pub struct QuantumClusterer {
     tolerance: f64,
     /// Quantum state for centroids
     centroid_state: Option<QuantumState>,
+    /// Classical cluster centroids produced by the last successful `fit()`
+    /// call. Required by `predict()` to assign new points to their nearest
+    /// fitted cluster; `None` until `fit()` has completed.
+    fitted_centroids: Option<Array2<f64>>,
 }
 
 impl QuantumClusterer {
@@ -75,6 +79,7 @@ impl QuantumClusterer {
             max_iterations: 100,
             tolerance: 1e-6,
             centroid_state: None,
+            fitted_centroids: None,
         }
     }
 
@@ -190,12 +195,16 @@ impl QuantumClusterer {
         }
 
         self.centroid_state = Some(quantum_centroids);
+        self.fitted_centroids = Some(centroids.clone());
         Ok((centroids, assignments))
     }
 
     /// Predict cluster assignments for new points
     ///
-    /// Uses the fitted quantum centroids to assign cluster labels to new points.
+    /// Uses the fitted quantum centroids to assign cluster labels to new points,
+    /// via the same quantum-enhanced nearest-centroid rule used during `fit()`
+    /// (`quantum_assignment_step`): each point is assigned to the cluster whose
+    /// centroid minimizes the quantum-enhanced distance.
     ///
     /// # Arguments
     /// * `points` - New points to classify
@@ -204,22 +213,25 @@ impl QuantumClusterer {
     /// Cluster assignments for the new points
     ///
     /// # Errors
-    /// Returns error if the clusterer hasn't been fitted yet
+    /// Returns error if the clusterer hasn't been fitted yet, or if the
+    /// dimensionality of `points` doesn't match the fitted centroids.
     pub fn predict(&self, points: &ArrayView2<'_, f64>) -> SpatialResult<Array1<usize>> {
-        if self.centroid_state.is_none() {
-            return Err(SpatialError::InvalidInput(
-                "Clusterer must be fitted before prediction".to_string(),
-            ));
+        let quantum_state = self.centroid_state.as_ref().ok_or_else(|| {
+            SpatialError::InvalidInput("Clusterer must be fitted before prediction".to_string())
+        })?;
+        let centroids = self.fitted_centroids.as_ref().ok_or_else(|| {
+            SpatialError::InvalidInput("Clusterer must be fitted before prediction".to_string())
+        })?;
+
+        if points.dim().1 != centroids.dim().1 {
+            return Err(SpatialError::DimensionError(format!(
+                "Points have {} dimensions but clusterer was fitted on {} dimensions",
+                points.dim().1,
+                centroids.dim().1
+            )));
         }
 
-        // For now, we'll need the fitted centroids - this would require storing them
-        // This is a simplified implementation
-        let (n_points, _) = points.dim();
-        let assignments = Array1::zeros(n_points);
-
-        // This would use the quantum state for enhanced prediction
-        // For now, return basic assignments
-        Ok(assignments)
+        self.quantum_assignment_step(points, centroids, quantum_state)
     }
 
     /// Encode spatial points into quantum representation
@@ -573,6 +585,67 @@ mod tests {
         let clusterer = QuantumClusterer::new(2);
 
         let result = clusterer.predict(&points.view());
+        assert!(result.is_err());
+    }
+
+    /// Regression test for the predict() stub: it used to ignore the fitted
+    /// centroids entirely and return `Array1::zeros(n_points)` (cluster 0)
+    /// for every input, regardless of where the query points actually are.
+    /// With two well-separated training clusters, new points near each
+    /// cluster must be assigned to that cluster's own (fitted) label.
+    #[test]
+    fn test_predict_matches_fitted_clusters() {
+        let points = Array2::from_shape_vec(
+            (6, 2),
+            vec![
+                0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // indices 0..3: cluster A, near origin
+                10.0, 10.0, 11.0, 10.0, 10.0, 11.0, // indices 3..6: cluster B, near (10, 10)
+            ],
+        )
+        .expect("Operation failed");
+
+        let mut clusterer = QuantumClusterer::new(2);
+        let (_, fit_assignments) = clusterer.fit(&points.view()).expect("fit failed");
+
+        let label_a = fit_assignments[0];
+        let label_b = fit_assignments[3];
+        assert_ne!(
+            label_a, label_b,
+            "two well-separated clusters must receive distinct labels"
+        );
+
+        // Query points are new (not part of the training set) but each is
+        // clearly closer to one of the two fitted clusters.
+        let query =
+            Array2::from_shape_vec((2, 2), vec![0.2, 0.2, 10.2, 10.2]).expect("Operation failed");
+        let predicted = clusterer
+            .predict(&query.view())
+            .expect("predict should succeed once fitted");
+
+        assert_eq!(predicted.len(), 2);
+        assert_eq!(
+            predicted[0], label_a,
+            "query near cluster A must predict cluster A's fitted label"
+        );
+        assert_eq!(
+            predicted[1], label_b,
+            "query near cluster B must predict cluster B's fitted label"
+        );
+    }
+
+    #[test]
+    fn test_predict_dimension_mismatch() {
+        let points = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 0.0, 5.0, 5.0, 6.0, 5.0])
+            .expect("Operation failed");
+
+        let mut clusterer = QuantumClusterer::new(2);
+        clusterer.fit(&points.view()).expect("fit failed");
+
+        // 3 dimensions instead of the fitted 2 -- must error, not silently
+        // truncate/misinterpret the input.
+        let bad_query =
+            Array2::from_shape_vec((1, 3), vec![0.0, 0.0, 0.0]).expect("Operation failed");
+        let result = clusterer.predict(&bad_query.view());
         assert!(result.is_err());
     }
 }

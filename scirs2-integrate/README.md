@@ -5,11 +5,11 @@
 [![Documentation](https://img.shields.io/docsrs/scirs2-integrate)](https://docs.rs/scirs2-integrate)
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
-**Numerical integration, ODE/PDE/SDE solvers, and physics simulation for the SciRS2 scientific computing library (v0.6.3).**
+**Numerical integration, ODE/PDE/SDE solvers, and physics simulation for the SciRS2 scientific computing library (v0.6.5).**
 
 `scirs2-integrate` provides a comprehensive suite of numerical integration methods modeled after SciPy's `integrate` module, extended with advanced capabilities including Stochastic Differential Equation (SDE) solvers, Lattice Boltzmann Method (LBM) fluid simulation, Discontinuous Galerkin (DG) finite elements, phase field models, Boundary Element Methods, Isogeometric Analysis, Port-Hamiltonian discretization, and Monte Carlo / Quasi-Monte Carlo integration — all as pure Rust.
 
-## Features (v0.6.3)
+## Features (v0.6.5)
 
 ### Quadrature (Definite Integrals)
 - **Adaptive quadrature**: Automatic error control; `quad`, `dblquad`, `tplquad`, `nquad`
@@ -111,14 +111,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-integrate = "0.6.4"
+scirs2-integrate = "0.6.5"
 ```
 
 With optional performance features:
 
 ```toml
 [dependencies]
-scirs2-integrate = { version = "0.6.4", features = ["parallel", "simd"] }
+scirs2-integrate = { version = "0.6.5", features = ["parallel", "simd"] }
 ```
 
 ### Adaptive 1D quadrature
@@ -269,6 +269,8 @@ Freshly measured via `cargo nextest run -p scirs2-integrate` (2026-07-15):
 | `--all-features` | 1873 tests run: 1873 passed, 4 skipped, 0 failed |
 
 The 4 skipped tests are `#[ignore]`d in both modes (PINN training tests in `src/pinn/high_level.rs`; reason: "slow: PINN training exceeds test timeout"). The slowest passing tests in both modes are the finance Monte Carlo Greeks/parity tests (`specialized::finance::monte_carlo`), each taking 30-90 seconds — expected given their sample sizes, not a hang.
+
+**0.6.5 update:** the DOP853/RK23 adaptive-step-control fix (see [TODO.md](./TODO.md) "Adaptive ODE step-control fix") added a new `tests/integration_ode.rs` integration suite (16 tests covering RK23/DOP853 convergence order, step-size control under stiffness, and cross-method agreement), so actual current totals are higher than the 2026-07-15 snapshot above; not independently re-measured this pass. The 4-skipped/PINN figure is unaffected by the workspace-wide `#[ignore]`-legitimacy audit — this crate's 4 ignores were already reason-tagged in the `slow:`/etc. taxonomy that the audit went on to enforce workspace-wide.
 
 ## Documentation
 

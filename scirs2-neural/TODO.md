@@ -1,10 +1,37 @@
 # scirs2-neural TODO
 
-## Status: v0.6.3 (2026-07-27)
+## Status: v0.6.5 (2026-07-31)
 
-Untouched by this release's fix work (no neural-specific changes shipped in 0.6.3); the
-verification below (performed for 0.6.2, itself carried forward from the 0.6.1 run) remains
-accurate for 0.6.3 since the crate source is unchanged.
+First neural-specific change since the 0.6.1 verification below (0.6.2/0.6.3/0.6.4 were all
+untouched — no neural-specific changes shipped in any of them, so the crate source was unchanged
+and the 0.6.1 verification carried forward as-is). This release, found via the workspace-wide
+`#[ignore]`-legitimacy audit (see root `CHANGELOG.md` `[0.6.5]`), fixed a real training-correctness
+bug:
+
+- **`Lstm`** (`src/layers/recurrent/lstm.rs`), the **`Transformer`** encoder/decoder stack
+  (`src/transformer/`: `model.rs`, `encoder.rs`, `decoder.rs`), and the **`BatchNorm`/`LayerNorm`**
+  (`src/layers/normalization.rs`) plus **`RMSNorm`/`GroupNorm`/`InstanceNorm`/`WeightNorm`**
+  (`src/layers/norm_variants.rs`) layers gained real `backward()` implementations computing
+  genuine parameter/input gradients, replacing paths that previously returned a zero gradient or an
+  input-shaped placeholder. Forward inference through all of these layers was already correct;
+  training was not — gradient descent through an LSTM, a Transformer, or any of these
+  normalization layers was silently a no-op (zero gradient) or propagated a garbage
+  (wrong-but-plausibly-shaped) gradient into upstream layers, with no error or warning either way.
+  `Lstm::backward` now does real backpropagation-through-time (per-gate `da_i/da_f/da_g/da_o`
+  accumulation across all sixteen weight/bias parameters); `LayerNorm`/`BatchNorm`'s `backward`
+  now implement the standard cached-`x_hat`/variance chain-rule derivation
+  (`dgamma`/`dbeta`/`dx` from cached normalized activations); the `Transformer` encoder/decoder
+  gradient now flows end-to-end through positional encoding, cross-attention, and both stacks via
+  `backward_train`/`backward_with_encoder`.
+- scirs2-neural itself had 0 `#[ignore]`-marked tests going into the audit (see Known Issues
+  below), so this fix came from following the audit's broader review of silent-failure patterns
+  across the workspace rather than from un-skipping a disabled test in this crate.
+
+The verification below (from the 0.6.1 run, carried forward unchanged through 0.6.2/0.6.3/0.6.4)
+predates this fix and has **not** been re-run as part of this docs-only update — the crate source
+did change this cycle, so treat the exact pass counts as stale pending the next full `cargo
+nextest` run. The qualitative claims (0 stub macros, real `metrics_integration` gating) are
+unaffected by this fix and still expected to hold.
 
 ### v0.6.1 Verification (2026-07-15)
 

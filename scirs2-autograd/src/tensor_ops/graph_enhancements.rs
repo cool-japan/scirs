@@ -84,28 +84,7 @@ impl<F: Float> Op<F> for ConditionalOp {
         let false_branch = ctx.input(2);
 
         // Simple condition evaluation - check if first element meets condition
-        let condition_met = match self.predicate_type {
-            PredicateType::GreaterThanZero => condition
-                .iter()
-                .next()
-                .map(|&x| x > F::zero())
-                .unwrap_or(false),
-            PredicateType::EqualToZero => condition
-                .iter()
-                .next()
-                .map(|&x| x == F::zero())
-                .unwrap_or(false),
-            PredicateType::NotEqualToZero => condition
-                .iter()
-                .next()
-                .map(|&x| x != F::zero())
-                .unwrap_or(false),
-            PredicateType::Threshold(threshold) => condition
-                .iter()
-                .next()
-                .map(|&x| x.to_f64().expect("Operation failed") > threshold)
-                .unwrap_or(false),
-        };
+        let condition_met = predicate_holds(self.predicate_type, &condition);
 
         let result = if condition_met {
             true_branch.to_owned()
@@ -118,14 +97,105 @@ impl<F: Float> Op<F> for ConditionalOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
+        // `compute` returns exactly one of the two branches, so exactly one of them
+        // influences the output and only that one may receive the cotangent.  Sending
+        // `gy` to *both* (the previous behaviour) reports a non-zero gradient for a
+        // branch whose value was discarded — for `conditional(c, f(x), g(x))` it makes
+        // the gradient `f'(x) + g'(x)` instead of whichever branch actually ran.
+        //
+        // The predicate is a runtime value, so the routing has to be decided at
+        // evaluation time; `ConditionalBranchGradOp` re-evaluates it and emits either
+        // `gy` or a zero tensor of the same shape.
+        let condition = *ctx.input(0);
+        let gy = *ctx.output_grad();
+        let g = ctx.graph();
 
-        // Simplified gradient - condition doesn't get gradient
+        let mut branch_grad = |take_true: bool| {
+            Tensor::builder(g)
+                .append_input(condition, false)
+                .append_input(gy, false)
+                .build(ConditionalBranchGradOp {
+                    predicate_type: self.predicate_type,
+                    take_true,
+                })
+        };
+
+        let to_true = branch_grad(true);
+        let to_false = branch_grad(false);
+
+        // The predicate itself is a step function of its input: zero derivative almost
+        // everywhere, undefined at the switching point.
         ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, Some(to_true));
+        ctx.append_input_grad(2, Some(to_false));
+    }
+}
 
-        // For simplicity, pass gradient to both branches
-        ctx.append_input_grad(1, Some(*gy));
-        ctx.append_input_grad(2, Some(*gy));
+/// Routes the cotangent of [`ConditionalOp`] to a single branch.
+///
+/// Inputs are `(condition, gy)`. The output is `gy` when the predicate selects the branch
+/// this node belongs to (`take_true`), and an all-zero tensor of the same shape otherwise.
+pub struct ConditionalBranchGradOp {
+    predicate_type: PredicateType,
+    take_true: bool,
+}
+
+/// Evaluates the branch predicate on the first element of `condition`.
+///
+/// Shared with [`ConditionalOp::compute`] so the forward and the backward pass can never
+/// disagree about which branch ran.
+fn predicate_holds<F: Float>(
+    predicate_type: PredicateType,
+    condition: &crate::ndarray_ext::NdArrayView<F>,
+) -> bool {
+    let first = match condition.iter().next() {
+        Some(&v) => v,
+        None => return false,
+    };
+    match predicate_type {
+        PredicateType::GreaterThanZero => first > F::zero(),
+        PredicateType::EqualToZero => first == F::zero(),
+        PredicateType::NotEqualToZero => first != F::zero(),
+        PredicateType::Threshold(threshold) => match first.to_f64() {
+            Some(v) => v > threshold,
+            None => false,
+        },
+    }
+}
+
+impl<F: Float> Op<F> for ConditionalBranchGradOp {
+    fn name(&self) -> &'static str {
+        "ConditionalBranchGrad"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let condition = ctx.input(0);
+        let gy = ctx.input(1);
+        let taken = predicate_holds(self.predicate_type, &condition);
+        let out = if taken == self.take_true {
+            gy.to_owned()
+        } else {
+            crate::ndarray_ext::NdArray::<F>::zeros(gy.raw_dim())
+        };
+        ctx.append_output(out);
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Second-order: the routing is a constant (the predicate does not depend on `gy`),
+        // so differentiating again just routes once more.
+        let condition = *ctx.input(0);
+        let ggy = *ctx.output_grad();
+        let g = ctx.graph();
+        let routed = Tensor::builder(g)
+            .append_input(condition, false)
+            .append_input(ggy, false)
+            .build(ConditionalBranchGradOp {
+                predicate_type: self.predicate_type,
+                take_true: self.take_true,
+            });
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, Some(routed));
     }
 }
 
@@ -144,12 +214,18 @@ impl<F: Float> Op<F> for SmartCheckpointOp {
 
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let input = ctx.input(0);
-        // For simplicity, just pass through the input
+        // Checkpointing is a *memory* strategy, not a mathematical transformation: the
+        // node forwards its input unchanged and exists only so the graph has a marked
+        // boundary.  Recomputation happens naturally because this crate re-evaluates the
+        // subgraph feeding the node whenever the node's value is needed again.
         ctx.append_output(input.to_owned());
         Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Forward is the identity, so the VJP is the identity: the cotangent passes
+        // straight through to the wrapped computation, which is then differentiated by
+        // its own ops exactly as if the checkpoint were not there.
         let gy = ctx.output_grad();
         ctx.append_input_grad(0, Some(*gy));
     }

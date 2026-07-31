@@ -2,7 +2,6 @@
 
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
-use crate::tensor_ops::convert_to_tensor;
 use crate::tensor_ops::decomposition_backward::lu_backward;
 use crate::Float;
 use scirs2_core::ndarray::{Array2, Ix2};
@@ -197,39 +196,58 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LUExtractOp {
             return;
         }
 
-        let gy = ctx.output_grad();
-        let input = ctx.input(0);
+        // NOTE: this must NOT eagerly `.eval()` `input`/`gy` here (a previous version
+        // did). `Op::grad` only ever has a bare `&Graph` (`ctx.graph()`), never the
+        // `Context`/`VariableEnvironment` that resolves `Variable` nodes, so evaluating a
+        // tensor that traces back to a `Variable` from here fails honestly instead of
+        // fabricating a value -- which silently turned into a *shape* bug: the failed
+        // eval fell through to `ctx.append_input_grad(0, None)`, and `tensor_ops::grad`'s
+        // "no gradient accumulated" fallback then invented a zero gradient from
+        // `Tensor::shape()`'s (empty, since it is never set for this node) hint, i.e. a
+        // 0-d "gradient" in place of an n×n matrix. Building a lazy `LUExtractGradOp`
+        // instead defers the re-derivation + `lu_backward` call to normal (non-eager)
+        // graph evaluation, exactly like every other backward op in this crate.
+        let input = *ctx.input(0);
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
+        let gx = Tensor::builder(g)
+            .append_input(input, false)
+            .append_input(gy, false)
+            .build(LUExtractGradOp {
+                component: self.component,
+            });
+        ctx.append_input_grad(0, Some(gx));
+    }
+}
 
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-        let grad_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+/// Lazy backward for [`LUExtractOp`] (`component` 1 or 2): re-derives `(P, L, U)` from `A`
+/// and applies Murray's LU backward rule. See `LUExtractOp::grad` for why this must be
+/// computed lazily rather than eagerly inside `Op::grad`.
+///
+/// Inputs are `(A, dComponent)` where `dComponent` is the upstream cotangent of whichever
+/// of L/U this instance's `component` names. Output is `dA`.
+struct LUExtractGradOp {
+    component: usize,
+}
 
-        let input_2d = match input_array.view().into_dimensionality::<Ix2>() {
-            Ok(v) => v.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-        let grad_2d = match grad_array.view().into_dimensionality::<Ix2>() {
-            Ok(v) => v.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LUExtractGradOp {
+    fn name(&self) -> &'static str {
+        "LUExtractGrad"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let input_2d = ctx
+            .input(0)
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("LUExtractGrad: A must be 2D".into()))?
+            .to_owned();
+        let grad_2d = ctx
+            .input(1)
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| {
+                OpError::IncompatibleShape("LUExtractGrad: upstream gradient must be 2D".into())
+            })?
+            .to_owned();
 
         let n = input_2d.nrows();
 
@@ -258,14 +276,22 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LUExtractOp {
             1 => (grad_2d, zero),
             2 => (zero, grad_2d),
             _ => {
-                ctx.append_input_grad(0, None);
-                return;
+                return Err(OpError::IncompatibleShape(
+                    "LUExtractGrad: invalid component".into(),
+                ))
             }
         };
 
         let grad_a = lu_backward(&p, &l, &u, &grad_l, &grad_u);
-        let grad_tensor = convert_to_tensor(grad_a.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        ctx.append_output(grad_a.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+            ctx,
+            "LU: second-order differentiation is not implemented.".into(),
+        );
     }
 }
 

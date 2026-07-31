@@ -529,7 +529,7 @@ pub mod variogram_models {
                 return 0.0;
             }
 
-            if h >= _range {
+            if h >= range {
                 return sill;
             }
 
@@ -572,7 +572,7 @@ pub mod variogram_models {
                 return 0.0;
             }
 
-            nugget + (sill - nugget) * (1.0 - (-9.0 * h * h / (_range * range)).exp())
+            nugget + (sill - nugget) * (1.0 - (-9.0 * h * h / (range * range)).exp())
         }
     }
 
@@ -590,7 +590,7 @@ pub mod variogram_models {
                 return 0.0;
             }
 
-            nugget + _slope * h
+            nugget + slope * h
         }
     }
 }
@@ -605,7 +605,7 @@ pub mod rbf_functions {
     ///
     /// * `epsilon` - Shape parameter controlling the width of the basis function
     pub fn gaussian(epsilon: f64) -> impl Fn(f64) -> f64 {
-        move |r: f64| (-_epsilon * r * r).exp()
+        move |r: f64| (-epsilon * r * r).exp()
     }
 
     /// Multiquadric RBF
@@ -616,7 +616,7 @@ pub mod rbf_functions {
     ///
     /// * `epsilon` - Shape parameter
     pub fn multiquadric(epsilon: f64) -> impl Fn(f64) -> f64 {
-        move |r: f64| ((1.0 + _epsilon * r * r) as f64).sqrt()
+        move |r: f64| (1.0 + epsilon * r * r).sqrt()
     }
 
     /// Inverse multiquadric RBF
@@ -627,7 +627,7 @@ pub mod rbf_functions {
     ///
     /// * `epsilon` - Shape parameter
     pub fn inverse_multiquadric(epsilon: f64) -> impl Fn(f64) -> f64 {
-        move |r: f64| 1.0 / ((1.0 + _epsilon * r * r) as f64).sqrt()
+        move |r: f64| 1.0 / (1.0 + epsilon * r * r).sqrt()
     }
 
     /// Thin plate spline RBF
@@ -652,7 +652,8 @@ mod tests {
     #[test]
     fn test_gaussian_process_interpolate() {
         let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
-        let result = gaussian_process_interpolate(&signal, 2.0, 1.0, 0.01).expect("Operation failed");
+        let result =
+            gaussian_process_interpolate(&signal, 2.0, 1.0, 0.01).expect("Operation failed");
 
         // All values should be valid
         assert!(result.iter().all(|&x| !x.is_nan()));
@@ -761,7 +762,8 @@ mod tests {
         let signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
         let config = InterpolationConfig::default();
 
-        let result1 = gaussian_process_interpolate(&signal, 1.0, 1.0, 0.01).expect("Operation failed");
+        let result1 =
+            gaussian_process_interpolate(&signal, 1.0, 1.0, 0.01).expect("Operation failed");
         let result2 = kriging_interpolate(&signal, |_| 1.0, &config).expect("Operation failed");
         let result3 = rbf_interpolate(&signal, |_| 1.0, &config).expect("Operation failed");
         let result4 = minimum_energy_interpolate(&signal, &config).expect("Operation failed");

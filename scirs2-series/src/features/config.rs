@@ -238,6 +238,11 @@ pub struct EnhancedPeriodogramConfig {
     pub enable_smoothing: bool,
     /// Enable zero padding for frequency resolution enhancement
     pub enable_zero_padding: bool,
+    /// Zero-padding factor: the padded length is `zero_padding_factor * n`
+    pub zero_padding_factor: usize,
+    /// Enable cubic-spline interpolation of the periodogram for smoother,
+    /// denser frequency sampling
+    pub enable_interpolation: bool,
 }
 
 impl Default for EnhancedPeriodogramConfig {
@@ -290,6 +295,8 @@ impl Default for EnhancedPeriodogramConfig {
             enable_variance_reduction: false,
             enable_smoothing: false,
             enable_zero_padding: false,
+            zero_padding_factor: 4,
+            enable_interpolation: false,
         }
     }
 }

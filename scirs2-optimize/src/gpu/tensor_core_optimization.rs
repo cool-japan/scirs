@@ -596,10 +596,21 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Requires Tensor Core capable GPU"]
+    #[ignore = "not-implemented: TensorCoreOptimizer::new() requires a CUDA-backed \
+                scirs2_core::gpu::GpuContext, but the CUDA backend was retired from \
+                scirs2-core in 0.6.x (moved to the per-crate oxicuda-* backends, see \
+                SCIRS2_POLICY.md) -- GpuContext::new(GpuBackend::Cuda) now unconditionally \
+                returns BackendNotAvailable on every host regardless of installed hardware, \
+                so this module cannot construct a working optimizer until it is migrated \
+                to call oxicuda-* directly. Not a hardware-availability gap: this cannot be \
+                fixed by running on a real Tensor-Core GPU as currently written."]
     fn test_tensor_core_optimizer() {
-        // This would test the actual Tensor Core optimizer
-        // Implementation depends on the actual scirs2-core GPU infrastructure
+        // See the #[ignore] reason above: TensorCoreOptimizer::new() can never
+        // succeed via scirs2_core::gpu::GpuContext post-0.6.x CUDA retirement,
+        // so there is no real path/hardware combination this test could
+        // exercise today. The CPU-path GEMM logic it would otherwise cover is
+        // independently verified without a GPU context by the `test_gemm_cpu_*`
+        // tests below (`TensorCoreOptimizer::gemm_cpu` is a standalone fn).
     }
 
     // ──────────────────────────────────────────────────────────────────────────

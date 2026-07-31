@@ -463,7 +463,7 @@ mod gradient_ops;
 mod graph_ops;
 pub(crate) mod higher_order_ops;
 pub(crate) mod hook_ops;
-mod math_ops;
+pub(crate) mod math_ops;
 mod random_ops;
 pub(crate) mod reduction_ops;
 mod xent_ops;
@@ -473,6 +473,8 @@ pub(crate) mod decomposition_backward;
 pub(crate) mod decomposition_ops;
 mod eigen_ops;
 mod linalg_ops;
+/// Shared matrix-function / Fréchet-derivative engine used by the matrix-function ops.
+pub(crate) mod matrix_calculus;
 // mod matrix_functions; // Module removed - functions are in decomposition_ops
 mod matrix_ops;
 mod norm_ops;
@@ -509,7 +511,7 @@ mod broadcast_ops;
 mod memory_optimization;
 
 // Efficient tensor operations
-mod efficient_ops;
+pub(crate) mod efficient_ops;
 
 // Custom activation function framework
 mod custom_activations;
@@ -585,16 +587,21 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 ///     // ddz/dx (differentiates `z` again)
 ///     let ggx = T::grad(&[gx], &[x])[0];
 ///
-///     // evaluation of gradients
-///     assert_eq!(3., gy.eval(ctx).expect("Operation failed")[scirs2_core::ndarray::IxDyn(&[])]);
-///     assert_eq!(4., ggx.eval(ctx).expect("Operation failed")[scirs2_core::ndarray::IxDyn(&[])]);
-///
-///     // Evaluate dz/dx when x=2:
-///     let gx_result = ctx.evaluator()
+///     // `gy` and `ggx` happen to be constant (3 and 4) regardless of x/y's values, but
+///     // reverse-mode autodiff builds a literal computation graph rather than a
+///     // symbolically-simplified one, so it still structurally depends on `x` and `y`;
+///     // both placeholders must be fed to evaluate any of these three gradients.
+///     let results = ctx
+///         .evaluator()
+///         .push(&gy)
 ///         .push(&gx)
+///         .push(&ggx)
 ///         .feed(x, scirs2_core::ndarray::arr0(2.).view().into_dyn())
+///         .feed(y, scirs2_core::ndarray::arr0(5.).view().into_dyn())
 ///         .run();
-///     assert_eq!(8., gx_result[0].as_ref().expect("Operation failed")[scirs2_core::ndarray::IxDyn(&[])]);
+///     assert_eq!(3., results[0].as_ref().expect("Operation failed")[scirs2_core::ndarray::IxDyn(&[])]);
+///     assert_eq!(8., results[1].as_ref().expect("Operation failed")[scirs2_core::ndarray::IxDyn(&[])]);
+///     assert_eq!(4., results[2].as_ref().expect("Operation failed")[scirs2_core::ndarray::IxDyn(&[])]);
 /// });
 ///    ```
 #[allow(dead_code)]
@@ -1077,10 +1084,21 @@ where
     let x = x.as_ref();
     let g = x.graph();
     let t = shape.as_tensor(g);
+    // NOTE: deliberately no `.setshape(&t)`.
+    //
+    // `setshape` records `t` as *the* shape of the result, and `tensor_ops::shape()`
+    // returns that recorded tensor verbatim instead of reading the runtime shape. The
+    // reshape spec is allowed to contain the `-1` "infer this dimension" sentinel
+    // (`flatten` always passes `[-1]`), so recording it makes `shape(flatten(x))`
+    // evaluate to `[-1]`. Every consumer that turns a shape tensor into real extents
+    // (`ndarray_ext::asshape`, `ReduceSumToScalarGrad`, `MaybeReduceSum`, ...) then
+    // saturates `-1` to `0` and silently produces an empty array — which is how the
+    // second-order pass used to blow up with "index ... out of bounds for array of
+    // shape [0]". Leaving the hint unset makes `shape()` build a real `Shape` op that
+    // reads the actual runtime extents.
     Tensor::builder(g)
         .append_input(x.as_ref(), false)
         .append_input(t, false)
-        .setshape(&t)
         .build(array_ops::Reshape)
 }
 
@@ -1779,11 +1797,21 @@ impl<'g, F: Float> Tensor<'g, F> {
 // ===============================================
 
 // Arithmetic operations (backward compatibility)
+/// Deprecated alias for [`abs`].
+///
+/// This name was always misleading: the function it names has only ever computed the
+/// absolute value `|x|`, never its negation, despite the `neg_` prefix. Kept solely for
+/// backward compatibility with existing external callers; use [`abs`] in new code.
+#[deprecated(
+    since = "0.6.5",
+    note = "misleading name: this is `abs`, not `-abs` -- use `abs` instead"
+)]
+pub use arithmetic::abs as neg_abs;
 pub use arithmetic::{
-    abs as neg_abs, acos, acosh, add, asin, asinh, atan, atanh, ceil, clip, cos, cosh, digamma_f32,
+    abs, acos, acosh, add, asin, asinh, atan, atanh, ceil, clip, cos, cosh, digamma_f32,
     digamma_f64, div, equal, exp, exp10, exp2, floor, greater, greater_equal, inv, inv_sqrt,
     lesser, lesser_equal, lgamma_f32, lgamma_f64, ln, log10, log2, maximum, minimum, mul, neg,
-    not_equal, pow, sign, sin, sinh, sqrt, square, sub, tan, tanh,
+    not_equal, pow, sign, sin, sinh, sqrt, square, sub, tan, tanh, trigamma_f32, trigamma_f64,
 };
 
 // Reduction operations (backward compatibility)
@@ -1816,9 +1844,11 @@ pub use linalg_ops::{
     diag as linalg_diag, extract_diag as linalg_extract_diag, eye as linalg_eye,
     trace as linalg_trace,
 };
-// Backward op dispatched by gradient.rs for `trace` (string-dispatch path does
-// not call Op::grad, so the matrix-valued VJP `gy · I_n` is delivered here).
-pub(crate) use linalg_ops::TraceBackwardOp;
+// Forward + backward ops matched by `TypeId` in gradient.rs's override table for
+// `trace`: `TraceOp`'s own `Op::grad` eagerly `.eval()`s the inputs and returns a
+// constant tensor, which is wrong under higher-order differentiation, so the override
+// builds `TraceBackwardOp` (a proper graph node) instead. See `compute_override_grads`.
+pub(crate) use linalg_ops::{TraceBackwardOp, TraceOp};
 pub use matrix_ops::{
     determinant as matrix_det, matrix_inverse as matrix_inv,
     pseudo_inverse as matrix_pseudo_inverse,
@@ -1855,6 +1885,10 @@ pub(crate) use numerical_props::{CondOp, CondTwoNormBackwardOp};
 // Backward op dispatched by gradient.rs for `logdet` (same reason as
 // `CondTwoNormBackwardOp` above).
 pub(crate) use numerical_props::LogDetBackwardOp;
+// Forward ops matched by `TypeId` in gradient.rs's override table: `LogDetOp`
+// (for `logdet`, same reason as `CondOp` above) and `RankOp` (for `matrix_rank`,
+// whose gradient is honestly `None` everywhere -- rank is piecewise-constant).
+pub(crate) use numerical_props::{LogDetOp, RankOp};
 
 // Kronecker product
 pub use kronecker_ops::kron;
@@ -1896,6 +1930,10 @@ pub use checkpoint_ops::{
     adaptive_checkpoint, checkpoint, checkpoint_segment, checkpoint_segment_flex, detach,
     CheckpointGroup, CheckpointProfiler,
 };
+// Forward op matched by `TypeId` in gradient.rs's override table: checkpointing is
+// transparent to gradients (forward is the identity), which must be enforced
+// explicitly because `CheckpointOp`'s own `Op::grad` is a stub.
+pub(crate) use checkpoint_ops::CheckpointOp;
 
 // Advanced indexing operations
 pub use advanced_indexing::{

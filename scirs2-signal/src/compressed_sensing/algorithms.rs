@@ -75,7 +75,12 @@ fn argmax_correlation(phi: &Array2<f64>, r: &Array1<f64>) -> Option<usize> {
     let mut best_idx = 0usize;
     let mut best_val = f64::NEG_INFINITY;
     for j in 0..n {
-        let ip: f64 = phi.column(j).iter().zip(r.iter()).map(|(&a, &b)| a * b).sum();
+        let ip: f64 = phi
+            .column(j)
+            .iter()
+            .zip(r.iter())
+            .map(|(&a, &b)| a * b)
+            .sum();
         let abs_ip = ip.abs();
         if abs_ip > best_val {
             best_val = abs_ip;
@@ -258,7 +263,7 @@ pub fn basis_pursuit(
     for _iter in 0..config.max_iter {
         // x-update: project (z - u) onto {x: Phi x = y}
         // x = (z - u) + Phi^T (Phi Phi^T)^{-1} (y - Phi(z - u))
-        let v: Array1<f64> = &z - &u;           // candidate
+        let v: Array1<f64> = &z - &u; // candidate
         let phi_v: Array1<f64> = phi.dot(&v);
         let residual_y: Array1<f64> = y - &phi_v;
         let lam = least_squares_solve(&a_mat, &residual_y)?;
@@ -278,8 +283,7 @@ pub fn basis_pursuit(
 
         let eps_pri = config.abs_tol * (n as f64).sqrt()
             + config.rel_tol * l2_norm(&x_new).max(l2_norm(&z_new));
-        let eps_dual = config.abs_tol * (n as f64).sqrt()
-            + config.rel_tol * rho * l2_norm(&u_new);
+        let eps_dual = config.abs_tol * (n as f64).sqrt() + config.rel_tol * rho * l2_norm(&u_new);
 
         x = x_new;
         z = z_new;
@@ -295,7 +299,6 @@ pub fn basis_pursuit(
 
     Ok(x)
 }
-
 
 // ---------------------------------------------------------------------------
 // LASSO  –  ADMM formulation
@@ -394,14 +397,15 @@ pub fn lasso(
         let dual_res = rho * l2_norm(&(&z_new - &z));
 
         let eps_pri = config.abs_tol * (n as f64).sqrt()
-            + config.rel_tol * x_new
-                .iter()
-                .map(|&v| v * v)
-                .sum::<f64>()
-                .sqrt()
-                .max(z_new.iter().map(|&v| v * v).sum::<f64>().sqrt());
-        let eps_dual = config.abs_tol * (n as f64).sqrt()
-            + config.rel_tol * l2_norm(&(&phi_t.dot(&u_new)));
+            + config.rel_tol
+                * x_new
+                    .iter()
+                    .map(|&v| v * v)
+                    .sum::<f64>()
+                    .sqrt()
+                    .max(z_new.iter().map(|&v| v * v).sum::<f64>().sqrt());
+        let eps_dual =
+            config.abs_tol * (n as f64).sqrt() + config.rel_tol * l2_norm(&(&phi_t.dot(&u_new)));
 
         x = x_new;
         z = z_new;
@@ -478,11 +482,7 @@ impl Default for OmpConfig {
 /// assert!((x[0] - 2.0).abs() < 1e-8);
 /// assert!((x[2] + 1.0).abs() < 1e-8);
 /// ```
-pub fn omp(
-    phi: &Array2<f64>,
-    y: &Array1<f64>,
-    config: &OmpConfig,
-) -> SignalResult<Array1<f64>> {
+pub fn omp(phi: &Array2<f64>, y: &Array1<f64>, config: &OmpConfig) -> SignalResult<Array1<f64>> {
     let (m, n) = phi.dim();
     if m == 0 || n == 0 {
         return Err(SignalError::ValueError(
@@ -778,11 +778,7 @@ impl Default for IstaConfig {
 /// // Large entries should be approximately recovered
 /// assert!((x[0] - 2.0).abs() < 0.15);
 /// ```
-pub fn ista(
-    phi: &Array2<f64>,
-    y: &Array1<f64>,
-    config: &IstaConfig,
-) -> SignalResult<Array1<f64>> {
+pub fn ista(phi: &Array2<f64>, y: &Array1<f64>, config: &IstaConfig) -> SignalResult<Array1<f64>> {
     let (m, n) = phi.dim();
     if m == 0 || n == 0 {
         return Err(SignalError::ValueError(
@@ -872,11 +868,7 @@ pub fn ista(
 /// let x = fista(&phi, &y, &cfg).expect("operation should succeed");
 /// assert!((x[0] - 2.0).abs() < 0.1);
 /// ```
-pub fn fista(
-    phi: &Array2<f64>,
-    y: &Array1<f64>,
-    config: &IstaConfig,
-) -> SignalResult<Array1<f64>> {
+pub fn fista(phi: &Array2<f64>, y: &Array1<f64>, config: &IstaConfig) -> SignalResult<Array1<f64>> {
     let (m, n) = phi.dim();
     if m == 0 || n == 0 {
         return Err(SignalError::ValueError(
@@ -995,7 +987,11 @@ mod tests {
         // Large entries should be well recovered
         // LASSO with ADMM on identity Phi: check basic direction of recovery
         assert!(x[0] > 0.5, "x[0]={} should be positive and large", x[0]);
-        assert!(x[2] < -0.5, "x[2]={} should be negative and large in magnitude", x[2]);
+        assert!(
+            x[2] < -0.5,
+            "x[2]={} should be negative and large in magnitude",
+            x[2]
+        );
         // Small noisy entries should be suppressed
         assert!(x[1].abs() < 0.5, "x[1]={}", x[1]);
     }
@@ -1120,8 +1116,10 @@ mod tests {
         let x_ista = ista(&phi, &y, &cfg.clone()).expect("ista should succeed");
         let x_fista = fista(&phi, &y, &cfg).expect("fista should succeed");
         // Both should recover the three non-zero entries
-        assert!((x_fista[0] - 3.0).abs() < (x_ista[0] - 3.0).abs() + 0.1,
-            "fista should be at least as good as ista");
+        assert!(
+            (x_fista[0] - 3.0).abs() < (x_ista[0] - 3.0).abs() + 0.1,
+            "fista should be at least as good as ista"
+        );
     }
 
     #[test]

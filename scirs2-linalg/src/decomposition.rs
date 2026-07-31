@@ -444,13 +444,28 @@ where
 /// Factors the matrix A as Z * T * Z.T, where Z is orthogonal/unitary
 /// and T is upper triangular (or upper quasi-triangular for real matrices).
 ///
+/// Uses Hessenberg reduction followed by the Francis double-shift implicit
+/// QR algorithm with deflation (see the crate-private `eigen::general::real_schur`):
+/// convergence is checked via the sub-diagonal norm at every step, so `T` is
+/// genuinely (quasi-)upper-triangular on return rather than merely "as
+/// triangular as a fixed iteration budget happened to make it" (an
+/// unconverged input previously produced by this function). Real
+/// eigenvalues appear as 1×1 diagonal blocks; complex-conjugate pairs appear
+/// as 2×2 diagonal blocks.
+///
 /// # Arguments
 ///
 /// * `a` - Input square matrix
 ///
 /// # Returns
 ///
-/// * Tuple (Z, T) where Z is orthogonal and T is upper triangular
+/// * Tuple (Z, T) where Z is orthogonal and T is upper (quasi-)triangular
+///
+/// # Errors
+///
+/// Returns [`LinalgError::ConvergenceError`] if the QR iteration budget is
+/// exhausted before the matrix fully deflates (should not happen for any
+/// reasonably well-scaled input).
 ///
 /// # Examples
 ///
@@ -474,25 +489,7 @@ where
         )));
     }
 
-    // For now, we'll use a simple approach based on QR iteration
-    // Real production code would use a more sophisticated and numerically stable
-    // implementation, likely calling into LAPACK's xGEES function
-
-    let n = a.nrows();
-    let mut t = a.to_owned();
-    let mut z = Array2::eye(n);
-
-    // Simple QR iteration (this is inefficient but illustrates the concept)
-    // In a real implementation, we would use a more sophisticated algorithm
-    // or directly call LAPACK's DGEES/SGEES function
-    let max_iter = 100;
-    for _ in 0..max_iter {
-        let (q, r) = qr(&t.view(), None)?;
-        t = r.dot(&q); // T = R*Q gives the upper triangular form
-        z = z.dot(&q); // Accumulate the transformation
-    }
-
-    Ok((z, t))
+    crate::eigen::general::real_schur(a)
 }
 
 /// Compute the QZ decomposition (generalized Schur decomposition) of a matrix pencil.
@@ -1050,6 +1047,73 @@ mod tests {
 
         // T should be approximately upper triangular
         assert!(t[[1, 0]].abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_schur_nonsymmetric_companion_matrix_known_spectrum() {
+        // Companion matrix of (x-1.0)(x-1.01)(x-1.02): non-symmetric, with a
+        // hand-computable spectrum whose eigenvalues are deliberately close
+        // together. Unshifted QR iteration converges only linearly, at a
+        // rate governed by the ratio of adjacent eigenvalues (~0.99 here),
+        // so 100 plain unshifted iterations (the previous implementation,
+        // with no convergence check or shift strategy) leaves a sub-diagonal
+        // on the order of 1e-4 and diagonal entries off by ~0.01-0.03 --
+        // this test's tolerances below would fail hard against that.
+        // Empirically verified against the pre-fix implementation.
+        let a = array![[3.03, -3.0602, 1.0302], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let (z, t) = schur(&a.view()).expect("schur should converge");
+
+        // Z must be orthogonal.
+        let zt = z.t();
+        let zz = z.dot(&zt);
+        for i in 0..3 {
+            for j in 0..3 {
+                let expected = if i == j { 1.0 } else { 0.0 };
+                assert_relative_eq!(zz[[i, j]], expected, epsilon = 1e-6);
+            }
+        }
+
+        // A = Z T Z^T.
+        let reconstructed = z.dot(&t).dot(&zt);
+        for i in 0..3 {
+            for j in 0..3 {
+                assert_relative_eq!(reconstructed[[i, j]], a[[i, j]], epsilon = 1e-6);
+            }
+        }
+
+        // T must be genuinely (not just "close enough after 100 iterations")
+        // upper triangular here, since every eigenvalue of this matrix is
+        // real: the sub-diagonal must have actually converged to zero.
+        assert!(t[[1, 0]].abs() < 1e-8, "t[1,0]={}", t[[1, 0]]);
+        assert!(t[[2, 1]].abs() < 1e-8, "t[2,1]={}", t[[2, 1]]);
+
+        let mut diag = [t[[0, 0]], t[[1, 1]], t[[2, 2]]];
+        diag.sort_by(|x, y| x.partial_cmp(y).expect("no NaNs"));
+        assert_relative_eq!(diag[0], 1.0, epsilon = 1e-6);
+        assert_relative_eq!(diag[1], 1.01, epsilon = 1e-6);
+        assert_relative_eq!(diag[2], 1.02, epsilon = 1e-6);
+    }
+
+    #[test]
+    fn test_schur_complex_conjugate_pair_kept_as_2x2_block() {
+        // Eigenvalues 3 +/- 2i: T must retain a genuine 2x2 block (it cannot
+        // be driven to fully upper-triangular real form).
+        let a = array![[3.0, -2.0], [2.0, 3.0]];
+        let (z, t) = schur(&a.view()).expect("schur should converge");
+
+        let zt = z.t();
+        let reconstructed = z.dot(&t).dot(&zt);
+        for i in 0..2 {
+            for j in 0..2 {
+                assert_relative_eq!(reconstructed[[i, j]], a[[i, j]], epsilon = 1e-6);
+            }
+        }
+
+        // trace/determinant of the 2x2 block must match the true complex pair.
+        let trace = t[[0, 0]] + t[[1, 1]];
+        let det = t[[0, 0]] * t[[1, 1]] - t[[0, 1]] * t[[1, 0]];
+        assert_relative_eq!(trace, 6.0, epsilon = 1e-6);
+        assert_relative_eq!(det, 13.0, epsilon = 1e-6);
     }
 
     #[test]

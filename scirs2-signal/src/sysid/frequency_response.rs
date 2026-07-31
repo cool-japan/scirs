@@ -188,6 +188,18 @@ pub(super) fn cross_spectral_density_welch(
 }
 
 /// Simple periodogram-based frequency response estimation
+///
+/// The frequency response `H(f) = Y(f)/X(f)` is computed from a single
+/// full-length FFT of the (zero-padded) data, preserving this method's
+/// characteristic higher frequency resolution compared to Welch's method.
+/// Coherence, however, is mathematically *always exactly 1.0* for any
+/// single realization (`|Pxy|^2/(Pxx*Pyy)` reduces identically to 1 when
+/// `Pxy = X*conj(Y)`, `Pxx = |X|^2`, `Pyy = |Y|^2` all come from the same
+/// single spectrum) -- a genuinely meaningful coherence estimate requires
+/// averaging over multiple, independent sub-realizations. This computes
+/// that genuine estimate internally by splitting the data into several
+/// non-overlapping segments and averaging their cross/auto-spectra, rather
+/// than returning a hardcoded constant.
 #[allow(dead_code)]
 fn estimate_freq_response_periodogram(
     input: &Array1<f64>,
@@ -214,18 +226,16 @@ fn estimate_freq_response_periodogram(
 
     // Compute frequency response
     let mut freq_response = Array1::<Complex64>::zeros(nfft / 2 + 1);
-    let mut coherence = Array1::<f64>::zeros(nfft / 2 + 1);
 
     for i in 0..=nfft / 2 {
         let idx = if i == nfft / 2 { nfft / 2 } else { i };
         if input_fft[idx].norm() > 1e-12 {
             freq_response[i] = output_fft[idx] / input_fft[idx];
-            // Simple coherence estimate (not very reliable for single realization)
-            coherence[i] = 0.8; // Placeholder
         }
     }
 
     let freqs = Array1::linspace(0.0, fs / 2.0, nfft / 2 + 1);
+    let coherence = estimate_periodogram_coherence(input, output, nfft / 2 + 1);
 
     Ok(FreqResponseResult {
         frequency_response: freq_response,
@@ -233,6 +243,81 @@ fn estimate_freq_response_periodogram(
         coherence,
         confidence_bounds: None,
     })
+}
+
+/// Genuine (segment-averaged) coherence estimate for the single-shot
+/// periodogram method: splits the data into non-overlapping segments
+/// (using the largest power-of-2 segment length that fits at least 4
+/// segments, falling back to as many segments as the data allows), then
+/// averages each segment's cross- and auto-spectra before forming
+/// `|mean(Pxy)|^2 / (mean(Pxx) * mean(Pyy))`, interpolated onto the
+/// requested `n_freqs`-point frequency grid.
+fn estimate_periodogram_coherence(
+    input: &Array1<f64>,
+    output: &Array1<f64>,
+    n_freqs: usize,
+) -> Array1<f64> {
+    let n = input.len();
+    let mut coherence = Array1::<f64>::ones(n_freqs);
+
+    // Choose the largest power-of-2 segment length giving at least 4
+    // segments; fall back to 2 segments, then to a trivial (single
+    // segment, coherence=1 by construction) case for very short data.
+    let mut seg_len = next_power_of_2((n / 4).max(4));
+    while seg_len > 2 && n / seg_len < 4 {
+        seg_len /= 2;
+    }
+    if seg_len < 4 || n / seg_len < 2 {
+        return coherence;
+    }
+
+    let n_segments = n / seg_len;
+    let half = seg_len / 2 + 1;
+    let mut pxy_sum = vec![Complex64::new(0.0, 0.0); half];
+    let mut pxx_sum = vec![0.0_f64; half];
+    let mut pyy_sum = vec![0.0_f64; half];
+
+    for seg in 0..n_segments {
+        let start = seg * seg_len;
+        let x_seg = input
+            .slice(scirs2_core::ndarray::s![start..start + seg_len])
+            .to_owned();
+        let y_seg = output
+            .slice(scirs2_core::ndarray::s![start..start + seg_len])
+            .to_owned();
+        let x_fft = compute_fft(&x_seg);
+        let y_fft = compute_fft(&y_seg);
+
+        for i in 0..half {
+            pxy_sum[i] += x_fft[i].conj() * y_fft[i];
+            pxx_sum[i] += x_fft[i].norm_sqr();
+            pyy_sum[i] += y_fft[i].norm_sqr();
+        }
+    }
+
+    let mut coherence_native = vec![0.0_f64; half];
+    for i in 0..half {
+        let denom = pxx_sum[i] * pyy_sum[i];
+        coherence_native[i] = if denom > 1e-24 {
+            (pxy_sum[i].norm_sqr() / denom).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+    }
+
+    // Interpolate the (seg_len/2+1)-point native coherence grid onto the
+    // requested n_freqs-point grid (nearest-neighbor, sufficient for this
+    // secondary diagnostic quantity).
+    for (i, coh) in coherence.iter_mut().enumerate() {
+        let native_idx = if n_freqs > 1 {
+            ((i * (half - 1)) as f64 / (n_freqs - 1).max(1) as f64).round() as usize
+        } else {
+            0
+        };
+        *coh = coherence_native[native_idx.min(half - 1)];
+    }
+
+    coherence
 }
 
 /// H1 estimator (minimizes input noise effects)
@@ -419,4 +504,68 @@ pub(super) fn fit_parametric_to_frequency_response(
         frequency_response: Some(Array1::from_vec(estimated_response)),
         frequencies: Some(frequencies.clone()),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pseudo_random_sequence(n: usize, seed: u64) -> Vec<f64> {
+        let mut state = seed;
+        (0..n)
+            .map(|_| {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                (state as f64 / u64::MAX as f64) - 0.5
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_periodogram_coherence_is_high_for_linearly_related_signals() {
+        let n = 512;
+        let input = Array1::from_vec(pseudo_random_sequence(n, 12345));
+        // A clean linear system: output is just a scaled, delayed copy.
+        let mut output = Array1::<f64>::zeros(n);
+        for i in 1..n {
+            output[i] = 2.0 * input[i - 1];
+        }
+
+        let config = SysIdConfig::default();
+        let result = estimate_freq_response_periodogram(&input, &output, 10.0, &config)
+            .expect("periodogram estimation should succeed");
+
+        // The fabricated implementation always returned exactly 0.8 for
+        // every frequency bin regardless of the actual relationship
+        // between input and output.
+        let mean_coherence: f64 =
+            result.coherence.iter().sum::<f64>() / result.coherence.len() as f64;
+        assert!(
+            mean_coherence > 0.7,
+            "mean coherence for a clean linear system too low: {mean_coherence}"
+        );
+        // Not every bin should be exactly 0.8 (the old hardcoded value).
+        assert!(result.coherence.iter().any(|&c| (c - 0.8).abs() > 0.05));
+    }
+
+    #[test]
+    fn test_periodogram_coherence_is_low_for_unrelated_signals() {
+        let n = 512;
+        let input = Array1::from_vec(pseudo_random_sequence(n, 111));
+        let output = Array1::from_vec(pseudo_random_sequence(n, 222));
+
+        let config = SysIdConfig::default();
+        let result = estimate_freq_response_periodogram(&input, &output, 10.0, &config)
+            .expect("periodogram estimation should succeed");
+
+        let mean_coherence: f64 =
+            result.coherence.iter().sum::<f64>() / result.coherence.len() as f64;
+        // Two independent random sequences should show low coherence on
+        // average; the old stub's constant 0.8 could never reflect this.
+        assert!(
+            mean_coherence < 0.5,
+            "mean coherence for unrelated signals unexpectedly high: {mean_coherence}"
+        );
+    }
 }

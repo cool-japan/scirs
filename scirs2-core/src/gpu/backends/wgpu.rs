@@ -127,6 +127,28 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 "#;
 
+/// WGSL source for the `vector_add` kernel: `result = a + b`, elementwise.
+///
+/// Buffers: 0 → `a` (read), 1 → `b` (read), 2 → `result` (read_write).
+/// This is the one kernel [`WebGPUCompiler::compile_typed`] can compile for
+/// real by name (`f32` in, `f32` out); anything else must go through
+/// [`GpuCompiler::compile`](crate::gpu::GpuCompiler::compile) with real WGSL
+/// source, or [`GpuContext::get_kernel`](crate::gpu::GpuContext::get_kernel)
+/// for registry-backed named kernels.
+const VECTOR_ADD_SHADER_WGSL: &str = r#"
+@group(0) @binding(0) var<storage, read>       a      : array<f32>;
+@group(0) @binding(1) var<storage, read>       b      : array<f32>;
+@group(0) @binding(2) var<storage, read_write> result : array<f32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let idx = global_id.x;
+    if idx < arrayLength(&result) {
+        result[idx] = a[idx] + b[idx];
+    }
+}
+"#;
+
 /// WebGPU context wrapper
 pub struct WebGPUContext {
     #[cfg(feature = "wgpu")]
@@ -195,16 +217,15 @@ impl WebGPUContext {
         }
         #[cfg(not(feature = "wgpu"))]
         {
-            // Fallback implementation
-            let device = Self::initialize_webgpu()?;
-            let queue = Self::create_queue(device)?;
-
-            Ok(Self {
-                device,
-                queue,
-                compiled_shaders: Arc::new(Mutex::new(HashMap::new())),
-                memory_pool: Arc::new(Mutex::new(WebGPUMemoryPool::new(1024 * 1024 * 1024))), // 1GB pool
-            })
+            // The real `wgpu` crate is not compiled into this build: there is no
+            // adapter/device to create, so honestly report that rather than
+            // fabricating a context backed by placeholder pointer values (which
+            // would make every buffer/kernel operation on it a silent no-op).
+            Err(GpuError::BackendNotAvailable(
+                "WebGPU support was not compiled into this build (the `wgpu` Cargo feature is \
+                 disabled); enable it to use the WebGPU backend"
+                    .to_string(),
+            ))
         }
     }
 
@@ -463,30 +484,21 @@ impl WebGPUContext {
         Ok(buffer)
     }
 
-    /// Allocate device memory (fallback)
+    // Fallback methods for when WebGPU (the `wgpu` feature) is not compiled in.
+    //
+    // `WebGPUContext::new()` always fails with `BackendNotAvailable` in this
+    // configuration (no adapter/device can exist), so `compile_shader_internal`
+    // below can never actually be reached through a live context — but it must
+    // still type-check for this cfg, and must not silently fabricate a
+    // "successful" compile if it ever were reached (e.g. via a future code
+    // path that bypasses `new()`).
     #[cfg(not(feature = "wgpu"))]
-    pub fn allocate_device_memory_2(&self, size: usize) -> Result<WgpuBuffer, GpuError> {
-        // Fallback implementation: return a simulated buffer handle
-        Ok((0x1000 + size) as WgpuBuffer)
-    }
-
-    // Fallback methods for when WebGPU is not available
-    #[cfg(not(feature = "wgpu"))]
-    fn initialize_webgpu() -> Result<WgpuDevice, GpuError> {
-        // Stub implementation
-        Ok(0x1 as WgpuDevice)
-    }
-
-    #[cfg(not(feature = "wgpu"))]
-    fn create_queue(device: WgpuDevice) -> Result<WgpuQueue, GpuError> {
-        // Stub implementation
-        Ok(0x2 as WgpuQueue)
-    }
-
-    #[cfg(not(feature = "wgpu"))]
-    fn compile_wgsl_source(source: &str, name: &str) -> Result<WgpuComputePipeline, GpuError> {
-        // Stub implementation
-        Ok(0x3 as WgpuComputePipeline)
+    fn compile_wgsl_source(_source: &str, _name: &str) -> Result<WgpuComputePipeline, GpuError> {
+        Err(GpuError::BackendNotAvailable(
+            "WebGPU support was not compiled into this build (the `wgpu` Cargo feature is \
+             disabled); no shader can be compiled"
+                .to_string(),
+        ))
     }
 
     /// Compile WGSL source into a [`WgpuComputePipeline`] (real-wgpu path only).
@@ -516,24 +528,10 @@ impl WebGPUContext {
             ));
         }
 
-        const VECTOR_ADD_WGSL: &str = r#"
-@group(0) @binding(0) var<storage, read>       a      : array<f32>;
-@group(0) @binding(1) var<storage, read>       b      : array<f32>;
-@group(0) @binding(2) var<storage, read_write> result : array<f32>;
-
-@compute @workgroup_size(64)
-fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let idx = global_id.x;
-    if idx < arrayLength(&result) {
-        result[idx] = a[idx] + b[idx];
-    }
-}
-"#;
-
         // Compile shader
         let shader_module = self.device.create_shader_module(ShaderModuleDescriptor {
             label: Some("vector-add"),
-            source: ShaderSource::Wgsl(VECTOR_ADD_WGSL.into()),
+            source: ShaderSource::Wgsl(VECTOR_ADD_SHADER_WGSL.into()),
         });
 
         // Build bind group layout explicitly (3 storage bindings)
@@ -848,8 +846,20 @@ struct WebGPUCompiler {
 impl GpuCompilerImpl for WebGPUCompiler {
     fn compile(&self, source: &str) -> Result<Arc<dyn GpuKernelImpl>, GpuError> {
         let shader = self.context.compile_shader_internal(source, "shader")?;
+        let shader_name = shader.name.clone();
+        // Actually register the compiled shader so `dispatch` can find it:
+        // previously this was compiled and then immediately dropped, so
+        // every kernel produced by `compile()` silently no-op'd on dispatch.
+        self.context
+            .compiled_shaders
+            .lock()
+            .map_err(|_| {
+                GpuError::Other("WebGPU compiled-shader registry lock poisoned".to_string())
+            })?
+            .insert(shader_name.clone(), shader);
+
         Ok(Arc::new(WebGPUKernelHandle {
-            shader_name: shader.name.clone(),
+            shader_name,
             compiled_shaders: Arc::clone(&self.context.compiled_shaders),
             params: Arc::new(Mutex::new(HashMap::new())),
             #[cfg(feature = "wgpu")]
@@ -868,10 +878,39 @@ impl GpuCompilerImpl for WebGPUCompiler {
     fn compile_typed(
         &self,
         name: &str,
-        _input_type: std::any::TypeId,
-        _output_type: std::any::TypeId,
-    ) -> Arc<dyn GpuKernelImpl> {
-        Arc::new(WebGPUKernelHandle {
+        input_type: std::any::TypeId,
+        output_type: std::any::TypeId,
+    ) -> Result<Arc<dyn GpuKernelImpl>, GpuError> {
+        // Unlike `compile(source)`, this path is given only a *name* and a
+        // pair of types, not real shader source — it has no registry
+        // access to resolve arbitrary names (see `GpuContext::get_kernel`
+        // for that). The one case this can genuinely compile for real is
+        // the well-known `vector_add` kernel over `f32`; anything else
+        // honestly fails instead of handing back a handle that silently
+        // no-ops on every dispatch.
+        let is_f32 = input_type == std::any::TypeId::of::<f32>()
+            && output_type == std::any::TypeId::of::<f32>();
+        if name != "vector_add" || !is_f32 {
+            return Err(GpuError::KernelCompilationError(format!(
+                "compile_typed has no built-in WGSL source for kernel '{name}' with the \
+                 requested types; only a real f32 'vector_add' kernel is available this way. \
+                 Use GpuCompiler::compile with real WGSL source, or GpuContext::get_kernel for \
+                 registry-backed named kernels, for anything else."
+            )));
+        }
+
+        let shader = self
+            .context
+            .compile_shader_internal(VECTOR_ADD_SHADER_WGSL, name)?;
+        self.context
+            .compiled_shaders
+            .lock()
+            .map_err(|_| {
+                GpuError::Other("WebGPU compiled-shader registry lock poisoned".to_string())
+            })?
+            .insert(name.to_string(), shader);
+
+        Ok(Arc::new(WebGPUKernelHandle {
             shader_name: name.to_string(),
             compiled_shaders: Arc::clone(&self.context.compiled_shaders),
             params: Arc::new(Mutex::new(HashMap::new())),
@@ -885,7 +924,7 @@ impl GpuCompilerImpl for WebGPUCompiler {
             device: self.context.device,
             #[cfg(not(feature = "wgpu"))]
             queue: self.context.queue,
-        })
+        }))
     }
 }
 
@@ -1463,5 +1502,97 @@ impl WebGPUMemoryPool {
     #[allow(dead_code)]
     fn get_memory_usage(&self) -> (usize, usize) {
         (self.used_size, self.total_size)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[cfg(feature = "wgpu")]
+    use std::any::TypeId;
+
+    /// Without the real `wgpu` crate compiled in, there is no adapter or
+    /// device to create: constructing a context must fail honestly rather
+    /// than fabricating placeholder pointer handles (the previous
+    /// behavior, under which every subsequent buffer/kernel operation
+    /// silently did nothing).
+    #[cfg(not(feature = "wgpu"))]
+    #[test]
+    fn context_new_fails_honestly_without_wgpu_feature() {
+        let result = WebGPUContext::new();
+        assert!(
+            result.is_err(),
+            "WebGPUContext::new() must fail without the `wgpu` feature, not fabricate a context"
+        );
+    }
+
+    /// A kernel name this backend cannot generate real WGSL source for
+    /// must fail loudly rather than silently succeeding with a handle that
+    /// no-ops on every dispatch (the previous `compile_typed` behavior).
+    #[cfg(feature = "wgpu")]
+    #[test]
+    fn compile_typed_rejects_unknown_kernel_name() {
+        if !WebGPUContext::is_available() {
+            eprintln!("skipping: no WebGPU adapter available in this environment");
+            return;
+        }
+        let context = WebGPUContext::new().expect("adapter reported available");
+        let compiler = context.create_compiler();
+
+        let result = compiler.compile_typed(
+            "totally_unknown_kernel",
+            TypeId::of::<f32>(),
+            TypeId::of::<f32>(),
+        );
+        assert!(
+            result.is_err(),
+            "an unrecognized kernel name must return an error, not a fabricated handle"
+        );
+    }
+
+    /// Regression test: `compile_typed("vector_add", f32, f32)` must
+    /// actually run real WGSL on the GPU and produce the correct sum, not
+    /// silently no-op (previously the returned handle referenced a shader
+    /// name that was never inserted into `compiled_shaders`, so dispatch
+    /// found nothing and `result` stayed whatever it was initialized to).
+    #[cfg(feature = "wgpu")]
+    #[test]
+    fn compile_typed_vector_add_computes_real_result_when_gpu_available() {
+        if !WebGPUContext::is_available() {
+            eprintln!("skipping: no WebGPU adapter available in this environment");
+            return;
+        }
+
+        let context = WebGPUContext::new().expect("adapter reported available");
+        let compiler = context.create_compiler();
+
+        let a_data = [1.0f32, 2.0, 3.0, 4.0];
+        let b_data = [10.0f32, 20.0, 30.0, 40.0];
+        let byte_len = std::mem::size_of_val(&a_data);
+
+        let a_raw = context.create_buffer(byte_len);
+        let b_raw = context.create_buffer(byte_len);
+        let result_raw = context.create_buffer(byte_len);
+
+        let a = crate::gpu::GpuBuffer::<f32>::new(Arc::clone(&a_raw), a_data.len());
+        let b = crate::gpu::GpuBuffer::<f32>::new(Arc::clone(&b_raw), b_data.len());
+        let result = crate::gpu::GpuBuffer::<f32>::new(Arc::clone(&result_raw), a_data.len());
+        a.copy_from_host(&a_data).expect("upload a");
+        b.copy_from_host(&b_data).expect("upload b");
+
+        let kernel = compiler
+            .compile_typed("vector_add", TypeId::of::<f32>(), TypeId::of::<f32>())
+            .expect("real vector_add should compile with a live adapter");
+        kernel.set_buffer("a", &a_raw);
+        kernel.set_buffer("b", &b_raw);
+        kernel.set_buffer("result", &result_raw);
+        kernel.dispatch([1, 1, 1]);
+
+        let computed = result.to_vec();
+        assert_eq!(
+            computed,
+            vec![11.0, 22.0, 33.0, 44.0],
+            "vector_add must actually compute a + b on the GPU, not leave the output untouched"
+        );
     }
 }

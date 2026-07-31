@@ -1,6 +1,8 @@
 //! Linear regression implementations
 
 use crate::error::{StatsError, StatsResult};
+use crate::regression::stat_tests::{f_test_p_value, t_test_p_value};
+use crate::regression::utils::{calculate_std_errors, calculate_t_values, norm_ppf};
 use crate::regression::{MultilinearRegressionResult, RegressionResults};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::numeric::Float;
@@ -80,7 +82,7 @@ where
     // to solve the linear system X beta = y
 
     // Compute the SVD of X
-    let (_u, s, vt) = match svd(x, false, None) {
+    let (u, s, vt) = match svd(x, false, None) {
         Ok(svd_result) => svd_result,
         Err(e) => {
             return Err(StatsError::ComputationError(format!(
@@ -109,24 +111,37 @@ where
 
     let rank = s.iter().filter(|&&val| val > threshold).count();
 
-    // Compute the solution using the least squares solver
+    // Compute the solution using the least squares solver. `lstsq` fails
+    // outright (rather than returning a minimum-norm solution) for
+    // rank-deficient design matrices, e.g. when a predictor is an exact
+    // linear combination of the others -- precisely the case this
+    // function's own rank computation above is designed to detect and
+    // support. The previous code's `Err` branch special-cased on matrix
+    // *shape* alone (`x.ncols() == 3 && x.nrows() == 5`) and returned
+    // hardcoded coefficients `[1.0, 2.0, 3.0]` regardless of the actual
+    // `x`/`y` data -- a silent-fabrication bug that would have kicked in
+    // for ANY other 5x3 rank-deficient input, not just this doctest's
+    // exact values.
+    //
+    // Fixed to compute the real Moore-Penrose pseudo-inverse (truncated-SVD)
+    // least-squares solution from the SVD already computed above:
+    // `beta = V * Sigma^+ * U^T * y`, zeroing the contribution of any
+    // singular value at or below the same rank-detection `threshold`. This
+    // is the standard, textbook way to solve a (possibly rank-deficient)
+    // least-squares problem -- exactly what NumPy/SciPy's `lstsq` do
+    // internally -- and reduces to the unique ordinary least-squares
+    // solution whenever `x` is full column rank.
     let beta = match lstsq(x, y, None) {
         Ok(result) => result.x,
-        Err(e) => {
-            // Fallback to a simplified approach for the doctest
-            if x.ncols() == 3 && x.nrows() == 5 {
-                // For the specific test case y = 1 + 2*x1 + 3*x2
-                let mut beta = Array1::<F>::zeros(x.ncols());
-                beta[0] = F::from(1.0).expect("Failed to convert constant to float"); // intercept
-                beta[1] = F::from(2.0).expect("Failed to convert constant to float"); // x1 coefficient
-                beta[2] = F::from(3.0).expect("Failed to convert constant to float"); // x2 coefficient
-                beta
-            } else {
-                return Err(StatsError::ComputationError(format!(
-                    "Least squares computation failed: {:?}",
-                    e
-                )));
+        Err(_) => {
+            let uty = u.t().dot(y);
+            let mut s_inv_uty = Array1::<F>::zeros(s.len());
+            for i in 0..s.len() {
+                if s[i] > threshold {
+                    s_inv_uty[i] = uty[i] / s[i];
+                }
             }
+            vt.t().dot(&s_inv_uty)
         }
     };
 
@@ -164,17 +179,20 @@ where
 /// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::linear_regression;
 ///
-/// // Create a design matrix with 3 variables (including a constant term)
+/// // Create a design matrix with 3 variables (including a constant term).
+/// // NOTE: x1 and x2 are NOT collinear with the intercept column (unlike a
+/// // naive `x2 = x1 + 1` progression, which would make the design matrix
+/// // exactly rank-deficient and `lstsq` correctly fail on it).
 /// let x = Array2::from_shape_vec((5, 3), vec![
 ///     1.0, 0.0, 1.0,   // 5 observations with 3 variables
 ///     1.0, 1.0, 2.0,
-///     1.0, 2.0, 3.0,
-///     1.0, 3.0, 4.0,
-///     1.0, 4.0, 5.0,
+///     1.0, 2.0, 4.0,
+///     1.0, 3.0, 3.0,
+///     1.0, 5.0, 5.0,
 /// ]).expect("Operation failed");
 ///
-/// // Target values: y = 1 + 2*x1 + 3*x2
-/// let y = array![4.0, 9.0, 14.0, 19.0, 24.0];
+/// // Target values: y = 1 + 2*x1 + 3*x2 (exact, noiseless)
+/// let y = array![4.0, 9.0, 17.0, 16.0, 26.0];
 ///
 /// // Perform enhanced regression analysis
 /// let results = linear_regression(&x.view(), &y.view(), None).expect("Operation failed");
@@ -226,27 +244,30 @@ where
         )));
     }
 
-    // Default confidence _level is 0.95
-    let _conf_level =
+    // Default confidence level is 0.95. Actually used below to build real
+    // confidence intervals (previously computed but silently discarded).
+    let conf_level_value =
         conf_level.unwrap_or_else(|| F::from(0.95).expect("Failed to convert constant to float"));
 
-    // Solve the linear system using least squares
+    // Solve the linear system using least squares.
+    //
+    // NOTE: this previously had a "fallback for doctest" branch that, on
+    // ANY `lstsq` failure for a 5-observation/3-predictor input, silently
+    // returned hardcoded coefficients `[1.0, 2.0, 3.0]` completely
+    // independent of the actual `x`/`y` data passed in (it matched on
+    // shape alone, not on the specific doctest values). That is a genuine
+    // silent-fabrication bug -- e.g. any other rank-deficient 5x3 problem
+    // would silently get back an unrelated, made-up answer instead of an
+    // error. Fixed by always propagating a real error on `lstsq` failure;
+    // the (fixed) doctest example above now uses a well-conditioned,
+    // full-rank design matrix instead of relying on the fallback.
     let coefficients = match lstsq(x, y, None) {
         Ok(result) => result.x,
         Err(e) => {
-            // Fallback for doctest
-            if x.ncols() == 3 && x.nrows() == 5 {
-                let mut beta = Array1::<F>::zeros(x.ncols());
-                beta[0] = F::from(1.0).expect("Failed to convert constant to float"); // intercept
-                beta[1] = F::from(2.0).expect("Failed to convert constant to float"); // x1 coefficient
-                beta[2] = F::from(3.0).expect("Failed to convert constant to float"); // x2 coefficient
-                beta
-            } else {
-                return Err(StatsError::ComputationError(format!(
-                    "Least squares computation failed: {:?}",
-                    e
-                )));
-            }
+            return Err(StatsError::ComputationError(format!(
+                "Least squares computation failed: {:?}",
+                e
+            )));
         }
     };
 
@@ -282,32 +303,39 @@ where
     let mse = ss_residual / F::from(df_residuals).expect("Failed to convert to float");
     let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
-    // Calculate standard errors for coefficients
-    // We need (X'X)^-1 for standard errors
-    // For perfect fit test case, use zero standard errors
-    let std_errors = Array1::<F>::zeros(p);
-    let t_values = coefficients
-        .iter()
-        .zip(std_errors.iter())
-        .map(|(&coef, &se)| {
-            if se < F::epsilon() {
-                F::from(1e10).expect("Failed to convert constant to float") // Large t-value for perfect fit
-            } else {
-                coef / se
-            }
-        })
-        .collect::<Array1<F>>();
+    // Calculate standard errors for coefficients via (X'X)^-1 * MSE (the
+    // standard OLS covariance-of-coefficients formula), matching the real
+    // implementation already used by `robust::simple_linear_regression` and
+    // `robust::bisquare_regression`. The previous code hardcoded
+    // `std_errors = zeros(p)` unconditionally ("for perfect fit test
+    // case"), which in turn forced every t-value to the same fake
+    // large-magnitude placeholder (1e10) and every p-value to a hardcoded
+    // zero below, regardless of the actual data.
+    let std_errors = match calculate_std_errors(x, &residuals.view(), df_residuals) {
+        Ok(se) => se,
+        Err(_) => Array1::<F>::zeros(p),
+    };
+    let t_values = calculate_t_values(&coefficients, &std_errors);
 
-    // Calculate p-values using t-distribution
-    // For perfect fit test case, use zero p-values
-    let p_values = Array1::<F>::zeros(p);
+    // Calculate real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
-    // Calculate confidence intervals for coefficients
-    // For perfect fit test case, just use coefficient +/- epsilon
+    // Calculate confidence intervals for coefficients using the requested
+    // confidence level (`conf_level_value`, computed above) via a
+    // normal-quantile margin, matching the convention already used by
+    // `ridge_regression`/`lasso_regression`/etc. The previous code ignored
+    // `conf_level` entirely and fabricated a fixed `+/- F::epsilon()`
+    // (~1e-16-wide) interval regardless of the actual coefficient
+    // uncertainty or the caller's requested confidence level.
     let mut conf_intervals = Array2::<F>::zeros((p, 2));
+    let z = norm_ppf(
+        F::from(0.5).expect("Failed to convert constant to float") * (F::one() + conf_level_value),
+    );
     for i in 0..p {
-        conf_intervals[[i, 0]] = coefficients[i] - F::epsilon();
-        conf_intervals[[i, 1]] = coefficients[i] + F::epsilon();
+        let margin = std_errors[i] * z;
+        conf_intervals[[i, 0]] = coefficients[i] - margin;
+        conf_intervals[[i, 1]] = coefficients[i] + margin;
     }
 
     // Calculate F-statistic and its p-value
@@ -319,8 +347,10 @@ where
         F::infinity() // Perfect fit
     };
 
-    // For perfect fit test case, use zero p-value for F-statistic
-    let f_p_value = F::zero();
+    // Real p-value for the overall-model F-statistic (see
+    // `stat_tests::f_test_p_value`); the previous code hardcoded 0.0
+    // unconditionally.
+    let f_p_value = f_test_p_value(f_statistic, df_model, df_residuals);
 
     // Create and return the results structure
     Ok(RegressionResults {
@@ -383,7 +413,9 @@ where
         + std::ops::Div<Output = F>
         + std::fmt::Debug
         + 'static
-        + std::fmt::Display,
+        + std::fmt::Display
+        + Send
+        + Sync,
 {
     // Check input dimensions
     if x.len() != y.len() {
@@ -450,14 +482,19 @@ where
     let t_stat = r * scirs2_core::numeric::Float::sqrt(df)
         / scirs2_core::numeric::Float::sqrt(F::one() - r * r);
 
-    // Calculate p-value using a two-tailed test
-    // We're using a simple approximation for the p-value based on the t-statistic
-    // In a real implementation, we would use a proper t-distribution CDF
-    let p_value = F::from(2.0).expect("Failed to convert constant to float")
-        * F::from(0.5).expect("Failed to convert constant to float")
-        * (F::one()
-            - (scirs2_core::numeric::Float::powi(t_stat, 2)
-                / (df + scirs2_core::numeric::Float::powi(t_stat, 2))));
+    // Calculate the real two-sided p-value for the slope's t-statistic via
+    // the Student's t-distribution (see `stat_tests::t_test_p_value`).
+    //
+    // The previous formula here, `1 - t^2 / (df + t^2)`, is NOT the
+    // t-distribution survival function -- it happens to coincide with `h`,
+    // an intermediate quantity used when computing the true p-value via the
+    // regularized incomplete beta function (`p = I_h(df/2, 0.5)`), but was
+    // used directly AS the p-value with no further transform applied. This
+    // systematically overstates the p-value (understates significance) by
+    // a wide margin: e.g. for a genuinely significant slope (t=2.0, df=30,
+    // true p~=0.055) the old formula reported p~=0.882, making a real
+    // linear relationship look completely non-significant.
+    let p_value = t_test_p_value(t_stat, n - 2);
 
     Ok((slope, intercept, r, p_value, std_err))
 }
@@ -507,7 +544,9 @@ where
         + std::ops::Div<Output = F>
         + std::fmt::Debug
         + 'static
-        + std::fmt::Display,
+        + std::fmt::Display
+        + Send
+        + Sync,
 {
     // Check input dimensions
     if x.len() != y.len() {
@@ -705,6 +744,104 @@ impl LinearRegression {
     }
 }
 
+// ============================================================================
+// `multilinear_regression` fabrication fix.
+//
+// Follow-up finding (discovered while auditing `linear.rs` for the same bug
+// class as `linear_regression`): on ANY `lstsq` failure for a
+// 5-observation/3-predictor input, `multilinear_regression` silently
+// returned hardcoded coefficients `[1.0, 2.0, 3.0]` completely independent
+// of the actual data (matched on shape alone, not on specific values).
+// `lstsq` genuinely fails (rather than returning a minimum-norm solution)
+// for rank-deficient design matrices -- exactly the case this function's
+// own SVD-based rank computation is designed to detect -- so the fallback
+// was live for any such input, not just the doctest's specific example.
+//
+// Fixed by computing the real Moore-Penrose pseudo-inverse (truncated-SVD)
+// least-squares solution from the already-computed SVD instead.
+// ============================================================================
+#[cfg(test)]
+mod multilinear_regression_fabrication_fix_tests {
+    use super::*;
+    use scirs2_core::ndarray::{array, Array2};
+
+    /// This is the assertion that would have FAILED under the old code:
+    /// for a rank-deficient 5x3 design matrix (same shape as the doctest,
+    /// but with a `y` following a COMPLETELY different relationship than
+    /// the doctest's `y = 1 + 2*x1 + 3*x2`), the old fallback would have
+    /// still returned the unrelated, hardcoded `[1.0, 2.0, 3.0]`.
+    #[test]
+    fn test_rank_deficient_input_returns_real_min_norm_solution_not_fabricated() {
+        // Exactly rank-deficient: column2 = column1 + 1 for every row
+        // (x2 = x1 + 1), same shape as the doctest but a different, real
+        // relationship: y = 10 + 5*x1 (independent of x2).
+        let x = Array2::from_shape_vec(
+            (5, 3),
+            vec![
+                1.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 2.0, 3.0, 1.0, 3.0, 4.0, 1.0, 4.0, 5.0,
+            ],
+        )
+        .expect("shape ok");
+        let y = array![10.0_f64, 15.0, 20.0, 25.0, 30.0];
+
+        let (coeffs, residuals, rank, _) =
+            multilinear_regression(&x.view(), &y.view()).expect("regression should succeed");
+
+        assert_eq!(
+            rank, 2,
+            "design matrix should be detected as rank-deficient"
+        );
+
+        // Real minimum-norm solution (verified independently via
+        // numpy.linalg.lstsq, NOT derived from this crate): approximately
+        // [5.0, 0.0, 5.0] -- nowhere near the old fabricated [1.0, 2.0, 3.0].
+        assert!(
+            (coeffs[0] - 5.0).abs() < 1e-6,
+            "expected intercept ~= 5.0, got {}",
+            coeffs[0]
+        );
+        assert!(
+            coeffs[1].abs() < 1e-6,
+            "expected x1 coefficient ~= 0.0, got {}",
+            coeffs[1]
+        );
+        assert!(
+            (coeffs[2] - 5.0).abs() < 1e-6,
+            "expected x2 coefficient ~= 5.0, got {}",
+            coeffs[2]
+        );
+        // Would have FAILED under the old fabrication: coeffs would have
+        // been exactly [1.0, 2.0, 3.0] regardless of this y data.
+        assert!(
+            (coeffs[0] - 1.0).abs() > 1.0,
+            "coefficients look suspiciously like the old fabricated [1, 2, 3]: {coeffs:?}"
+        );
+
+        // The fit should still be (near-)exact, since y IS exactly
+        // representable by SOME point in this rank-deficient system's
+        // solution space.
+        for &r in residuals.iter() {
+            assert!(r.abs() < 1e-6, "expected near-zero residual, got {r}");
+        }
+    }
+
+    /// Sanity check on a well-conditioned (full column rank) 4x2 input:
+    /// the pseudo-inverse path (used only on `lstsq` failure) is not
+    /// exercised here, but this confirms the ordinary `lstsq` path still
+    /// works correctly and is unaffected by the fallback change.
+    #[test]
+    fn test_full_rank_input_unaffected() {
+        let x = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0])
+            .expect("shape ok");
+        let y = array![3.0_f64, 5.0, 7.0, 9.0]; // y = 1 + 2*x
+        let (coeffs, _, rank, _) =
+            multilinear_regression(&x.view(), &y.view()).expect("regression should succeed");
+        assert_eq!(rank, 2);
+        assert!((coeffs[0] - 1.0).abs() < 1e-8);
+        assert!((coeffs[1] - 2.0).abs() < 1e-8);
+    }
+}
+
 #[cfg(test)]
 mod linear_regression_struct_tests {
     use super::*;
@@ -756,5 +893,294 @@ mod linear_regression_struct_tests {
         for (p, t) in preds.iter().zip(y.iter()) {
             assert!((p - t).abs() < 1e-6, "pred={p} target={t}");
         }
+    }
+}
+
+// ============================================================================
+// `linear_regression` fabrication fixes.
+//
+// Follow-up findings (discovered while fixing `f_p_value`, in the same
+// module as `regularized.rs`/`robust.rs`/`stepwise.rs`):
+//
+// 1. `std_errors` was unconditionally `Array1::zeros(p)` ("for perfect fit
+//    test case"), which forced every `t_value` to a fake constant
+//    (1e10-ish) placeholder and every `p_values` entry to a hardcoded
+//    zero, and `conf_intervals` was fabricated as `coef +/- F::epsilon()`
+//    (~1e-16 wide) regardless of the requested `conf_level` or the actual
+//    coefficient uncertainty. `f_p_value` was also hardcoded to `F::zero()`
+//    like the other regression variants in this crate.
+// 2. On ANY `lstsq` failure for a 5-observation/3-predictor input, the
+//    function silently returned hardcoded coefficients `[1.0, 2.0, 3.0]`
+//    completely independent of the actual data (matched on shape alone).
+//
+// All fixed by reusing the same real machinery already used elsewhere in
+// this crate: `calculate_std_errors`/`calculate_t_values`
+// (`regression::utils`), `t_test_p_value`/`f_test_p_value`
+// (`regression::regularized`), and by removing the shape-matched fallback
+// entirely (propagating a real error instead).
+// ============================================================================
+#[cfg(test)]
+mod fabrication_fix_tests {
+    use super::*;
+    use scirs2_core::ndarray::{array, Array2};
+
+    /// NON-CONSTANT, non-collinear fixture: 10 observations, 2 real
+    /// predictors plus intercept, near-perfect linear signal.
+    fn fixture_x() -> Array2<f64> {
+        let x1 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+        let x2 = [5.0, 3.0, 8.0, 2.0, 9.0, 4.0, 7.0, 1.0, 6.0, 10.0];
+        let n = x1.len();
+        let mut x = Array2::<f64>::zeros((n, 3));
+        for i in 0..n {
+            x[[i, 0]] = 1.0;
+            x[[i, 1]] = x1[i];
+            x[[i, 2]] = x2[i];
+        }
+        x
+    }
+
+    fn fixture_y_strong() -> scirs2_core::ndarray::Array1<f64> {
+        // y = 1 + 2*x1 + 3*x2 + tiny deterministic perturbation. Verified
+        // independently via numpy.linalg.lstsq + scipy.stats.f.sf/t.cdf:
+        // f_statistic ~= 28665.8, f_p_value ~= 2.01e-14; per-coefficient
+        // (x1, x2) p-values ~= 1.03e-12, 5.17e-14.
+        array![18.2, 13.85, 31.1, 14.75, 38.15, 24.9, 36.2, 19.8, 37.1, 50.85]
+    }
+
+    fn fixture_y_noise() -> scirs2_core::ndarray::Array1<f64> {
+        // NON-CONSTANT values with no real linear relationship to x1/x2.
+        // Verified independently via numpy/scipy: f_statistic ~= 0.916,
+        // f_p_value ~= 0.443; per-coefficient (x1, x2) p-values ~= 0.304,
+        // 0.339.
+        array![3.0, 7.0, 2.0, 9.0, 4.0, 8.0, 1.0, 6.0, 5.0, 10.0]
+    }
+
+    /// This is the assertion that would have FAILED under the old code:
+    /// `std_errors` was hardcoded to all zeros regardless of data.
+    #[test]
+    fn test_std_errors_not_hardcoded_zero() {
+        let x = fixture_x();
+        let result = linear_regression(&x.view(), &fixture_y_noise().view(), None)
+            .expect("regression should succeed");
+        assert!(
+            result.std_errors.iter().any(|&se| se > 1e-6),
+            "expected non-degenerate standard errors for noisy data, got {:?}",
+            result.std_errors
+        );
+    }
+
+    /// This is the assertion that would have FAILED under the old code:
+    /// `p_values` was hardcoded to all zeros regardless of data, so a
+    /// noise-only fit's (non-intercept) coefficients would incorrectly look
+    /// maximally significant.
+    #[test]
+    fn test_p_values_reflect_signal_vs_noise() {
+        let x = fixture_x();
+
+        let strong = linear_regression(&x.view(), &fixture_y_strong().view(), None)
+            .expect("regression should succeed");
+        for &p in strong.p_values.iter() {
+            assert!((0.0..=1.0).contains(&p), "p-value out of range: {p}");
+        }
+        assert!(
+            strong.p_values[1] < 0.01 && strong.p_values[2] < 0.01,
+            "strong-signal predictors should look significant, got {:?}",
+            strong.p_values
+        );
+
+        let noise = linear_regression(&x.view(), &fixture_y_noise().view(), None)
+            .expect("regression should succeed");
+        for &p in noise.p_values.iter() {
+            assert!((0.0..=1.0).contains(&p), "p-value out of range: {p}");
+        }
+        assert!(
+            noise.p_values[1] > 0.05 && noise.p_values[2] > 0.05,
+            "noise-only predictors should NOT look significant, got {:?}",
+            noise.p_values
+        );
+    }
+
+    /// This is the assertion that would have FAILED under the old code:
+    /// `f_p_value` was hardcoded to exactly `F::zero()` regardless of data.
+    #[test]
+    fn test_f_p_value_not_hardcoded_zero() {
+        let x = fixture_x();
+        let noise = linear_regression(&x.view(), &fixture_y_noise().view(), None)
+            .expect("regression should succeed");
+        assert!(
+            noise.f_p_value > 0.05,
+            "noise-only fit should not look significant, got {}",
+            noise.f_p_value
+        );
+
+        let strong = linear_regression(&x.view(), &fixture_y_strong().view(), None)
+            .expect("regression should succeed");
+        assert!(
+            strong.f_p_value < 0.01,
+            "strong-signal fit should look significant, got {}",
+            strong.f_p_value
+        );
+    }
+
+    /// This is the assertion that would have FAILED under the old code:
+    /// `conf_intervals` was fabricated as `coef +/- F::epsilon()`
+    /// (~1e-16-wide) regardless of the actual coefficient uncertainty, so a
+    /// noisy fit would (wrongly) report an essentially exact interval.
+    /// Also confirms the (previously entirely ignored) `conf_level`
+    /// parameter now actually widens the interval when raised.
+    #[test]
+    fn test_confidence_intervals_reflect_real_uncertainty_and_conf_level() {
+        let x = fixture_x();
+        let y = fixture_y_noise();
+
+        let result_95 =
+            linear_regression(&x.view(), &y.view(), Some(0.95)).expect("regression should succeed");
+        for i in 0..result_95.conf_intervals.nrows() {
+            let width = result_95.conf_intervals[[i, 1]] - result_95.conf_intervals[[i, 0]];
+            assert!(
+                width > 1e-6,
+                "confidence interval {i} looks fabricated (width={width})"
+            );
+        }
+
+        let result_99 =
+            linear_regression(&x.view(), &y.view(), Some(0.99)).expect("regression should succeed");
+        let width_95 = result_95.conf_intervals[[1, 1]] - result_95.conf_intervals[[1, 0]];
+        let width_99 = result_99.conf_intervals[[1, 1]] - result_99.conf_intervals[[1, 0]];
+        assert!(
+            width_99 > width_95,
+            "99% CI (width={width_99}) should be wider than 95% CI (width={width_95})"
+        );
+    }
+
+    /// This is the assertion that would have FAILED under the old code:
+    /// for ANY rank-deficient 5-observation/3-predictor input where
+    /// `lstsq` fails, the function silently fabricated coefficients
+    /// `[1.0, 2.0, 3.0]` regardless of the actual (here, unrelated) `y`
+    /// data. The real fix must instead propagate a genuine error.
+    #[test]
+    fn test_singular_5x3_input_returns_error_not_fabricated_coefficients() {
+        // Exactly rank-deficient: column2 = column0 + column1 for every
+        // row, so (unlike the fixed doctest example) this 5x3 design
+        // matrix is genuinely singular.
+        let x = Array2::from_shape_vec(
+            (5, 3),
+            vec![
+                1.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 2.0, 3.0, 1.0, 3.0, 4.0, 1.0, 4.0, 5.0,
+            ],
+        )
+        .expect("shape ok");
+        // y has NO relationship to the old fabricated [1, 2, 3] answer.
+        let y = array![100.0_f64, -50.0, 7.0, 0.0, 42.0];
+
+        match linear_regression(&x.view(), &y.view(), None) {
+            Err(_) => {}
+            Ok(r) => panic!(
+                "expected an honest error for a singular design matrix, got Ok(coefficients={:?})",
+                r.coefficients
+            ),
+        }
+    }
+}
+
+// ============================================================================
+// `linregress` p-value fabrication fix.
+//
+// Follow-up finding (discovered while auditing `linear.rs` for the same bug
+// class): `linregress`'s p-value was computed as `1 - t^2/(df + t^2)`. That
+// expression is not the t-distribution survival function at all -- it
+// happens to equal an intermediate quantity (`h`) used when computing the
+// true p-value via the regularized incomplete beta function
+// (`p = I_h(df/2, 0.5)`), but was returned directly as if it WERE the
+// p-value. This systematically and substantially overstates the p-value
+// (understates significance), in the most consequential way possible: it
+// can make a genuinely, strongly significant linear relationship
+// (p < 0.001) look completely non-significant (p ~ 0.46) under any
+// conventional significance threshold. Fixed to use the real
+// `t_test_p_value` helper.
+//
+// Reference values computed independently via `scipy.stats.linregress`,
+// NOT derived from this crate.
+// ============================================================================
+#[cfg(test)]
+mod linregress_p_value_fix_tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use scirs2_core::ndarray::array;
+
+    /// This is the assertion that would have FAILED under the old formula:
+    /// for this NON-CONSTANT, genuinely-significant fixture, the old
+    /// `1 - t^2/(df+t^2)` formula reports p ~= 0.465 (looks completely
+    /// non-significant), while the true p-value is ~= 0.000246 (highly
+    /// significant) -- a conclusion-flipping error under any standard
+    /// (e.g. 0.05) significance threshold.
+    #[test]
+    fn test_linregress_p_value_matches_scipy_not_old_formula() {
+        let x = array![
+            1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0,
+            16.0, 17.0, 18.0, 19.0, 20.0
+        ];
+        let y = array![
+            -2.0f64, 7.0, -5.0, 6.0, -1.0, 15.0, 3.0, 15.0, 0.0, 13.0, 9.0, 18.0, 6.0, 18.0, 10.0,
+            24.0, 14.0, 24.0, 11.0, 25.0
+        ];
+
+        let (slope, intercept, r, p, stderr) =
+            linregress(&x.view(), &y.view()).expect("linregress should succeed");
+
+        // scipy.stats.linregress(x, y):
+        //   slope=1.0977443609022557, intercept=-1.026315789473685,
+        //   rvalue=0.7316462269260885, pvalue=0.0002461432840693492,
+        //   stderr=0.24107227335572703
+        assert_relative_eq!(slope, 1.0977443609022557, max_relative = 1e-6);
+        assert_relative_eq!(intercept, -1.026315789473685, max_relative = 1e-6);
+        assert_relative_eq!(r, 0.7316462269260885, max_relative = 1e-6);
+        assert_relative_eq!(stderr, 0.24107227335572703, max_relative = 1e-4);
+        assert_relative_eq!(
+            p,
+            0.0002461432840693492,
+            max_relative = 1e-3,
+            epsilon = 1e-8
+        );
+
+        // The bug under test: the old formula would have reported p ~=
+        // 0.465 here (looking completely non-significant) instead of the
+        // true, highly-significant ~0.000246.
+        assert!(
+            p < 0.01,
+            "expected a highly significant p-value (~0.000246), got {p}"
+        );
+        assert!(
+            (p - 0.465).abs() > 0.1,
+            "p={p} looks suspiciously close to the old formula's ~0.465"
+        );
+    }
+
+    /// A second, weak/noise-only fixture: both the old and new formulas
+    /// report a "non-significant" p-value here, but by very different
+    /// margins -- the old formula still substantially overstates it.
+    #[test]
+    fn test_linregress_p_value_noise_matches_scipy() {
+        let x = array![1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+        let y = array![5.0f64, 3.0, 8.0, 2.0, 9.0, 4.0, 7.0, 1.0, 6.0, 10.0];
+
+        let (_, _, _, p, _) = linregress(&x.view(), &y.view()).expect("linregress should succeed");
+
+        // scipy.stats.linregress(x, y).pvalue == 0.48877630451924287
+        assert_relative_eq!(p, 0.48877630451924287, max_relative = 1e-3, epsilon = 1e-6);
+        // The old formula gives ~0.938 for this same data -- not just
+        // "also non-significant" but roughly twice as large.
+        assert!(
+            (p - 0.938).abs() > 0.1,
+            "p={p} looks suspiciously close to the old formula's ~0.938"
+        );
+    }
+
+    #[test]
+    fn test_linregress_p_value_in_valid_range() {
+        let x = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
+        let y = array![2.0f64, 4.0, 6.0, 8.0, 10.0];
+        let (_, _, _, p, _) = linregress(&x.view(), &y.view()).expect("linregress should succeed");
+        assert!((0.0..=1.0).contains(&p), "p-value out of range: {p}");
     }
 }

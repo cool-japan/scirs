@@ -1,10 +1,47 @@
 # scirs2-signal TODO
 
-## Status: v0.6.3 (released, 2026-07-27)
+## Status: v0.6.5 (released, 2026-07-31)
+
+**0.6.5:** the biggest single-crate change in this release. Wired 83 previously-orphaned-but-real
+files back into the crate (`wire_files.txt` at the crate root lists them, and `src/lib.rs` gained
+the corresponding `pub mod` declarations) — a full Kalman filter family (standard/extended/
+unscented/ensemble/information/particle, `src/kalman/`), a BSS/ICA toolkit (`src/bss/`),
+compressed-sensing sparse recovery (OMP/basis-pursuit/LASSO/CoSaMP, `src/compressed_sensing/`),
+time-series feature extraction (`src/features/`), a SciPy-`ShortTimeFFT`-class STFT port
+(`src/stft/`), and matched-filter/CFAR radar processing (`src/radar.rs`) — **none of these had any
+wired equivalent anywhere in the compiled crate before this release**, despite `README.md` and this
+file having described several of them (Kalman, BSS, compressed sensing, matched filtering/CFAR) as
+complete since as far back as "v0.3.3 Completed" below; those checkmarks were aspirational until
+now. Also deleted ~167 unreachable legacy/duplicate files (541 total `.rs` files in `src/`, 255
+unreachable — 47%, not the ~82 previously estimated): six mutually-redundant Lomb-Scargle validation
+suites, five competing WPT validation suites, four independent copies of the sparse-recovery
+algorithm family (`sparse.rs`, `sparse_recovery.rs`, `compressive_sensing/`, `source_separation/`),
+three redundant synchrosqueezed-transform implementations (`synchrosqueeze.rs`, `sswt.rs`, plus the
+surviving `synchrosqueezing.rs`), and several half-finished `splitrs`-style refactors never wired
+into `lib.rs`. Renamed-and-merged in the same pass: `zoom_fft.rs` → `czt.rs` (now also hosts
+Goertzel/Sliding-DFT), `cepstrum.rs` → merged into `cepstral.rs`, `resample.rs`/`multirate.rs` →
+`resampling/`. **One real regression found while verifying this for docs**: `mir.rs` (the crate's
+only Music Information Retrieval implementation — beat tracking, tempo estimation, key detection,
+tonal centroid, self-similarity structural segmentation) was deleted with no replacement wired
+anywhere; only CQT-based chroma (`cqt::chromagram`) and spectral-flux onset detection
+(`streaming::spectral_analysis::SpectralFlux`) survive of the former MIR feature set — see the
+correction in "Music Information Retrieval (MIR)" under "v0.3.3 Completed" below. `wvd.rs` and
+`reassigned.rs`/`reassignment.rs` were also deleted but are **not** regressions: their Wigner-Ville/
+Cohen's-class/reassigned-spectrogram functionality already had a genuine, already-wired equivalent
+in `time_frequency.rs`. See root `CHANGELOG.md` `[0.6.5]` for full detail.
+
+**0.6.4:** `oxifft`'s `threading` (rayon) feature is no longer enabled by default on
+`wasm32-unknown-unknown`; no other signal-specific source changes. See `CHANGELOG.md` `[0.6.4]`.
 
 **0.6.3:** fixed two correctness bugs in `eigenvalues_francis_qr` (`src/phase_estimation/esprit.rs`, used by ESPRIT phase estimation)'s double-shift QR that let eigenvalues silently drift from the input matrix's — a wrong bulge-term index and a right-multiply loop one row short. Also fixed `n4sid_estimate` (`src/system_identification/n4sid.rs`)'s least-squares solve, which used normal equations and silently returned bogus huge-norm solutions for rank-deficient (non-persistently-exciting) inputs instead of erroring — both solves now go through an SVD-based minimum-norm solve (new `pseudoinverse_product`). Verified by code review and the (unchanged) test suite below; not exercised under Windows CI. See `CHANGELOG.md` `[0.6.3]` for full detail.
 
-scirs2-signal's own test suite (freshly re-run 2026-07-15): 1489 tests pass, 2 skipped, 0 failed with default features; 1489 tests pass, 2 skipped, 0 failed with `--all-features`. Fixed a real `waverec` bug (`dwt/multiscale.rs`): it was reconstructing to 2x the correct length for wavelet filters with more than 2 taps; the DWT round-trip test now asserts genuine perfect reconstruction instead of just checking non-empty output.
+scirs2-signal's own test suite (freshly re-run 2026-07-15, **predates the v0.6.5 wiring/deletion
+above — the 83-file addition and 167-file deletion has since changed the underlying test
+population and this count has not been re-measured**): 1489 tests pass, 2 skipped, 0 failed with
+default features; 1489 tests pass, 2 skipped, 0 failed with `--all-features`. Also: as of this docs
+pass, `src/` and `tests/` carry zero `#[ignore]`d tests (`grep -rn '#\[ignore'` returns nothing),
+consistent with the workspace-wide ignore-legitimacy audit's disposition of this crate's share of
+the 132 → 59 count. Fixed a real `waverec` bug (`dwt/multiscale.rs`): it was reconstructing to 2x the correct length for wavelet filters with more than 2 taps; the DWT round-trip test now asserts genuine perfect reconstruction instead of just checking non-empty output.
 
 ## Status: v0.4.3 Released (May 3, 2026)
 
@@ -125,12 +162,19 @@ scirs2-signal's own test suite (freshly re-run 2026-07-15): 1489 tests pass, 2 s
 - [x] Ambiguity function computation for waveform analysis
 
 ### Music Information Retrieval (MIR)
-- [x] Onset detection: spectral flux, high-frequency content (HFC), complex domain
-- [x] Beat tracking and tempo estimation via onset strength envelope
-- [x] Chroma features: short-time Fourier chroma, CQT-based chroma
-- [x] Key detection via chroma profiles
-- [x] Tonal centroid (Harmonic Network features)
-- [x] Structural segmentation via self-similarity matrices
+**Regression found 2026-07-31**: this section's checkmarks describe the crate's former `mir.rs`,
+which was deleted (as part of the ~167-file dead-code cleanup) in the same v0.6.5 pass that wired
+in Kalman/BSS/compressed-sensing/STFT — but unlike those, `mir.rs` had no replacement wired in
+anywhere. Corrected below; see "Status: v0.6.5" above for the full story.
+- [x] Chroma features: CQT-based chroma only, via `cqt::chromagram` (the short-time-Fourier/PCP
+      chroma variant was only in the now-deleted `mir.rs`)
+- [x] Onset detection: spectral flux only, via `streaming::spectral_analysis::SpectralFlux` (the
+      high-frequency-content and complex-domain variants were only in the now-deleted `mir.rs`)
+- [ ] ~~Beat tracking and tempo estimation via onset strength envelope~~ — not currently
+      implemented; no surviving equivalent after `mir.rs`'s deletion
+- [ ] ~~Key detection via chroma profiles~~ — not currently implemented; no surviving equivalent
+- [ ] ~~Tonal centroid (Harmonic Network features)~~ — not currently implemented; no surviving equivalent
+- [ ] ~~Structural segmentation via self-similarity matrices~~ — not currently implemented; no surviving equivalent
 
 ### Resampling
 - [x] Upsampling and downsampling with anti-aliasing filters
@@ -207,3 +251,4 @@ Status (verified 2026-07-15): `gpu_spectrograms.rs` and `gpu_matched_filter.rs` 
 - CEEMDAN with very short signals (<256 samples) may produce spurious IMFs; EEMD is more stable in this regime
 - N4SID identification with high model orders (>20) requires well-conditioned data; use regularized variant
 - NMF audio separation is sensitive to initialization; multiple random restarts recommended for reliable separation
+- **Music Information Retrieval is largely unimplemented as of v0.6.5** — `mir.rs` (the crate's only implementation of beat tracking, tempo estimation, key detection, tonal centroid, and self-similarity structural segmentation) was deleted in this release's dead-code cleanup with no replacement wired anywhere. Only CQT-based chroma (`cqt::chromagram`) and spectral-flux onset detection (`streaming::spectral_analysis::SpectralFlux`) remain available. Restoring the rest would mean re-implementing from scratch, not re-wiring — the source is gone, not just unreachable.

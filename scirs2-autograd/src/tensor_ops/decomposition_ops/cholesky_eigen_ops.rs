@@ -4,8 +4,26 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops::convert_to_tensor;
 use crate::tensor_ops::decomposition_backward::cholesky_backward;
+use crate::tensor_ops::matrix_calculus::{self, MatrixFnKind, MatrixFnVjpOp};
 use crate::Float;
 use scirs2_core::ndarray::{Array1, Array2, Ix2};
+
+/// Builds the backward node of a matrix function: `MatrixFnVjp(A, gy)`.
+///
+/// Every matrix function in this module has the same VJP shape — the adjoint of its
+/// Fréchet derivative applied to the output cotangent — so they all funnel through here.
+/// The node is built lazily (rather than evaluated inside `grad`) so the tape survives
+/// and unfed placeholders upstream are not a problem.
+fn append_matrix_fn_grad<F: Float>(ctx: &mut GradientContext<F>, kind: MatrixFnKind) {
+    let a = *ctx.input(0);
+    let gy = *ctx.output_grad();
+    let g = ctx.graph();
+    let gx = Tensor::builder(g)
+        .append_input(a, false)
+        .append_input(gy, false)
+        .build(MatrixFnVjpOp { kind });
+    ctx.append_input_grad(0, Some(gx));
+}
 
 /// Cholesky Decomposition Operation
 pub struct CholeskyOp;
@@ -211,10 +229,20 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SymmetricEigenOp 
             .into_dimensionality::<Ix2>()
             .map_err(|_| OpError::IncompatibleShape("Failed to convert to 2D array".into()))?;
 
-        // Check if matrix is symmetric (at least approximately)
-        let symmetry_tolerance = F::from(1e-10).unwrap_or(F::epsilon());
+        // Check if matrix is symmetric.  The tolerance is *relative* to the magnitude of
+        // the matrix: an absolute `1e-10` rejects a perfectly symmetric matrix whose
+        // entries are large enough that `a_ij - a_ji` cannot round to less than that.
+        let magnitude = input_2d.iter().fold(F::zero(), |acc, &v| {
+            let m = v.abs();
+            if m > acc {
+                m
+            } else {
+                acc
+            }
+        });
+        let symmetry_tolerance = F::from(1e-10).unwrap_or(F::epsilon()) * (F::one() + magnitude);
         for i in 0..n {
-            for j in 0..n {
+            for j in (i + 1)..n {
                 let diff = (input_2d[[i, j]] - input_2d[[j, i]]).abs();
                 if diff > symmetry_tolerance {
                     return Err(OpError::Other(
@@ -224,82 +252,11 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SymmetricEigenOp 
             }
         }
 
-        // For small matrices, use analytical solutions
-        if n == 1 {
-            // For 1x1 matrix, eigenvalue is the single element, eigenvector is [1]
-            let eigenvalues = Array1::from_vec(vec![input_2d[[0, 0]]]);
-            let eigenvectors = Array2::from_shape_vec((1, 1), vec![F::one()])
-                .map_err(|_| OpError::Other("Failed to create eigenvector matrix".into()))?;
-
-            ctx.append_output(eigenvalues.into_dyn());
-            ctx.append_output(eigenvectors.into_dyn());
-            return Ok(());
-        } else if n == 2 {
-            // For 2x2 symmetric matrix, use analytical formula
-            let a = input_2d[[0, 0]];
-            let b = input_2d[[0, 1]]; // = input_2d[[1, 0]] for symmetric matrix
-            let c = input_2d[[1, 1]];
-
-            // Characteristic polynomial: λ² - (a+c)λ + (ac-b²) = 0
-            let trace = a + c;
-            let det = a * c - b * b;
-            let discriminant =
-                trace * trace - F::from(4.0).expect("Failed to convert constant to float") * det;
-
-            if discriminant < F::zero() {
-                return Err(OpError::Other(
-                    "Complex eigenvalues detected for symmetric matrix".into(),
-                ));
-            }
-
-            let sqrt_disc = discriminant.sqrt();
-            let lambda1 =
-                (trace + sqrt_disc) / F::from(2.0).expect("Failed to convert constant to float");
-            let lambda2 =
-                (trace - sqrt_disc) / F::from(2.0).expect("Failed to convert constant to float");
-
-            // Eigenvectors
-            let mut v1 = Array1::zeros(2);
-            let mut v2 = Array1::zeros(2);
-
-            if b.abs() > F::epsilon() {
-                // Non-diagonal case
-                v1[0] = lambda1 - c;
-                v1[1] = b;
-                v2[0] = lambda2 - c;
-                v2[1] = b;
-            } else {
-                // Diagonal case
-                v1[0] = F::one();
-                v1[1] = F::zero();
-                v2[0] = F::zero();
-                v2[1] = F::one();
-            }
-
-            // Normalize eigenvectors
-            let norm1 = (v1[0] * v1[0] + v1[1] * v1[1]).sqrt();
-            let norm2 = (v2[0] * v2[0] + v2[1] * v2[1]).sqrt();
-
-            if norm1 > F::epsilon() {
-                v1 /= norm1;
-            }
-            if norm2 > F::epsilon() {
-                v2 /= norm2;
-            }
-
-            let eigenvalues = Array1::from_vec(vec![lambda1, lambda2]);
-            let mut eigenvectors = Array2::zeros((2, 2));
-            eigenvectors.column_mut(0).assign(&v1);
-            eigenvectors.column_mut(1).assign(&v2);
-
-            ctx.append_output(eigenvalues.into_dyn());
-            ctx.append_output(eigenvectors.into_dyn());
-            return Ok(());
-        }
-
-        // For larger matrices, use iterative method (power iteration with deflation)
-        let eigenvalues = compute_symmetric_eigenvalues(&input_2d);
-        let eigenvectors = compute_symmetric_eigenvectors(&input_2d, &eigenvalues);
+        // A single cyclic-Jacobi path for every size.  Special-casing `n == 1` / `n == 2`
+        // bought nothing but a second eigenvector sign/order convention that the backward
+        // pass would then have to match; Jacobi is exact (one rotation) for `n == 2` and a
+        // no-op for `n == 1`.
+        let (eigenvalues, eigenvectors) = matrix_calculus::symmetric_eigen(&input_2d)?;
 
         ctx.append_output(eigenvalues.into_dyn());
         ctx.append_output(eigenvectors.into_dyn());
@@ -308,69 +265,109 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SymmetricEigenOp 
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        // For eigendecomposition gradient, use simplified identity approximation
-        ctx.append_input_grad(0, Some(*gy));
+        // Only output 0 (the eigenvalue vector) is reachable: a graph node exposes its
+        // first output, so the eigenvector matrix appended second never becomes a
+        // differentiable tensor.  The eigenvalue VJP is therefore the whole rule.
+        //
+        //   λ_k = v_kᵀ A v_k  =>  ∂λ_k / ∂A_ij = v_ki v_kj
+        //   Ā = Σ_k ḡ_k v_k v_kᵀ = V diag(ḡ) Vᵀ
+        //
+        // No `1/(λ_i - λ_j)` term appears, so this rule stays finite on a degenerate
+        // spectrum (individual eigenvalues are still only directionally differentiable
+        // there; see `SymmetricEigenValuesVjpOp`).
+        let a = *ctx.input(0);
+        let gy = *ctx.output_grad();
+        let g = ctx.graph();
+        let gx = Tensor::builder(g)
+            .append_input(a, false)
+            .append_input(gy, false)
+            .build(SymmetricEigenValuesVjpOp);
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 
-/// Compute eigenvalues for symmetric matrix using iterative method
+/// Backward node of [`SymmetricEigenOp`]: `Ā = V diag(ḡ) Vᵀ`.
+///
+/// Inputs are `(A, ḡ)` where `ḡ` is the cotangent of the eigenvalue vector.
+///
+/// # Degenerate spectra
+///
+/// A repeated eigenvalue makes the individual eigenvalues non-differentiable (only
+/// symmetric functions of the whole cluster are). This rule stays *finite* there — it
+/// contains no eigenvalue-difference denominator — but the eigenvector split inside a
+/// cluster is arbitrary, so the per-eigenvalue gradient is only one valid element of the
+/// generalised (Clarke) subdifferential.
+pub struct SymmetricEigenValuesVjpOp;
+
+impl<F: Float> Op<F> for SymmetricEigenValuesVjpOp {
+    fn name(&self) -> &'static str {
+        "SymmetricEigenValuesVjp"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a_in = ctx.input(0);
+        let gy_in = ctx.input(1);
+
+        let a = a_in.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("SymmetricEigen backward: A is not 2-D".into())
+        })?;
+        let n = a.nrows();
+        if a.ncols() != n {
+            return Err(OpError::IncompatibleShape(
+                "SymmetricEigen backward: A is not square".into(),
+            ));
+        }
+        if gy_in.len() != n {
+            return Err(OpError::IncompatibleShape(format!(
+                "SymmetricEigen backward: eigenvalue cotangent has {} entries, expected {n}",
+                gy_in.len()
+            )));
+        }
+
+        let (_values, vectors) = matrix_calculus::symmetric_eigen(&a)?;
+        let mut scaled = Array2::<F>::zeros((n, n));
+        for (k, gk) in gy_in.iter().enumerate() {
+            for i in 0..n {
+                scaled[[i, k]] = vectors[[i, k]] * *gk;
+            }
+        }
+        let grad = scaled.dot(&vectors.t());
+        ctx.append_output(grad.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        matrix_calculus::append_unsupported_grad(
+            ctx,
+            "SymmetricEigen: second-order differentiation of the eigenvalue backward pass \
+             is not implemented (it needs the eigenvector sensitivities, which the \
+             single-output graph node cannot expose)."
+                .into(),
+        );
+    }
+}
+
+/// Eigenvalues of a symmetric matrix, in descending order.
+///
+/// Cyclic Jacobi (see [`crate::tensor_ops::matrix_calculus::symmetric_eigen`]). The
+/// previous implementation returned the sorted *diagonal* of the matrix, which is only
+/// the spectrum when the matrix is already diagonal.
 #[allow(dead_code)]
 pub(crate) fn compute_symmetric_eigenvalues<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
-) -> Array1<F> {
-    let n = matrix.shape()[0];
-    let mut eigenvalues = Array1::zeros(n);
-
-    // For larger matrices, use a simplified approach based on diagonal dominance
-    // This is a placeholder implementation
-    for i in 0..n {
-        eigenvalues[i] = matrix[[i, i]]; // Diagonal approximation
-    }
-
-    // Sort eigenvalues in descending order
-    let mut pairs: Vec<(F, usize)> = eigenvalues
-        .iter()
-        .enumerate()
-        .map(|(i, &val)| (val, i))
-        .collect();
-    pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-
-    for (i, (val_, _idx)) in pairs.iter().enumerate() {
-        eigenvalues[i] = *val_;
-    }
-
-    eigenvalues
+) -> Result<Array1<F>, OpError> {
+    matrix_calculus::symmetric_eigen(matrix).map(|(values, _)| values)
 }
 
-/// Compute eigenvectors for symmetric matrix
+/// Eigenvectors (as columns) of a symmetric matrix, ordered to match
+/// [`compute_symmetric_eigenvalues`].
+///
+/// The previous implementation returned the identity matrix regardless of the input.
 #[allow(dead_code)]
 pub(crate) fn compute_symmetric_eigenvectors<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
-    _eigenvalues: &Array1<F>,
-) -> Array2<F> {
-    let n = matrix.shape()[0];
-    let mut eigenvectors = Array2::<F>::eye(n); // Start with identity matrix
-
-    // For this implementation, we'll use a simplified approach
-    // In practice, this would use more sophisticated algorithms like Jacobi iteration
-    // or QR algorithm for better accuracy
-
-    // Placeholder: return identity matrix scaled by _eigenvalues
-    for i in 0..n {
-        for j in 0..n {
-            if i == j {
-                eigenvectors[[i, j]] = F::one();
-            } else {
-                eigenvectors[[i, j]] = F::zero();
-            }
-        }
-    }
-
-    // Suppress unused variable — matrix is accepted for API compatibility
-    let _ = matrix;
-
-    eigenvectors
+) -> Result<Array2<F>, OpError> {
+    matrix_calculus::symmetric_eigen(matrix).map(|(_, vectors)| vectors)
 }
 
 /// Symmetric eigendecomposition of a symmetric matrix.
@@ -427,9 +424,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixExpOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        // For matrix exponential gradient, use simplified identity approximation
-        ctx.append_input_grad(0, Some(*gy));
+        append_matrix_fn_grad(ctx, MatrixFnKind::Exp);
     }
 }
 
@@ -474,9 +469,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixLogOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        // For matrix logarithm gradient, use simplified identity approximation
-        ctx.append_input_grad(0, Some(*gy));
+        append_matrix_fn_grad(ctx, MatrixFnKind::Log);
     }
 }
 
@@ -513,122 +506,47 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixPowerOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        // For matrix power gradient, use simplified identity approximation
-        ctx.append_input_grad(0, Some(*gy));
+        append_matrix_fn_grad(ctx, MatrixFnKind::Power(self.power));
     }
 }
 
-/// Compute matrix exponential using Padé approximation
+/// Matrix exponential `exp(A)`.
+///
+/// Scaling-and-squaring with a truncated Taylor series (see
+/// [`crate::tensor_ops::matrix_calculus::expm`]). The previous implementation used eight
+/// Taylor terms for `n <= 3` and, for anything larger, discarded the whole off-diagonal
+/// and exponentiated only the diagonal — which is the exponential of a *different*
+/// matrix, not an approximation of this one.
 #[allow(dead_code)]
 pub(crate) fn compute_matrix_exp<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-
-    // For small matrices, use simplified Taylor series approximation
-    if n <= 3 {
-        // exp(A) ≈ I + A + A²/2! + A³/3! + ...
-        let mut result = Array2::<F>::eye(n);
-        let mut term = Array2::<F>::eye(n);
-
-        // Add first few terms of Taylor series
-        for k in 1..=8 {
-            term = term.dot(matrix) / F::from(k).expect("Failed to convert to float");
-            result += &term;
-        }
-
-        Ok(result)
-    } else {
-        // For larger matrices, use a simplified diagonal approximation
-        let mut result = Array2::<F>::zeros((n, n));
-        for i in 0..n {
-            result[[i, i]] = matrix[[i, i]].exp();
-        }
-        Ok(result)
-    }
+    matrix_calculus::expm(matrix)
 }
 
-/// Compute matrix logarithm
+/// Principal matrix logarithm `log(A)`.
+///
+/// Inverse scaling and squaring (see [`crate::tensor_ops::matrix_calculus::logm`]). The
+/// previous implementation took `ln` of each diagonal entry and filled the off-diagonal
+/// with `a_ij / a_ii`, which is not the logarithm of anything.
 #[allow(dead_code)]
 pub(crate) fn compute_matrix_log<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-
-    // For diagonal-dominant matrices, use diagonal approximation
-    let mut result = Array2::<F>::zeros((n, n));
-    for i in 0..n {
-        if matrix[[i, i]] > F::zero() {
-            result[[i, i]] = matrix[[i, i]].ln();
-        } else {
-            return Err(OpError::Other(
-                "Matrix logarithm of non-positive element".into(),
-            ));
-        }
-    }
-
-    // Add small off-diagonal contributions for numerical stability
-    for i in 0..n {
-        for j in 0..n {
-            if i != j && matrix[[i, j]].abs() > F::epsilon() {
-                result[[i, j]] = matrix[[i, j]] / matrix[[i, i]];
-            }
-        }
-    }
-
-    Ok(result)
+    matrix_calculus::logm(matrix)
 }
 
-/// Compute matrix power
+/// Matrix power `A^p`.
+///
+/// Binary exponentiation for integer `p`, `exp(p log A)` otherwise (see
+/// [`crate::tensor_ops::matrix_calculus::powm`]). The previous implementation raised only
+/// the diagonal entries to the power and returned zeros off the diagonal.
 #[allow(dead_code)]
 pub(crate) fn compute_matrix_power<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
     power: f64,
 ) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-    let power_f = F::from(power).expect("Failed to convert to float");
-
-    if power == 0.0 {
-        // A^0 = I
-        return Ok(Array2::<F>::eye(n));
-    } else if power == 1.0 {
-        // A^1 = A
-        return Ok(matrix.to_owned());
-    } else if power == -1.0 {
-        // A^(-1) = A⁻¹ (simplified using diagonal approximation)
-        let mut result = Array2::<F>::zeros((n, n));
-        for i in 0..n {
-            if matrix[[i, i]] != F::zero() {
-                result[[i, i]] = F::one() / matrix[[i, i]];
-            } else {
-                return Err(OpError::Other(
-                    "Matrix is singular, cannot compute inverse".into(),
-                ));
-            }
-        }
-        return Ok(result);
-    }
-
-    // For general powers, use eigendecomposition approach (simplified)
-    // A^p = V * D^p * V^(-1) where A = V * D * V^(-1)
-    let mut result = Array2::<F>::zeros((n, n));
-
-    // Simplified: assume diagonal dominance and compute diagonal powers
-    for i in 0..n {
-        if matrix[[i, i]] > F::zero() {
-            result[[i, i]] = matrix[[i, i]].powf(power_f);
-        } else if power.fract() == 0.0 && power as i32 % 2 == 0 {
-            // Even integer power of negative number
-            result[[i, i]] = matrix[[i, i]].abs().powf(power_f);
-        } else {
-            return Err(OpError::Other(
-                "Cannot compute fractional power of negative number".into(),
-            ));
-        }
-    }
-
-    Ok(result)
+    matrix_calculus::powm(matrix, power)
 }
 
 /// Matrix exponential function.
@@ -688,4 +606,195 @@ pub fn matrix_power<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     Tensor::builder(g)
         .append_input(matrix, false)
         .build(MatrixPowerOp { power })
+}
+
+#[cfg(test)]
+mod tests {
+    //! Finite-difference gradient checks for the ops in this file.
+    //!
+    //! `matrix_log`, `matrix_power` and `symmetric_eigen` are re-exported only inside the
+    //! crate (`tensor_ops::matrix_log`/`matrix_power` resolve to the `matrix_functions`
+    //! versions), so their gradients cannot be reached from `tests/`. The checks live
+    //! here instead, and follow the same two rules as `tests/gradient_fd_harness*.rs`:
+    //! a **non-uniform** cotangent, and inputs built with `T::variable`.
+
+    use super::{matrix_exp, matrix_log, matrix_power, symmetric_eigen};
+    use crate::tensor_ops as T;
+    use scirs2_core::ndarray::{ArrayD, IxDyn};
+
+    type Ctx<'g> = crate::Context<'g, f64>;
+    type Tsr<'g> = crate::Tensor<'g, f64>;
+
+    fn array(shape: &[usize], data: &[f64]) -> ArrayD<f64> {
+        ArrayD::from_shape_vec(IxDyn(shape), data.to_vec()).expect("shape/data mismatch")
+    }
+
+    /// `sum(cotangent * build(x))` evaluated on plain constants.
+    fn forward_loss<B>(shape: &[usize], data: &[f64], cot: &[f64], build: &B) -> f64
+    where
+        B: for<'g> Fn(Tsr<'g>, &'g Ctx<'g>) -> Tsr<'g>,
+    {
+        crate::run(|g| {
+            let g: &Ctx = g;
+            let x = T::convert_to_tensor(array(shape, data), g);
+            let y = build(x, g);
+            let y_arr = y.eval(g).expect("forward eval failed");
+            y_arr
+                .iter()
+                .zip(cot.iter())
+                .map(|(a, b)| a * b)
+                .sum::<f64>()
+        })
+    }
+
+    fn check<B>(name: &str, shape: &[usize], data: &[f64], cot: &[f64], build: B, tol: f64)
+    where
+        B: for<'g> Fn(Tsr<'g>, &'g Ctx<'g>) -> Tsr<'g>,
+    {
+        let analytic: Vec<f64> = crate::run(|g| {
+            let g: &Ctx = g;
+            let x = T::variable(array(shape, data), g);
+            let y = build(x, g);
+            let y_arr = y.eval(g).expect("forward eval failed");
+            assert_eq!(
+                y_arr.len(),
+                cot.len(),
+                "{name}: cotangent has {} entries, output has {}",
+                cot.len(),
+                y_arr.len()
+            );
+            let cot_t = T::convert_to_tensor(array(y_arr.shape(), cot), g);
+            let loss = T::sum_all(T::mul(y, cot_t));
+            let grads = T::grad(&[loss], &[x]);
+            grads[0]
+                .eval(g)
+                .expect("gradient eval failed")
+                .iter()
+                .copied()
+                .collect()
+        });
+
+        assert_eq!(
+            analytic.len(),
+            data.len(),
+            "{name}: gradient has wrong size"
+        );
+        for (i, &got) in analytic.iter().enumerate() {
+            let h = 1e-5 * (1.0 + data[i].abs());
+            let mut plus = data.to_vec();
+            plus[i] += h;
+            let mut minus = data.to_vec();
+            minus[i] -= h;
+            let numeric = (forward_loss(shape, &plus, cot, &build)
+                - forward_loss(shape, &minus, cot, &build))
+                / (2.0 * h);
+            assert!(
+                got.is_finite(),
+                "{name}: gradient[{i}] is not finite ({got})"
+            );
+            assert!(
+                (got - numeric).abs() <= tol * (1.0 + numeric.abs()),
+                "{name}: d/dx[{i}] analytic={got} finite-difference={numeric}"
+            );
+        }
+    }
+
+    /// Symmetric positive definite, non-diagonal.
+    const SPD: [f64; 9] = [2.40, 0.35, -0.20, 0.35, 1.90, 0.28, -0.20, 0.28, 1.55];
+
+    /// The eigenvalue VJP is `V diag(ḡ) Vᵀ`.
+    ///
+    /// The argument is built as `B + Bᵀ` so a finite difference in `B` stays exactly
+    /// symmetric — `SymmetricEigenOp` rejects a non-symmetric argument, and eigenvalues of
+    /// a symmetric matrix are only differentiable along symmetric perturbations anyway.
+    #[test]
+    fn fd_symmetric_eigen_eigenvalue_gradient() {
+        let b = [0.90, 0.21, -0.13, 0.07, 0.65, 0.19, -0.11, 0.05, 0.48];
+        check(
+            "symmetric_eigen",
+            &[3, 3],
+            &b,
+            &[0.41, -0.27, 0.63],
+            |x, _g| {
+                let sym = T::add(x, T::transpose(x, &[1, 0]));
+                symmetric_eigen(&sym)
+            },
+            1e-4,
+        );
+    }
+
+    /// A diagonal-only forward would give a one-hot gradient on the diagonal entries and
+    /// exactly zero off it; the Fréchet rule gives a dense gradient.
+    #[test]
+    fn fd_matrix_log_gradient() {
+        check(
+            "matrix_log",
+            &[3, 3],
+            &SPD,
+            &[0.31, -0.72, 0.15, 0.44, 0.09, -0.53, -0.26, 0.68, 0.37],
+            |x, _g| matrix_log(&x),
+            1e-4,
+        );
+    }
+
+    #[test]
+    fn fd_matrix_power_fractional() {
+        check(
+            "matrix_power_0.5",
+            &[3, 3],
+            &SPD,
+            &[0.31, -0.72, 0.15, 0.44, 0.09, -0.53, -0.26, 0.68, 0.37],
+            |x, _g| matrix_power(&x, 0.5),
+            1e-4,
+        );
+    }
+
+    #[test]
+    fn fd_matrix_power_integer_on_a_general_matrix() {
+        // Non-symmetric: `A^3` is a genuine matrix product, not an entry-wise cube.
+        let a = [0.30, 0.24, -0.17, 0.11, -0.28, 0.19, -0.21, 0.13, 0.35];
+        check(
+            "matrix_power_3",
+            &[3, 3],
+            &a,
+            &[0.31, -0.72, 0.15, 0.44, 0.09, -0.53, -0.26, 0.68, 0.37],
+            |x, _g| matrix_power(&x, 3.0),
+            1e-4,
+        );
+    }
+
+    #[test]
+    fn fd_matrix_exp_gradient() {
+        let a = [0.30, 0.24, -0.17, 0.11, -0.28, 0.19, -0.21, 0.13, 0.35];
+        check(
+            "matrix_exp",
+            &[3, 3],
+            &a,
+            &[0.31, -0.72, 0.15, 0.44, 0.09, -0.53, -0.26, 0.68, 0.37],
+            |x, _g| matrix_exp(&x),
+            1e-4,
+        );
+    }
+
+    /// The forward eigenvalues must be the real spectrum, not the diagonal.
+    #[test]
+    fn symmetric_eigen_forward_is_not_the_diagonal() {
+        crate::run(|g| {
+            let g: &Ctx = g;
+            let x = T::convert_to_tensor(array(&[3, 3], &SPD), g);
+            let vals = symmetric_eigen(&x).eval(g).expect("eval failed");
+            let mut sorted_diagonal = [SPD[0], SPD[4], SPD[8]];
+            sorted_diagonal.sort_by(|a, b| b.partial_cmp(a).expect("finite"));
+            let trace: f64 = sorted_diagonal.iter().sum();
+            let spectrum_sum: f64 = vals.iter().sum();
+            // The spectrum must have the same trace ...
+            assert!((trace - spectrum_sum).abs() < 1e-9);
+            // ... but must not be the diagonal itself.
+            let differs = vals
+                .iter()
+                .zip(sorted_diagonal.iter())
+                .any(|(a, b)| (a - b).abs() > 1e-6);
+            assert!(differs, "eigenvalues equal the sorted diagonal: {vals:?}");
+        });
+    }
 }

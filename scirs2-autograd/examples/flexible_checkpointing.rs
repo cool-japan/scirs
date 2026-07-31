@@ -13,9 +13,14 @@ fn main() {
     println!();
 
     ag::run(|ctx| {
-        // Create some input tensors for our computation
-        let a = T::convert_to_tensor(Array2::<f32>::eye(64).into_dyn(), ctx);
-        let b = T::convert_to_tensor(Array2::<f32>::ones((64, 64)).into_dyn(), ctx);
+        // Create some input tensors for our computation. Both are
+        // differentiated below via T::grad (five separate times), so they
+        // must be `T::variable`: `T::convert_to_tensor` marks the tensor
+        // non-differentiable, which used to make every one of grad1..grad5
+        // silently the exact-zero fallback, making all the "gradients match"
+        // comparisons below trivially (and meaninglessly) true.
+        let a = T::variable(Array2::<f32>::eye(64).into_dyn(), ctx);
+        let b = T::variable(Array2::<f32>::ones((64, 64)).into_dyn(), ctx);
 
         println!("Running a multi-step computation without checkpointing...");
         let start = Instant::now();
@@ -135,7 +140,11 @@ fn main() {
             (path1, path2)
         });
 
-        // Compute gradients through both outputs
+        // Compute gradients through both outputs. Unlike grad1..grad4 above
+        // (whose `tanh` sees pre-activation values of 64 and saturates to an
+        // exact-zero local derivative), `path2`'s `tanh` here sees
+        // pre-activation values of exactly 1.0 (not saturated), so this
+        // gradient is genuinely non-zero.
         let loss_multi = result5a + result5b;
         let grad5 = T::grad(&[loss_multi], &[&a])[0];
         let grad5_val = grad5.eval(ctx).expect("Operation failed");
@@ -198,6 +207,57 @@ fn main() {
             "  Gradient elements that match (group flex vs normal): {}/{}",
             match_count_group_flex,
             grad1_val.len()
+        );
+
+        // These are the actual point of the comparisons above: every
+        // checkpointing variant must reproduce EVERY element of the baseline
+        // gradient exactly, not just "most of them".
+        assert_eq!(
+            match_count_manual,
+            grad1_val.len(),
+            "manual checkpointing must preserve every gradient element exactly"
+        );
+        assert_eq!(
+            match_count_flex,
+            grad1_val.len(),
+            "checkpoint_segment_flex must preserve every gradient element exactly"
+        );
+        assert_eq!(
+            match_count_group_flex,
+            grad1_val.len(),
+            "checkpoint_fn_flex must preserve every gradient element exactly"
+        );
+
+        // Hand-derived real values (this used to pass vacuously: before the
+        // fix, grad1..grad5 were all silently the zero fallback regardless of
+        // whether the underlying `tanh(64)` saturation below is even real).
+        //
+        // grad1..grad4 all compute the identical function
+        // sum(matmul(tanh(matmul(relu(matmul(a,b)),b)),b)). Because a=I and
+        // b=ones(64,64), the pre-tanh values are exactly 64.0, which
+        // saturates tanh to exactly 1.0 in floating point, making its local
+        // derivative `1 - tanh(x)^2` exactly 0 -- so the true gradient here
+        // is genuinely the zero matrix, not a footgun artifact.
+        for &g in grad1_val.iter() {
+            assert_eq!(g, 0.0, "grad1 must be exactly zero (tanh(64) saturates)");
+        }
+
+        // grad5's `path2` branch applies `tanh` to a pre-activation value of
+        // exactly 1.0 (not saturated), so its gradient is genuinely non-zero;
+        // by the problem's full symmetry (a=I, b=ones) every entry of the
+        // gradient takes the same value:
+        //   d(path1)/da + d(path2)/da
+        //     = feature_size^2 + feature_size^2 * (1 - tanh(1)^2)
+        let n = 64.0_f32;
+        let expected_grad5 = n * n + n * n * (1.0 - 1.0_f32.tanh().powi(2));
+        for &g in grad5_val.iter() {
+            assert!(
+                (g - expected_grad5).abs() < 1.0,
+                "grad5 = {g}, expected {expected_grad5} (tanh(1) does not saturate)"
+            );
+        }
+        println!(
+            "  Verified: grad1..grad4 == 0 exactly (tanh(64) saturation); grad5 == {expected_grad5:.3} (tanh(1), genuinely non-zero)"
         );
 
         println!("\nPerformance comparison:");

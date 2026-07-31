@@ -71,13 +71,11 @@ mod gpu_tests {
             Err(e) => {
                 // If the error is adapter-related, skip gracefully.
                 let msg = e.to_string();
-                if msg.contains("adapter")
-                    || msg.contains("Adapter")
-                    || msg.contains("GPU")
-                    || msg.contains("no suitable")
-                    || msg.contains("wgpu")
-                {
-                    println!("No wgpu adapter available — skipping CG GPU test ({msg})");
+                if scirs2_core::testing::gpu_availability::is_gpu_unavailable_error(&msg) {
+                    scirs2_core::testing::gpu_availability::print_gpu_skip(
+                        "cg_gpu_matches_cpu_on_quadratic_or_skips",
+                        &msg,
+                    );
                     return;
                 }
                 panic!("Unexpected GPU CG error: {e}");
@@ -140,13 +138,11 @@ mod gpu_tests {
             Ok(r) => r,
             Err(e) => {
                 let msg = e.to_string();
-                if msg.contains("adapter")
-                    || msg.contains("Adapter")
-                    || msg.contains("GPU")
-                    || msg.contains("no suitable")
-                    || msg.contains("wgpu")
-                {
-                    println!("No wgpu adapter available — skipping Newton GPU test ({msg})");
+                if scirs2_core::testing::gpu_availability::is_gpu_unavailable_error(&msg) {
+                    scirs2_core::testing::gpu_availability::print_gpu_skip(
+                        "newton_gpu_matches_cpu_or_skips",
+                        &msg,
+                    );
                     return;
                 }
                 panic!("Unexpected GPU Newton-CG error: {e}");

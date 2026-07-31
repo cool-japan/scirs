@@ -81,29 +81,27 @@ pub mod utils;
 // ---------------------------------------------------------------------------
 
 // Algorithm configurations
-pub use algorithms::{
-    BasisPursuitConfig, CoSaMPConfig, IstaConfig, LassoConfig, OmpConfig,
-};
+pub use algorithms::{BasisPursuitConfig, CoSaMPConfig, IstaConfig, LassoConfig, OmpConfig};
 
 // Core algorithms
 pub use algorithms::{basis_pursuit, cosamp, fista, ista, lasso, omp};
 
 // Measurement matrix builders
 pub use measurements::{
-    BernoulliMeasurement, GaussianMeasurement, PartialDFT, ToeplitzMeasurement,
-    coherence, rip_check_estimate,
+    coherence, rip_check_estimate, BernoulliMeasurement, GaussianMeasurement, PartialDFT,
+    ToeplitzMeasurement,
 };
 
 // Recovery algorithms (alternative implementations from recovery sub-module)
 pub use recovery::{
-    basis_pursuit as bp_admm, CoSaMP as CoSaMPSolver, IrlsConfig, irls, mp,
-    omp as omp_recovery, subspace_pursuit,
+    basis_pursuit as bp_admm, irls, mp, omp as omp_recovery, subspace_pursuit,
+    CoSaMP as CoSaMPSolver, IrlsConfig,
 };
 
 // Utility functions
 pub use utils::{
-    generate_sparse_signal, hard_threshold, hard_threshold_val, l1_norm, l2_norm,
-    restrict_to, soft_threshold, soft_threshold_vec, support_of,
+    generate_sparse_signal, hard_threshold, hard_threshold_val, l1_norm, l2_norm, restrict_to,
+    soft_threshold, soft_threshold_vec, support_of,
 };
 
 // ---------------------------------------------------------------------------
@@ -171,9 +169,7 @@ pub fn reconstruct(
             };
             cosamp(phi, y, &cfg)
         }
-        "bp" | "basis_pursuit" | "BP" => {
-            basis_pursuit(phi, y, &BasisPursuitConfig::default())
-        }
+        "bp" | "basis_pursuit" | "BP" => basis_pursuit(phi, y, &BasisPursuitConfig::default()),
         "lasso" | "LASSO" => {
             let cfg = LassoConfig {
                 lambda,
@@ -294,7 +290,11 @@ pub fn nmse(x_true: &Array1<f64>, x_rec: &Array1<f64>) -> SignalResult<f64> {
             .zip(x_rec.iter())
             .map(|(&a, &b)| (a - b).powi(2))
             .sum();
-        return Ok(if error_norm_sq < 1e-28 { 0.0 } else { f64::INFINITY });
+        return Ok(if error_norm_sq < 1e-28 {
+            0.0
+        } else {
+            f64::INFINITY
+        });
     }
     let error_norm_sq: f64 = x_true
         .iter()
@@ -414,7 +414,9 @@ mod tests {
             generate_sparse_signal(32, 3, 123).expect("generate_sparse_signal should succeed");
         let phi_builder =
             GaussianMeasurement::new(20, 32, 7).expect("GaussianMeasurement should build");
-        let y = phi_builder.measure(&x_true).expect("measure should succeed");
+        let y = phi_builder
+            .measure(&x_true)
+            .expect("measure should succeed");
         let phi = phi_builder.matrix();
 
         let cfg = OmpConfig {

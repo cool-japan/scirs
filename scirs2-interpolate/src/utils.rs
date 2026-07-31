@@ -512,19 +512,48 @@ mod tests {
 
     #[test]
     fn test_error_estimate() {
-        // Simple linear data
-        let _x = array![0.0, 1.0, 2.0, 3.0, 4.0];
-        let _y = array![0.0, 1.0, 2.0, 3.0, 4.0];
+        use crate::{cubic_interpolate, linear_interpolate};
 
-        // Error for linear interpolation should be very close to zero
-        // Comment out this test since our implementations may not match exactly
-        // let error = error_estimate(&x.view(), &y.view(), linear_interpolate).expect("Operation failed");
-        // assert!(error < 1e-10);
+        // Linear data y = 2x + 1 (not y == x, so a hypothetical "just echo
+        // the input back" bug in error_estimate/interp_fn couldn't
+        // coincidentally pass this check).
+        let x = array![0.0, 1.0, 2.0, 3.0, 4.0];
+        let y = array![1.0, 3.0, 5.0, 7.0, 9.0];
 
-        // Error for cubic interpolation should also be very close to zero
-        // Commenting out cubic interpolation test that uses functions that may fail for some points
-        // let error = error_estimate(&x.view(), &y.view(), cubic_interpolate).expect("Operation failed");
-        // assert!(error < 1e-10);
+        // Leave-one-out CV error for linear interpolation on perfectly
+        // linear data should be ~0 (up to floating point): removing any one
+        // point still leaves >= 4 points on the same line, and linear
+        // interpolation/extrapolation along that line recovers the held-out
+        // point exactly.
+        let error =
+            error_estimate(&x.view(), &y.view(), linear_interpolate).expect("Operation failed");
+        assert!(
+            error < 1e-10,
+            "linear LOO-CV RMSE should be ~0, got {error}"
+        );
+
+        // `cubic_interpolate`'s `Interp1d::Cubic` (see
+        // `interp1d::mod::cubic_interp`) is a uniform-parametrization
+        // Catmull-Rom spline: its tangent estimate at an interior point p1
+        // is `(p2 - p0)`, which only approximates the true derivative when
+        // p1 is spaced evenly between its neighbors p0 and p2. Leave-one-out
+        // removes one x value at a time, which makes the *remaining* points
+        // non-uniformly spaced (e.g. removing x=1 from [0,1,2,3,4] leaves
+        // gaps 2,1,1) -- so even though the underlying y=2x+1 is perfectly
+        // linear, this specific (uniform-spacing-assuming) formula no longer
+        // reproduces it exactly. This is a genuine, deterministic property of
+        // the simplified Catmull-Rom implementation (matches the wide 0.3
+        // tolerance already documented on `cubic_interpolate`'s own doctest),
+        // not a bug to paper over with a near-zero tolerance: the measured
+        // RMSE here is a reproducible ~0.0791, so 0.1 gives real headroom
+        // while still catching a genuine regression.
+        let error =
+            error_estimate(&x.view(), &y.view(), cubic_interpolate).expect("Operation failed");
+        assert!(
+            error < 0.1,
+            "cubic LOO-CV RMSE should stay within the known Catmull-Rom \
+             non-uniform-spacing error budget, got {error}"
+        );
     }
 
     #[test]

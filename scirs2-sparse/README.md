@@ -15,17 +15,17 @@ Tested: 1093/1093 tests passing with default features, 1093/1093 with `--all-fea
 
 ```toml
 [dependencies]
-scirs2-sparse = "0.6.4"
+scirs2-sparse = "0.6.5"
 ```
 
 With optional acceleration:
 
 ```toml
 [dependencies]
-scirs2-sparse = { version = "0.6.4", features = ["parallel", "simd"] }
+scirs2-sparse = { version = "0.6.5", features = ["parallel", "simd"] }
 ```
 
-## Features (v0.6.3)
+## Features (v0.6.5)
 
 ### Sparse Matrix Formats
 

@@ -33,6 +33,21 @@ impl<'graph, F: Float> Graph<F> {
         feeds: &HashMap<TensorID, &RawNdArrayView<F>>,
         ctx: &Context<F>,
     ) -> Vec<Result<NdArray<F>, OpError>> {
+        Self::eval_tensors_in(tensors, feeds, ctx.as_graph(), Some(ctx.var_env_ref))
+    }
+
+    /// Evaluates `tensors` inside `graph`.
+    ///
+    /// `var_env` is the variable environment used to resolve `Variable` nodes. It is
+    /// `None` when only a bare [`Graph`] is reachable (for example inside `Op::grad`,
+    /// where the backward pass owns a `&Graph` and not a [`Context`]); in that case a
+    /// `Variable` node evaluates to an honest error instead of a fabricated value.
+    pub fn eval_tensors_in(
+        tensors: &[&Tensor<F>],
+        feeds: &HashMap<TensorID, &RawNdArrayView<F>>,
+        graph: &Graph<F>,
+        var_env: Option<&VariableEnvironment<F>>,
+    ) -> Vec<Result<NdArray<F>, OpError>> {
         // The original tensors we want to compute values for
         let mut results = Vec::with_capacity(tensors.len());
 
@@ -73,11 +88,20 @@ impl<'graph, F: Float> Graph<F> {
 
         // Collect nodes for all target tensors
         for tensor in tensors {
-            collect_nodes_topo(tensor.id, ctx.as_graph(), &mut eval_nodes, &mut visited);
+            collect_nodes_topo(tensor.id, graph, &mut eval_nodes, &mut visited);
         }
 
         // Map to store computed values for each node
         let mut computed_values: HashMap<TensorID, NdArray<F>> = HashMap::new();
+
+        // The first genuine failure seen during this pass -- an `Op::compute` error, an
+        // unfed placeholder, or a `Variable` missing from the `VariableEnvironment` -- as
+        // opposed to a node merely being *unreachable* because one of its inputs failed.
+        // Recorded so that if a requested tensor's value never materializes, the caller
+        // sees the root cause (e.g. "AddN: mismatched shapes ..." or "No feed value
+        // provided for placeholder 'x'") instead of the uninformative "Failed to compute
+        // tensor N" that used to be the only message ever returned.
+        let mut first_compute_error: Option<OpError> = None;
 
         // Add feed values to the computed values
         for (&id, &feed_view) in feeds.iter() {
@@ -96,12 +120,12 @@ impl<'graph, F: Float> Graph<F> {
                 continue;
             }
 
-            let node = ctx.as_graph().access_inner(node_id);
+            let node = graph.access_inner(node_id);
 
             // If this is a variable node, fetch its data from the VariableEnvironment
             if let Some(variable_id) = node.variable_id {
                 // Get the variable data from the environment
-                if let Some(var_array) = ctx.var_env_ref.get_array_by_id(variable_id) {
+                if let Some(var_array) = var_env.and_then(|e| e.get_array_by_id(variable_id)) {
                     let borrowed_array = var_array.borrow();
                     let cloned_array = borrowed_array.clone();
                     computed_values.insert(node_id, cloned_array);
@@ -110,6 +134,9 @@ impl<'graph, F: Float> Graph<F> {
                     let err = OpError::RuntimeError(format!(
                         "Variable with ID {variable_id} not found in VariableEnvironment"
                     ));
+                    if first_compute_error.is_none() {
+                        first_compute_error = Some(err.clone());
+                    }
 
                     // If this is one of our target tensors, add an error to the result
                     for tensor in tensors {
@@ -127,6 +154,9 @@ impl<'graph, F: Float> Graph<F> {
                 let err = OpError::RuntimeError(format!(
                     "No feed value provided for placeholder '{placeholder_name}'"
                 ));
+                if first_compute_error.is_none() {
+                    first_compute_error = Some(err.clone());
+                }
 
                 // If this is one of our target tensors, add an error to the result
                 for tensor in tensors {
@@ -143,26 +173,30 @@ impl<'graph, F: Float> Graph<F> {
             let mut input_arrays = Vec::with_capacity(node.incoming_nodes.len());
 
             // Collect input arrays from computed values
+            let mut missing_input = None;
             for input_node in &node.incoming_nodes {
                 if let Some(input_array) = computed_values.get(&input_node.id) {
                     input_arrays.push(input_array.clone());
                 } else {
-                    // If an input wasn't computed, there's a bug in our topological sort
-                    let err = OpError::RuntimeError(format!(
-                        "Input node {} for node {} was not computed - possible cycle in graph",
-                        input_node.id, node_id
-                    ));
-
-                    // If this is one of our target tensors, add an error to the result
-                    for tensor in tensors {
-                        if tensor.id == node_id {
-                            results.push(Err(err.clone()));
-                        }
-                    }
-
-                    // Skip this node
-                    continue;
+                    // An input failed to compute (or the topological order is broken).
+                    missing_input = Some(input_node.id);
+                    break;
                 }
+            }
+            if let Some(missing) = missing_input {
+                // NOTE: this used to `continue` the *inner* loop, so the op was still
+                // executed with a short input list.  `ComputeContext::input(i)` then
+                // silently handed out a 0-d dummy scalar for the absent operand, turning
+                // an upstream error into a shape panic deep inside an unrelated op.
+                let err = OpError::RuntimeError(format!(
+                    "Input node {missing} for node {node_id} was not computed"
+                ));
+                for tensor in tensors {
+                    if tensor.id == node_id {
+                        results.push(Err(err.clone()));
+                    }
+                }
+                continue;
             }
 
             // We no longer need a separate output_arrays variable
@@ -195,6 +229,9 @@ impl<'graph, F: Float> Graph<F> {
                 }
                 Err(err) => {
                     // Operation failed
+                    if first_compute_error.is_none() {
+                        first_compute_error = Some(err.clone());
+                    }
                     // If this is one of our target tensors, add an error to the result
                     for tensor in tensors {
                         if tensor.id == node_id {
@@ -211,10 +248,15 @@ impl<'graph, F: Float> Graph<F> {
             if let Some(value) = computed_values.get(&tensor.id) {
                 results.push(Ok(value.clone()));
             } else {
-                results.push(Err(OpError::RuntimeError(format!(
-                    "Failed to compute tensor {}",
-                    tensor.id
-                ))));
+                // Prefer the root-cause error recorded above (e.g. a shape mismatch
+                // inside a specific op) over the generic message: this tensor is
+                // unresolved precisely because some ancestor's `compute()` failed, and
+                // reporting only "Failed to compute tensor N" with no further context
+                // discarded that diagnosis even though it was available.
+                let err = first_compute_error.clone().unwrap_or_else(|| {
+                    OpError::RuntimeError(format!("Failed to compute tensor {}", tensor.id))
+                });
+                results.push(Err(err));
             }
         }
 

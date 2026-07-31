@@ -131,12 +131,17 @@ where
     let (height, width) = input.dim();
     let mut output = Array::zeros((height, width));
 
-    // Get gradient kernels based on operator
+    // Get gradient kernels based on operator: `kernel_x` is the derivative
+    // kernel (e.g. Sobel's [-1,0,1]) and `kernel_y` is the smoothing kernel
+    // (e.g. Sobel's [1,2,1]). A real Sobel/Scharr/Prewitt Gx combines a
+    // horizontal derivative with vertical smoothing, and Gy combines a
+    // vertical derivative with horizontal smoothing -- i.e. the same two
+    // kernels, applied to opposite axes for the two gradient components.
     let (kernel_x, kernel_y) = get_gradient_kernels::<T>(operator)?;
 
     // Apply separable convolution with SIMD optimization
-    let grad_x = simd_separable_convolution_2d(&input, &kernel_x, &[T::one()])?;
-    let grad_y = simd_separable_convolution_2d(&input, &[T::one()], &kernel_y)?;
+    let grad_x = simd_separable_convolution_2d(&input, &kernel_x, &kernel_y)?;
+    let grad_y = simd_separable_convolution_2d(&input, &kernel_y, &kernel_x)?;
 
     // Compute magnitude using SIMD operations
     let simd_width = 8; // Default SIMD width
@@ -551,6 +556,13 @@ where
     Ok((kernel_x, kernel_y))
 }
 
+/// Separable 2D convolution: convolve every row with `kernel_x` (a
+/// horizontal, i.e. along-the-column-axis, 1D kernel), then convolve every
+/// column of the result with `kernel_y` (a vertical, along-the-row-axis, 1D
+/// kernel). This is mathematically equivalent to a full 2D convolution with
+/// the outer-product kernel `K(i, j) = kernel_y[i] * kernel_x[j]`, computed
+/// in two much cheaper 1D passes. Out-of-bounds samples use reflective
+/// boundary handling (matching this module's `get_boundary_value`).
 #[allow(dead_code)]
 fn simd_separable_convolution_2d<T>(
     input: &ArrayView2<T>,
@@ -560,15 +572,52 @@ fn simd_separable_convolution_2d<T>(
 where
     T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps,
 {
-    // This would use the advanced_simd_separable_convolution_2d from the other module
-    // For now, we'll use a simplified implementation
-    let (height, width) = input.dim();
-    let mut output = Array::zeros((height, width));
+    if kernel_x.is_empty() || kernel_y.is_empty() {
+        return Err(NdimageError::InvalidInput(
+            "Convolution kernels must not be empty".to_string(),
+        ));
+    }
 
-    // Simplified convolution (would be replaced with optimized version)
-    for _y in 0..height {
+    let (height, width) = input.dim();
+
+    // Pass 1: convolve along the x-axis (columns) with `kernel_x`.
+    let radius_x = kernel_x.len() / 2;
+    let mut intermediate = Array::<T, Ix2>::zeros((height, width));
+    for y in 0..height {
         for x in 0..width {
-            output[(_y, x)] = input[(_y, x)]; // Placeholder
+            let mut sum = T::zero();
+            for (k, &coeff) in kernel_x.iter().enumerate() {
+                let offset = k as isize - radius_x as isize;
+                let value = get_boundary_value(
+                    input,
+                    y as isize,
+                    x as isize + offset,
+                    BoundaryMode::Reflect,
+                )?;
+                sum = sum + coeff * value;
+            }
+            intermediate[(y, x)] = sum;
+        }
+    }
+
+    // Pass 2: convolve along the y-axis (rows) with `kernel_y`.
+    let radius_y = kernel_y.len() / 2;
+    let intermediate_view = intermediate.view();
+    let mut output = Array::<T, Ix2>::zeros((height, width));
+    for y in 0..height {
+        for x in 0..width {
+            let mut sum = T::zero();
+            for (k, &coeff) in kernel_y.iter().enumerate() {
+                let offset = k as isize - radius_y as isize;
+                let value = get_boundary_value(
+                    &intermediate_view,
+                    y as isize + offset,
+                    x as isize,
+                    BoundaryMode::Reflect,
+                )?;
+                sum = sum + coeff * value;
+            }
+            output[(y, x)] = sum;
         }
     }
 
@@ -689,6 +738,48 @@ mod tests {
 
         let gradient = result.expect("Test: gradient calculation failed");
         assert_eq!(gradient.dim(), input.dim());
+    }
+
+    #[test]
+    fn test_simd_gradient_magnitude_matches_direct_2d_convolution() {
+        // Non-constant, irregular 5x5 image. Reference gradient magnitudes
+        // at every interior pixel (no boundary handling ambiguity) were
+        // computed independently by directly convolving with the literal
+        // 3x3 Sobel Gx/Gy kernels (see scratchpad script), NOT by reusing
+        // this module's own convolution code. The pre-fix implementation's
+        // `simd_separable_convolution_2d` was an identity passthrough, so
+        // `simd_gradient_magnitude` returned `sqrt(2) * |input|` everywhere
+        // -- wildly different from these references.
+        let input = array![
+            [1.0, 4.0, 2.0, 8.0, 5.0],
+            [3.0, 9.0, 6.0, 1.0, 7.0],
+            [5.0, 2.0, 8.0, 4.0, 3.0],
+            [7.0, 6.0, 1.0, 9.0, 2.0],
+            [4.0, 3.0, 5.0, 2.0, 8.0],
+        ];
+
+        let expected_interior: Vec<(usize, usize, f64)> = vec![
+            (1, 1, 11.661903789690601),
+            (1, 2, 11.661903789690601),
+            (1, 3, 4.0),
+            (2, 1, 7.615773105863909),
+            (2, 2, 5.0990195135927845),
+            (2, 3, 10.0),
+            (3, 1, 8.246211251235321),
+            (3, 2, 9.899494936611665),
+            (3, 3, 2.0),
+        ];
+
+        let gradient = simd_gradient_magnitude(input.view(), GradientOperator::Sobel)
+            .expect("Test: gradient calculation failed");
+
+        for (i, j, expected) in expected_interior {
+            let got = gradient[(i, j)];
+            assert!(
+                (got - expected).abs() < 1e-9,
+                "gradient[{i},{j}] = {got}, expected {expected}"
+            );
+        }
     }
 
     #[test]

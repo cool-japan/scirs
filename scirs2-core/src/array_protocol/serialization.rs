@@ -14,7 +14,7 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use ::ndarray::IxDyn;
+use ::ndarray::{Array, Ix1, Ix2, IxDyn};
 
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -205,10 +205,10 @@ impl ModelSerializer {
         let model_file: ModelFile = serde_json::from_str(&model_file_json)?;
 
         // Create model from architecture
-        let model = self.create_model_from_architecture(&model_file.architecture)?;
+        let mut model = self.create_model_from_architecture(&model_file.architecture)?;
 
         // Load parameters
-        self.load_parameters(&model, &modeldir, &model_file.parameter_files)?;
+        self.load_parameters(&mut model, &modeldir, &model_file.parameter_files)?;
 
         // Load optimizer if available
         let optimizer = if let Some(optimizer_state) = &model_file.optimizer_state {
@@ -332,10 +332,10 @@ impl ModelSerializer {
 
     /// Save a single parameter.
     fn save_parameter(&self, param: &dyn ArrayProtocol, path: &Path) -> CoreResult<()> {
-        // For simplicity, we'll assume all parameters are NdarrayWrapper<f64, IxDyn>
-        if let Some(array) = param.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
-            let ndarray = array.as_array();
-
+        // Layer parameters (weight matrices, bias vectors) are naturally
+        // Ix2/Ix1, not IxDyn — downcast regardless of the concrete dimension
+        // type rather than assuming IxDyn (see `super::downcast_arg_to_ixdyn`).
+        if let Some(ndarray) = super::downcast_arg_to_ixdyn::<f64>(param.as_any()) {
             // Save the array shape and data
             let shape: Vec<usize> = ndarray.shape().to_vec();
             let data: Vec<f64> = ndarray.iter().cloned().collect();
@@ -512,50 +512,114 @@ impl ModelSerializer {
         }
     }
 
+    /// Rebuilds a loaded parameter as the same concrete `NdarrayWrapper<f64, D>`
+    /// dimensionality that `existing` (the pre-load parameter value) uses,
+    /// mirroring `save_parameter`'s IxDyn/Ix2/Ix1 scope so the reloaded value
+    /// stays dispatch-compatible with operations (like `matmul`/`add`) that
+    /// require both operands to share the same concrete `D`.
+    fn rebuild_parameter(
+        existing: &dyn ArrayProtocol,
+        shape: &[usize],
+        data: Vec<f64>,
+    ) -> CoreResult<Box<dyn ArrayProtocol>> {
+        let dyn_arr = Array::from_shape_vec(IxDyn(shape), data).map_err(|e| {
+            CoreError::InvalidArgument(ErrorContext::new(format!(
+                "Parameter shape mismatch on load: {e}"
+            )))
+        })?;
+
+        if existing
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix1>>()
+            .is_some()
+        {
+            let arr = dyn_arr.into_dimensionality::<Ix1>().map_err(|e| {
+                CoreError::InvalidArgument(ErrorContext::new(format!(
+                    "expected a 1-D parameter on load: {e}"
+                )))
+            })?;
+            return Ok(Box::new(NdarrayWrapper::new(arr)));
+        }
+        if existing
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .is_some()
+        {
+            let arr = dyn_arr.into_dimensionality::<Ix2>().map_err(|e| {
+                CoreError::InvalidArgument(ErrorContext::new(format!(
+                    "expected a 2-D parameter on load: {e}"
+                )))
+            })?;
+            return Ok(Box::new(NdarrayWrapper::new(arr)));
+        }
+        if existing
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+            .is_some()
+        {
+            return Ok(Box::new(NdarrayWrapper::new(dyn_arr)));
+        }
+
+        Err(CoreError::NotImplementedError(ErrorContext::new(
+            "Parameter loading not implemented for this array type (e.g. Conv2D's Ix4 filters — \
+             matches save_parameter's existing IxDyn/Ix2/Ix1 scope)"
+                .to_string(),
+        )))
+    }
+
     /// Load parameters into a model.
     fn load_parameters(
         &self,
-        model: &Sequential,
+        model: &mut Sequential,
         modeldir: &Path,
         parameter_files: &HashMap<String, String>,
     ) -> CoreResult<()> {
-        // For each layer, load its parameters
-        for (i, layer) in model.layers().iter().enumerate() {
-            let params = layer.parameters();
-            for (j, param) in params.iter().enumerate() {
-                // Get parameter file
+        // For each layer, load its parameters and actually write them back
+        // (via `update_parameter`), instead of only reading and discarding
+        // them.
+        for (i, layer) in model.layers_mut().iter_mut().enumerate() {
+            // Snapshot the existing parameters/names before mutating the
+            // layer, since `parameter_names()` must be called before (or
+            // independently of) `update_parameter()`.
+            let existing_params = layer.parameters();
+            let names = layer.parameter_names();
+
+            for (j, existing) in existing_params.iter().enumerate() {
                 let param_name = format!("layer_{i}_param_{j}");
-                if let Some(param_file) = parameter_files.get(&param_name) {
-                    let param_path = modeldir.join(param_file);
+                let Some(param_file) = parameter_files.get(&param_name) else {
+                    continue;
+                };
+                let param_path = modeldir.join(param_file);
 
-                    // Load parameter data
-                    if param_path.exists() {
-                        let mut file = File::open(&param_path)?;
-                        let mut json_str = String::new();
-                        file.read_to_string(&mut json_str)?;
-
-                        let load_data: serde_json::Value = serde_json::from_str(&json_str)?;
-                        let shape: Vec<usize> = serde_json::from_value(load_data["shape"].clone())?;
-                        let _data: Vec<f64> = serde_json::from_value(load_data["data"].clone())?;
-
-                        // Load data into the parameter
-                        // Since we can't mutate the existing array, we'll need to skip actual loading
-                        // This is a limitation of the current implementation
-                        // In a real implementation, we would need to support mutable access or
-                        // reconstruct the parameters
-                        if let Some(_array) =
-                            param.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
-                        {
-                            // For now, we'll just verify the data matches
-                            // In practice, we would need a way to update the parameter values
-                        }
-                    } else {
-                        return Err(CoreError::InvalidArgument(ErrorContext::new(format!(
-                            "Parameter file not found: {path}",
-                            path = param_path.display()
-                        ))));
-                    }
+                if !param_path.exists() {
+                    return Err(CoreError::InvalidArgument(ErrorContext::new(format!(
+                        "Parameter file not found: {path}",
+                        path = param_path.display()
+                    ))));
                 }
+
+                let mut file = File::open(&param_path)?;
+                let mut json_str = String::new();
+                file.read_to_string(&mut json_str)?;
+
+                let load_data: serde_json::Value = serde_json::from_str(&json_str)?;
+                let shape: Vec<usize> = serde_json::from_value(load_data["shape"].clone())?;
+                let data: Vec<f64> = serde_json::from_value(load_data["data"].clone())?;
+
+                let new_value = Self::rebuild_parameter(existing.as_ref(), &shape, data)?;
+
+                let name = names.get(j).ok_or_else(|| {
+                    CoreError::InvalidArgument(ErrorContext::new(format!(
+                        "layer {i} has {nparams} parameter(s) but only {nnames} name(s)",
+                        nparams = existing_params.len(),
+                        nnames = names.len()
+                    )))
+                })?;
+                layer.update_parameter(name, new_value).map_err(|e| {
+                    CoreError::InvalidArgument(ErrorContext::new(format!(
+                        "Failed to update parameter '{name}' on layer {i}: {e}"
+                    )))
+                })?;
             }
         }
 
@@ -694,24 +758,43 @@ mod tests {
     use crate::array_protocol::neural::{Linear, Sequential};
     use tempfile::tempdir;
 
+    /// Extracts a layer's `param_idx`-th parameter as an owned `Array2<f64>`.
+    fn param_ix2(model: &Sequential, layer_idx: usize, param_idx: usize) -> ::ndarray::Array2<f64> {
+        model.layers()[layer_idx].parameters()[param_idx]
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, ::ndarray::Ix2>>()
+            .expect("parameter should be a NdarrayWrapper<f64, Ix2>")
+            .as_array()
+            .clone()
+    }
+
+    /// Extracts a layer's `param_idx`-th parameter as an owned `Array1<f64>`.
+    fn param_ix1(model: &Sequential, layer_idx: usize, param_idx: usize) -> ::ndarray::Array1<f64> {
+        model.layers()[layer_idx].parameters()[param_idx]
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, ::ndarray::Ix1>>()
+            .expect("parameter should be a NdarrayWrapper<f64, Ix1>")
+            .as_array()
+            .clone()
+    }
+
     #[test]
     fn test_model_serializer() {
         // Initialize the array protocol system
         array_protocol::init();
 
         // Create a temporary directory
-        let temp_dir = match tempdir() {
-            Ok(dir) => dir,
-            Err(e) => {
-                println!("Skipping test_model_serializer (temp dir creation failed): {e}");
-                return;
-            }
-        };
+        let temp_dir = tempdir().expect("failed to create temp dir");
 
         // Create a model
         let mut model = Sequential::new("test_model", Vec::new());
 
-        // Add layers
+        // Add layers. `new_random`'s Xavier-initialized weights are
+        // non-constant by construction (this is what makes the round-trip
+        // check below meaningful: a no-op `load_parameters` — the bug this
+        // regression-tests — would leave `loadedmodel`'s weights at
+        // whatever *fresh* random values `create_model_from_architecture`
+        // happened to draw, which would not match `model`'s original values).
         model.add_layer(Box::new(Linear::new_random(
             "fc1",
             10,
@@ -722,6 +805,12 @@ mod tests {
 
         model.add_layer(Box::new(Linear::new_random("fc2", 5, 2, true, None)));
 
+        // Capture the original parameter values before saving.
+        let orig_fc1_weights = param_ix2(&model, 0, 0);
+        let orig_fc1_bias = param_ix1(&model, 0, 1);
+        let orig_fc2_weights = param_ix2(&model, 1, 0);
+        let orig_fc2_bias = param_ix1(&model, 1, 1);
+
         // Create optimizer
         let optimizer = SGD::new(0.01, Some(0.9));
 
@@ -729,20 +818,78 @@ mod tests {
         let serializer = ModelSerializer::new(temp_dir.path());
 
         // Save model
-        let model_path = serializer.save_model(&model, "test_model", "v1", Some(&optimizer));
-        if model_path.is_err() {
-            println!("Save model failed: {:?}", model_path.err());
-            return;
-        }
+        serializer
+            .save_model(&model, "test_model", "v1", Some(&optimizer))
+            .expect("save_model should succeed");
 
         // Load model
         let (loadedmodel, loaded_optimizer) = serializer
             .loadmodel("test_model", "v1")
-            .expect("Operation failed");
+            .expect("loadmodel should succeed");
 
         // Check model
         assert_eq!(loadedmodel.layers().len(), 2);
         assert!(loaded_optimizer.is_some());
+
+        // The actual regression check: loaded parameter VALUES must match
+        // what was saved, element-for-element — not just shape/count. Uses a
+        // tight-but-nonzero tolerance rather than `assert_eq!`: round-tripping
+        // an f64 through `serde_json`'s text-based JSON representation can
+        // perturb the last bit or two for specific values (verified directly:
+        // `serde_json::to_string` emits the exact shortest round-trippable
+        // decimal for e.g. `-0.11303865380207907`, but
+        // `serde_json::from_str`/`from_value` parses that same text back to
+        // `-0.11303865380207909`, one ULP off — a `serde_json`
+        // float-parsing characteristic, not something `save_parameter`/
+        // `load_parameters` control). `1e-9` is ~1e8 times looser than that
+        // single-ULP noise, while still ~1e6 times tighter than the smallest
+        // Xavier-initialized weight magnitude here — nowhere near loose
+        // enough to hide a real bug (wrong shape, wrong values, or a no-op
+        // load would all fail this by many orders of magnitude).
+        assert_arrays_close(&param_ix2(&loadedmodel, 0, 0), &orig_fc1_weights, 1e-9);
+        assert_arrays_close_1d(&param_ix1(&loadedmodel, 0, 1), &orig_fc1_bias, 1e-9);
+        assert_arrays_close(&param_ix2(&loadedmodel, 1, 0), &orig_fc2_weights, 1e-9);
+        assert_arrays_close_1d(&param_ix1(&loadedmodel, 1, 1), &orig_fc2_bias, 1e-9);
+
+        // Guard against a degenerate all-zero/all-equal round trip
+        // trivially "passing" (Xavier init makes this exceedingly unlikely,
+        // but assert it outright rather than relying on that alone).
+        assert!(orig_fc1_weights
+            .iter()
+            .any(|&v| v != orig_fc1_weights[[0, 0]]));
+    }
+
+    /// Asserts two 2-D arrays match within `tol` per element (see
+    /// `test_model_serializer` for why this isn't `assert_eq!`).
+    fn assert_arrays_close(
+        actual: &::ndarray::Array2<f64>,
+        expected: &::ndarray::Array2<f64>,
+        tol: f64,
+    ) {
+        assert_eq!(actual.dim(), expected.dim());
+        for ((i, j), &e) in expected.indexed_iter() {
+            let a = actual[[i, j]];
+            assert!(
+                (a - e).abs() < tol,
+                "mismatch at [{i},{j}]: actual={a}, expected={e}"
+            );
+        }
+    }
+
+    /// 1-D counterpart of [`assert_arrays_close`].
+    fn assert_arrays_close_1d(
+        actual: &::ndarray::Array1<f64>,
+        expected: &::ndarray::Array1<f64>,
+        tol: f64,
+    ) {
+        assert_eq!(actual.dim(), expected.dim());
+        for (i, &e) in expected.indexed_iter() {
+            let a = actual[i];
+            assert!(
+                (a - e).abs() < tol,
+                "mismatch at [{i}]: actual={a}, expected={e}"
+            );
+        }
     }
 
     #[test]
@@ -751,13 +898,7 @@ mod tests {
         array_protocol::init();
 
         // Create a temporary directory
-        let temp_dir = match tempdir() {
-            Ok(dir) => dir,
-            Err(e) => {
-                println!("Skipping test_save_load_checkpoint (temp dir creation failed): {e}");
-                return;
-            }
-        };
+        let temp_dir = tempdir().expect("failed to create temp dir");
 
         // Create a model
         let mut model = Sequential::new("test_model", Vec::new());
@@ -781,21 +922,12 @@ mod tests {
 
         // Save checkpoint
         let checkpoint_path = temp_dir.path().join("checkpoint");
-        let result = save_checkpoint(&model, &optimizer, &checkpoint_path, 10, metrics.clone());
-        if let Err(e) = result {
-            println!("Skipping test_save_load_checkpoint (save failed): {e}");
-            return;
-        }
+        save_checkpoint(&model, &optimizer, &checkpoint_path, 10, metrics.clone())
+            .expect("save_checkpoint should succeed");
 
         // Load checkpoint
-        let result = load_checkpoint(&checkpoint_path);
-        if let Err(e) = result {
-            println!("Skipping test_save_load_checkpoint (load failed): {e}");
-            return;
-        }
-
         let (loadedmodel, loaded_optimizer, loaded_epoch, loaded_metrics) =
-            result.expect("Operation failed");
+            load_checkpoint(&checkpoint_path).expect("load_checkpoint should succeed");
 
         // Check loaded data
         assert_eq!(loadedmodel.layers().len(), 1);

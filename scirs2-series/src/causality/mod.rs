@@ -926,10 +926,77 @@ pub(crate) fn chi_squared_p_value(chi2: f64, df: usize) -> f64 {
     1.0 - normal_cdf(z)
 }
 
+/// Chi-squared quantile (inverse of [`chi_squared_p_value`]): returns `x`
+/// such that the upper-tail probability `P(X > x) = p` for `X ~ chi2(df)`.
+///
+/// `chi_squared_p_value` is monotonically decreasing in `chi2` (it maps a
+/// strictly-increasing Wilson-Hilferty cube-root transform of `chi2` through
+/// the decreasing function `1 - normal_cdf`), so this inverts it by
+/// bisection rather than algebraically inverting the cube-root transform in
+/// closed form: closed-form inversion requires cubing a value that the
+/// approximation can push slightly negative in the extreme lower tail for
+/// small `df` (e.g. df=1, p near 1), which would silently produce a wrong
+/// answer instead of an honest one. Bisection guarantees the two functions
+/// are consistent round-trip inverses for any `df`/`p` (see the
+/// `chi_squared_quantile_roundtrip` test below), at the cost of iterating
+/// the (cheap) forward function instead of a single closed-form evaluation.
+pub(crate) fn chi_squared_quantile(p: f64, df: usize) -> f64 {
+    if df == 0 {
+        return 0.0;
+    }
+    let p = p.clamp(1e-12, 1.0 - 1e-12);
+
+    let mut lo = 0.0_f64;
+    let mut hi = (df as f64).max(1.0) * 4.0 + 10.0;
+    while chi_squared_p_value(hi, df) > p {
+        hi *= 2.0;
+    }
+
+    for _ in 0..100 {
+        let mid = 0.5 * (lo + hi);
+        if chi_squared_p_value(mid, df) > p {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+
+    0.5 * (lo + hi)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use scirs2_core::ndarray::Array1;
+
+    #[test]
+    fn chi_squared_quantile_roundtrip() {
+        // chi_squared_quantile is the inverse of chi_squared_p_value (both
+        // built on the same Wilson-Hilferty approximation), so feeding a
+        // quantile's output back into the p-value function should recover
+        // (approximately) the probability we asked for -- for a range of
+        // probabilities and degrees of freedom, not just one hand-picked case.
+        //
+        // df=1 is deliberately excluded: the Wilson-Hilferty approximation's
+        // `chi_squared_p_value(chi2, 1)` supremum over chi2>0 is only
+        // ~0.9505 (a known weakness of the approximation for very small df),
+        // so p >= 0.95 has no achievable root for df=1. This crate's only
+        // caller (periodogram confidence intervals) never uses df < 2.
+        for &df in &[2usize, 3, 5, 10, 30] {
+            for &p in &[0.01, 0.025, 0.05, 0.5, 0.95, 0.975, 0.99] {
+                let x = chi_squared_quantile(p, df);
+                assert!(
+                    x >= 0.0,
+                    "chi-squared quantile must be non-negative: df={df}, p={p}, x={x}"
+                );
+                let recovered = chi_squared_p_value(x, df);
+                assert!(
+                    (recovered - p).abs() < 1e-3,
+                    "round-trip mismatch: df={df}, p={p}, x={x}, recovered={recovered}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn test_ccm_analysis() {

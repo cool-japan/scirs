@@ -60,9 +60,17 @@ impl<F: Float> StabilityMetrics<F> {
             absolute_errors.push(output_change_norm);
         }
 
-        // Compute statistics
-        metrics.mean_relative_error =
-            relative_errors.iter().sum::<f64>() / relative_errors.len() as f64;
+        // Compute statistics. Every trial with a non-positive input
+        // perturbation norm is excluded above (relative error against a
+        // zero baseline is undefined), so relative_errors can be empty even
+        // though num_trials > 0 — averaging over an empty Vec would divide
+        // 0.0/0.0 into NaN, silently poisoning forward_stability_coefficient
+        // and the resulting grade.
+        metrics.mean_relative_error = if relative_errors.is_empty() {
+            0.0
+        } else {
+            relative_errors.iter().sum::<f64>() / relative_errors.len() as f64
+        };
         metrics.max_relative_error = relative_errors.iter().fold(0.0, |a, &b| a.max(b));
         metrics.std_relative_error =
             self.compute_std_dev(&relative_errors, metrics.mean_relative_error);
@@ -350,12 +358,23 @@ impl<F: Float> StabilityMetrics<F> {
     fn create_random_perturbation<'a>(
         &self,
         input: &Tensor<'a, F>,
-        _magnitude: f64,
+        magnitude: f64,
     ) -> Result<Tensor<'a, F>, StabilityError> {
-        // Create random perturbation with specified _magnitude
-        let perturbed = *input;
-        // Simplified - would add actual random noise
-        Ok(perturbed)
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::rng;
+
+        let mut rng = rng();
+        let shape = input.shape();
+        let perturbed_data: Vec<F> = input
+            .data()
+            .iter()
+            .map(|&x| {
+                let noise = rng.random_range(-magnitude..magnitude);
+                x + F::from(noise).expect("Failed to convert perturbation to float")
+            })
+            .collect();
+
+        Ok(Tensor::from_vec(perturbed_data, shape, input.graph()))
     }
 
     fn compute_relative_perturbation_norm(

@@ -267,7 +267,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> VGGCo
 
         let bn = if use_bn {
             let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
-            Some(BatchNorm::new(out_channels, 1e-5, 0.1, &mut rng)?)
+            Some(BatchNorm::new(out_channels, 0.1, 1e-5, &mut rng)?)
         } else {
             None
         };

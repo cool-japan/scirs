@@ -523,7 +523,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> InvertedResidua
             let conv = Conv2D::new(input_channels, expanded_channels, kernel_size, stride, None)?
                 .with_padding(PaddingMode::Valid);
             // Batch normalization
-            let bn = BatchNorm::new(expanded_channels, 1e-3, 0.01, &mut rng)?;
+            let bn = BatchNorm::new(expanded_channels, 0.01, 1e-3, &mut rng)?;
             (Some(conv), Some(bn))
         } else {
             (None, None)
@@ -546,7 +546,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> InvertedResidua
         )?
         .with_padding(PaddingMode::Same);
         // Depthwise batch normalization
-        let depthwise_bn = BatchNorm::new(expanded_channels, 1e-3, 0.01, &mut rng)?;
+        let depthwise_bn = BatchNorm::new(expanded_channels, 0.01, 1e-3, &mut rng)?;
         // Create squeeze and excitation block if needed
         let se = if use_se {
             let squeeze_channels = (expanded_channels as f64 / 4.0).round() as usize;
@@ -558,7 +558,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> InvertedResidua
         let project_conv = Conv2D::new(expanded_channels, output_channels, (1, 1), (1, 1), None)?
             .with_padding(PaddingMode::Valid);
         // Projection batch normalization
-        let project_bn = BatchNorm::new(output_channels, 1e-3, 0.01, &mut rng)?;
+        let project_bn = BatchNorm::new(output_channels, 0.01, 1e-3, &mut rng)?;
         // Activation function
         let activation = get_activation(&config.activation);
         Ok(Self {
@@ -673,12 +673,12 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> DepthwiseSepara
             None,
         )?
         .with_padding(PaddingMode::Same);
-        let depthwise_bn = BatchNorm::new(input_channels, 1e-3, 0.01, &mut rng)?;
+        let depthwise_bn = BatchNorm::new(input_channels, 0.01, 1e-3, &mut rng)?;
         // Create pointwise convolution (1x1)
         let pointwise_conv = Conv2D::new(input_channels, output_channels, (1, 1), (1, 1), None)?
             .with_padding(PaddingMode::Valid);
         // Pointwise batch normalization
-        let pointwise_bn = BatchNorm::new(output_channels, 1e-3, 0.01, &mut rng)?;
+        let pointwise_bn = BatchNorm::new(output_channels, 0.01, 1e-3, &mut rng)?;
         Ok(Self {
             depthwise_conv,
             depthwise_bn,
@@ -767,7 +767,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> MobileNet<F> {
             None,
         )?
         .with_padding(PaddingMode::Same);
-        let stem_bn = BatchNorm::new(stem_channels, 1e-3, 0.01, &mut rng)?;
+        let stem_bn = BatchNorm::new(stem_channels, 0.01, 1e-3, &mut rng)?;
         let stem_activation = get_activation(&first_block.activation);
         // Create blocks based on the MobileNet version
         let mut blocks: Vec<Box<dyn Layer<F>>> = Vec::new();

@@ -24,7 +24,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.6.4", features = ["blas"] }
+//! scirs2-autograd = { version = "0.6.5", features = ["blas"] }
 //! ```
 //!
 //! ### BLAS Acceleration (Recommended)
@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.6.4", features = ["blas"] }
+//! scirs2-autograd = { version = "0.6.5", features = ["blas"] }
 //! ```
 //!
 //! ## 🚀 Quick Start
@@ -316,7 +316,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.6.4**
+//! Current version: **0.6.5**
 
 #[allow(unused_imports)]
 // Re-export from scirs2-core for POLICY compliance
@@ -479,7 +479,7 @@ pub use crate::evaluation::{Evaluator, Feeder};
 
 pub use crate::tensor::Tensor;
 
-pub(crate) use graph::Graph;
+pub use graph::Graph;
 
 pub use crate::error::{AutogradError, EvalError, OpError, Result};
 pub use crate::graph::{run, Context};

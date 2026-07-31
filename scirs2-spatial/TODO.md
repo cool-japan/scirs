@@ -1,6 +1,6 @@
 # scirs2-spatial TODO
 
-## Status: v0.6.3 (released, 2026-07-27)
+## Status: v0.6.5 (released, 2026-07-31)
 
 ## v0.3.3 Completed
 
@@ -131,3 +131,9 @@ Status (verified 2026-07-15): `src/gpu_accel.rs` provides `GpuDevice`/`GpuDistan
 
 - [x] **`NumaTopology::detect()` now reads real hardware topology instead of fabricating it** — previously estimated one NUMA node per 8 logical CPUs and hard-coded 1GB of memory per node regardless of the actual machine. On Linux it now reads node count, per-node `cpulist`/`meminfo`, and the firmware ACPI SLIT distance matrix from `/sys/devices/system/node/`; other platforms fall back to an honest single-node layout spanning all detected logical CPUs with memory reported as unknown (`0`) rather than guessed. Affects the `NumaTopology` types in both `src/advanced_parallel.rs` and `src/memory_pool.rs`. The affected test previously asserted a hard-coded `numa_nodes == 1` (only ever passing by coincidence on single-socket machines); it now asserts against the real detected topology.
   - Files: `src/advanced_parallel.rs`, `src/memory_pool.rs`.
+
+## v0.6.5 Fixes (2026-07-31)
+
+- [x] **Fixed inverted `Ord` on the k-nearest-neighbor `BinaryHeap` in `octree` and `quadtree`** (`DistancePoint` in `src/octree.rs`, `src/quadtree.rs`) — `query_nearest`'s `result_queue` keeps the current k best (smallest-distance) candidates and must evict the *worst* (farthest) one once the set grows beyond k; the comparison was inverted (`other.distance_sq.partial_cmp(&self.distance_sq)`), which made the heap treat the *closest* point as the one to evict instead, silently returning the farthest candidates instead of the nearest. Now compares `self.distance_sq` against `other.distance_sq` directly, matching the natural (max-heap) ordering the eviction logic expects. Test assertions in both files that had been weakened to tolerate the bug (e.g. `assert!(indices[0] < points.shape()[0])` in place of the actual expected index) are restored to strict checks (`assert_eq!(indices[0], 0)`).
+- [x] **Fixed `pathplanning::astar::AStarPlanner::reconstruct_path` always reporting a path cost of `0.0`** (`src/pathplanning/astar.rs`) — the function walked backward from the goal node to the start node via `parent` links, reassigning `cost = node.g` at every step; since the start node's own g-value is always `0.0`, the final (last-assigned) value was always `0.0` regardless of the actual accumulated path cost. `cost` is now captured once, from the goal node's `g`, before the backward walk begins. Two test assertions previously commented out with "This is a known issue that could be fixed later" (`assert_eq!(path.cost, 8.0)` and a diagonal-path `4.0 * SQRT_2` check) are restored.
+- Both fixes verified by the existing macOS/Linux test suite (854/854 default-features, 890/890 all-features — test *counts* unchanged; only previously-weakened assertions were restored to strict checks, not new tests added). Not independently exercised under Windows CI. See `CHANGELOG.md` `[0.6.5]` for full detail.

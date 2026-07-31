@@ -40,6 +40,15 @@ pub fn simd_weighted_sum_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32>
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if values.as_slice().is_none() || weights.as_slice().is_none() {
+        return values
+            .iter()
+            .zip(weights.iter())
+            .map(|(&v, &w)| v * w)
+            .sum();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -50,8 +59,8 @@ pub fn simd_weighted_sum_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32>
                 let mut i = 0;
 
                 while i + 8 <= len {
-                    let v_slice = &values.as_slice().expect("Operation failed")[i..i + 8];
-                    let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 8];
+                    let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 8];
                     let v_vec = _mm256_loadu_ps(v_slice.as_ptr());
                     let w_vec = _mm256_loadu_ps(w_slice.as_ptr());
                     let prod = _mm256_mul_ps(v_vec, w_vec);
@@ -81,8 +90,8 @@ pub fn simd_weighted_sum_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32>
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let v_slice = &values.as_slice().expect("Operation failed")[i..i + 4];
-                    let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 4];
+                    let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 4];
                     let v_vec = _mm_loadu_ps(v_slice.as_ptr());
                     let w_vec = _mm_loadu_ps(w_slice.as_ptr());
                     sum_vec = _mm_add_ps(sum_vec, _mm_mul_ps(v_vec, w_vec));
@@ -119,8 +128,8 @@ pub fn simd_weighted_sum_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32>
             let mut i = 0;
 
             while i + 4 <= len {
-                let v_slice = &values.as_slice().expect("Operation failed")[i..i + 4];
-                let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 4];
+                let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 4];
+                let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 4];
                 let v_vec = vld1q_f32(v_slice.as_ptr());
                 let w_vec = vld1q_f32(w_slice.as_ptr());
                 sum_vec = vaddq_f32(sum_vec, vmulq_f32(v_vec, w_vec));
@@ -169,6 +178,15 @@ pub fn simd_weighted_sum_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64>
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if values.as_slice().is_none() || weights.as_slice().is_none() {
+        return values
+            .iter()
+            .zip(weights.iter())
+            .map(|(&v, &w)| v * w)
+            .sum();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -179,8 +197,8 @@ pub fn simd_weighted_sum_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64>
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let v_slice = &values.as_slice().expect("Operation failed")[i..i + 4];
-                    let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 4];
+                    let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 4];
                     let v_vec = _mm256_loadu_pd(v_slice.as_ptr());
                     let w_vec = _mm256_loadu_pd(w_slice.as_ptr());
                     let prod = _mm256_mul_pd(v_vec, w_vec);
@@ -208,8 +226,8 @@ pub fn simd_weighted_sum_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64>
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let v_slice = &values.as_slice().expect("Operation failed")[i..i + 2];
-                    let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 2];
+                    let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 2];
+                    let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 2];
                     let v_vec = _mm_loadu_pd(v_slice.as_ptr());
                     let w_vec = _mm_loadu_pd(w_slice.as_ptr());
                     sum_vec = _mm_add_pd(sum_vec, _mm_mul_pd(v_vec, w_vec));
@@ -244,8 +262,8 @@ pub fn simd_weighted_sum_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64>
             let mut i = 0;
 
             while i + 2 <= len {
-                let v_slice = &values.as_slice().expect("Operation failed")[i..i + 2];
-                let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 2];
+                let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 2];
+                let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 2];
                 let v_vec = vld1q_f64(v_slice.as_ptr());
                 let w_vec = vld1q_f64(w_slice.as_ptr());
                 sum_vec = vaddq_f64(sum_vec, vmulq_f64(v_vec, w_vec));
@@ -289,6 +307,20 @@ pub fn simd_weighted_mean_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32
         return f32::NAN;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if values.as_slice().is_none() || weights.as_slice().is_none() {
+        let mut sum = 0.0f32;
+        let mut weight_sum = 0.0f32;
+        for (&v, &w) in values.iter().zip(weights.iter()) {
+            sum += v * w;
+            weight_sum += w;
+        }
+        if weight_sum == 0.0 {
+            return f32::NAN;
+        }
+        return sum / weight_sum;
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -300,8 +332,8 @@ pub fn simd_weighted_mean_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32
                 let mut i = 0;
 
                 while i + 8 <= len {
-                    let v_slice = &values.as_slice().expect("Operation failed")[i..i + 8];
-                    let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 8];
+                    let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 8];
                     let v_vec = _mm256_loadu_ps(v_slice.as_ptr());
                     let w_vec = _mm256_loadu_ps(w_slice.as_ptr());
                     sum_vec = _mm256_add_ps(sum_vec, _mm256_mul_ps(v_vec, w_vec));
@@ -340,8 +372,8 @@ pub fn simd_weighted_mean_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let v_slice = &values.as_slice().expect("Operation failed")[i..i + 4];
-                    let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 4];
+                    let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 4];
                     let v_vec = _mm_loadu_ps(v_slice.as_ptr());
                     let w_vec = _mm_loadu_ps(w_slice.as_ptr());
                     sum_vec = _mm_add_ps(sum_vec, _mm_mul_ps(v_vec, w_vec));
@@ -394,8 +426,8 @@ pub fn simd_weighted_mean_f32(values: &ArrayView1<f32>, weights: &ArrayView1<f32
             let mut i = 0;
 
             while i + 4 <= len {
-                let v_slice = &values.as_slice().expect("Operation failed")[i..i + 4];
-                let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 4];
+                let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 4];
+                let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 4];
                 let v_vec = vld1q_f32(v_slice.as_ptr());
                 let w_vec = vld1q_f32(w_slice.as_ptr());
                 sum_vec = vaddq_f32(sum_vec, vmulq_f32(v_vec, w_vec));
@@ -455,6 +487,20 @@ pub fn simd_weighted_mean_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64
         return f64::NAN;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if values.as_slice().is_none() || weights.as_slice().is_none() {
+        let mut sum = 0.0f64;
+        let mut weight_sum = 0.0f64;
+        for (&v, &w) in values.iter().zip(weights.iter()) {
+            sum += v * w;
+            weight_sum += w;
+        }
+        if weight_sum == 0.0 {
+            return f64::NAN;
+        }
+        return sum / weight_sum;
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -466,8 +512,8 @@ pub fn simd_weighted_mean_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let v_slice = &values.as_slice().expect("Operation failed")[i..i + 4];
-                    let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 4];
+                    let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 4];
                     let v_vec = _mm256_loadu_pd(v_slice.as_ptr());
                     let w_vec = _mm256_loadu_pd(w_slice.as_ptr());
                     sum_vec = _mm256_add_pd(sum_vec, _mm256_mul_pd(v_vec, w_vec));
@@ -504,8 +550,8 @@ pub fn simd_weighted_mean_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let v_slice = &values.as_slice().expect("Operation failed")[i..i + 2];
-                    let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 2];
+                    let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 2];
+                    let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 2];
                     let v_vec = _mm_loadu_pd(v_slice.as_ptr());
                     let w_vec = _mm_loadu_pd(w_slice.as_ptr());
                     sum_vec = _mm_add_pd(sum_vec, _mm_mul_pd(v_vec, w_vec));
@@ -556,8 +602,8 @@ pub fn simd_weighted_mean_f64(values: &ArrayView1<f64>, weights: &ArrayView1<f64
             let mut i = 0;
 
             while i + 2 <= len {
-                let v_slice = &values.as_slice().expect("Operation failed")[i..i + 2];
-                let w_slice = &weights.as_slice().expect("Operation failed")[i..i + 2];
+                let v_slice = &values.as_slice().expect("contiguity checked above")[i..i + 2];
+                let w_slice = &weights.as_slice().expect("contiguity checked above")[i..i + 2];
                 let v_vec = vld1q_f64(v_slice.as_ptr());
                 let w_vec = vld1q_f64(w_slice.as_ptr());
                 sum_vec = vaddq_f64(sum_vec, vmulq_f64(v_vec, w_vec));

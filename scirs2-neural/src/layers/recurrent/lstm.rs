@@ -1,7 +1,7 @@
 //! Long Short-Term Memory (LSTM) implementation
 
 use crate::error::{NeuralError, Result};
-use crate::layers::recurrent::{LstmGateCache, LstmStepOutput};
+use crate::layers::recurrent::{LstmGateSeqCache, LstmStepOutput};
 use crate::layers::{Layer, ParamLayer};
 use scirs2_core::ndarray::{Array, ArrayView, ArrayView1, Ix2, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, NumAssign};
@@ -84,8 +84,8 @@ pub struct LSTM<F: Float + Debug + Send + Sync + NumAssign> {
     bias_io: Array<F, IxDyn>,
     /// Hidden-to-hidden bias for output gate
     bias_ho: Array<F, IxDyn>,
-    /// Gradients for all parameters (kept simple here)
-    #[allow(dead_code)]
+    /// Gradients for all 16 parameters, in the order reported by
+    /// [`ParamLayer::get_parameters`]; filled in by `backward`
     gradients: Arc<RwLock<Vec<Array<F, IxDyn>>>>,
     /// Input cache for backward pass
     input_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
@@ -93,9 +93,46 @@ pub struct LSTM<F: Float + Debug + Send + Sync + NumAssign> {
     hidden_states_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
     /// Cell states cache for backward pass
     cell_states_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
-    /// Gate values cache for backward pass
-    #[allow(dead_code)]
-    gate_cache: LstmGateCache<F>,
+    /// Per-time-step gate activations cached by `forward` for use by BPTT
+    gate_cache: LstmGateSeqCache<F>,
+}
+
+/// Index of each LSTM parameter inside the flat gradient/parameter vector
+mod param_index {
+    /// Input-to-hidden weights of the input gate
+    pub const W_II: usize = 0;
+    /// Hidden-to-hidden weights of the input gate
+    pub const W_HI: usize = 1;
+    /// Input-to-hidden bias of the input gate
+    pub const B_II: usize = 2;
+    /// Hidden-to-hidden bias of the input gate
+    pub const B_HI: usize = 3;
+    /// Input-to-hidden weights of the forget gate
+    pub const W_IF: usize = 4;
+    /// Hidden-to-hidden weights of the forget gate
+    pub const W_HF: usize = 5;
+    /// Input-to-hidden bias of the forget gate
+    pub const B_IF: usize = 6;
+    /// Hidden-to-hidden bias of the forget gate
+    pub const B_HF: usize = 7;
+    /// Input-to-hidden weights of the cell gate
+    pub const W_IG: usize = 8;
+    /// Hidden-to-hidden weights of the cell gate
+    pub const W_HG: usize = 9;
+    /// Input-to-hidden bias of the cell gate
+    pub const B_IG: usize = 10;
+    /// Hidden-to-hidden bias of the cell gate
+    pub const B_HG: usize = 11;
+    /// Input-to-hidden weights of the output gate
+    pub const W_IO: usize = 12;
+    /// Hidden-to-hidden weights of the output gate
+    pub const W_HO: usize = 13;
+    /// Input-to-hidden bias of the output gate
+    pub const B_IO: usize = 14;
+    /// Hidden-to-hidden bias of the output gate
+    pub const B_HO: usize = 15;
+    /// Total number of LSTM parameter tensors
+    pub const COUNT: usize = 16;
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + NumAssign + 'static>
@@ -529,18 +566,35 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + NumAssign
         }
 
         // Cache states and gates for backward pass
-        *self.hidden_states_cache.write().expect("Operation failed") =
-            Some(all_hidden_states.clone().into_dyn());
-        *self.cell_states_cache.write().expect("Operation failed") =
-            Some(all_cell_states.into_dyn());
+        *self.hidden_states_cache.write().map_err(|_| {
+            NeuralError::InferenceError(
+                "Failed to acquire write lock on hidden states cache".to_string(),
+            )
+        })? = Some(all_hidden_states.clone().into_dyn());
+        *self.cell_states_cache.write().map_err(|_| {
+            NeuralError::InferenceError(
+                "Failed to acquire write lock on cell states cache".to_string(),
+            )
+        })? = Some(all_cell_states.into_dyn());
+        *self.gate_cache.write().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire write lock on gate cache".to_string())
+        })? = Some(all_gates);
         // Return with correct dynamic dimension
         Ok(all_hidden_states.into_dyn())
     }
 
+    /// Backpropagation through time for the whole cached sequence.
+    ///
+    /// `grad_output` is the gradient of the loss with respect to every hidden
+    /// state emitted by [`Layer::forward`] (shape `[batch, seq_len, hidden]`).
+    /// The gradients of all sixteen parameters are accumulated over the batch
+    /// and the sequence and stored internally so that [`Layer::update`] (or an
+    /// external optimizer reading [`ParamLayer::get_gradients`]) can apply them.
+    /// The returned array is the gradient with respect to the layer input.
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
         // Retrieve cached values
         let input_ref = self.input_cache.read().map_err(|_| {
@@ -556,49 +610,253 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + NumAssign
                 "Failed to acquire read lock on cell states cache".to_string(),
             )
         })?;
-        if input_ref.is_none() || hidden_states_ref.is_none() || cell_states_ref.is_none() {
-            return Err(NeuralError::InferenceError(
+        let gate_ref = self.gate_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on gate cache".to_string())
+        })?;
+
+        let missing = || {
+            NeuralError::InferenceError(
                 "No cached values for backward pass. Call forward() first.".to_string(),
-            ));
+            )
+        };
+        let cached_input = input_ref.as_ref().ok_or_else(missing)?;
+        let hidden_states = hidden_states_ref.as_ref().ok_or_else(missing)?;
+        let cell_states = cell_states_ref.as_ref().ok_or_else(missing)?;
+        let gates = gate_ref.as_ref().ok_or_else(missing)?;
+
+        if cached_input.shape() != input.shape() {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Backward input shape {:?} does not match the cached forward input shape {:?}",
+                input.shape(),
+                cached_input.shape()
+            )));
         }
 
-        // In a real implementation, we would compute gradients for all parameters
-        // and return the gradient with respect to the input
-        // Here we're providing a simplified version that returns a gradient of zeros
-        // with the correct shape
-        let grad_input = Array::zeros(input.dim());
+        let batch_size = cached_input.shape()[0];
+        let seq_len = cached_input.shape()[1];
+        let hidden_size = self.hidden_size;
+        let input_size = self.input_size;
+
+        if grad_output.shape() != [batch_size, seq_len, hidden_size] {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Expected output gradient of shape [{batch_size}, {seq_len}, {hidden_size}], got {:?}",
+                grad_output.shape()
+            )));
+        }
+        if gates.len() != seq_len {
+            return Err(NeuralError::InferenceError(format!(
+                "Cached gate activations cover {} steps but the sequence has {seq_len}",
+                gates.len()
+            )));
+        }
+
+        // Parameter gradient accumulators (same order as `get_parameters`).
+        let mut grads: Vec<Array<F, IxDyn>> = vec![
+            Array::zeros(self.weight_ii.dim()),
+            Array::zeros(self.weight_hi.dim()),
+            Array::zeros(self.bias_ii.dim()),
+            Array::zeros(self.bias_hi.dim()),
+            Array::zeros(self.weight_if.dim()),
+            Array::zeros(self.weight_hf.dim()),
+            Array::zeros(self.bias_if.dim()),
+            Array::zeros(self.bias_hf.dim()),
+            Array::zeros(self.weight_ig.dim()),
+            Array::zeros(self.weight_hg.dim()),
+            Array::zeros(self.bias_ig.dim()),
+            Array::zeros(self.bias_hg.dim()),
+            Array::zeros(self.weight_io.dim()),
+            Array::zeros(self.weight_ho.dim()),
+            Array::zeros(self.bias_io.dim()),
+            Array::zeros(self.bias_ho.dim()),
+        ];
+
+        let mut grad_input: Array<F, IxDyn> = Array::zeros(cached_input.dim());
+        // Gradient flowing back from the *next* time step.
+        let mut dh_next: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+        let mut dc_next: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+
+        // Scratch buffers for the gate pre-activation gradients of one sample.
+        let mut da_i = vec![F::zero(); hidden_size];
+        let mut da_f = vec![F::zero(); hidden_size];
+        let mut da_g = vec![F::zero(); hidden_size];
+        let mut da_o = vec![F::zero(); hidden_size];
+
+        for t in (0..seq_len).rev() {
+            let (i_gate, f_gate, g_gate, o_gate) = &gates[t];
+            let mut dh_prev: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+
+            for b in 0..batch_size {
+                for i in 0..hidden_size {
+                    let i_t = i_gate[[b, i]];
+                    let f_t = f_gate[[b, i]];
+                    let g_t = g_gate[[b, i]];
+                    let o_t = o_gate[[b, i]];
+                    let c_t = cell_states[[b, t, i]];
+                    let c_prev = if t == 0 {
+                        F::zero()
+                    } else {
+                        cell_states[[b, t - 1, i]]
+                    };
+
+                    let tanh_c = c_t.tanh();
+                    // h_t = o_t * tanh(c_t)
+                    let dh = grad_output[[b, t, i]] + dh_next[[b, i]];
+                    let d_o = dh * tanh_c;
+                    // c_t = f_t * c_{t-1} + i_t * g_t
+                    let dc = dh * o_t * (F::one() - tanh_c * tanh_c) + dc_next[[b, i]];
+                    let d_f = dc * c_prev;
+                    let d_i = dc * g_t;
+                    let d_g = dc * i_t;
+                    // Gradient carried to the previous cell state.
+                    dc_next[[b, i]] = dc * f_t;
+
+                    // Through the gate non-linearities (sigmoid / tanh).
+                    da_i[i] = d_i * i_t * (F::one() - i_t);
+                    da_f[i] = d_f * f_t * (F::one() - f_t);
+                    da_g[i] = d_g * (F::one() - g_t * g_t);
+                    da_o[i] = d_o * o_t * (F::one() - o_t);
+                }
+
+                // Parameter gradients for this (batch element, time step).
+                for i in 0..hidden_size {
+                    let (ai, af, ag, ao) = (da_i[i], da_f[i], da_g[i], da_o[i]);
+                    grads[param_index::B_II][i] += ai;
+                    grads[param_index::B_HI][i] += ai;
+                    grads[param_index::B_IF][i] += af;
+                    grads[param_index::B_HF][i] += af;
+                    grads[param_index::B_IG][i] += ag;
+                    grads[param_index::B_HG][i] += ag;
+                    grads[param_index::B_IO][i] += ao;
+                    grads[param_index::B_HO][i] += ao;
+
+                    for j in 0..input_size {
+                        let x = cached_input[[b, t, j]];
+                        grads[param_index::W_II][[i, j]] += ai * x;
+                        grads[param_index::W_IF][[i, j]] += af * x;
+                        grads[param_index::W_IG][[i, j]] += ag * x;
+                        grads[param_index::W_IO][[i, j]] += ao * x;
+                    }
+                    for j in 0..hidden_size {
+                        let h_prev = if t == 0 {
+                            F::zero()
+                        } else {
+                            hidden_states[[b, t - 1, j]]
+                        };
+                        grads[param_index::W_HI][[i, j]] += ai * h_prev;
+                        grads[param_index::W_HF][[i, j]] += af * h_prev;
+                        grads[param_index::W_HG][[i, j]] += ag * h_prev;
+                        grads[param_index::W_HO][[i, j]] += ao * h_prev;
+                    }
+                }
+
+                // Gradient with respect to x_t.
+                for j in 0..input_size {
+                    let mut sum = F::zero();
+                    for i in 0..hidden_size {
+                        sum += da_i[i] * self.weight_ii[[i, j]]
+                            + da_f[i] * self.weight_if[[i, j]]
+                            + da_g[i] * self.weight_ig[[i, j]]
+                            + da_o[i] * self.weight_io[[i, j]];
+                    }
+                    grad_input[[b, t, j]] = sum;
+                }
+
+                // Gradient with respect to h_{t-1}.
+                for j in 0..hidden_size {
+                    let mut sum = F::zero();
+                    for i in 0..hidden_size {
+                        sum += da_i[i] * self.weight_hi[[i, j]]
+                            + da_f[i] * self.weight_hf[[i, j]]
+                            + da_g[i] * self.weight_hg[[i, j]]
+                            + da_o[i] * self.weight_ho[[i, j]];
+                    }
+                    dh_prev[[b, j]] = sum;
+                }
+            }
+
+            dh_next = dh_prev;
+        }
+
+        *self.gradients.write().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire write lock on gradients".to_string())
+        })? = grads;
+
         Ok(grad_input)
     }
 
     fn update(&mut self, learningrate: F) -> Result<()> {
-        // Apply a small update to parameters (placeholder)
-        let small_change = F::from(0.001).expect("Failed to convert constant to float");
-        let lr = small_change * learningrate;
-        // Helper function to update a parameter
-        let update_param = |param: &mut Array<F, IxDyn>| {
-            for w in param.iter_mut() {
-                *w -= lr;
-            }
+        let grads = {
+            let guard = self.gradients.read().map_err(|_| {
+                NeuralError::InferenceError("Failed to acquire read lock on gradients".to_string())
+            })?;
+            guard.clone()
         };
+        if grads.len() != param_index::COUNT {
+            return Err(NeuralError::InferenceError(format!(
+                "Expected {} parameter gradients, found {}",
+                param_index::COUNT,
+                grads.len()
+            )));
+        }
 
-        // Update all parameters
-        update_param(&mut self.weight_ii);
-        update_param(&mut self.weight_hi);
-        update_param(&mut self.bias_ii);
-        update_param(&mut self.bias_hi);
-        update_param(&mut self.weight_if);
-        update_param(&mut self.weight_hf);
-        update_param(&mut self.bias_if);
-        update_param(&mut self.bias_hf);
-        update_param(&mut self.weight_ig);
-        update_param(&mut self.weight_hg);
-        update_param(&mut self.bias_ig);
-        update_param(&mut self.bias_hg);
-        update_param(&mut self.weight_io);
-        update_param(&mut self.weight_ho);
-        update_param(&mut self.bias_io);
-        update_param(&mut self.bias_ho);
+        let mut params: [&mut Array<F, IxDyn>; param_index::COUNT] = [
+            &mut self.weight_ii,
+            &mut self.weight_hi,
+            &mut self.bias_ii,
+            &mut self.bias_hi,
+            &mut self.weight_if,
+            &mut self.weight_hf,
+            &mut self.bias_if,
+            &mut self.bias_hf,
+            &mut self.weight_ig,
+            &mut self.weight_hg,
+            &mut self.bias_ig,
+            &mut self.bias_hg,
+            &mut self.weight_io,
+            &mut self.weight_ho,
+            &mut self.bias_io,
+            &mut self.bias_ho,
+        ];
+
+        for (param, grad) in params.iter_mut().zip(grads.iter()) {
+            if param.shape() != grad.shape() {
+                return Err(NeuralError::ShapeMismatch(format!(
+                    "Parameter shape {:?} does not match gradient shape {:?}",
+                    param.shape(),
+                    grad.shape()
+                )));
+            }
+            scirs2_core::ndarray::Zip::from(&mut **param)
+                .and(grad)
+                .for_each(|w, &g| *w -= learningrate * g);
+        }
+
         Ok(())
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        match self.gradients.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        ParamLayer::get_parameters(self)
+    }
+
+    fn set_params(&mut self, params: &[Array<F, IxDyn>]) -> Result<()> {
+        ParamLayer::set_parameters(self, params.to_vec())
+    }
+
+    fn layer_type(&self) -> &str {
+        "LSTM"
+    }
+
+    fn parameter_count(&self) -> usize {
+        4 * (self.hidden_size * self.input_size
+            + self.hidden_size * self.hidden_size
+            + 2 * self.hidden_size)
     }
 }
 
@@ -626,17 +884,22 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + NumAssign
         ]
     }
 
+    /// Gradients of all 16 parameters, in the same order as
+    /// [`ParamLayer::get_parameters`].
+    ///
+    /// They are zero until [`Layer::backward`] has run at least once.
     fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
-        // This is a placeholder implementation until proper gradient access is implemented
-        // Return an empty vector as we can't get references to the gradients inside the RwLock
-        // The actual gradient update logic is handled in the backward method
-        Vec::new()
+        match self.gradients.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Vec::new(),
+        }
     }
 
     fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
-        if params.len() != 16 {
+        if params.len() != param_index::COUNT {
             return Err(NeuralError::InvalidArchitecture(format!(
-                "Expected 16 parameters, got {}",
+                "Expected {} parameters, got {}",
+                param_index::COUNT,
                 params.len()
             )));
         }

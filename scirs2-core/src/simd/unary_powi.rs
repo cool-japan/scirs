@@ -355,6 +355,11 @@ pub fn simd_powi_f64(base: &ArrayView1<f64>, n: i32) -> Array1<f64> {
 /// Helper: SIMD-accelerated square for f32 arrays (x^2 = x*x optimization)
 #[inline]
 fn simd_square_f32(input: &ArrayView1<f32>) -> Array1<f32> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x * x);
+    }
+
     let len = input.len();
     let mut result = Array1::zeros(len);
 
@@ -363,7 +368,7 @@ fn simd_square_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         if is_x86_feature_detected!("avx2") {
             unsafe {
                 use std::arch::x86_64::*;
-                let input_slice = input.as_slice().expect("Operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f32] = result.as_slice_mut().expect("Operation failed");
 
                 let mut i = 0;
@@ -386,7 +391,7 @@ fn simd_square_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         if std::arch::is_aarch64_feature_detected!("neon") {
             unsafe {
                 use std::arch::aarch64::*;
-                let input_slice = input.as_slice().expect("Operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f32] = result.as_slice_mut().expect("Operation failed");
 
                 let mut i = 0;
@@ -412,6 +417,11 @@ fn simd_square_f32(input: &ArrayView1<f32>) -> Array1<f32> {
 /// Helper: SIMD-accelerated square for f64 arrays
 #[inline]
 fn simd_square_f64(input: &ArrayView1<f64>) -> Array1<f64> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x * x);
+    }
+
     let len = input.len();
     let mut result = Array1::zeros(len);
 
@@ -420,7 +430,7 @@ fn simd_square_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         if is_x86_feature_detected!("avx2") {
             unsafe {
                 use std::arch::x86_64::*;
-                let input_slice = input.as_slice().expect("Operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f64] = result.as_slice_mut().expect("Operation failed");
 
                 let mut i = 0;
@@ -443,7 +453,7 @@ fn simd_square_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         if std::arch::is_aarch64_feature_detected!("neon") {
             unsafe {
                 use std::arch::aarch64::*;
-                let input_slice = input.as_slice().expect("Operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f64] = result.as_slice_mut().expect("Operation failed");
 
                 let mut i = 0;

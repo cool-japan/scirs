@@ -113,11 +113,30 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     ///    ```
     ///
     /// See also [Evaluator](../evaluation/struct.Evaluator.html).
-    pub fn eval(&self, ctx: &Context<F>) -> Result<NdArray<F>, crate::EvalError> {
+    /// `ctx` is normally the [`Context`] the tensor was built in. A bare
+    /// [`crate::graph::Graph`] is also accepted (that is all `Op::grad` implementations
+    /// can reach during backprop); in that case variable nodes cannot be resolved and
+    /// evaluating a graph that contains one returns an error rather than a made-up value.
+    pub fn eval(&self, ctx: &impl AsGraph<F>) -> Result<NdArray<F>, crate::EvalError> {
         crate::graph::assert_same_graph(ctx, self.graph);
-        // Use the evaluator directly for now to avoid more complex changes
-        let result = ctx.evaluator().eval(self);
-        result
+        match ctx.context_ref() {
+            // Use the evaluator directly for now to avoid more complex changes
+            Some(c) => c.evaluator().eval(self),
+            None => {
+                let feeds: std::collections::HashMap<
+                    crate::graph::TensorID,
+                    &crate::ndarray_ext::RawNdArrayView<F>,
+                > = std::collections::HashMap::new();
+                let mut results =
+                    crate::graph::Graph::eval_tensors_in(&[self], &feeds, ctx.as_graph(), None);
+                match results.pop() {
+                    Some(r) => r.map_err(crate::EvalError::OpError),
+                    None => Err(crate::EvalError::OpError(OpError::RuntimeError(
+                        "eval produced no result".to_string(),
+                    ))),
+                }
+            }
+        }
     }
 
     /// Ensures that this tensor is evaluated after the arguments.
@@ -553,7 +572,7 @@ pub(crate) struct TensorInternal<F: Float> {
     pub(crate) id: usize,
 
     /// Operation to evaluate this tensor.
-    pub(crate) op: Option<Box<dyn op::Op<F>>>,
+    pub(crate) op: Option<std::rc::Rc<dyn op::Op<F>>>,
 
     /// References to immediate predecessors.
     pub(crate) incoming_nodes: Vec<IncomingTensor>,
@@ -589,7 +608,7 @@ impl<F: Float> TensorInternal<F> {
     pub fn new() -> Self {
         TensorInternal {
             id: 0,
-            op: Some(Box::new(Dummy)),
+            op: Some(std::rc::Rc::new(Dummy)),
             incoming_nodes: Vec::new(),
             topo_rank: 0,
             shape: None,
@@ -603,10 +622,18 @@ impl<F: Float> TensorInternal<F> {
 
     /// Returns the Op of this tensor
     pub fn get_op(&self) -> &dyn op::Op<F> {
-        self.op
-            .as_ref()
-            .expect("bad impl: Op is now stolen in gradient.rs")
-            .as_ref()
+        self.op.as_ref().expect("bad impl: node has no Op").as_ref()
+    }
+
+    /// Returns a shared handle to this node's `Op`.
+    ///
+    /// The backward pass needs to call `Op::grad` *without* holding a `RefCell` borrow
+    /// on the graph (the VJP installs new nodes into the same graph). Cloning the `Rc`
+    /// lets it do that while the node keeps its op, which is why this is an `Rc` and not
+    /// a `Box`: the previous design took the op out of the node for the duration of the
+    /// call, and any `Op::grad` that evaluated its own output then hit a missing op.
+    pub(crate) fn clone_op(&self) -> Option<std::rc::Rc<dyn op::Op<F>>> {
+        self.op.clone()
     }
 
     #[inline(always)]
@@ -953,7 +980,7 @@ impl<'graph, F: Float> TensorBuilder<'graph, F> {
         let new = TensorInternal {
             // `id` is set in `Graph::install`
             id: usize::default(),
-            op: Some(Box::new(op)),
+            op: Some(std::rc::Rc::new(op)),
             incoming_nodes: self.in_nodes,
             topo_rank: rank,
             shape: self.shape,
@@ -977,6 +1004,8 @@ impl<T: Float> op::Op<T> for Dummy {
     fn compute(&self, _: &mut op::ComputeContext<T>) -> Result<(), OpError> {
         Ok(())
     }
+    /// `Dummy` is a placeholder node with **no inputs**, so there is nothing to append.
+    /// An empty body is the complete and correct rule here, not an omission.
     fn grad(&self, _: &mut GradientContext<T>) {}
 }
 

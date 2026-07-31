@@ -99,6 +99,29 @@ pub trait ArrayProtocol: Any + Send + Sync {
         TypeId::of::<f64>()
     }
 
+    /// Whether this concrete array type provides its own [`array_function`](Self::array_function)
+    /// handling for the named operation.
+    ///
+    /// Dispatch uses this to decide whether it's worth delegating to this
+    /// argument's own `array_function` at all. Types that only implement a
+    /// subset of operations (like the plain [`NdarrayWrapper`], whose
+    /// `array_function` only matches a handful of operation names) should
+    /// override this to report `false` for anything outside that subset, so
+    /// callers correctly fall through to another candidate (or to a
+    /// plain-ndarray fallback implementation) instead of receiving a
+    /// spurious `NotImplemented` from this type's dispatch and giving up
+    /// immediately.
+    ///
+    /// The default assumes the type may handle any operation:
+    /// `array_function` itself remains the ultimate authority (returning
+    /// `Err(NotImplemented)` when it truly doesn't apply), so types that
+    /// already do that correctly (or that implement most/all operations)
+    /// don't need to override this.
+    #[must_use]
+    fn supports_op(&self, _opname: &str) -> bool {
+        true
+    }
+
     /// Clone this array protocol object.
     #[must_use]
     fn box_clone(&self) -> Box<dyn ArrayProtocol>;
@@ -337,12 +360,24 @@ impl ArrayFunctionRegistry {
     }
 }
 
-/// Helper function to extract all arguments implementing the `ArrayProtocol` trait.
+/// Helper function to extract all arguments implementing the `ArrayProtocol` trait
+/// that also claim (via [`ArrayProtocol::supports_op`]) to support the named operation.
 ///
 /// This is similar to `NumPy`'s `_get_implementing_args` function.
 /// Optimized version with pre-allocated capacity and fast-path for common cases.
-#[allow(dead_code)]
-pub fn get_implementing_args(args: &[Box<dyn Any>]) -> Vec<(TypeId, &dyn ArrayProtocol)> {
+///
+/// `func_name` should be the same operation name later passed to
+/// `array_function`/`ArrayFunction::new` at the call site (e.g.
+/// `"scirs2::array_protocol::operations::subtract"`). Filtering on it here
+/// means an argument whose concrete type doesn't implement this specific
+/// operation is excluded from the candidate list, so callers correctly fall
+/// through to a different implementation (or a plain-ndarray fallback)
+/// instead of delegating to a candidate that's guaranteed to return
+/// `NotImplemented` for this particular `func_name`.
+pub fn get_implementing_args<'a>(
+    func_name: &str,
+    args: &'a [Box<dyn Any>],
+) -> Vec<(TypeId, &'a dyn ArrayProtocol)> {
     if args.is_empty() {
         return Vec::new();
     }
@@ -352,20 +387,13 @@ pub fn get_implementing_args(args: &[Box<dyn Any>]) -> Vec<(TypeId, &dyn ArrayPr
 
     for arg in args {
         if let Some(array_protocol_obj) = arg.downcast_ref::<Box<dyn ArrayProtocol>>() {
+            if !array_protocol_obj.supports_op(func_name) {
+                continue;
+            }
             let type_id = (**array_protocol_obj).type_id();
             implementing_args.push((type_id, &**array_protocol_obj));
         }
     }
-
-    // Sort implementing _args by TypeId for deterministic dispatch order
-    // This ensures consistent dispatch behavior across calls
-    implementing_args.sort_by_key(|&_type_id_| {
-        // Use TypeId hash for deterministic ordering
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        std::any::TypeId::of::<i32>().hash(&mut hasher);
-        hasher.finish()
-    });
 
     implementing_args
 }
@@ -392,7 +420,7 @@ pub fn array_function_dispatch(
     }
 
     // Find all arguments implementing ArrayProtocol
-    let implementing_args = get_implementing_args(args);
+    let implementing_args = get_implementing_args(func.name, args);
 
     if implementing_args.is_empty() {
         // No arguments implement ArrayProtocol, use default implementation
@@ -618,6 +646,53 @@ impl JITFactoryRegistry {
     }
 }
 
+/// Downcast an `array_function` argument to a concrete `ArrayProtocol` impl,
+/// tolerating either boxing convention seen across this module's callers.
+///
+/// Most callers (the dispatch functions in [`crate::array_protocol::operations`],
+/// which go through [`get_implementing_args`]) erase an opaque `&dyn
+/// ArrayProtocol` via `Box::new(x.box_clone())`, so `arg`'s concrete type is
+/// `Box<dyn ArrayProtocol>` wrapping the real value — there is no other way to
+/// produce a `Box<dyn Any>` from a trait object without already knowing its
+/// concrete type. A few callers instead build `args` themselves from an
+/// already-concrete value (for example
+/// [`mixed_precision`](super::mixed_precision)'s `MixedPrecisionArray`
+/// delegating straight to `NdarrayWrapper::array_function`), boxing the
+/// concrete type directly with no extra indirection. Trying the
+/// double-boxed shape first and falling back to a direct downcast handles
+/// both without requiring every internal caller to agree on one convention.
+fn downcast_array_function_arg<C: 'static>(arg: &dyn Any) -> Option<&C> {
+    if let Some(boxed) = arg.downcast_ref::<Box<dyn ArrayProtocol>>() {
+        return boxed.as_any().downcast_ref::<C>();
+    }
+    arg.downcast_ref::<C>()
+}
+
+/// Downcast an `array_function` argument to an owned, dynamically-dimensioned
+/// array of element type `T`, regardless of whether the concrete wrapper is
+/// `NdarrayWrapper<T, IxDyn>`, `NdarrayWrapper<T, Ix2>`, or `NdarrayWrapper<T,
+/// Ix1>` (tried in that order), and regardless of which boxing convention
+/// wraps it (see `downcast_array_function_arg`). Used as a fallback when
+/// combining two
+/// `NdarrayWrapper` operands whose *concrete* dimension types differ but
+/// whose runtime shapes are still combinable — e.g. a gradient tensor
+/// produced by [`super::grad`]'s `backward()` as `IxDyn` combined with an
+/// `Ix2`-typed value from the forward pass.
+fn downcast_arg_to_ixdyn<T: Clone + Send + Sync + 'static>(
+    arg: &dyn Any,
+) -> Option<crate::ndarray::Array<T, crate::ndarray::IxDyn>> {
+    if let Some(w) = downcast_array_function_arg::<NdarrayWrapper<T, crate::ndarray::IxDyn>>(arg) {
+        return Some(w.as_array().clone());
+    }
+    if let Some(w) = downcast_array_function_arg::<NdarrayWrapper<T, crate::ndarray::Ix2>>(arg) {
+        return Some(w.as_array().clone().into_dyn());
+    }
+    if let Some(w) = downcast_array_function_arg::<NdarrayWrapper<T, crate::ndarray::Ix1>>(arg) {
+        return Some(w.as_array().clone().into_dyn());
+    }
+    None
+}
+
 /// A wrapper for ndarray to implement the ArrayProtocol trait.
 #[derive(Debug, Clone)]
 pub struct NdarrayWrapper<T, D: crate::ndarray::Dimension> {
@@ -657,11 +732,27 @@ where
     }
 }
 
+/// Operation names that [`NdarrayWrapper::array_function`] actually matches
+/// against `func.name` below. Kept as a single source of truth so
+/// `supports_op` can't silently drift out of sync with the `match` arms.
+const NDARRAY_WRAPPER_SUPPORTED_OPS: &[&str] = &[
+    "scirs2::array_protocol::operations::add",
+    "scirs2::array_protocol::operations::multiply",
+    "scirs2::array_protocol::operations::matmul",
+    "scirs2::array_protocol::operations::transpose",
+    "scirs2::array_protocol::operations::sum",
+    "scirs2::array_protocol::operations::reshape",
+];
+
 impl<T, D> ArrayProtocol for NdarrayWrapper<T, D>
 where
     T: Clone + Send + Sync + 'static,
     D: crate::ndarray::Dimension + Send + Sync + 'static,
 {
+    fn supports_op(&self, opname: &str) -> bool {
+        NDARRAY_WRAPPER_SUPPORTED_OPS.contains(&opname)
+    }
+
     fn array_function(
         &self,
         func: &ArrayFunction,
@@ -676,7 +767,13 @@ where
                     return Err(NotImplemented);
                 }
 
-                if let Some(other) = args[1].downcast_ref::<NdarrayWrapper<T, D>>() {
+                // See `downcast_array_function_arg`: callers disagree on whether
+                // `args[1]` is boxed as `Box<dyn ArrayProtocol>` (the dispatcher
+                // in `operations.rs`) or as the concrete type directly
+                // (`mixed_precision`'s internal delegation), so try both shapes.
+                let other = downcast_array_function_arg::<NdarrayWrapper<T, D>>(args[1].as_ref());
+
+                if let Some(other) = other {
                     if let (Some(a), Some(b)) = (
                         self.as_any().downcast_ref::<NdarrayWrapper<T, D>>(),
                         other.as_any().downcast_ref::<NdarrayWrapper<T, D>>(),
@@ -688,15 +785,102 @@ where
                             let b_f64 =
                                 unsafe { &*(b as *const _ as *const NdarrayWrapper<f64, D>) };
                             let result = a_f64.as_array() + b_f64.as_array();
-                            return Ok(Box::new(NdarrayWrapper::new(result)));
+                            return Ok(Box::new(
+                                Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                            ));
                         } else if TypeId::of::<T>() == TypeId::of::<f32>() {
                             let a_f32 =
                                 unsafe { &*(a as *const _ as *const NdarrayWrapper<f32, D>) };
                             let b_f32 =
                                 unsafe { &*(b as *const _ as *const NdarrayWrapper<f32, D>) };
                             let result = a_f32.as_array() + b_f32.as_array();
-                            return Ok(Box::new(NdarrayWrapper::new(result)));
+                            return Ok(Box::new(
+                                Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                            ));
                         }
+                    }
+                }
+
+                // Fallback: same element type T, but `other` has a different
+                // concrete dimension type than `self` (e.g. combining a
+                // gradient tensor created as IxDyn with an Ix2/Ix1 value from
+                // the forward pass) — the fast path above requires an exact D
+                // match, so normalize both operands to IxDyn and combine there.
+                if TypeId::of::<T>() == TypeId::of::<f64>() {
+                    if let Some(other_arr) = downcast_arg_to_ixdyn::<f64>(args[1].as_ref()) {
+                        let self_f64 =
+                            unsafe { &*(self as *const _ as *const NdarrayWrapper<f64, D>) };
+                        let result = self_f64.as_array().to_owned().into_dyn() + other_arr;
+                        return Ok(Box::new(
+                            Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                        ));
+                    }
+                } else if TypeId::of::<T>() == TypeId::of::<f32>() {
+                    if let Some(other_arr) = downcast_arg_to_ixdyn::<f32>(args[1].as_ref()) {
+                        let self_f32 =
+                            unsafe { &*(self as *const _ as *const NdarrayWrapper<f32, D>) };
+                        let result = self_f32.as_array().to_owned().into_dyn() + other_arr;
+                        return Ok(Box::new(
+                            Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                        ));
+                    }
+                }
+                Err(NotImplemented)
+            }
+            "scirs2::array_protocol::operations::multiply" => {
+                // Element-wise multiplication for NdarrayWrapper
+                if args.len() < 2 {
+                    return Err(NotImplemented);
+                }
+
+                let other = downcast_array_function_arg::<NdarrayWrapper<T, D>>(args[1].as_ref());
+
+                if let Some(other) = other {
+                    if let (Some(a), Some(b)) = (
+                        self.as_any().downcast_ref::<NdarrayWrapper<T, D>>(),
+                        other.as_any().downcast_ref::<NdarrayWrapper<T, D>>(),
+                    ) {
+                        if TypeId::of::<T>() == TypeId::of::<f64>() {
+                            let a_f64 =
+                                unsafe { &*(a as *const _ as *const NdarrayWrapper<f64, D>) };
+                            let b_f64 =
+                                unsafe { &*(b as *const _ as *const NdarrayWrapper<f64, D>) };
+                            let result = a_f64.as_array() * b_f64.as_array();
+                            return Ok(Box::new(
+                                Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                            ));
+                        } else if TypeId::of::<T>() == TypeId::of::<f32>() {
+                            let a_f32 =
+                                unsafe { &*(a as *const _ as *const NdarrayWrapper<f32, D>) };
+                            let b_f32 =
+                                unsafe { &*(b as *const _ as *const NdarrayWrapper<f32, D>) };
+                            let result = a_f32.as_array() * b_f32.as_array();
+                            return Ok(Box::new(
+                                Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                            ));
+                        }
+                    }
+                }
+
+                // Fallback: same element type T, different concrete D — see
+                // the identical fallback in the "add" arm above.
+                if TypeId::of::<T>() == TypeId::of::<f64>() {
+                    if let Some(other_arr) = downcast_arg_to_ixdyn::<f64>(args[1].as_ref()) {
+                        let self_f64 =
+                            unsafe { &*(self as *const _ as *const NdarrayWrapper<f64, D>) };
+                        let result = self_f64.as_array().to_owned().into_dyn() * other_arr;
+                        return Ok(Box::new(
+                            Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                        ));
+                    }
+                } else if TypeId::of::<T>() == TypeId::of::<f32>() {
+                    if let Some(other_arr) = downcast_arg_to_ixdyn::<f32>(args[1].as_ref()) {
+                        let self_f32 =
+                            unsafe { &*(self as *const _ as *const NdarrayWrapper<f32, D>) };
+                        let result = self_f32.as_array().to_owned().into_dyn() * other_arr;
+                        return Ok(Box::new(
+                            Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                        ));
                     }
                 }
                 Err(NotImplemented)
@@ -713,7 +897,9 @@ where
                     return Err(NotImplemented);
                 }
 
-                if let Some(other) = args[1].downcast_ref::<NdarrayWrapper<T, D>>() {
+                let other = downcast_array_function_arg::<NdarrayWrapper<T, D>>(args[1].as_ref());
+
+                if let Some(other) = other {
                     // Since we've already checked TypeId::of::<D>() == TypeId::of::<crate::ndarray::Ix2>()
                     // We can safely specialize for Ix2 matrices
 
@@ -738,7 +924,9 @@ where
                         // Use the higher-level dot operation which will be more efficient
                         // than our manual implementation
                         let result = a_f64.as_array().dot(b_f64.as_array());
-                        return Ok(Box::new(NdarrayWrapper::new(result)));
+                        return Ok(Box::new(
+                            Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                        ));
                     }
                     // Handle the case for f32 matrices
                     else if TypeId::of::<T>() == TypeId::of::<f32>() {
@@ -761,7 +949,9 @@ where
                         // Use the higher-level dot operation which will be more efficient
                         // than our manual implementation
                         let result = a_f32.as_array().dot(b_f32.as_array());
-                        return Ok(Box::new(NdarrayWrapper::new(result)));
+                        return Ok(Box::new(
+                            Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                        ));
                     }
                 }
                 // If we get here, we don't know how to handle this case
@@ -772,11 +962,15 @@ where
                 if TypeId::of::<T>() == TypeId::of::<f64>() {
                     let a_f64 = unsafe { &*(self as *const _ as *const NdarrayWrapper<f64, D>) };
                     let result = a_f64.as_array().t().to_owned();
-                    return Ok(Box::new(NdarrayWrapper::new(result)));
+                    return Ok(Box::new(
+                        Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                    ));
                 } else if TypeId::of::<T>() == TypeId::of::<f32>() {
                     let a_f32 = unsafe { &*(self as *const _ as *const NdarrayWrapper<f32, D>) };
                     let result = a_f32.as_array().t().to_owned();
-                    return Ok(Box::new(NdarrayWrapper::new(result)));
+                    return Ok(Box::new(
+                        Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                    ));
                 }
                 Err(NotImplemented)
             }
@@ -829,7 +1023,11 @@ where
                             .clone()
                             .into_shape_with_order(shape.clone())
                         {
-                            Ok(result) => return Ok(Box::new(NdarrayWrapper::new(result))),
+                            Ok(result) => {
+                                return Ok(Box::new(
+                                    Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                                ))
+                            }
                             Err(_) => return Err(NotImplemented),
                         }
                     } else if TypeId::of::<T>() == TypeId::of::<f32>() {
@@ -840,7 +1038,11 @@ where
                             .clone()
                             .into_shape_with_order(shape.clone())
                         {
-                            Ok(result) => return Ok(Box::new(NdarrayWrapper::new(result))),
+                            Ok(result) => {
+                                return Ok(Box::new(
+                                    Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>
+                                ))
+                            }
                             Err(_) => return Err(NotImplemented),
                         }
                     }
@@ -1327,8 +1529,11 @@ mod examples {
     /// Example: Create and use a distributed array.
     #[test]
     fn example_distributed_array() {
-        // Create a regular array
-        let array = Array2::<f64>::ones((10, 5));
+        // Non-constant data: an all-ones array wouldn't distinguish real
+        // chunk reconstruction from a stub that fabricates a plausible
+        // all-ones placeholder (as `to_array` used to, before it was fixed
+        // to actually reassemble the chunks — see distributed_impl.rs).
+        let array = Array2::from_shape_fn((10, 5), |(i, j)| (i * 5 + j) as f64);
 
         // Create a distributed array configuration
         let config = DistributedConfig {
@@ -1348,10 +1553,11 @@ mod examples {
         // Convert back to a regular array
         let result = dist_array.to_array().expect("Operation failed");
 
-        // Check that the result matches the original array
+        // Check that the result matches the original array. `to_array()`
+        // returns `Array<f64, IxDyn>` while `array` is `Array2<f64>`, so a
+        // direct `assert_eq!` doesn't type-check — compare via `into_dyn()`.
         assert_eq!(result.shape(), array.shape());
-        // NOTE: Arrays with different dimensions can't be directly compared
-        // assert_eq!(result, array);
+        assert_eq!(result, array.into_dyn());
     }
 
     /// Example: Create and use a GPU array.

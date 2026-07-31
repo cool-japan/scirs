@@ -90,7 +90,7 @@ type BwdBoxed<F> = Arc<
     dyn for<'g> Fn(
             &Tensor<'g, F>,
             &[Tensor<'g, F>],
-            &'g Context<'g, F>,
+            &'g crate::graph::Graph<F>,
         ) -> Vec<Option<Tensor<'g, F>>>
         + Send
         + Sync
@@ -118,7 +118,7 @@ impl<F: Float> CustomGradientOp<F> for ClosureCustomOp<F> {
         &self,
         output_grad: &Tensor<'g, F>,
         saved_tensors: &[Tensor<'g, F>],
-        ctx: &'g Context<'g, F>,
+        ctx: &'g crate::graph::Graph<F>,
     ) -> Vec<Option<Tensor<'g, F>>> {
         (self.backward)(output_grad, saved_tensors, ctx)
     }

@@ -4,6 +4,7 @@
 //! starting points to increase the chance of finding the global optimum.
 
 use crate::error::OptimizeError;
+use crate::global::qmc::{halton_radical_inverse, SobolGenerator};
 use crate::unconstrained::{
     minimize, Bounds as UnconstrainedBounds, Method as UnconstrainedMethod, OptimizeResult, Options,
 };
@@ -12,6 +13,12 @@ use scirs2_core::parallel_ops::*;
 use scirs2_core::random::prelude::SliceRandom;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, RngExt, SeedableRng};
+
+/// First 25 primes, used as Halton sequence bases (one per dimension, cycled
+/// if `ndim` exceeds the table).
+const HALTON_PRIMES: [u64; 25] = [
+    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
+];
 
 /// Options for multi-start optimization
 #[derive(Debug, Clone)]
@@ -154,16 +161,42 @@ where
         points
     }
 
-    /// Generate Halton sequence points (simplified)
+    /// Generate Halton sequence starting points (a genuine low-discrepancy
+    /// sequence, one prime base per dimension; see [`crate::global::qmc`]).
     fn generate_halton_points(&mut self) -> Vec<Array1<f64>> {
-        // For now, fallback to random
-        self.generate_random_points()
+        let mut points = Vec::with_capacity(self.options.n_starts);
+
+        for i in 0..self.options.n_starts {
+            let mut point = Array1::zeros(self.ndim);
+            for j in 0..self.ndim {
+                let base = HALTON_PRIMES[j % HALTON_PRIMES.len()];
+                let (lb, ub) = self.bounds[j];
+                point[j] = lb + halton_radical_inverse(i + 1, base) * (ub - lb);
+            }
+            points.push(point);
+        }
+
+        points
     }
 
-    /// Generate Sobol sequence points (simplified)
+    /// Generate Sobol sequence starting points (validated direction numbers
+    /// for the first [`crate::global::qmc::MAX_SOBOL_DIM`] dimensions,
+    /// Halton fallback beyond that; see [`crate::global::qmc`]).
     fn generate_sobol_points(&mut self) -> Vec<Array1<f64>> {
-        // For now, fallback to random
-        self.generate_random_points()
+        let mut sobol_gen = SobolGenerator::new(self.ndim);
+        let mut points = Vec::with_capacity(self.options.n_starts);
+
+        for _ in 0..self.options.n_starts {
+            let sobol_point = sobol_gen.next_point();
+            let mut point = Array1::zeros(self.ndim);
+            for j in 0..self.ndim {
+                let (lb, ub) = self.bounds[j];
+                point[j] = lb + sobol_point[j] * (ub - lb);
+            }
+            points.push(point);
+        }
+
+        points
     }
 
     /// Generate grid-based starting points

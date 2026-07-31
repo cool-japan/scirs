@@ -7,6 +7,7 @@ pub mod complexity;
 pub mod config;
 pub mod frequency;
 pub mod nonlinear;
+pub mod periodogram_enhancement;
 pub mod spectral;
 pub mod statistical;
 pub mod temporal;

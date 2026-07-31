@@ -543,7 +543,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored stress_test_million_nodes
+    #[ignore = "bench: stress_test_million_nodes -- criterion bench target (harness=false), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored stress_test_million_nodes`"]
     fn stress_test_million_nodes() {
         let config = StressTestConfig {
             node_counts: vec![100_000, 500_000, 1_000_000],
@@ -568,7 +568,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "bench: stress_test_five_million_nodes -- criterion bench target (harness=false), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored stress_test_five_million_nodes`"]
     fn stress_test_five_million_nodes() {
         let config = StressTestConfig {
             node_counts: vec![1_000_000, 2_000_000, 5_000_000],
@@ -591,7 +591,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored extreme_scale_stress_test
+    #[ignore = "bench: extreme_scale_stress_test -- criterion bench target (harness=false), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored extreme_scale_stress_test`"]
     fn extreme_scale_stress_test() {
         println!("🚀 Starting extreme scale stress test...");
 
@@ -616,7 +616,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored dense_graph_stress_test
+    #[ignore = "bench: dense_graph_stress_test -- criterion bench target (harness=false), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored dense_graph_stress_test`"]
     fn dense_graph_stress_test() {
         println!("📊 Starting dense graph stress test...");
 
@@ -649,7 +649,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored streaming_scalability_test
+    #[ignore = "bench: streaming_scalability_test -- criterion bench target (harness=false), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored streaming_scalability_test`"]
     fn streaming_scalability_test() {
         println!("🌊 Starting streaming scalability test...");
 
@@ -709,7 +709,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored parallel_performance_comparison
+    #[ignore = "bench: parallel_performance_comparison -- criterion bench target (harness=false), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored parallel_performance_comparison`"]
     fn parallel_performance_comparison() {
         println!("⚡ Starting parallel performance comparison...");
 
@@ -744,7 +744,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored memory_pressure_test
+    #[ignore = "bench: memory_pressure_test -- criterion bench target (harness=false), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored memory_pressure_test`"]
     fn memory_pressure_test() {
         println!("💾 Starting memory pressure test...");
 
@@ -807,7 +807,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored edge_case_graphs_test
+    #[ignore = "bench: edge_case_graphs_test -- criterion bench target (harness=false), unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored edge_case_graphs_test`"]
     fn edge_case_graphs_test() {
         println!("🔍 Testing edge case graph structures...");
 

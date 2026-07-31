@@ -71,6 +71,47 @@ where
     F: Float + NumAssign + Sum + Send + Sync + 'static + Default,
     M: SparseMatrix<F> + Sync,
 {
+    lanczos_impl(matrix, k, which, target, max_iter, tol, None)
+}
+
+/// Like [`lanczos`], but seeds the initial Krylov vector deterministically
+/// instead of drawing from the thread-local RNG.
+///
+/// `lanczos`'s randomly-chosen starting vector means repeated calls on the
+/// same input can take different numbers of iterations to converge, and —
+/// rarely, for an unlucky draw — fail to converge within `max_iter` at all.
+/// Use this when reproducibility matters (tests, debugging a reported
+/// convergence failure).
+#[allow(dead_code)]
+pub fn lanczos_with_seed<F, M>(
+    matrix: &M,
+    k: usize,
+    which: &str,
+    target: F,
+    max_iter: usize,
+    tol: F,
+    seed: u64,
+) -> SparseEigenResult<F>
+where
+    F: Float + NumAssign + Sum + Send + Sync + 'static + Default,
+    M: SparseMatrix<F> + Sync,
+{
+    lanczos_impl(matrix, k, which, target, max_iter, tol, Some(seed))
+}
+
+fn lanczos_impl<F, M>(
+    matrix: &M,
+    k: usize,
+    which: &str,
+    target: F,
+    max_iter: usize,
+    tol: F,
+    seed: Option<u64>,
+) -> SparseEigenResult<F>
+where
+    F: Float + NumAssign + Sum + Send + Sync + 'static + Default,
+    M: SparseMatrix<F> + Sync,
+{
     let n = matrix.nrows();
     if n != matrix.ncols() {
         return Err(LinalgError::ShapeError(
@@ -84,7 +125,10 @@ where
     }
     let max_steps = max_iter.min(n);
     let mut v_basis: Vec<Array1<F>> = Vec::with_capacity(max_steps + 1);
-    let mut rng = scirs2_core::random::rng();
+    let mut rng = match seed {
+        Some(s) => StdRng::seed_from_u64(s),
+        None => StdRng::from_rng(&mut scirs2_core::random::rng()),
+    };
     let mut v_init = Array1::<F>::zeros(n);
     for i in 0..n {
         v_init[i] = F::from(rng.random::<f64>()).unwrap_or(F::one());

@@ -6,6 +6,17 @@ pub struct MaxPool2D {
     pub size: usize,
 }
 
+/// Recomputes the arg-max index map of `max_pool2d`.
+///
+/// `MaxPool2D::compute` emits it as its *second* output, but the evaluator only keeps
+/// output 0, so `nth_tensor(y, 1)` handed the pooled maxima to `MaxPool2DGrad` as if they
+/// were flat indices — scattering every cotangent to an arbitrary position.
+pub struct MaxPool2DArgmax {
+    pub pad: usize,
+    pub stride: usize,
+    pub size: usize,
+}
+
 pub struct MaxPool2DGrad {
     pad: usize,
     stride: usize,
@@ -234,8 +245,16 @@ impl<T: Float> crate::op::Op<T> for MaxPool2D {
 
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = &ctx.output_grad();
-        let y = &ctx.output();
-        let indices = nth_tensor(y, 1);
+        let x = ctx.input(0);
+        // NOTE: NOT `nth_tensor(y, 1)` — see `MaxPool2DArgmax`.
+        let indices = Tensor::builder(ctx.graph())
+            .append_input(x, false)
+            .set_differentiable(false)
+            .build(MaxPool2DArgmax {
+                pad: self.pad,
+                stride: self.stride,
+                size: self.size,
+            });
         let gx = Tensor::builder(ctx.graph())
             .append_input(gy, false)
             .append_input(indices, false)
@@ -245,6 +264,79 @@ impl<T: Float> crate::op::Op<T> for MaxPool2D {
                 size: self.size,
             });
         ctx.append_input_grad(0, Some(gx));
+    }
+}
+
+impl<T: Float> crate::op::Op<T> for MaxPool2DArgmax {
+    fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
+        let x = &ctx.input(0);
+        let xshape = x.shape();
+        if xshape.len() != 4 {
+            return Err(op::OpError::IncompatibleShape(
+                "MaxPool2DArgmax expects a 4-D input".to_string(),
+            ));
+        }
+        let batch = xshape[0];
+        let c = xshape[1];
+        let xh = xshape[2];
+        let xw = xshape[3];
+
+        let copied_x;
+        let x_ptr = if x.is_standard_layout() {
+            x.as_ptr()
+        } else {
+            copied_x = ndarray_ext::deep_copy(x);
+            copied_x.as_ptr()
+        };
+
+        let yh = (xh + 2 * self.pad - self.size) / self.stride + 1;
+        let yw = (xw + 2 * self.pad - self.size) / self.stride + 1;
+        let (_out, indices) = unsafe {
+            if same_type::<T, f32>() {
+                max_pool_f32(
+                    x_ptr,
+                    self.pad,
+                    xh,
+                    xw,
+                    yh,
+                    yw,
+                    c,
+                    batch,
+                    self.size,
+                    self.stride,
+                )
+            } else if same_type::<T, f64>() {
+                max_pool_f64(
+                    x_ptr,
+                    self.pad,
+                    xh,
+                    xw,
+                    yh,
+                    yw,
+                    c,
+                    batch,
+                    self.size,
+                    self.stride,
+                )
+            } else {
+                return Err(op::OpError::TypeUnsupported(
+                    "MaxPool supports only f32 and f64".to_string(),
+                ));
+            }
+        };
+        let indices = unsafe {
+            NdArray::from_shape_vec_unchecked(
+                scirs2_core::ndarray::IxDyn(&[batch, c, yh, yw]),
+                indices,
+            )
+        };
+        ctx.append_output(indices);
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
+        // The arg-max index map is piecewise constant in `x`: no gradient.
+        ctx.append_input_grad(0, None);
     }
 }
 

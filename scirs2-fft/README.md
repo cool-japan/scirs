@@ -15,17 +15,17 @@ Tested: 674/674 tests passing with default features, 718/718 with `--all-feature
 
 ```toml
 [dependencies]
-scirs2-fft = "0.6.4"
+scirs2-fft = "0.6.5"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-fft = { version = "0.6.4", features = ["parallel"] }
+scirs2-fft = { version = "0.6.5", features = ["parallel"] }
 ```
 
-## Features (v0.6.4)
+## Features (v0.6.5)
 
 ### Core Transforms
 

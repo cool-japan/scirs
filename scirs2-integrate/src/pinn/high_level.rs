@@ -344,7 +344,13 @@ mod tests {
         }
     }
 
-    #[ignore = "slow: PINN training exceeds test timeout"]
+    #[ignore = "slow: measured ~192-194s consistently across all 4 tests in this module under a \
+                bounded 600s retry (0.6.5 ignore audit) -- well past the workspace's 120s default \
+                nextest hard-kill, so left ignored rather than raising the default profile's timeout \
+                for one module; quick_config() (16,16 hidden layers / 30 collocation points / 50 \
+                epochs) is already a reduced config vs PINNConfig::default() (64,64,64 / 10000 epochs), \
+                and PINN training cost here is dominated by finite-difference gradients scaling with \
+                n_params, not a hang -- all 4 tests PASS given enough time"]
     #[test]
     fn test_solve_poisson_1d_runs() {
         let mut pinn = Pinn::new_1d(vec![16, 16]).expect("create pinn");
@@ -362,7 +368,13 @@ mod tests {
         assert!(!r.loss_history.is_empty());
     }
 
-    #[ignore = "slow: PINN training exceeds test timeout"]
+    #[ignore = "slow: measured ~192-194s consistently across all 4 tests in this module under a \
+                bounded 600s retry (0.6.5 ignore audit) -- well past the workspace's 120s default \
+                nextest hard-kill, so left ignored rather than raising the default profile's timeout \
+                for one module; quick_config() (16,16 hidden layers / 30 collocation points / 50 \
+                epochs) is already a reduced config vs PINNConfig::default() (64,64,64 / 10000 epochs), \
+                and PINN training cost here is dominated by finite-difference gradients scaling with \
+                n_params, not a hang -- all 4 tests PASS given enough time"]
     #[test]
     fn test_solve_poisson_1d_predict_output_length() {
         let mut pinn = Pinn::new_1d(vec![16, 16]).expect("create pinn");
@@ -404,7 +416,13 @@ mod tests {
         assert!(r.total_loss.is_finite());
     }
 
-    #[ignore = "slow: PINN training exceeds test timeout"]
+    #[ignore = "slow: measured ~192-194s consistently across all 4 tests in this module under a \
+                bounded 600s retry (0.6.5 ignore audit) -- well past the workspace's 120s default \
+                nextest hard-kill, so left ignored rather than raising the default profile's timeout \
+                for one module; quick_config() (16,16 hidden layers / 30 collocation points / 50 \
+                epochs) is already a reduced config vs PINNConfig::default() (64,64,64 / 10000 epochs), \
+                and PINN training cost here is dominated by finite-difference gradients scaling with \
+                n_params, not a hang -- all 4 tests PASS given enough time"]
     #[test]
     fn test_solve_result_pde_residual_finite() {
         let mut pinn = Pinn::new_1d(vec![8]).expect("create pinn");
@@ -416,7 +434,13 @@ mod tests {
         assert!(r.bc_residual.is_finite());
     }
 
-    #[ignore = "slow: PINN training exceeds test timeout"]
+    #[ignore = "slow: measured ~192-194s consistently across all 4 tests in this module under a \
+                bounded 600s retry (0.6.5 ignore audit) -- well past the workspace's 120s default \
+                nextest hard-kill, so left ignored rather than raising the default profile's timeout \
+                for one module; quick_config() (16,16 hidden layers / 30 collocation points / 50 \
+                epochs) is already a reduced config vs PINNConfig::default() (64,64,64 / 10000 epochs), \
+                and PINN training cost here is dominated by finite-difference gradients scaling with \
+                n_params, not a hang -- all 4 tests PASS given enough time"]
     #[test]
     fn test_pinn_solve_result_loss_history_length() {
         let mut pinn = Pinn::new_1d(vec![8]).expect("create pinn");

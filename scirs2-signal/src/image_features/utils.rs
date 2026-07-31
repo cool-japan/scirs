@@ -5,7 +5,7 @@ use scirs2_core::ndarray::Array2;
 #[allow(unused_imports)]
 /// Calculate skewness of a vector
 #[allow(dead_code)]
-pub fn calculate_skewness(_data: &[f64], mean: f64, stddev: f64) -> f64 {
+pub fn calculate_skewness(data: &[f64], mean: f64, std_dev: f64) -> f64 {
     if std_dev <= 0.0 || data.len() < 3 {
         return 0.0;
     }
@@ -18,7 +18,7 @@ pub fn calculate_skewness(_data: &[f64], mean: f64, stddev: f64) -> f64 {
 
 /// Calculate kurtosis of a vector
 #[allow(dead_code)]
-pub fn calculate_kurtosis(_data: &[f64], mean: f64, stddev: f64) -> f64 {
+pub fn calculate_kurtosis(data: &[f64], mean: f64, std_dev: f64) -> f64 {
     if std_dev <= 0.0 || data.len() < 4 {
         return 0.0;
     }
@@ -47,7 +47,7 @@ pub fn calculate_raw_moment(image: &Array2<f64>, p: usize, q: usize) -> f64 {
 
 /// Compute Gray Level Co-occurrence Matrix (GLCM)
 #[allow(dead_code)]
-pub fn compute_glcm(_image: &Array2<f64>, distance: usize, numlevels: usize) -> Array2<f64> {
+pub fn compute_glcm(image: &Array2<f64>, distance: usize, num_levels: usize) -> Array2<f64> {
     let shape = image.shape();
     let height = shape[0];
     let width = shape[1];
@@ -74,9 +74,9 @@ pub fn compute_glcm(_image: &Array2<f64>, distance: usize, numlevels: usize) -> 
                 row = 0;
                 col = 0;
             } else {
-                row = ((_image[[i, j]] - min_val) / (max_val - min_val) * (num_levels - 1) as f64)
+                row = ((image[[i, j]] - min_val) / (max_val - min_val) * (num_levels - 1) as f64)
                     .round() as usize;
-                col = ((_image[[i, j + distance]] - min_val) / (max_val - min_val)
+                col = ((image[[i, j + distance]] - min_val) / (max_val - min_val)
                     * (num_levels - 1) as f64)
                     .round() as usize;
             }

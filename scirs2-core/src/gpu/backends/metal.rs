@@ -456,15 +456,20 @@ impl GpuCompilerImpl for MetalCompiler {
         name: &str,
         _input_type: std::any::TypeId,
         _output_type: std::any::TypeId,
-    ) -> Arc<dyn GpuKernelImpl> {
-        // For typed compilation, we would generate appropriate Metal shader code
-        // based on the input/output types. For now, return a stub.
-        Arc::new(MetalKernel::stub(
-            self.device.clone(),
-            self.command_queue.clone(),
-            name.to_string(),
-            self.batch_state.clone(),
-        ))
+    ) -> Result<Arc<dyn GpuKernelImpl>, GpuError> {
+        // Generating real Metal shader source purely from a name and a pair
+        // of types (no source, no registry access from this trait) is not
+        // implemented; rather than hand back a stub kernel whose `dispatch`
+        // silently no-ops (previously `MetalKernel::stub`), fail honestly so
+        // callers can tell the kernel was never actually compiled. Real
+        // compilation is available via `GpuCompilerImpl::compile` (real MSL
+        // source) or `GpuContext::get_kernel` (registry-backed named
+        // kernels).
+        Err(GpuError::KernelCompilationError(format!(
+            "compile_typed has no generated Metal shader source for kernel '{name}'; use \
+             GpuCompiler::compile with real MSL source, or GpuContext::get_kernel for \
+             registry-backed named kernels"
+        )))
     }
 }
 
@@ -821,7 +826,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn test_metal_context_creation() {
         // This test will only pass on macOS with Metal support
         if !cfg!(target_os = "macos") {
@@ -840,7 +844,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_metal_buffer_creation() {
         if !cfg!(target_os = "macos") {
             return;

@@ -38,10 +38,7 @@ where
 /// This function creates a tensor with test data within the provided graph context.
 /// The tensor values are initialized as 0.1 * index for easy verification.
 #[allow(dead_code)]
-pub fn create_test_tensor_in_context<'a, F>(
-    ctx: &'a mut Context<F>,
-    shape: Vec<usize>,
-) -> Tensor<'a, F>
+pub fn create_test_tensor_in_context<'a, F>(ctx: &'a Context<F>, shape: Vec<usize>) -> Tensor<'a, F>
 where
     F: Float,
 {
@@ -64,7 +61,7 @@ where
 /// Create a tensor with uncertainty for stability testing
 #[allow(dead_code)]
 pub fn create_uncertainty_tensor_in_context<'a, F>(
-    ctx: &'a mut Context<F>,
+    ctx: &'a Context<F>,
     shape: Vec<usize>,
     magnitude: f64,
 ) -> Tensor<'a, F>

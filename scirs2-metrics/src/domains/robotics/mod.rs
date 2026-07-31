@@ -24,65 +24,64 @@ use std::time::Duration;
 
 // Module declarations
 pub mod core;
-pub mod motion_planning;
-pub mod slam_localization;
-pub mod manipulation;
-pub mod navigation;
 pub mod human_robot_interaction;
+pub mod manipulation;
+pub mod motion_planning;
 pub mod multi_robot;
-pub mod safety_reliability;
+pub mod navigation;
 pub mod perception;
+pub mod safety_reliability;
+pub mod slam_localization;
 
 // Re-export core types
 pub use core::*;
 
 // Re-export from motion planning module
 pub use motion_planning::{
-    MotionPlanningMetrics, TrajectorySmoothnessMetrics, PathOptimalityMetrics,
-    ConstraintSatisfactionMetrics, PlanningEfficiencyMetrics, CurvatureMetrics,
-    ObstacleClearanceMetrics, DynamicConstraintMetrics, MotionPlanningConfig,
-    TrajectoryQualityMetrics,
+    ConstraintSatisfactionMetrics, CurvatureMetrics, MotionPlanningMetrics, Obstacle,
+    ObstacleClearanceMetrics, PathOptimalityMetrics, PlanningAlgorithm, PlanningConstraints,
+    PlanningEfficiencyMetrics, TrajectoryQuality, TrajectorySmoothnessMetrics,
 };
 
 // Re-export from SLAM/localization module
 pub use slam_localization::{
-    SlamMetrics, LocalizationAccuracyMetrics, MappingQualityMetrics,
-    LoopClosureMetrics, RealTimePerformanceMetrics,
+    LocalizationAccuracyMetrics, LoopClosureMetrics, MapConsistencyMetrics, MappingQualityMetrics,
+    SlamComputationalMetrics, SlamMetrics,
 };
 
 // Re-export from manipulation module
 pub use manipulation::{
-    ManipulationMetrics, GraspingMetrics, TaskExecutionMetrics,
-    ForceControlMetrics, DexterityMetrics,
+    ForceContactMetrics, GraspingMetrics, ManipulationAccuracyMetrics, ManipulationMetrics,
+    TaskCompletionMetrics,
 };
 
 // Re-export from navigation module
 pub use navigation::{
-    NavigationMetrics, PathPlanningMetrics, ObstacleAvoidanceMetrics,
-    GoalReachingMetrics, DynamicAdaptationMetrics,
+    DynamicAdaptationMetrics, GoalReachingMetrics, NavigationMetrics, ObstacleAvoidanceMetrics,
+    PathPlanningMetrics,
 };
 
 // Re-export from human-robot interaction module
 pub use human_robot_interaction::{
-    HumanRobotInteractionMetrics, HriSafetyMetrics, CommunicationMetrics,
-    UserSatisfactionMetrics, CollaborationEfficiencyMetrics,
+    CollaborationEfficiencyMetrics, CommunicationMetrics, HriSafetyMetrics,
+    HumanRobotInteractionMetrics, UserSatisfactionMetrics,
 };
 
 // Re-export from multi-robot module
 pub use multi_robot::{
-    MultiRobotMetrics, FormationControlMetrics, TaskAllocationMetrics,
-    NetworkPerformanceMetrics, CollectiveBehaviorMetrics,
+    CollectiveBehaviorMetrics, FormationControlMetrics, MultiRobotMetrics,
+    NetworkPerformanceMetrics, TaskAllocationMetrics,
 };
 
 // Re-export from safety/reliability module
 pub use safety_reliability::{
-    SafetyReliabilityMetrics, FailureMetrics, RiskAssessmentMetrics,
-    RedundancyMetrics, MaintenanceMetrics,
+    FailureMetrics, MaintenanceMetrics, RedundancyMetrics, RiskAssessmentMetrics,
+    SafetyReliabilityMetrics,
 };
 
 // Re-export from perception module
 pub use perception::{
-    RoboticPerceptionMetrics, ObjectDetectionMetrics, SceneUnderstandingMetrics,
+    ObjectDetectionMetrics, RoboticPerceptionMetrics, SceneUnderstandingMetrics,
     SensorFusionMetrics,
 };
 
@@ -130,6 +129,29 @@ impl Default for RoboticsMetrics {
 }
 
 /// Robotics evaluation computer for integrated metrics
+///
+/// # Scope
+///
+/// This aggregator mirrors the flat `(predicted, actual)` 2D-array interface
+/// used by the other domain "computer" wrappers in this crate (e.g.
+/// [`super::graph_neural_networks::GraphNeuralNetworkMetricsComputer`]). Real
+/// per-domain robotics evaluation needs richly structured input that a flat
+/// array cannot carry -- timestamped trajectories, obstacle maps, grasp/force
+/// logs, human-distance streams, formation targets, failure event logs, and
+/// so on. Because of that structural mismatch, each `evaluate_*` method below
+/// only returns the sub-metric's neutral defaults rather than fabricating a
+/// score from data it cannot actually interpret.
+///
+/// For real analysis, call the corresponding submodule's own `evaluate_*`
+/// methods directly with properly-typed inputs, e.g.
+/// [`MotionPlanningMetrics::evaluate_constraint_satisfaction`],
+/// [`SlamMetrics::evaluate_localization_accuracy`],
+/// [`ManipulationMetrics::evaluate_grasping`],
+/// [`NavigationMetrics::evaluate_goal_reaching`],
+/// [`RoboticPerceptionMetrics::evaluate_object_detection`],
+/// [`HumanRobotInteractionMetrics::evaluate_safety`],
+/// [`MultiRobotMetrics::evaluate_formation_control`], and
+/// [`SafetyReliabilityMetrics::evaluate_failure_metrics`].
 pub struct RoboticsMetricsComputer {
     config: RoboticsEvaluationConfig,
 }
@@ -232,7 +254,8 @@ impl RoboticsMetricsComputer {
 
         // Manipulation evaluation
         if self.config.enable_manipulation {
-            metrics.manipulation_metrics = self.evaluate_manipulation(predicted, actual, metadata)?;
+            metrics.manipulation_metrics =
+                self.evaluate_manipulation(predicted, actual, metadata)?;
         }
 
         // Navigation evaluation
@@ -369,111 +392,350 @@ impl RoboticsMetricsComputer {
 }
 
 impl DomainMetrics for RoboticsMetrics {
+    type Result = DomainEvaluationResult;
+
     fn domain_name(&self) -> &'static str {
-        "robotics"
+        "Robotics"
     }
 
-    fn primary_metrics(&self) -> HashMap<String, f64> {
+    fn available_metrics(&self) -> Vec<&'static str> {
+        vec![
+            "motion_smoothness",
+            "path_optimality",
+            "localization_accuracy",
+            "mapping_quality",
+            "grasp_success_rate",
+            "manipulation_precision",
+            "navigation_success_rate",
+            "path_planning_efficiency",
+            "hri_safety_score",
+            "user_satisfaction",
+            "formation_accuracy",
+            "task_allocation_optimality",
+            "system_availability",
+            "risk_score",
+            "detection_accuracy",
+            "sensor_fusion_quality",
+        ]
+    }
+
+    fn metric_descriptions(&self) -> HashMap<&'static str, &'static str> {
+        let mut descriptions = HashMap::new();
+        descriptions.insert(
+            "motion_smoothness",
+            "Average jerk of executed trajectories (lower is smoother)",
+        );
+        descriptions.insert(
+            "path_optimality",
+            "Ratio of executed path length to the optimal path length",
+        );
+        descriptions.insert(
+            "localization_accuracy",
+            "Absolute Trajectory Error (RMSE of position error) for SLAM localization",
+        );
+        descriptions.insert(
+            "mapping_quality",
+            "Accuracy of the built map versus ground truth",
+        );
+        descriptions.insert(
+            "grasp_success_rate",
+            "Fraction of grasp attempts that succeeded",
+        );
+        descriptions.insert(
+            "manipulation_precision",
+            "Task-execution position precision during manipulation",
+        );
+        descriptions.insert(
+            "navigation_success_rate",
+            "Fraction of navigation goals successfully reached",
+        );
+        descriptions.insert(
+            "path_planning_efficiency",
+            "Computational efficiency of the path planner",
+        );
+        descriptions.insert(
+            "hri_safety_score",
+            "Collision-avoidance success rate during human-robot interaction",
+        );
+        descriptions.insert(
+            "user_satisfaction",
+            "Overall user satisfaction with the interaction",
+        );
+        descriptions.insert(
+            "formation_accuracy",
+            "Accuracy with which a multi-robot formation is maintained",
+        );
+        descriptions.insert(
+            "task_allocation_optimality",
+            "Optimality of task allocation across a robot team",
+        );
+        descriptions.insert(
+            "system_availability",
+            "Fraction of time the system is operational",
+        );
+        descriptions.insert(
+            "risk_score",
+            "Overall assessed operational risk (lower is safer)",
+        );
+        descriptions.insert(
+            "detection_accuracy",
+            "Object detection accuracy (mean average precision) for robotic perception",
+        );
+        descriptions.insert(
+            "sensor_fusion_quality",
+            "Accuracy improvement gained from fusing multiple sensor modalities",
+        );
+        descriptions
+    }
+}
+
+impl RoboticsMetrics {
+    /// Flatten every sub-domain's headline metric into a single map.
+    ///
+    /// This is the "most important metric per sub-domain" view; see
+    /// [`Self::secondary_metrics`] for supporting metrics.
+    pub fn primary_metrics(&self) -> HashMap<String, f64> {
         let mut metrics = HashMap::new();
 
         // Motion planning metrics
-        metrics.insert("motion_smoothness".to_string(), self.motion_metrics.smoothness_metrics.average_jerk);
-        metrics.insert("path_optimality".to_string(), self.motion_metrics.optimality_metrics.length_optimality_ratio);
+        metrics.insert(
+            "motion_smoothness".to_string(),
+            self.motion_metrics.smoothness_metrics.average_jerk,
+        );
+        metrics.insert(
+            "path_optimality".to_string(),
+            self.motion_metrics
+                .optimality_metrics
+                .length_optimality_ratio,
+        );
 
         // SLAM metrics
-        metrics.insert("localization_accuracy".to_string(), self.slam_metrics.localization_accuracy.position_rmse);
-        metrics.insert("mapping_quality".to_string(), self.slam_metrics.mapping_quality.map_accuracy);
+        metrics.insert(
+            "localization_accuracy".to_string(),
+            self.slam_metrics
+                .localization_metrics
+                .absolute_trajectory_error,
+        );
+        metrics.insert(
+            "mapping_quality".to_string(),
+            self.slam_metrics.mapping_metrics.map_accuracy,
+        );
 
         // Manipulation metrics
-        metrics.insert("grasp_success_rate".to_string(), self.manipulation_metrics.grasping_metrics.success_rate);
-        metrics.insert("manipulation_precision".to_string(), self.manipulation_metrics.task_execution.precision);
+        metrics.insert(
+            "grasp_success_rate".to_string(),
+            self.manipulation_metrics.grasping_metrics.success_rate,
+        );
+        metrics.insert(
+            "manipulation_precision".to_string(),
+            self.manipulation_metrics
+                .manipulation_accuracy
+                .trajectory_accuracy,
+        );
 
         // Navigation metrics
-        metrics.insert("navigation_success_rate".to_string(), self.navigation_metrics.goal_reaching.success_rate);
-        metrics.insert("path_planning_efficiency".to_string(), self.navigation_metrics.path_planning.computational_efficiency);
+        metrics.insert(
+            "navigation_success_rate".to_string(),
+            self.navigation_metrics.goal_reaching.success_rate,
+        );
+        metrics.insert(
+            "path_planning_efficiency".to_string(),
+            self.navigation_metrics
+                .path_planning
+                .computational_efficiency,
+        );
 
         // HRI metrics
-        metrics.insert("hri_safety_score".to_string(), self.hri_metrics.safety_metrics.collision_avoidance_rate);
-        metrics.insert("user_satisfaction".to_string(), self.hri_metrics.user_satisfaction.overall_satisfaction);
+        metrics.insert(
+            "hri_safety_score".to_string(),
+            self.hri_metrics.safety_metrics.collision_avoidance_rate,
+        );
+        metrics.insert(
+            "user_satisfaction".to_string(),
+            self.hri_metrics.user_satisfaction.overall_satisfaction,
+        );
 
         // Multi-robot metrics
-        metrics.insert("formation_accuracy".to_string(), self.multi_robot_metrics.formation_control.formation_accuracy);
-        metrics.insert("task_allocation_optimality".to_string(), self.multi_robot_metrics.task_allocation.allocation_optimality);
+        metrics.insert(
+            "formation_accuracy".to_string(),
+            self.multi_robot_metrics
+                .formation_control
+                .formation_accuracy,
+        );
+        metrics.insert(
+            "task_allocation_optimality".to_string(),
+            self.multi_robot_metrics
+                .task_allocation
+                .allocation_optimality,
+        );
 
         // Safety metrics
-        metrics.insert("system_availability".to_string(), self.safety_metrics.failure_metrics.availability);
-        metrics.insert("risk_score".to_string(), self.safety_metrics.risk_assessment.overall_risk_score);
+        metrics.insert(
+            "system_availability".to_string(),
+            self.safety_metrics.failure_metrics.availability,
+        );
+        metrics.insert(
+            "risk_score".to_string(),
+            self.safety_metrics.risk_assessment.overall_risk_score,
+        );
 
         // Perception metrics
-        metrics.insert("detection_accuracy".to_string(), self.perception_metrics.object_detection.detection_accuracy);
-        metrics.insert("sensor_fusion_quality".to_string(), self.perception_metrics.sensor_fusion.accuracy_improvement);
+        metrics.insert(
+            "detection_accuracy".to_string(),
+            self.perception_metrics.object_detection.detection_accuracy,
+        );
+        metrics.insert(
+            "sensor_fusion_quality".to_string(),
+            self.perception_metrics.sensor_fusion.accuracy_improvement,
+        );
 
         metrics
     }
 
-    fn secondary_metrics(&self) -> HashMap<String, f64> {
+    /// Additional supporting metrics per sub-domain; see [`Self::primary_metrics`]
+    /// for each sub-domain's headline metric.
+    pub fn secondary_metrics(&self) -> HashMap<String, f64> {
         let mut metrics = HashMap::new();
 
         // Additional motion planning metrics
-        metrics.insert("max_jerk".to_string(), self.motion_metrics.smoothness_metrics.max_jerk);
-        metrics.insert("energy_optimality".to_string(), self.motion_metrics.optimality_metrics.energy_optimality_ratio);
+        metrics.insert(
+            "max_jerk".to_string(),
+            self.motion_metrics.smoothness_metrics.max_jerk,
+        );
+        metrics.insert(
+            "energy_optimality".to_string(),
+            self.motion_metrics
+                .optimality_metrics
+                .energy_optimality_ratio,
+        );
 
         // Additional SLAM metrics
-        metrics.insert("loop_closure_precision".to_string(), self.slam_metrics.loop_closure.precision);
-        metrics.insert("mapping_consistency".to_string(), self.slam_metrics.mapping_quality.consistency_score);
+        metrics.insert(
+            "loop_closure_accuracy".to_string(),
+            self.slam_metrics.loop_closure_metrics.closure_accuracy,
+        );
+        metrics.insert(
+            "mapping_consistency".to_string(),
+            self.slam_metrics
+                .mapping_metrics
+                .consistency_metrics
+                .global_consistency,
+        );
 
         // Additional manipulation metrics
-        metrics.insert("grasp_stability".to_string(), self.manipulation_metrics.grasping_metrics.stability_score);
-        metrics.insert("force_control_accuracy".to_string(), self.manipulation_metrics.force_control.force_accuracy);
+        metrics.insert(
+            "grasp_stability".to_string(),
+            self.manipulation_metrics.grasping_metrics.stability_score,
+        );
+        metrics.insert(
+            "force_control_accuracy".to_string(),
+            self.manipulation_metrics.force_metrics.force_accuracy.rmse,
+        );
 
         // Additional navigation metrics
-        metrics.insert("obstacle_avoidance_rate".to_string(), self.navigation_metrics.obstacle_avoidance.collision_avoidance_rate);
-        metrics.insert("adaptation_success_rate".to_string(), self.navigation_metrics.dynamic_adaptation.adaptation_success_rate);
+        metrics.insert(
+            "obstacle_avoidance_rate".to_string(),
+            self.navigation_metrics
+                .obstacle_avoidance
+                .collision_avoidance_rate,
+        );
+        metrics.insert(
+            "adaptation_success_rate".to_string(),
+            self.navigation_metrics
+                .dynamic_adaptation
+                .adaptation_success_rate,
+        );
 
         // Additional HRI metrics
-        metrics.insert("communication_accuracy".to_string(), self.hri_metrics.communication_metrics.command_accuracy);
-        metrics.insert("collaboration_efficiency".to_string(), self.hri_metrics.collaboration_efficiency.coordination_effectiveness);
+        metrics.insert(
+            "communication_accuracy".to_string(),
+            self.hri_metrics.communication_metrics.command_accuracy,
+        );
+        metrics.insert(
+            "collaboration_efficiency".to_string(),
+            self.hri_metrics
+                .collaboration_efficiency
+                .coordination_effectiveness,
+        );
 
         // Additional multi-robot metrics
-        metrics.insert("network_reliability".to_string(), self.multi_robot_metrics.network_performance.network_reliability);
-        metrics.insert("swarm_cohesion".to_string(), self.multi_robot_metrics.collective_behavior.swarm_cohesion);
+        metrics.insert(
+            "network_reliability".to_string(),
+            self.multi_robot_metrics
+                .network_performance
+                .network_reliability,
+        );
+        metrics.insert(
+            "swarm_cohesion".to_string(),
+            self.multi_robot_metrics.collective_behavior.swarm_cohesion,
+        );
 
         // Additional safety metrics
-        metrics.insert("failure_rate".to_string(), self.safety_metrics.failure_metrics.failure_rate);
-        metrics.insert("redundancy_level".to_string(), self.safety_metrics.redundancy_metrics.redundancy_level as f64);
+        metrics.insert(
+            "failure_rate".to_string(),
+            self.safety_metrics.failure_metrics.failure_rate,
+        );
+        metrics.insert(
+            "redundancy_level".to_string(),
+            self.safety_metrics.redundancy_metrics.redundancy_level as f64,
+        );
 
         // Additional perception metrics
-        metrics.insert("false_positive_rate".to_string(), self.perception_metrics.object_detection.false_positive_rate);
-        metrics.insert("segmentation_accuracy".to_string(), self.perception_metrics.scene_understanding.segmentation_accuracy);
+        metrics.insert(
+            "false_positive_rate".to_string(),
+            self.perception_metrics.object_detection.false_positive_rate,
+        );
+        metrics.insert(
+            "segmentation_accuracy".to_string(),
+            self.perception_metrics
+                .scene_understanding
+                .segmentation_accuracy,
+        );
 
         metrics
     }
 
-    fn evaluation_summary(&self) -> DomainEvaluationResult {
+    /// Build a complete [`DomainEvaluationResult`] from the current metrics:
+    /// every primary/secondary metric, plus a human-readable summary with an
+    /// overall score, a qualitative performance level, and any recommendations.
+    pub fn evaluation_summary(&self) -> DomainEvaluationResult {
         let primary = self.primary_metrics();
         let secondary = self.secondary_metrics();
 
         // Calculate overall performance score
-        let motion_score = (primary.get("motion_smoothness").unwrap_or(&0.0) +
-                           primary.get("path_optimality").unwrap_or(&0.0)) / 2.0;
-        let slam_score = (primary.get("localization_accuracy").unwrap_or(&0.0) +
-                         primary.get("mapping_quality").unwrap_or(&0.0)) / 2.0;
-        let manipulation_score = (primary.get("grasp_success_rate").unwrap_or(&0.0) +
-                                 primary.get("manipulation_precision").unwrap_or(&0.0)) / 2.0;
-        let navigation_score = (primary.get("navigation_success_rate").unwrap_or(&0.0) +
-                               primary.get("path_planning_efficiency").unwrap_or(&0.0)) / 2.0;
-        let hri_score = (primary.get("hri_safety_score").unwrap_or(&0.0) +
-                        primary.get("user_satisfaction").unwrap_or(&0.0)) / 2.0;
-        let multi_robot_score = (primary.get("formation_accuracy").unwrap_or(&0.0) +
-                               primary.get("task_allocation_optimality").unwrap_or(&0.0)) / 2.0;
-        let safety_score = primary.get("system_availability").unwrap_or(&0.0) *
-                          (1.0 - primary.get("risk_score").unwrap_or(&0.0));
-        let perception_score = (primary.get("detection_accuracy").unwrap_or(&0.0) +
-                              primary.get("sensor_fusion_quality").unwrap_or(&0.0)) / 2.0;
+        let motion_score = (primary.get("motion_smoothness").unwrap_or(&0.0)
+            + primary.get("path_optimality").unwrap_or(&0.0))
+            / 2.0;
+        let slam_score = (primary.get("localization_accuracy").unwrap_or(&0.0)
+            + primary.get("mapping_quality").unwrap_or(&0.0))
+            / 2.0;
+        let manipulation_score = (primary.get("grasp_success_rate").unwrap_or(&0.0)
+            + primary.get("manipulation_precision").unwrap_or(&0.0))
+            / 2.0;
+        let navigation_score = (primary.get("navigation_success_rate").unwrap_or(&0.0)
+            + primary.get("path_planning_efficiency").unwrap_or(&0.0))
+            / 2.0;
+        let hri_score = (primary.get("hri_safety_score").unwrap_or(&0.0)
+            + primary.get("user_satisfaction").unwrap_or(&0.0))
+            / 2.0;
+        let multi_robot_score = (primary.get("formation_accuracy").unwrap_or(&0.0)
+            + primary.get("task_allocation_optimality").unwrap_or(&0.0))
+            / 2.0;
+        let safety_score = primary.get("system_availability").unwrap_or(&0.0)
+            * (1.0 - primary.get("risk_score").unwrap_or(&0.0));
+        let perception_score = (primary.get("detection_accuracy").unwrap_or(&0.0)
+            + primary.get("sensor_fusion_quality").unwrap_or(&0.0))
+            / 2.0;
 
-        let overall_score = (motion_score + slam_score + manipulation_score +
-                           navigation_score + hri_score + multi_robot_score +
-                           safety_score + perception_score) / 8.0;
+        let overall_score = (motion_score
+            + slam_score
+            + manipulation_score
+            + navigation_score
+            + hri_score
+            + multi_robot_score
+            + safety_score
+            + perception_score)
+            / 8.0;
 
         // Determine performance level
         let performance_level = if overall_score >= 0.9 {
@@ -491,7 +753,8 @@ impl DomainMetrics for RoboticsMetrics {
         let mut recommendations = Vec::new();
 
         if motion_score < 0.8 {
-            recommendations.push("Improve motion planning algorithms and trajectory smoothness".to_string());
+            recommendations
+                .push("Improve motion planning algorithms and trajectory smoothness".to_string());
         }
         if slam_score < 0.8 {
             recommendations.push("Enhance SLAM accuracy and mapping consistency".to_string());
@@ -503,7 +766,8 @@ impl DomainMetrics for RoboticsMetrics {
             recommendations.push("Improve path planning and obstacle avoidance".to_string());
         }
         if hri_score < 0.8 {
-            recommendations.push("Enhance human-robot interaction safety and communication".to_string());
+            recommendations
+                .push("Enhance human-robot interaction safety and communication".to_string());
         }
         if safety_score < 0.9 {
             recommendations.push("Critical: Address safety and reliability concerns".to_string());
@@ -512,14 +776,24 @@ impl DomainMetrics for RoboticsMetrics {
             recommendations.push("Improve perception accuracy and sensor fusion".to_string());
         }
 
-        DomainEvaluationResult {
-            domain: "robotics".to_string(),
-            overall_score,
-            performance_level: performance_level.to_string(),
-            primary_metrics: primary,
-            secondary_metrics: secondary,
-            recommendations,
-            confidence_interval: (overall_score - 0.05, overall_score + 0.05),
+        let mut result = DomainEvaluationResult::new();
+        for (name, value) in primary {
+            result.add_primary_metric(name, value);
         }
+        for (name, value) in secondary {
+            result.add_secondary_metric(name, value);
+        }
+        result.add_primary_metric("overall_score".to_string(), overall_score);
+
+        let recommendation_text = if recommendations.is_empty() {
+            "No specific recommendations; all sub-domains meet their target thresholds.".to_string()
+        } else {
+            recommendations.join(" ")
+        };
+        result.set_summary(format!(
+            "Robotics System Score: {overall_score:.2} ({performance_level}). {recommendation_text}"
+        ));
+
+        result
     }
 }

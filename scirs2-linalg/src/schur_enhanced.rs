@@ -364,8 +364,19 @@ fn francis_qr_step<T: SchurFloat>(
     let mut y = h10 * (h00 + h11 - s);
     let mut z = if ilo + 2 < p { h10 * h21 } else { T::zero() };
 
-    // Chase the bulge down
-    for k in ilo..(p.saturating_sub(2)) {
+    // Chase the bulge down.
+    //
+    // NOTE: the upper bound is INCLUSIVE of `p - 2`. The classic textbook
+    // formulation (Golub & Van Loan, Algorithm 7.5.1) uses 3-element
+    // Householder reflectors for k = ilo .. p-3 (inclusive) to chase the
+    // bulge, followed by ONE MORE 2-element Givens/Householder step at
+    // k = p-2 to finish restoring Hessenberg form. That final step is *not*
+    // optional: without it, the bulge introduced at column p-3, row p-1
+    // never gets chased out, silently leaving a nonzero entry below the
+    // sub-diagonal (violating the Hessenberg invariant and corrupting the
+    // Schur form). Using an exclusive bound here (`..` instead of `..=`)
+    // would skip that final step for every window size.
+    for k in ilo..=(p.saturating_sub(2)) {
         // Determine the size of the reflector (3 or 2 at the bottom)
         let nr = if k + 3 <= p { 3 } else { 2 };
 
@@ -998,70 +1009,113 @@ pub fn schur_to_eigen<T: SchurFloat>(
     tol: T,
 ) -> LinalgResult<SchurEigenResult<T>> {
     let n = t.nrows();
-
-    // 1. Extract eigenvalues
-    let mut eigenvalues: Vec<Complex<T>> = Vec::with_capacity(n);
-    let mut k = 0usize;
-    while k < n {
-        if k + 1 < n && t[[k + 1, k]].abs() > tol {
-            let (lam1, lam2) =
-                eigen2x2_complex(t[[k, k]], t[[k, k + 1]], t[[k + 1, k]], t[[k + 1, k + 1]]);
-            eigenvalues.push(lam1);
-            eigenvalues.push(lam2);
-            k += 2;
-        } else {
-            eigenvalues.push(Complex::new(t[[k, k]], T::zero()));
-            k += 1;
-        }
-    }
-
-    // 2. Compute eigenvectors in Schur form (back-substitution for triangular T)
-    //    For each eigenvalue λ_j solve (T - λ_j I) y = 0 (back-substitution).
-    //    We work column by column, skipping 2×2 blocks.
-    let mut evec_schur: Array2<Complex<T>> = Array2::zeros((n, n));
+    let small = T::epsilon() * T::from(100.0).unwrap_or(T::one());
 
     let blocks = identify_schur_blocks(t, tol);
 
-    for (blk_idx, &(blk_start, blk_size)) in blocks.iter().enumerate() {
-        if blk_size == 1 {
-            let lam = eigenvalues[blk_start];
-            // Solve upper triangular system (T - lam I) y = 0 for y[blk_start] = 1
-            let mut y: Vec<Complex<T>> = vec![Complex::new(T::zero(), T::zero()); n];
-            y[blk_start] = Complex::new(T::one(), T::zero());
-            // Back-substitute from blk_start-1 down to 0
-            if blk_start > 0 {
-                for row in (0..blk_start).rev() {
-                    let mut sum = Complex::new(T::zero(), T::zero());
-                    for col in (row + 1)..=blk_start {
-                        sum += Complex::new(t[[row, col]], T::zero()) * y[col];
-                    }
-                    let diag = Complex::new(t[[row, row]], T::zero()) - lam;
-                    if diag.re.abs() + diag.im.abs()
-                        < T::epsilon() * T::from(100.0).unwrap_or(T::one())
-                    {
-                        y[row] = Complex::new(T::zero(), T::zero());
-                    } else {
-                        y[row] = -sum / diag;
-                    }
+    // 1. Extract eigenvalues (one push per block position, so `eigenvalues[row]`
+    //    always lines up with the diagonal block starting at `row`).
+    let mut eigenvalues: Vec<Complex<T>> = Vec::with_capacity(n);
+    for &(start, size) in &blocks {
+        if size == 1 {
+            eigenvalues.push(Complex::new(t[[start, start]], T::zero()));
+        } else {
+            let (lam1, lam2) = eigen2x2_complex(
+                t[[start, start]],
+                t[[start, start + 1]],
+                t[[start + 1, start]],
+                t[[start + 1, start + 1]],
+            );
+            eigenvalues.push(lam1);
+            eigenvalues.push(lam2);
+        }
+    }
+
+    // 2. Compute eigenvectors in Schur form by back-substitution in
+    //    (T - lam I) y = 0, walking the diagonal BLOCKS from just above the
+    //    target block up to the top.
+    //
+    //    Critically, this must process 2x2 (complex-pair) diagonal blocks
+    //    that lie *above* the target eigenvalue as a single coupled 2x2
+    //    linear solve, not as two independent scalar divisions row-by-row:
+    //    treating `t[[row, row]]` in isolation is only one entry of that
+    //    block and does not represent an eigenvalue of the original matrix,
+    //    so a naive per-row scalar back-substitution silently produces a
+    //    wrong (non-)eigenvector whenever a 2x2 block sits between the
+    //    target block and row 0.
+    let solve_column = |lam: Complex<T>, seed_start: usize, seed: &[Complex<T>]| {
+        let mut y: Vec<Complex<T>> = vec![Complex::new(T::zero(), T::zero()); n];
+        for (i, &val) in seed.iter().enumerate() {
+            y[seed_start + i] = val;
+        }
+        let seed_end = seed_start + seed.len(); // exclusive
+        for &(row, size) in blocks.iter().rev() {
+            if row >= seed_start {
+                continue; // at or past the seed block: nothing to solve for
+            }
+            if size == 1 {
+                let mut sum = Complex::new(T::zero(), T::zero());
+                for col in (row + 1)..seed_end {
+                    sum += Complex::new(t[[row, col]], T::zero()) * y[col];
+                }
+                let diag = Complex::new(t[[row, row]], T::zero()) - lam;
+                y[row] = if diag.re.abs() + diag.im.abs() < small {
+                    Complex::new(T::zero(), T::zero())
+                } else {
+                    -sum / diag
+                };
+            } else {
+                let row2 = row + 1;
+                let mut sum0 = Complex::new(T::zero(), T::zero());
+                let mut sum1 = Complex::new(T::zero(), T::zero());
+                for col in (row2 + 1)..seed_end {
+                    let tv0 = Complex::new(t[[row, col]], T::zero());
+                    let tv1 = Complex::new(t[[row2, col]], T::zero());
+                    sum0 += tv0 * y[col];
+                    sum1 += tv1 * y[col];
+                }
+                // Solve the coupled 2x2 system:
+                //   [a  b] [y[row] ]   [-sum0]
+                //   [c  d] [y[row2]] = [-sum1]
+                let a = Complex::new(t[[row, row]], T::zero()) - lam;
+                let b = Complex::new(t[[row, row2]], T::zero());
+                let c = Complex::new(t[[row2, row]], T::zero());
+                let d = Complex::new(t[[row2, row2]], T::zero()) - lam;
+                let det = a * d - b * c;
+                if det.re.abs() + det.im.abs() < small {
+                    y[row] = Complex::new(T::zero(), T::zero());
+                    y[row2] = Complex::new(T::zero(), T::zero());
+                } else {
+                    let rhs0 = -sum0;
+                    let rhs1 = -sum1;
+                    y[row] = (rhs0 * d - b * rhs1) / det;
+                    y[row2] = (a * rhs1 - c * rhs0) / det;
                 }
             }
+        }
+        y
+    };
+
+    let mut evec_schur: Array2<Complex<T>> = Array2::zeros((n, n));
+
+    for &(blk_start, blk_size) in &blocks {
+        if blk_size == 1 {
+            let lam = eigenvalues[blk_start];
+            let one = Complex::new(T::one(), T::zero());
+            let y = solve_column(lam, blk_start, &[one]);
             for i in 0..n {
                 evec_schur[[i, blk_start]] = y[i];
             }
         } else {
-            // 2×2 block: use complex eigenvector for lam1
+            // 2x2 block: solve for lam1's eigenvector; lam2 = conj(lam1) and
+            // T is real, so conj(y1) is exactly the eigenvector for lam2 —
+            // no need (and no risk of an inconsistent) second back-substitution.
             let lam1 = eigenvalues[blk_start];
-            let lam2 = eigenvalues[blk_start + 1];
 
-            // For lam1: compute the eigenvector of the 2×2 block
             let a11 = Complex::new(t[[blk_start, blk_start]], T::zero()) - lam1;
             let a12 = Complex::new(t[[blk_start, blk_start + 1]], T::zero());
-            // The eigenvector direction within the block: [a12, -a11] or [a11+lam1-..., a21]
             let (v0, v1) = if a12.re.abs() + a12.im.abs() > T::epsilon() {
-                (
-                    a12,
-                    lam1 - Complex::new(t[[blk_start, blk_start]], T::zero()),
-                )
+                (a12, -a11)
             } else {
                 (
                     Complex::new(T::one(), T::zero()),
@@ -1069,48 +1123,11 @@ pub fn schur_to_eigen<T: SchurFloat>(
                 )
             };
 
-            let mut y1: Vec<Complex<T>> = vec![Complex::new(T::zero(), T::zero()); n];
-            y1[blk_start] = v0;
-            y1[blk_start + 1] = v1;
-            let mut y2: Vec<Complex<T>> = vec![Complex::new(T::zero(), T::zero()); n];
-            y2[blk_start] = v0.conj();
-            y2[blk_start + 1] = v1.conj();
-
-            // Back-substitute
-            if blk_start > 0 {
-                for row in (0..blk_start).rev() {
-                    let mut s1 = Complex::new(T::zero(), T::zero());
-                    let mut s2 = Complex::new(T::zero(), T::zero());
-                    for col in (row + 1)..blk_start + 2 {
-                        let t_val = Complex::new(t[[row, col]], T::zero());
-                        s1 += t_val * y1[col];
-                        s2 += t_val * y2[col];
-                    }
-                    let diag1 = Complex::new(t[[row, row]], T::zero()) - lam1;
-                    let diag2 = Complex::new(t[[row, row]], T::zero()) - lam2;
-                    y1[row] = if diag1.re.abs() + diag1.im.abs()
-                        < T::epsilon() * T::from(100.0).unwrap_or(T::one())
-                    {
-                        Complex::new(T::zero(), T::zero())
-                    } else {
-                        -s1 / diag1
-                    };
-                    y2[row] = if diag2.re.abs() + diag2.im.abs()
-                        < T::epsilon() * T::from(100.0).unwrap_or(T::one())
-                    {
-                        Complex::new(T::zero(), T::zero())
-                    } else {
-                        -s2 / diag2
-                    };
-                }
-            }
-
+            let y1 = solve_column(lam1, blk_start, &[v0, v1]);
             for i in 0..n {
                 evec_schur[[i, blk_start]] = y1[i];
-                evec_schur[[i, blk_start + 1]] = y2[i];
+                evec_schur[[i, blk_start + 1]] = y1[i].conj();
             }
-
-            let _ = (blk_idx, lam2);
         }
     }
 
@@ -1314,6 +1331,126 @@ mod tests {
                     h[[i, j]].abs() < 1e-9,
                     "H[{i},{j}] = {} not zero",
                     h[[i, j]]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn probe_debug_3x3() {
+        let a = array![[6.0_f64, -11.0, 6.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let res = real_schur_decompose(&a.view(), 500, 1e-13).expect("schur ok");
+        println!("T = {:?}", res.t);
+        println!("Q = {:?}", res.q);
+        let qt = res.q.t().to_owned();
+        let reconstructed = res.q.dot(&res.t).dot(&qt);
+        println!("reconstructed = {:?}", reconstructed);
+        println!("frob err = {}", frobenius_err(&a, &reconstructed));
+    }
+
+    #[test]
+    fn probe_companion_3x3_real_spectrum() {
+        // Companion matrix for (x-1)(x-2)(x-3) = x^3 - 6x^2 + 11x - 6
+        let a = array![[6.0_f64, -11.0, 6.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let res = real_schur_decompose(&a.view(), 500, 1e-13).expect("schur ok");
+        let eig = schur_to_eigen(&res.q, &res.t, 1e-10).expect("eigen ok");
+        let mut re: Vec<f64> = eig.eigenvalues.iter().map(|c| c.re).collect();
+        re.sort_by(|x, y| x.partial_cmp(y).unwrap());
+        println!("eigenvalues: {:?}", eig.eigenvalues);
+        assert!((re[0] - 1.0).abs() < 1e-8, "got {:?}", re);
+        assert!((re[1] - 2.0).abs() < 1e-8, "got {:?}", re);
+        assert!((re[2] - 3.0).abs() < 1e-8, "got {:?}", re);
+
+        // Verify eigenvectors: A v = lambda v
+        for j in 0..3 {
+            let lam = eig.eigenvalues[j];
+            let v = eig.eigenvectors.column(j).to_owned();
+            for i in 0..3 {
+                let mut av_i = Complex::new(0.0, 0.0);
+                for k in 0..3 {
+                    av_i += Complex::new(a[[i, k]], 0.0) * v[k];
+                }
+                let lv_i = lam * v[i];
+                let diff = av_i - lv_i;
+                let err = (diff.re * diff.re + diff.im * diff.im).sqrt();
+                assert!(
+                    err < 1e-6,
+                    "eigenvector check failed at i={i} j={j}: err={err}, av={av_i:?}, lv={lv_i:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn probe_companion_4x4_mixed_spectrum() {
+        // Companion matrix for (x-1)(x-2)(x^2+1) = x^4 - 3x^3 + 3x^2 - 3x + 2
+        let a = array![
+            [3.0_f64, -3.0, 3.0, -2.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0]
+        ];
+        let res = real_schur_decompose(&a.view(), 2000, 1e-13).expect("schur ok");
+        let qt = res.q.t().to_owned();
+        let reconstructed = res.q.dot(&res.t).dot(&qt);
+        println!("reconstruction err = {}", frobenius_err(&a, &reconstructed));
+        assert!(frobenius_err(&a, &reconstructed) < 1e-6);
+
+        let eig = schur_to_eigen(&res.q, &res.t, 1e-9).expect("eigen ok");
+        println!("eigenvalues: {:?}", eig.eigenvalues);
+
+        let mut reals: Vec<f64> = eig
+            .eigenvalues
+            .iter()
+            .filter(|c| c.im.abs() < 1e-6)
+            .map(|c| c.re)
+            .collect();
+        reals.sort_by(|x, y| x.partial_cmp(y).unwrap());
+        let mut complex_im: Vec<f64> = eig
+            .eigenvalues
+            .iter()
+            .filter(|c| c.im.abs() >= 1e-6)
+            .map(|c| c.im)
+            .collect();
+        complex_im.sort_by(|x, y| x.partial_cmp(y).unwrap());
+
+        assert_eq!(
+            reals.len(),
+            2,
+            "expected 2 real eigenvalues, got {:?}",
+            eig.eigenvalues
+        );
+        assert_eq!(
+            complex_im.len(),
+            2,
+            "expected 2 complex eigenvalues, got {:?}",
+            eig.eigenvalues
+        );
+        assert!((reals[0] - 1.0).abs() < 1e-6, "got {:?}", reals);
+        assert!((reals[1] - 2.0).abs() < 1e-6, "got {:?}", reals);
+        assert!(
+            (complex_im[0] - (-1.0)).abs() < 1e-6,
+            "got {:?}",
+            complex_im
+        );
+        assert!((complex_im[1] - 1.0).abs() < 1e-6, "got {:?}", complex_im);
+
+        // Verify eigenvectors: A v = lambda v  (works for both real and complex eigenpairs)
+        for j in 0..4 {
+            let lam = eig.eigenvalues[j];
+            let v = eig.eigenvectors.column(j).to_owned();
+            for i in 0..4 {
+                let mut av_i = Complex::new(0.0, 0.0);
+                for k in 0..4 {
+                    av_i += Complex::new(a[[i, k]], 0.0) * v[k];
+                }
+                let lv_i = lam * v[i];
+                let diff = av_i - lv_i;
+                let err = (diff.re * diff.re + diff.im * diff.im).sqrt();
+                assert!(
+                    err < 1e-5,
+                    "eigenvector check failed at i={i} j={j}: err={err}, av={av_i:?}, lv={lv_i:?}, eigenvalues={:?}",
+                    eig.eigenvalues
                 );
             }
         }

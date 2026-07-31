@@ -28,7 +28,7 @@ use scirs2_core::ndarray::Array1;
 /// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::basic::linear_interpolate;
 ///
-/// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
+/// let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
 /// let result = linear_interpolate(&signal).expect("Operation failed");
 /// // Result will be approximately [1.0, 2.0, 3.0, 4.0, 5.0]
 /// ```
@@ -39,7 +39,7 @@ pub fn linear_interpolate(signal: &Array1<f64>) -> SignalResult<Array1<f64>> {
     // Check if input has any missing values
     let has_missing = signal.iter().any(|&x| x.is_nan());
     if !has_missing {
-        return Ok(_signal.clone());
+        return Ok(signal.clone());
     }
 
     let mut result = signal.clone();
@@ -49,15 +49,15 @@ pub fn linear_interpolate(signal: &Array1<f64>) -> SignalResult<Array1<f64>> {
     let mut valid_values = Vec::new();
 
     for i in 0..n {
-        if !_signal[i].is_nan() {
+        if !signal[i].is_nan() {
             valid_indices.push(i);
-            valid_values.push(_signal[i]);
+            valid_values.push(signal[i]);
         }
     }
 
     if valid_indices.is_empty() {
         return Err(SignalError::ValueError(
-            "All values are missing in the input _signal".to_string(),
+            "All values are missing in the input signal".to_string(),
         ));
     }
 
@@ -139,7 +139,7 @@ pub fn linear_interpolate(signal: &Array1<f64>) -> SignalResult<Array1<f64>> {
 /// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::basic::nearest_neighbor_interpolate;
 ///
-/// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
+/// let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
 /// let result = nearest_neighbor_interpolate(&signal).expect("Operation failed");
 /// // Result will be [1.0, 1.0, 3.0, 3.0, 5.0] or [1.0, 3.0, 3.0, 5.0, 5.0]
 /// // depending on which valid point is closer
@@ -151,7 +151,7 @@ pub fn nearest_neighbor_interpolate(signal: &Array1<f64>) -> SignalResult<Array1
     // Check if input has any missing values
     let has_missing = signal.iter().any(|&x| x.is_nan());
     if !has_missing {
-        return Ok(_signal.clone());
+        return Ok(signal.clone());
     }
 
     // Find indices of non-missing points
@@ -159,15 +159,15 @@ pub fn nearest_neighbor_interpolate(signal: &Array1<f64>) -> SignalResult<Array1
     let mut valid_values = Vec::new();
 
     for i in 0..n {
-        if !_signal[i].is_nan() {
+        if !signal[i].is_nan() {
             valid_indices.push(i);
-            valid_values.push(_signal[i]);
+            valid_values.push(signal[i]);
         }
     }
 
     if valid_indices.is_empty() {
         return Err(SignalError::ValueError(
-            "All values are missing in the input _signal".to_string(),
+            "All values are missing in the input signal".to_string(),
         ));
     }
 
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_signal() {
+    fn test_emptysignal() {
         let signal = Array1::from_vec(vec![]);
         let result = linear_interpolate(&signal).expect("Operation failed");
         assert_eq!(result.len(), 0);
@@ -297,7 +297,7 @@ mod tests {
     }
 
     #[test]
-    fn test_single_element_signal() {
+    fn test_single_elementsignal() {
         let signal = Array1::from_vec(vec![5.0]);
         let result = linear_interpolate(&signal).expect("Operation failed");
         assert_eq!(result[0], 5.0);

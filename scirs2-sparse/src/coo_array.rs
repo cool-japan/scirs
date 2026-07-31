@@ -228,7 +228,7 @@ where
     }
 
     fn dtype(&self) -> &str {
-        "float" // Placeholder
+        std::any::type_name::<T>()
     }
 
     fn to_array(&self) -> Array2<T> {
@@ -647,6 +647,32 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_coo_array_dtype_reflects_actual_element_type() {
+        let row = Array1::from_vec(vec![0, 1]);
+        let col = Array1::from_vec(vec![0, 1]);
+        let shape = (2, 2);
+
+        let coo_f64 = CooArray::new(
+            Array1::from_vec(vec![1.0f64, 2.0]),
+            row.clone(),
+            col.clone(),
+            shape,
+            false,
+        )
+        .expect("Operation failed");
+        let coo_i32 = CooArray::new(Array1::from_vec(vec![1i32, 2]), row, col, shape, false)
+            .expect("Operation failed");
+
+        // Previously `dtype()` always returned the literal string "float"
+        // regardless of the actual generic element type.
+        assert_eq!(coo_f64.dtype(), "f64");
+        assert_eq!(coo_i32.dtype(), "i32");
+        assert_ne!(coo_f64.dtype(), "float");
+        assert_ne!(coo_i32.dtype(), "float");
+        assert_ne!(coo_f64.dtype(), coo_i32.dtype());
+    }
 
     #[test]
     fn test_coo_array_construction() {

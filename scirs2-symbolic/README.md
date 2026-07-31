@@ -17,7 +17,7 @@ system (CAS) component designed to complement the numeric capabilities of SciRS2
 
 ```toml
 [dependencies]
-scirs2-symbolic = "0.6.4"
+scirs2-symbolic = "0.6.5"
 ```
 
 ## Quick Start
@@ -215,7 +215,7 @@ Recognised constants: `\pi`, `e`. Operators: `\frac`, `\cdot`, `a^{b}`, `\sqrt`,
 | Feature | Pulls in | Purpose |
 |---------|----------|---------|
 | `serde` | `serde`, `serde_json`, `oxicode` | Round-trip serialization of `EmlTree`, `LoweredOp`, `Interval` (JSON + binary) |
-| `smt`   | `oxiz` 0.2.1 | SMT-pruned SR + certified rewrite engine (OxiZ QF_NRA; note: NLSAT incomplete for surface commutativity — always canonicalize first) |
+| `smt`   | `oxiz` 0.3.1 | SMT-pruned SR + certified rewrite engine (OxiZ QF_NRA; note: NLSAT incomplete for surface commutativity — always canonicalize first) |
 | `jit`   | `cranelift-*` | Cranelift CPU JIT via `compile::to_jit` and `JitCache` |
 | `gpu`   | `wgpu`, `pollster`, `bytemuck` | WGSL GPU JIT; real wgpu `eval_batch`; `to_jit_auto` threshold dispatch |
 | `parallel` | `rayon` (via `scirs2-core`) | Parallel prediction in `regression::discover`; NUMA worker pinning via `scirs2-core` |

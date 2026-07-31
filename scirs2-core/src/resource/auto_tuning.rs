@@ -564,27 +564,6 @@ impl AutoTuner {
         (cpu_efficiency + memory_efficiency + throughput_score) / 3.0
     }
 
-    fn needs_retuning(&self, performancescore: f64, metrics: &ResourceMetrics) -> bool {
-        // Check for performance degradation
-        if performancescore < 0.7 {
-            // Below 70% efficiency
-            return true;
-        }
-
-        // Check for resource pressure
-        if metrics.cpu_utilization > 0.9 || metrics.memory_utilization > 0.9 {
-            return true;
-        }
-
-        // Check for instability
-        if metrics.cache_miss_rate > 0.1 {
-            // > 10% cache misses
-            return true;
-        }
-
-        false
-    }
-
     fn generate_optimized_settings(
         &self,
         metrics: &ResourceMetrics,
@@ -624,22 +603,6 @@ impl AutoTuner {
 
         // Other settings would be applied to respective modules
         Ok(())
-    }
-
-    pub fn metrics(&mut self, metrics: &ResourceMetrics) -> CoreResult<()> {
-        self.current_settings.num_threads =
-            ((self.current_settings.num_threads as f64) * 1.2f64) as usize;
-        self.current_settings.chunk_size =
-            ((self.current_settings.chunk_size as f64) * 1.1f64) as usize;
-        self.apply_settings(&self.current_settings)
-    }
-
-    pub fn metrics_2(&mut self, metrics: &ResourceMetrics) -> CoreResult<()> {
-        self.current_settings.num_threads =
-            ((self.current_settings.num_threads as f64) * 0.8f64) as usize;
-        self.current_settings.chunk_size =
-            ((self.current_settings.chunk_size as f64) * 0.9f64) as usize;
-        self.apply_settings(&self.current_settings)
     }
 
     pub fn optimize_configuration(&mut self, metrics: &ResourceMetrics) -> CoreResult<()> {
@@ -686,21 +649,80 @@ impl AutoTuner {
         Ok(recommendations)
     }
 
+    /// Scale up allocated resources (more threads, larger chunks) in
+    /// response to a `PolicyAction::ScaleUp` decision, and actually apply
+    /// the new settings. Thread count is bounded so repeated scale-ups
+    /// cannot run away past a sane multiple of the detected CPU core
+    /// count.
     pub fn increase_resources(&mut self, metrics: &ResourceMetrics) -> CoreResult<()> {
-        // Placeholder implementation
-        // In a real implementation, this would increase allocated resources
-        Ok(())
+        let max_threads = (self.performance_profile.cpu_cores * 4).max(1);
+        let scaled_up = ((self.current_settings.num_threads as f64) * 1.2f64).round() as usize;
+        // Guarantee real forward progress: a small count (e.g. 1) scaled by
+        // 1.2 and rounded can land back on itself, which would otherwise
+        // make repeated increases a permanent no-op once the count is low.
+        let next_threads = scaled_up.max(self.current_settings.num_threads.saturating_add(1));
+        self.current_settings.num_threads = next_threads.clamp(1, max_threads);
+        self.current_settings.chunk_size =
+            (((self.current_settings.chunk_size as f64) * 1.1f64).round() as usize).max(1);
+
+        let event = OptimizationEvent {
+            timestamp: Instant::now(),
+            metrics_before: metrics.clone(),
+            metrics_after: metrics.clone(),
+            settings_applied: self.current_settings.clone(),
+            performance_delta: 0.0,
+        };
+        self.optimization_history.push_back(event);
+        if self.optimization_history.len() > 100 {
+            self.optimization_history.pop_front();
+        }
+
+        self.apply_settings(&self.current_settings)
     }
 
+    /// Scale down allocated resources (fewer threads, smaller chunks) in
+    /// response to a `PolicyAction::ScaleDown` decision, and actually
+    /// apply the new settings. Thread count is bounded so repeated
+    /// scale-downs cannot degrade to zero threads.
     pub fn decrease_resources(&mut self, metrics: &ResourceMetrics) -> CoreResult<()> {
-        // Placeholder implementation
-        // In a real implementation, this would decrease allocated resources
-        Ok(())
+        let max_threads = (self.performance_profile.cpu_cores * 4).max(1);
+        let scaled_down = ((self.current_settings.num_threads as f64) * 0.8f64).round() as usize;
+        self.current_settings.num_threads = scaled_down.clamp(1, max_threads);
+        self.current_settings.chunk_size =
+            (((self.current_settings.chunk_size as f64) * 0.9f64).round() as usize).max(1);
+
+        let event = OptimizationEvent {
+            timestamp: Instant::now(),
+            metrics_before: metrics.clone(),
+            metrics_after: metrics.clone(),
+            settings_applied: self.current_settings.clone(),
+            performance_delta: 0.0,
+        };
+        self.optimization_history.push_back(event);
+        if self.optimization_history.len() > 100 {
+            self.optimization_history.pop_front();
+        }
+
+        self.apply_settings(&self.current_settings)
     }
 
-    fn needs_optimization(&mut self, _metrics: &ResourceMetrics, _performancescore: f64) -> bool {
-        // Placeholder implementation
-        // In a real implementation, this would check if optimization is needed
+    /// Real gate for [`Self::adaptive_optimization`]: is retuning actually
+    /// warranted right now? Triggers on measured performance degradation
+    /// (score below 70%), resource pressure (CPU/memory above 90%
+    /// utilization), or instability (cache miss rate above 10%) — the
+    /// same real thresholds [`Self::generate_optimized_settings`] reacts
+    /// to, rather than an unconditional `false` that prevented
+    /// `adaptive_optimization` from ever doing anything.
+    fn needs_optimization(&mut self, metrics: &ResourceMetrics, performancescore: f64) -> bool {
+        if performancescore < 0.7 {
+            return true;
+        }
+        if metrics.cpu_utilization > 0.9 || metrics.memory_utilization > 0.9 {
+            return true;
+        }
+        if metrics.cache_miss_rate > 0.1 {
+            return true;
+        }
         false
     }
 }
@@ -1686,6 +1708,141 @@ mod tests {
         // Recommendations might be empty due to the performance_delta calculation issue,
         // but the method should work without errors
         assert!(recommendations.len() < 1000); // Reasonable upper bound check
+    }
+
+    fn healthy_metrics() -> ResourceMetrics {
+        ResourceMetrics {
+            timestamp: Instant::now(),
+            cpu_utilization: 0.3,
+            memory_utilization: 0.3,
+            cache_miss_rate: 0.01,
+            operations_per_second: 5000.0,
+            memorybandwidth_usage: 0.2,
+            thread_contention: 0.0,
+        }
+    }
+
+    fn degraded_metrics() -> ResourceMetrics {
+        ResourceMetrics {
+            timestamp: Instant::now(),
+            cpu_utilization: 0.95,
+            memory_utilization: 0.95,
+            cache_miss_rate: 0.2,
+            operations_per_second: 10.0,
+            memorybandwidth_usage: 0.9,
+            thread_contention: 0.8,
+        }
+    }
+
+    /// Regression test: `needs_optimization` used to always return `false`
+    /// regardless of the metrics passed in, so `adaptive_optimization`
+    /// could never actually retune anything. It must now distinguish a
+    /// healthy system from one under real resource pressure.
+    #[test]
+    fn test_needs_optimization_detects_real_degradation_and_pressure() {
+        let profile = PerformanceProfile::detect();
+        let mut tuner = AutoTuner::new(profile).expect("Operation failed");
+
+        let healthy = healthy_metrics();
+        let good_score = tuner.calculate_performance_score(&healthy);
+        assert!(
+            !tuner.needs_optimization(&healthy, good_score),
+            "a healthy system must not report needing optimization"
+        );
+
+        let degraded = degraded_metrics();
+        let bad_score = tuner.calculate_performance_score(&degraded);
+        assert!(
+            tuner.needs_optimization(&degraded, bad_score),
+            "high CPU/memory utilization and cache miss rate must trigger optimization"
+        );
+    }
+
+    /// Regression test: `increase_resources`/`decrease_resources` used to
+    /// be no-ops (`Ok(())` with the metrics parameter completely ignored),
+    /// so the auto-tuner could never actually change anything in response
+    /// to a scale-up/scale-down policy decision.
+    #[test]
+    fn test_increase_resources_actually_changes_settings() {
+        let profile = PerformanceProfile::detect();
+        let mut tuner = AutoTuner::new(profile).expect("Operation failed");
+
+        let before_threads = tuner.current_settings.num_threads;
+        let before_chunk = tuner.current_settings.chunk_size;
+        let before_history_len = tuner.optimization_history.len();
+
+        tuner
+            .increase_resources(&degraded_metrics())
+            .expect("Operation failed");
+
+        assert!(
+            tuner.current_settings.num_threads >= before_threads,
+            "increase_resources must not shrink the thread count"
+        );
+        assert!(
+            tuner.current_settings.chunk_size > before_chunk,
+            "increase_resources must actually grow chunk_size: before={before_chunk}, after={}",
+            tuner.current_settings.chunk_size
+        );
+        assert_eq!(
+            tuner.optimization_history.len(),
+            before_history_len + 1,
+            "increase_resources must record a real optimization event"
+        );
+    }
+
+    #[test]
+    fn test_decrease_resources_actually_changes_settings() {
+        let profile = PerformanceProfile::detect();
+        let mut tuner = AutoTuner::new(profile).expect("Operation failed");
+        // Start from a larger thread count so the decrease is observable.
+        tuner.current_settings.num_threads = 16;
+        let before_chunk = tuner.current_settings.chunk_size;
+
+        tuner
+            .decrease_resources(&degraded_metrics())
+            .expect("Operation failed");
+
+        assert!(
+            tuner.current_settings.num_threads < 16,
+            "decrease_resources must actually shrink the thread count, got {}",
+            tuner.current_settings.num_threads
+        );
+        assert!(
+            tuner.current_settings.chunk_size < before_chunk,
+            "decrease_resources must actually shrink chunk_size"
+        );
+    }
+
+    /// Repeated scale-downs must never degrade the thread count to zero
+    /// (which would be a genuine regression, not just an unimplemented
+    /// no-op), and repeated scale-ups must not grow it without bound.
+    #[test]
+    fn test_resource_scaling_is_bounded() {
+        let profile = PerformanceProfile::detect();
+        let mut tuner = AutoTuner::new(profile.clone()).expect("Operation failed");
+
+        for _ in 0..50 {
+            tuner
+                .decrease_resources(&degraded_metrics())
+                .expect("Operation failed");
+        }
+        assert!(
+            tuner.current_settings.num_threads >= 1,
+            "thread count must never degrade to zero"
+        );
+
+        for _ in 0..50 {
+            tuner
+                .increase_resources(&degraded_metrics())
+                .expect("Operation failed");
+        }
+        let max_threads = (profile.cpu_cores * 4).max(1);
+        assert!(
+            tuner.current_settings.num_threads <= max_threads,
+            "thread count must not grow past {max_threads}, got {}",
+            tuner.current_settings.num_threads
+        );
     }
 
     #[test]

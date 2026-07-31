@@ -1,10 +1,10 @@
 # scirs2-metrics TODO
 
-## Status: v0.6.3 (last updated 2026-07-27)
+## Status: v0.6.5 (last updated 2026-07-31)
 
-Untouched by this release's fix work (no metrics-specific changes shipped in 0.6.3); the
+Untouched by this release's fix work (no metrics-specific changes shipped in 0.6.5); the
 implementation-status survey below (last performed for the 0.6.2 release, 2026-07-22) remains
-accurate for 0.6.3 since the crate source is unchanged.
+accurate for 0.6.5 since the crate source is unchanged.
 
 ## v0.3.3 Completed
 
@@ -202,6 +202,6 @@ accurate for 0.6.3 since the crate source is unchanged.
 
 - `plotly_backend` feature generates HTML that requires a network connection to load Chart.js from CDN; add offline/bundled mode.
 - `dashboard_server` requires `tokio` runtime; document how to integrate with existing async applications.
-- SIMD acceleration (`optimization/hardware.rs`) only tracks x86/x86_64 feature flags (SSE2/AVX/AVX2/AVX-512); ARM NEON is still not tracked as of 0.6.3 despite once being slated for v0.4.0.
+- SIMD acceleration (`optimization/hardware.rs`) only tracks x86/x86_64 feature flags (SSE2/AVX/AVX2/AVX-512); ARM NEON is still not tracked as of 0.6.5 despite once being slated for v0.4.0.
 - GAN/generative evaluation (`domains::generative_ai::gan_evaluation::GANEvaluationMetrics`: FID, IS, KID) requires pre-computed feature vectors; it does not include the Inception network — document this clearly.
 - **Orphaned modules (verified 2026-07-15):** several source files/directories exist under `src/` but have no `pub mod` (or even private `mod`) declaration anywhere in the crate, so they do not compile into the crate and are unreachable from the public API: `generative.rs`, `segmentation.rs`, `regression_advanced/`, `distributional/` (superseded by the wired `distribution/`), `ranking/ir_metrics.rs` (superseded by the wired `ranking/mod.rs`), `fairness/advanced.rs`, `streaming/optimization/` (patterns/config/detection — also missing its own `optimization/mod.rs`), `domains/robotics/` (9 files), `integration/neural/adapter.rs` (superseded by `neural_adapter.rs`). Each needs a decision: wire in via `pub mod`, or delete as dead code.

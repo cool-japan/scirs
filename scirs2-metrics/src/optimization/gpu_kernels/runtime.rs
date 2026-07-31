@@ -12,6 +12,49 @@ use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+use super::computer::AdvancedGpuComputer;
+
+/// Build an honest `device_info()` map: this crate has no CUDA/OpenCL/
+/// Vulkan/Metal FFI backend, so device specs (memory size, clock rate,
+/// compute capability, ...) are never queried or fabricated. `available`
+/// reflects a real filesystem/environment probe (see
+/// [`AdvancedGpuComputer::is_cuda_available`] and siblings); when `false`,
+/// callers must treat this backend as genuinely absent rather than assume
+/// any of the other map entries describe real hardware.
+/// Guard used by every buffer/kernel operation below: since this crate has
+/// no real CUDA/OpenCL/Vulkan/Metal FFI backend, none of `allocate`,
+/// `transfer_to_gpu`, `transfer_from_gpu`, or `launch_kernel` can honestly
+/// touch real device memory or execute anything. Rather than silently
+/// returning `Ok(())`/a fabricated handle when no hardware was detected,
+/// they return this explicit error so callers cannot mistake "no-op" for
+/// "succeeded".
+fn require_available(backend: &str, available: bool) -> Result<()> {
+    if available {
+        Ok(())
+    } else {
+        Err(MetricsError::ComputationError(format!(
+            "{backend} GPU backend not available on this system"
+        )))
+    }
+}
+
+fn honest_device_info(backend: &str, available: bool) -> HashMap<String, String> {
+    let mut info = HashMap::new();
+    info.insert("backend".to_string(), backend.to_string());
+    info.insert("available".to_string(), available.to_string());
+    info.insert(
+        "note".to_string(),
+        if available {
+            "hardware/driver presence detected via filesystem/environment probe; \
+             detailed device specs are not queried (no FFI backend in this crate)"
+                .to_string()
+        } else {
+            "no hardware/driver detected on this system".to_string()
+        },
+    );
+    info
+}
+
 /// GPU runtime interface trait for different backends
 pub trait GpuRuntime: Send + Sync {
     /// Initialize the GPU runtime
@@ -120,7 +163,11 @@ pub enum GpuScalar {
 }
 
 /// GPU memory statistics
-#[derive(Debug, Clone)]
+///
+/// All fields default to `0` (honest "unknown/not queried" rather than a
+/// fabricated capacity, since this crate has no FFI backend to query real
+/// device memory).
+#[derive(Debug, Clone, Default)]
 pub struct GpuMemoryStats {
     /// Total memory in bytes
     pub total_memory: u64,
@@ -177,28 +224,33 @@ impl CudaRuntime {
 
 impl GpuRuntime for CudaRuntime {
     fn initialize(&mut self) -> Result<()> {
-        // Initialize CUDA context and stream
-        // This would use actual CUDA API calls
-        self.context = Some(0x12345678); // Placeholder
-        self.stream = Some(0x87654321); // Placeholder
+        // This crate has no CUDA FFI backend (pure-Rust policy: real CUDA
+        // access goes through the separate oxicuda-* crates), so there is no
+        // real context/stream handle to obtain. `context`/`stream` are set
+        // to a trivial "ready" marker only when real hardware was actually
+        // detected, and left `None` otherwise -- never a fabricated pointer
+        // value pretending to be a genuine CUDA handle.
+        if self.is_available() {
+            self.context = Some(1);
+            self.stream = Some(1);
+        }
         Ok(())
     }
 
     fn is_available(&self) -> bool {
-        // Check CUDA availability
-        true // Placeholder
+        // Real filesystem/environment probe (env vars, CUDA install paths,
+        // libcudart.so presence) -- see `AdvancedGpuComputer::is_cuda_available`.
+        AdvancedGpuComputer::is_cuda_available()
     }
 
     fn device_info(&self) -> HashMap<String, String> {
-        let mut info = HashMap::new();
-        info.insert("backend".to_string(), "CUDA".to_string());
+        let mut info = honest_device_info("CUDA", self.is_available());
         info.insert("device_id".to_string(), self.device_id.to_string());
-        info.insert("compute_capability".to_string(), "8.0".to_string());
-        info.insert("memory".to_string(), "8GB".to_string());
         info
     }
 
     fn allocate<T: Float>(&mut self, size: usize) -> Result<GpuBuffer> {
+        require_available("CUDA", self.is_available())?;
         let buffer_size = size * std::mem::size_of::<T>();
         let buffer = GpuBuffer {
             id: scirs2_core::random::random::<u64>(),
@@ -212,11 +264,13 @@ impl GpuRuntime for CudaRuntime {
     }
 
     fn transfer_to_gpu<T: Float>(&mut self, _data: &[T], _buffer: &GpuBuffer) -> Result<()> {
+        require_available("CUDA", self.is_available())?;
         // Transfer data to GPU
         Ok(())
     }
 
     fn transfer_from_gpu<T: Float>(&mut self, _buffer: &GpuBuffer, _data: &mut [T]) -> Result<()> {
+        require_available("CUDA", self.is_available())?;
         // Transfer data from GPU
         Ok(())
     }
@@ -228,6 +282,7 @@ impl GpuRuntime for CudaRuntime {
         _block_size: (u32, u32, u32),
         _args: &[GpuKernelArg],
     ) -> Result<()> {
+        require_available("CUDA", self.is_available())?;
         // Launch CUDA kernel
         self.performance_stats.kernel_launches += 1;
         Ok(())
@@ -314,25 +369,28 @@ impl MetalRuntime {
 
 impl GpuRuntime for MetalRuntime {
     fn initialize(&mut self) -> Result<()> {
-        // Initialize Metal device and command queue
-        self.device = Some(0x22222222); // Placeholder
-        self.command_queue = Some(0x33333333); // Placeholder
+        // No Metal FFI backend in this crate; only set a trivial "ready"
+        // marker when the Metal.framework is actually present, never a
+        // fabricated device/command-queue pointer.
+        if self.is_available() {
+            self.device = Some(1);
+            self.command_queue = Some(1);
+        }
         Ok(())
     }
 
     fn is_available(&self) -> bool {
-        // Check Metal availability (macOS only)
-        cfg!(target_os = "macos")
+        // Real check: target_os == macos AND Metal.framework actually present
+        // on disk -- see `AdvancedGpuComputer::is_metal_available`.
+        AdvancedGpuComputer::is_metal_available()
     }
 
     fn device_info(&self) -> HashMap<String, String> {
-        let mut info = HashMap::new();
-        info.insert("backend".to_string(), "Metal".to_string());
-        info.insert("device_name".to_string(), "Apple GPU".to_string());
-        info
+        honest_device_info("Metal", self.is_available())
     }
 
     fn allocate<T: Float>(&mut self, size: usize) -> Result<GpuBuffer> {
+        require_available("Metal", self.is_available())?;
         let buffer_size = size * std::mem::size_of::<T>();
         let buffer = GpuBuffer {
             id: scirs2_core::random::random::<u64>(),
@@ -344,11 +402,11 @@ impl GpuRuntime for MetalRuntime {
     }
 
     fn transfer_to_gpu<T: Float>(&mut self, _data: &[T], _buffer: &GpuBuffer) -> Result<()> {
-        Ok(())
+        require_available("Metal", self.is_available())
     }
 
     fn transfer_from_gpu<T: Float>(&mut self, _buffer: &GpuBuffer, _data: &mut [T]) -> Result<()> {
-        Ok(())
+        require_available("Metal", self.is_available())
     }
 
     fn launch_kernel(
@@ -358,7 +416,7 @@ impl GpuRuntime for MetalRuntime {
         _block_size: (u32, u32, u32),
         _args: &[GpuKernelArg],
     ) -> Result<()> {
-        Ok(())
+        require_available("Metal", self.is_available())
     }
 
     fn synchronize(&mut self) -> Result<()> {
@@ -408,26 +466,29 @@ impl VulkanRuntime {
 
 impl GpuRuntime for VulkanRuntime {
     fn initialize(&mut self) -> Result<()> {
-        // Initialize Vulkan instance, device, and command pool
-        self.instance = Some(0x55555555); // Placeholder
-        self.device = Some(0x66666666); // Placeholder
-        self.command_pool = Some(0x77777777); // Placeholder
+        // No Vulkan FFI backend in this crate; only set a trivial "ready"
+        // marker when a Vulkan loader was actually detected, never a
+        // fabricated instance/device/command-pool pointer.
+        if self.is_available() {
+            self.instance = Some(1);
+            self.device = Some(1);
+            self.command_pool = Some(1);
+        }
         Ok(())
     }
 
     fn is_available(&self) -> bool {
-        // Check Vulkan availability
-        true // Placeholder
+        // Real filesystem/environment probe (Vulkan loader libraries, SDK
+        // paths) -- see `AdvancedGpuComputer::is_vulkan_available`.
+        AdvancedGpuComputer::is_vulkan_available()
     }
 
     fn device_info(&self) -> HashMap<String, String> {
-        let mut info = HashMap::new();
-        info.insert("backend".to_string(), "Vulkan".to_string());
-        info.insert("api_version".to_string(), "1.3".to_string());
-        info
+        honest_device_info("Vulkan", self.is_available())
     }
 
     fn allocate<T: Float>(&mut self, size: usize) -> Result<GpuBuffer> {
+        require_available("Vulkan", self.is_available())?;
         let buffer_size = size * std::mem::size_of::<T>();
         let buffer = GpuBuffer {
             id: scirs2_core::random::random::<u64>(),
@@ -439,11 +500,11 @@ impl GpuRuntime for VulkanRuntime {
     }
 
     fn transfer_to_gpu<T: Float>(&mut self, _data: &[T], _buffer: &GpuBuffer) -> Result<()> {
-        Ok(())
+        require_available("Vulkan", self.is_available())
     }
 
     fn transfer_from_gpu<T: Float>(&mut self, _buffer: &GpuBuffer, _data: &mut [T]) -> Result<()> {
-        Ok(())
+        require_available("Vulkan", self.is_available())
     }
 
     fn launch_kernel(
@@ -453,7 +514,7 @@ impl GpuRuntime for VulkanRuntime {
         _block_size: (u32, u32, u32),
         _args: &[GpuKernelArg],
     ) -> Result<()> {
-        Ok(())
+        require_available("Vulkan", self.is_available())
     }
 
     fn synchronize(&mut self) -> Result<()> {
@@ -475,26 +536,31 @@ impl GpuRuntime for VulkanRuntime {
 
 impl GpuRuntime for OpenClRuntime {
     fn initialize(&mut self) -> Result<()> {
-        // Initialize OpenCL context and command queue
-        self.context = Some(0xAAAAAAAA); // Placeholder
-        self.command_queue = Some(0xBBBBBBBB); // Placeholder
+        // No OpenCL FFI backend in this crate; only set a trivial "ready"
+        // marker when an OpenCL runtime was actually detected, never a
+        // fabricated context/command-queue pointer.
+        if self.is_available() {
+            self.context = Some(1);
+            self.command_queue = Some(1);
+        }
         Ok(())
     }
 
     fn is_available(&self) -> bool {
-        // Check OpenCL availability
-        true // Placeholder
+        // Real filesystem probe (libOpenCL.so / vendor ICD paths) -- see
+        // `AdvancedGpuComputer::is_opencl_available`.
+        AdvancedGpuComputer::is_opencl_available()
     }
 
     fn device_info(&self) -> HashMap<String, String> {
-        let mut info = HashMap::new();
-        info.insert("backend".to_string(), "OpenCL".to_string());
+        let mut info = honest_device_info("OpenCL", self.is_available());
         info.insert("platform_id".to_string(), self.platform_id.to_string());
         info.insert("device_id".to_string(), self.device_id.to_string());
         info
     }
 
     fn allocate<T: Float>(&mut self, size: usize) -> Result<GpuBuffer> {
+        require_available("OpenCL", self.is_available())?;
         let buffer_size = size * std::mem::size_of::<T>();
         let buffer = GpuBuffer {
             id: scirs2_core::random::random::<u64>(),
@@ -506,11 +572,11 @@ impl GpuRuntime for OpenClRuntime {
     }
 
     fn transfer_to_gpu<T: Float>(&mut self, _data: &[T], _buffer: &GpuBuffer) -> Result<()> {
-        Ok(())
+        require_available("OpenCL", self.is_available())
     }
 
     fn transfer_from_gpu<T: Float>(&mut self, _buffer: &GpuBuffer, _data: &mut [T]) -> Result<()> {
-        Ok(())
+        require_available("OpenCL", self.is_available())
     }
 
     fn launch_kernel(
@@ -520,7 +586,7 @@ impl GpuRuntime for OpenClRuntime {
         _block_size: (u32, u32, u32),
         _args: &[GpuKernelArg],
     ) -> Result<()> {
-        Ok(())
+        require_available("OpenCL", self.is_available())
     }
 
     fn synchronize(&mut self) -> Result<()> {
@@ -537,17 +603,6 @@ impl GpuRuntime for OpenClRuntime {
 
     fn performance_stats(&self) -> GpuPerformanceStats {
         self.performance_stats.clone()
-    }
-}
-
-impl Default for GpuMemoryStats {
-    fn default() -> Self {
-        Self {
-            total_memory: 8 * 1024 * 1024 * 1024, // 8GB placeholder
-            free_memory: 8 * 1024 * 1024 * 1024,
-            used_memory: 0,
-            allocation_count: 0,
-        }
     }
 }
 
@@ -572,5 +627,143 @@ impl Default for MetalRuntime {
 impl Default for VulkanRuntime {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // These tests deliberately avoid hardcoding "must be false" for every
+    // backend, since e.g. OpenCL/Metal frameworks genuinely exist on some
+    // real macOS machines (this is not a fabricated `true`, it's a real
+    // filesystem probe). Instead they check that each runtime's
+    // `is_available()` exactly matches its underlying real probe -- proving
+    // the old unconditional `true`/`cfg!(target_os = "macos")` shortcuts are
+    // gone and real detection is actually wired in.
+
+    #[test]
+    fn cuda_is_available_delegates_to_the_real_probe() {
+        let runtime = CudaRuntime::new(0);
+        assert_eq!(
+            runtime.is_available(),
+            AdvancedGpuComputer::is_cuda_available()
+        );
+    }
+
+    #[test]
+    fn opencl_is_available_delegates_to_the_real_probe() {
+        let runtime = OpenClRuntime::new(0, 0);
+        assert_eq!(
+            runtime.is_available(),
+            AdvancedGpuComputer::is_opencl_available()
+        );
+    }
+
+    #[test]
+    fn metal_is_available_delegates_to_the_real_probe() {
+        let runtime = MetalRuntime::new();
+        assert_eq!(
+            runtime.is_available(),
+            AdvancedGpuComputer::is_metal_available()
+        );
+    }
+
+    #[test]
+    fn vulkan_is_available_delegates_to_the_real_probe() {
+        let runtime = VulkanRuntime::new();
+        assert_eq!(
+            runtime.is_available(),
+            AdvancedGpuComputer::is_vulkan_available()
+        );
+    }
+
+    // require_available()/honest_device_info() are the pure guard/reporting
+    // logic shared by every backend's "unavailable" path. Testing them
+    // directly (rather than through a real runtime's is_available() probe)
+    // gives deterministic coverage of the "never fabricate when absent"
+    // behavior regardless of what hardware happens to be on the machine
+    // running the test suite -- unlike a real probe, `false` here is not an
+    // environment assumption, it's an explicit input.
+    #[test]
+    fn require_available_errs_when_absent_and_oks_when_present() {
+        assert!(require_available("CUDA", false).is_err());
+        assert!(require_available("CUDA", true).is_ok());
+    }
+
+    #[test]
+    fn honest_device_info_reports_false_and_no_fabricated_specs_when_unavailable() {
+        let info = honest_device_info("CUDA", false);
+        assert_eq!(info.get("available").map(String::as_str), Some("false"));
+        // The old code always claimed compute_capability "8.0" / memory
+        // "8GB" regardless of hardware; an honestly-unavailable backend must
+        // not report either.
+        assert!(!info.contains_key("compute_capability"));
+        assert!(!info.contains_key("memory"));
+    }
+
+    // The tests below exercise the real CudaRuntime wiring end-to-end. They
+    // deliberately adapt to whatever `is_available()` reports on the machine
+    // running the suite (some CI boxes have no CUDA signals; this repo is
+    // also developed on a machine with a real GPU and CUDA installed) rather
+    // than hardcoding one outcome, and assert the honest invariant holds in
+    // either case: fabricated specs/handles/buffers never appear, and real
+    // hardware is never silently ignored either.
+
+    #[test]
+    fn device_info_never_fabricates_specs_regardless_of_availability() {
+        let runtime = CudaRuntime::new(0);
+        let available = runtime.is_available();
+        let info = runtime.device_info();
+        assert_eq!(
+            info.get("available").map(String::as_str),
+            Some(available.to_string().as_str())
+        );
+        // This crate has no FFI backend to query real device specs, so these
+        // must never appear -- whether or not hardware was detected.
+        assert!(!info.contains_key("compute_capability"));
+        assert!(!info.contains_key("memory"));
+    }
+
+    #[test]
+    fn allocate_succeeds_iff_hardware_is_actually_available() {
+        let mut runtime = CudaRuntime::new(0);
+        let available = runtime.is_available();
+        let result = runtime.allocate::<f64>(16);
+        assert_eq!(
+            result.is_ok(),
+            available,
+            "allocate() must not silently fabricate a GPU buffer when no hardware is present, \
+             and must not spuriously refuse when hardware is present"
+        );
+    }
+
+    #[test]
+    fn launch_kernel_succeeds_iff_hardware_is_actually_available() {
+        let mut runtime = CudaRuntime::new(0);
+        let available = runtime.is_available();
+        let result = runtime.launch_kernel("noop", (1, 1, 1), (1, 1, 1), &[]);
+        assert_eq!(result.is_ok(), available);
+    }
+
+    #[test]
+    fn initialize_only_sets_a_context_handle_when_hardware_is_actually_available() {
+        let mut runtime = CudaRuntime::new(0);
+        let available = runtime.is_available();
+        // initialize() itself still succeeds (it only sets up local Rust
+        // state), but must only set a context/stream handle when real
+        // hardware was actually detected -- never a fabricated pointer value
+        // pretending to be a genuine CUDA handle, and never left `None` when
+        // hardware genuinely is present.
+        assert!(runtime.initialize().is_ok());
+        assert_eq!(runtime.context.is_some(), available);
+        assert_eq!(runtime.stream.is_some(), available);
+    }
+
+    #[test]
+    fn memory_stats_default_does_not_fabricate_device_memory_size() {
+        let stats = GpuMemoryStats::default();
+        assert_eq!(stats.total_memory, 0);
+        assert_eq!(stats.free_memory, 0);
     }
 }

@@ -190,8 +190,6 @@ fn property_covariance_matrix_symmetry() {
 }
 
 #[test]
-#[ignore] // Extremely slow test: spearman_r_simd with quickcheck generates large inputs
-          // Run with: cargo test -- --ignored property_spearman_monotonic_invariance
 fn property_spearman_monotonic_invariance() {
     // Spearman correlation should be invariant under monotonic transformations
     fn test_monotonic(xs: Vec<f64>) -> TestResult {

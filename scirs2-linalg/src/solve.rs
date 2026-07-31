@@ -281,29 +281,69 @@ where
 
     // For underdetermined systems with full rank, use the normal equation approach
     if a.nrows() >= a.ncols() {
-        // QR decomposition approach
-        let (q, r) = qr(a, workers)?;
+        // Determine the *true* rank via singular values, mirroring the
+        // underdetermined branch below, instead of unconditionally assuming
+        // full column rank. A rank-deficient (or merely ill-conditioned) `a`
+        // previously produced a silently-misreported `rank` and a garbage
+        // solution (back substitution against a near/exactly-singular R).
+        let (svd_u, svd_s, svd_vt) = svd(a, false, workers)?;
+        let max_dim = a.nrows().max(a.ncols());
+        let max_dim_f = F::from(max_dim).ok_or_else(|| {
+            LinalgError::NumericalError(format!(
+                "Failed to convert matrix dimension {max_dim} to numeric type"
+            ))
+        })?;
+        let sv_threshold = if svd_s.is_empty() {
+            F::zero()
+        } else {
+            svd_s[0] * max_dim_f * F::epsilon()
+        };
+        let rank = svd_s.iter().filter(|&&val| val > sv_threshold).count();
 
-        // Compute Q^T * b
-        let qt = q.t().to_owned();
-        let mut qt_b = Array1::zeros(qt.nrows());
-        for i in 0..qt.nrows() {
-            for j in 0..qt.ncols() {
-                qt_b[i] += qt[[i, j]] * b[j];
+        let x = if rank == a.ncols() {
+            // Full column rank: the efficient QR back-substitution path is
+            // numerically well-posed.
+            let (q, r) = qr(a, workers)?;
+
+            // Compute Q^T * b
+            let qt = q.t().to_owned();
+            let mut qt_b = Array1::zeros(qt.nrows());
+            for i in 0..qt.nrows() {
+                for j in 0..qt.ncols() {
+                    qt_b[i] += qt[[i, j]] * b[j];
+                }
             }
-        }
 
-        // Get the effective rank
-        let rank = a.ncols(); // Assume full rank for now
+            // Extract the first part of Q^T * b corresponding to the rank
+            let qt_b_truncated = qt_b.slice(scirs2_core::ndarray::s![0..rank]).to_owned();
 
-        // Extract the first part of Q^T * b corresponding to the rank
-        let qt_b_truncated = qt_b.slice(scirs2_core::ndarray::s![0..rank]).to_owned();
+            // Solve R * x = Q^T * b using back substitution
+            let r_truncated = r
+                .slice(scirs2_core::ndarray::s![0..rank, 0..a.ncols()])
+                .to_owned();
+            solve_triangular(&r_truncated.view(), &qt_b_truncated.view(), false, false)?
+        } else {
+            // Rank-deficient: fall back to the SVD minimum-norm solution
+            // (same formula as the underdetermined branch below), since
+            // back substitution against a rank-deficient R would divide by
+            // a near-zero pivot and blow up.
+            let ut = svd_u.t().to_owned();
+            let mut ut_b = Array1::zeros(ut.nrows());
+            for i in 0..ut.nrows() {
+                for j in 0..ut.ncols() {
+                    ut_b[i] += ut[[i, j]] * b[j];
+                }
+            }
 
-        // Solve R * x = Q^T * b using back substitution
-        let r_truncated = r
-            .slice(scirs2_core::ndarray::s![0..rank, 0..a.ncols()])
-            .to_owned();
-        let x = solve_triangular(&r_truncated.view(), &qt_b_truncated.view(), false, false)?;
+            let mut x = Array1::zeros(a.ncols());
+            for i in 0..rank {
+                let s_inv = F::one() / svd_s[i];
+                for j in 0..a.ncols() {
+                    x[j] += svd_vt[[i, j]] * ut_b[i] * s_inv;
+                }
+            }
+            x
+        };
 
         // Compute residuals: ||Ax - b||²
         let mut residuals = F::zero();
@@ -316,14 +356,11 @@ where
             residuals += diff * diff;
         }
 
-        // Create singular values (empty for QR approach)
-        let s = Array1::zeros(0);
-
         Ok(LstsqResult {
             x,
             residuals,
             rank,
-            s,
+            s: svd_s,
         })
     } else {
         // Underdetermined system, use SVD
@@ -554,5 +591,56 @@ mod tests {
             .expect("Upper triangular unit diagonal solve should succeed");
         assert_relative_eq!(x[0], 2.0);
         assert_relative_eq!(x[1], 2.0);
+    }
+
+    #[test]
+    fn test_lstsq_overdetermined_full_rank() {
+        // Full column rank overdetermined system: fitting y = a + b*x through
+        // (1,6), (2,9), (3,12), an exact line y = 3 + 3x.
+        let a = array![[1.0, 1.0], [1.0, 2.0], [1.0, 3.0]];
+        let b = array![6.0, 9.0, 12.0];
+        let result = lstsq(&a.view(), &b.view(), None).expect("lstsq should succeed");
+
+        assert_eq!(
+            result.rank, 2,
+            "well-conditioned 3x2 system must be full column rank"
+        );
+        assert_relative_eq!(result.x[0], 3.0, epsilon = 1e-8);
+        assert_relative_eq!(result.x[1], 3.0, epsilon = 1e-8);
+        assert!(result.residuals < 1e-10);
+    }
+
+    #[test]
+    fn test_lstsq_overdetermined_rank_deficient_reports_true_rank() {
+        // Overdetermined (3 rows, 2 cols) but RANK-DEFICIENT: column 2 is
+        // exactly twice column 1, so `a` has rank 1, not 2. The old code
+        // unconditionally reported `rank = a.ncols() = 2` and ran back
+        // substitution against a (near-)singular R; the real rank must be
+        // detected via singular values, exactly like the underdetermined
+        // branch already did.
+        let a = array![[1.0, 2.0], [2.0, 4.0], [3.0, 6.0]];
+        // b lies exactly in the (rank-1) column space of `a` (b = 1 * column 1).
+        let b = array![1.0, 2.0, 3.0];
+
+        let result = lstsq(&a.view(), &b.view(), None).expect("lstsq should succeed");
+
+        assert_eq!(
+            result.rank, 1,
+            "rank-deficient 3x2 matrix (col2 = 2*col1) must report rank 1, not ncols=2"
+        );
+
+        // The solution must still actually (approximately) solve the system,
+        // and the residual must be (near) zero since b is exactly reachable.
+        assert!(result.residuals < 1e-10, "residuals={}", result.residuals);
+        for i in 0..3 {
+            let ax_i: f64 = (0..2).map(|j| a[[i, j]] * result.x[j]).sum();
+            assert_relative_eq!(ax_i, b[i], epsilon = 1e-6);
+        }
+
+        // Minimum-norm solution for this exact rank-1 system is (0.2, 0.4)
+        // (the unique least-squares solution among all x with A x = b that
+        // minimizes ||x||_2), which the SVD-based fallback path computes.
+        assert_relative_eq!(result.x[0], 0.2, epsilon = 1e-6);
+        assert_relative_eq!(result.x[1], 0.4, epsilon = 1e-6);
     }
 }

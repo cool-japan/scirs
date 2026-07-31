@@ -212,6 +212,15 @@ pub enum GraphError {
     #[error("Computation error: {0}")]
     ComputationError(String),
 
+    /// A requested capability is not implemented and, unlike most gaps in
+    /// this crate, genuinely is not planned to be: the feature is out of
+    /// scope for what a graph-processing library can honestly provide (e.g.
+    /// it would require hardware or a simulator this crate does not have
+    /// access to). Returned instead of silently no-op'ing or fabricating a
+    /// plausible-looking result.
+    #[error("Unsupported: {0}")]
+    Unsupported(String),
+
     /// Generic error for backward compatibility
     #[error("{0}")]
     Other(String),
@@ -367,6 +376,7 @@ impl GraphError {
             GraphError::IOError { .. } => false,
             GraphError::CoreError(_) => false,
             GraphError::ComputationError(_) => false,
+            GraphError::Unsupported(_) => false,
             GraphError::Other(_) => false,
         }
     }
@@ -412,6 +422,12 @@ impl GraphError {
                 "Adjust tolerance threshold".to_string(),
                 "Check for numerical stability issues".to_string(),
             ],
+            GraphError::Unsupported(_) => vec![
+                "This capability is out of scope for this crate and is not planned; \
+                 no retry or reconfiguration will make it succeed"
+                    .to_string(),
+                "Use a CPU-based (non-accelerated) code path instead".to_string(),
+            ],
             _ => vec!["Check input parameters and graph structure".to_string()],
         }
     }
@@ -433,6 +449,7 @@ impl GraphError {
             GraphError::Cancelled { .. } => "cancellation",
             GraphError::ConcurrencyError { .. } => "concurrency",
             GraphError::FormatError { .. } => "format",
+            GraphError::Unsupported(_) => "unsupported",
             _ => "other",
         }
     }

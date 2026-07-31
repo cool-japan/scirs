@@ -237,7 +237,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "Long-running stress test - tests large data sizes up to 500k points"]
     fn test_quick_production_readiness_check() {
         let result = quick_production_readiness_check();
         assert!(result.is_ok());
@@ -255,14 +254,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long-running stress test - f32 version of production readiness check"]
     fn test_quick_production_readiness_check_f32() {
         let result = quick_production_readiness_check_f32();
         assert!(result.is_ok());
     }
 
     #[test]
-    #[ignore = "Long-running stress test - comprehensive production validation"]
     fn test_validate_for_production() {
         let result = validate_for_production::<f64>();
         assert!(result.is_ok());
@@ -271,7 +268,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long-running stress test - generates deployment checklist after full testing"]
     fn test_generate_deployment_checklist() {
         let result = generate_deployment_checklist::<f64>();
         assert!(result.is_ok());
@@ -284,7 +280,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long-running stress test - runs targeted stress test categories"]
     fn test_targeted_stress_tests() {
         let categories = vec![
             StressTestCategory::ExtremeDataSize,
@@ -364,7 +359,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long-running stress test - validates deployment checklist content"]
     fn test_deployment_checklist_content() {
         // Test that deployment checklist contains expected items
         let result = generate_deployment_checklist::<f64>();

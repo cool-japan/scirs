@@ -1,9 +1,10 @@
 # scirs2-wasm TODO
 
-## Status: v0.6.3 (current, 2026-07-27)
+## Status: v0.6.5 (current, 2026-07-31)
 
 Re-surveyed for the 2026-07-15 release: no wasm-specific changes shipped in this release; this
-remains accurate through 0.6.2 and 0.6.3 — no wasm-specific changes have shipped in either. The
+remains accurate through 0.6.2, 0.6.3, 0.6.4, and 0.6.5 — no wasm-specific changes have shipped in
+any of them. The
 `getrandom_v3` workspace-dependency promotion and clippy fixes recorded below (2026-07-07) remain
 the latest crate-specific work. 0 `todo!()`/`unimplemented!()` markers in `src/`; the `NotImplemented`
 error-code path referenced in `error.rs` is declared but never actually constructed anywhere in

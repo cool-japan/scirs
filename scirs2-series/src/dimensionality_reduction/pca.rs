@@ -4,12 +4,13 @@
 //! functions including eigendecomposition and SVD-based approaches.
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis, ScalarOperand};
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::fmt::Debug;
+use std::iter::Sum;
 
 use crate::error::{Result, TimeSeriesError};
 
-/// Type alias for PCA computation results: (components, explained_variance, mean)
+/// Type alias for PCA computation results: (components, explained_variance, singular_values)
 pub(super) type PCAResultData<F> = (Array2<F>, Array1<F>, Option<Array1<F>>);
 
 /// Configuration for Principal Component Analysis
@@ -95,7 +96,16 @@ pub struct PCAResult<F> {
 #[allow(dead_code)]
 pub fn apply_pca<F>(data: &Array2<F>, config: &PCAConfig) -> Result<PCAResult<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + ScalarOperand + 'static,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Clone
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + ScalarOperand
+        + 'static,
 {
     use scirs2_core::ndarray::ArrayStatCompat;
 
@@ -163,6 +173,13 @@ where
     // Step 5: Transform the _data
     let transformed_data = processed_data.dot(&selected_components);
 
+    // Trim singular values (when SVD produced them) to the retained component
+    // count so all per-component fields on `PCAResult` agree on length.
+    let selected_singular_values = singular_values.map(|sv| {
+        let k = n_components.min(sv.len());
+        sv.slice(s![..k]).to_owned()
+    });
+
     Ok(PCAResult {
         transformed_data,
         components: selected_components,
@@ -171,7 +188,7 @@ where
         cumulative_variance_ratio,
         mean,
         std,
-        singular_values,
+        singular_values: selected_singular_values,
         n_components_selected: n_components,
     })
 }
@@ -183,16 +200,51 @@ where
 #[allow(dead_code)]
 pub(super) fn compute_pca_svd<F>(data: &Array2<F>, config: &PCAConfig) -> Result<PCAResultData<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + ScalarOperand + 'static,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Clone
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + ScalarOperand
+        + 'static,
 {
-    // For SVD approach: X = U * S * V^T
-    // Components are columns of V, explained variance is S^2 / (n-1)
+    // For the SVD approach: X = U * S * V^T
+    // The principal-component directions are the columns of V (rows of V^T),
+    // and the explained variance of each component is S^2 / n_samples — this
+    // matches `compute_covariance_matrix`'s convention (C = X^T X / n_samples)
+    // exactly, since X^T X = V S^2 V^T for the (economy) SVD of X.
+    //
+    // Working directly from the data matrix (rather than forming the
+    // n_features x n_features covariance matrix) is what makes this path
+    // numerically preferable for wide matrices (n_features > n_samples), as
+    // promised by `PCAConfig::use_svd`'s documentation.
+    let (n_samples, _n_features) = data.dim();
+    let n_samples_f = F::from(n_samples)
+        .ok_or_else(|| TimeSeriesError::ComputationError("Invalid sample count".to_string()))?;
 
-    let _n_samples_n_features = data.dim();
+    let (_u, singular_values, vt) = scirs2_linalg::svd(&data.view(), false, None)
+        .map_err(|e| TimeSeriesError::ComputationError(format!("SVD computation failed: {e}")))?;
 
-    // Simplified SVD computation (in practice, would use LAPACK)
-    // For now, we'll compute the covariance matrix approach as a fallback
-    compute_pca_eigendecomposition(data, config)
+    let eigenvalues = singular_values.mapv(|sv| (sv * sv) / n_samples_f);
+    let eigenvectors = vt.t().to_owned();
+
+    let (final_eigenvalues, final_eigenvectors) =
+        select_significant_components(eigenvalues, eigenvectors, config)?;
+
+    // Re-derive singular values from the retained eigenvalues (rather than
+    // tracking the sort/filter permutation) since sigma = sqrt(eigenvalue *
+    // n_samples) holds exactly for this decomposition.
+    let final_singular_values =
+        final_eigenvalues.mapv(|ev| (ev * n_samples_f).max(F::zero()).sqrt());
+
+    Ok((
+        final_eigenvectors,
+        final_eigenvalues,
+        Some(final_singular_values),
+    ))
 }
 
 #[allow(dead_code)]
@@ -201,16 +253,42 @@ pub(super) fn compute_pca_eigendecomposition<F>(
     config: &PCAConfig,
 ) -> Result<PCAResultData<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + ScalarOperand + 'static,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Clone
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + ScalarOperand
+        + 'static,
 {
-    let _n_samples_n_features = data.dim();
-
     // Compute covariance matrix
     let covariance = compute_covariance_matrix(data)?;
 
-    // Eigendecomposition (simplified - in practice would use LAPACK)
+    // Real symmetric eigendecomposition, delegated to scirs2-linalg.
     let (eigenvalues, eigenvectors) = compute_eigendecomposition(&covariance)?;
 
+    let (final_eigenvalues, final_eigenvectors) =
+        select_significant_components(eigenvalues, eigenvectors, config)?;
+
+    Ok((final_eigenvectors, final_eigenvalues, None))
+}
+
+/// Sort eigen-pairs by descending eigenvalue (if `config.sort_components`) and
+/// drop components whose eigenvalue does not clear `config.eigenvalue_tolerance`.
+///
+/// Shared by both the SVD-based and covariance-eigendecomposition-based PCA
+/// paths so their component-selection semantics stay identical.
+fn select_significant_components<F>(
+    eigenvalues: Array1<F>,
+    eigenvectors: Array2<F>,
+    config: &PCAConfig,
+) -> Result<(Array1<F>, Array2<F>)>
+where
+    F: Float + FromPrimitive + Debug + Clone + 'static,
+{
     // Sort by eigenvalues (descending) if requested
     let (sorted_eigenvalues, sorted_eigenvectors) = if config.sort_components {
         sort_eigen_pairs(eigenvalues, eigenvectors)?
@@ -218,7 +296,7 @@ where
         (eigenvalues, eigenvectors)
     };
 
-    // Filter out small eigenvalues
+    // Filter out small/noise eigenvalues
     let tolerance = F::from(config.eigenvalue_tolerance).expect("Failed to convert to float");
     let mut valid_components = 0;
     for &eigenval in sorted_eigenvalues.iter() {
@@ -234,7 +312,7 @@ where
         .slice(s![.., ..valid_components])
         .to_owned();
 
-    Ok((final_eigenvectors, final_eigenvalues, None))
+    Ok((final_eigenvalues, final_eigenvectors))
 }
 
 #[allow(dead_code)]
@@ -251,25 +329,54 @@ where
     Ok(covariance)
 }
 
+/// Compute the eigenvalues and eigenvectors of a real symmetric matrix
+/// (e.g. a covariance matrix), sorted by descending eigenvalue.
+///
+/// Delegates to `scirs2_linalg::eigh`, a pure-Rust symmetric eigensolver
+/// (analytic solutions for small matrices, iterative solvers for larger
+/// ones). The input is defensively symmetrized first since `eigh` requires
+/// exact symmetry and floating-point summation order (e.g. in `X^T X`) can
+/// introduce tiny asymmetries.
 #[allow(dead_code)]
 pub(super) fn compute_eigendecomposition<F>(matrix: &Array2<F>) -> Result<(Array1<F>, Array2<F>)>
 where
-    F: Float + FromPrimitive + Debug + Clone + 'static,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Clone
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + ScalarOperand
+        + 'static,
 {
-    // Simplified eigendecomposition
-    // In practice, this would use LAPACK's dsyev or similar
-
     let n = matrix.nrows();
+    if n == 0 || matrix.ncols() != n {
+        return Err(TimeSeriesError::InvalidInput(format!(
+            "compute_eigendecomposition requires a square matrix, got shape {:?}",
+            matrix.dim()
+        )));
+    }
 
-    // For demonstration, we'll create mock eigenvalues and eigenvectors
-    // In a real implementation, this would use proper numerical libraries
-    let eigenvalues = Array1::from_shape_fn(n, |i| {
-        F::from(n - i).expect("Failed to convert to float") // Decreasing eigenvalues
-    });
+    let two = F::one() + F::one();
+    let mut symmetric = matrix.clone();
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let avg = (symmetric[[i, j]] + symmetric[[j, i]]) / two;
+            symmetric[[i, j]] = avg;
+            symmetric[[j, i]] = avg;
+        }
+    }
 
-    let eigenvectors = Array2::eye(n);
+    let (eigenvalues, eigenvectors) =
+        scirs2_linalg::eigh(&symmetric.view(), None).map_err(|e| {
+            TimeSeriesError::ComputationError(format!("Eigendecomposition failed: {e}"))
+        })?;
 
-    Ok((eigenvalues, eigenvectors))
+    // `eigh` does not guarantee a particular ordering; PCA callers rely on
+    // the dominant component appearing first, so sort descending here.
+    sort_eigen_pairs(eigenvalues, eigenvectors)
 }
 
 #[allow(dead_code)]

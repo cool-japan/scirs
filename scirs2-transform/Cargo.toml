@@ -33,6 +33,7 @@ regex = { workspace = true }
 ahash = { workspace = true }
 statrs = { workspace = true }
 rayon = { workspace = true }
+sysinfo = { workspace = true }
 
 # Optional dependencies for new features
 tokio = { workspace = true, optional = true, features = ["full"] }

@@ -30,8 +30,8 @@ use rand::{Rng, RngExt};
 
 use super::error::{QuantumError, QuantumResult};
 use super::gates::{
-    apply_gate, Fredkin, Hadamard, Identity, PauliX, PauliY, PauliZ, PhaseS, PhaseSdg, PhaseT,
-    PhaseTdg, PhaseShift, QuantumGate, RotX, RotY, RotZ, CNOT, CZ, SWAP, Toffoli, Unitary1Q, CU,
+    apply_gate, Fredkin, Hadamard, Identity, PauliX, PauliY, PauliZ, PhaseS, PhaseSdg, PhaseShift,
+    PhaseT, PhaseTdg, QuantumGate, RotX, RotY, RotZ, Toffoli, Unitary1Q, CNOT, CU, CZ, SWAP,
 };
 use super::qubits::QubitRegister;
 
@@ -188,7 +188,7 @@ impl QuantumCircuit {
 
     /// Measure all qubits of `state` once, returning a bit-string (qubit 0 first).
     ///
-    /// Does *not* collapse the state; call this method on the result of [`run`].
+    /// Does *not* collapse the state; call this method on the result of [`Self::run`].
     pub fn measure_all<R: Rng>(
         &self,
         state: &QubitRegister,
@@ -221,9 +221,7 @@ impl QuantumCircuit {
             });
         }
         let final_state = self.run(initial_state.clone())?;
-        let results = (0..shots)
-            .map(|_| final_state.measure_all(rng))
-            .collect();
+        let results = (0..shots).map(|_| final_state.measure_all(rng)).collect();
         Ok(results)
     }
 
@@ -355,7 +353,12 @@ impl QuantumCircuit {
 
 impl std::fmt::Debug for QuantumCircuit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "QuantumCircuit({} qubits, {} ops)", self.n_qubits, self.ops.len())?;
+        write!(
+            f,
+            "QuantumCircuit({} qubits, {} ops)",
+            self.n_qubits,
+            self.ops.len()
+        )?;
         for (i, op) in self.ops.iter().enumerate() {
             write!(f, "\n  [{i}] {} on {:?}", op.gate.name(), op.qubits)?;
         }
@@ -373,8 +376,10 @@ impl std::fmt::Debug for QuantumCircuit {
 /// |Φ+⟩ = (|00⟩ + |11⟩) / √2.
 pub fn bell_pair_circuit() -> QuantumCircuit {
     let mut c = QuantumCircuit::new(2);
-    c.h(0).expect("h gate on qubit 0 is always valid for 2-qubit circuit");
-    c.cx(0, 1).expect("cx gate on qubits 0,1 is always valid for 2-qubit circuit");
+    c.h(0)
+        .expect("h gate on qubit 0 is always valid for 2-qubit circuit");
+    c.cx(0, 1)
+        .expect("cx gate on qubits 0,1 is always valid for 2-qubit circuit");
     c
 }
 
@@ -496,11 +501,7 @@ pub fn phase_estimation_circuit(
 impl QuantumCircuit {
     /// Internal helper: append a gate operation by cloning the gate matrix into a
     /// `MatrixGate` wrapper.  Used to import sub-circuits.
-    fn add_gate_raw(
-        &mut self,
-        gate: &dyn QuantumGate,
-        qubits: &[usize],
-    ) -> QuantumResult<()> {
+    fn add_gate_raw(&mut self, gate: &dyn QuantumGate, qubits: &[usize]) -> QuantumResult<()> {
         // Bounds-check qubits (relative to this circuit's qubit count).
         for &q in qubits {
             if q >= self.n_qubits {
@@ -636,7 +637,10 @@ mod tests {
         let circ = bell_pair_circuit();
         let wrong = QubitRegister::new_zero_state(3).expect("valid");
         let err = circ.run(wrong);
-        assert!(matches!(err, Err(QuantumError::CircuitRegisterMismatch { .. })));
+        assert!(matches!(
+            err,
+            Err(QuantumError::CircuitRegisterMismatch { .. })
+        ));
     }
 
     #[test]
@@ -644,7 +648,10 @@ mod tests {
         let circ = qft_circuit(2).expect("valid");
         let init = QubitRegister::new_zero_state(2).expect("valid");
         let state = circ.run(init).expect("run ok");
-        assert!(state.is_normalised(1e-10), "QFT output should be normalised");
+        assert!(
+            state.is_normalised(1e-10),
+            "QFT output should be normalised"
+        );
     }
 
     #[test]

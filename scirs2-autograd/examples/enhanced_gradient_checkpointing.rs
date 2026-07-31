@@ -41,10 +41,15 @@ fn main() {
         // Start tracking memory usage
         T::CheckpointProfiler::start_tracking();
 
-        // Convert weights to tensors
+        // Convert weights to tensors. These are differentiated below via
+        // T::grad, so they must be `T::variable`: `T::convert_to_tensor`
+        // marks each node non-differentiable, which makes `on_backprop_path`
+        // false all the way up to the loss, so the backward pass used to
+        // terminate immediately without ever touching any of the `depth`
+        // simulated layers -- defeating the entire point of this benchmark.
         let weight_tensors: Vec<_> = weights
             .iter()
-            .map(|w| T::convert_to_tensor(w.clone(), ctx))
+            .map(|w| T::variable(w.clone(), ctx))
             .collect();
 
         // Create input
@@ -69,9 +74,17 @@ fn main() {
         // Backward pass
         let grads = T::grad(&[loss], &weight_tensors.iter().collect::<Vec<_>>());
 
-        // Evaluate gradients
+        // Evaluate gradients. With `depth` layers of relu(matmul(.., 0.01-scaled
+        // weight)), the activations legitimately underflow to exact zero well
+        // before layer `depth` (a real vanishing-gradient effect of this toy
+        // network's hyperparameters, not a footgun), so we only assert
+        // finiteness here rather than non-zero-ness.
         for grad in grads {
-            let _ = grad.eval(ctx);
+            let grad_val = grad.eval(ctx).expect("gradient should be evaluable");
+            assert!(
+                grad_val.iter().all(|v: &f32| v.is_finite()),
+                "gradient must be finite even where it legitimately vanishes"
+            );
         }
 
         T::CheckpointProfiler::stop_tracking();
@@ -95,10 +108,12 @@ fn main() {
         T::CheckpointProfiler::reset_statistics();
         T::CheckpointProfiler::start_tracking();
 
-        // Convert weights to tensors
+        // Convert weights to tensors. Differentiated below via T::grad, so
+        // `T::variable` is required (see the "no checkpointing" section above
+        // for why `T::convert_to_tensor` would defeat the whole benchmark).
         let weight_tensors: Vec<_> = weights
             .iter()
-            .map(|w| T::convert_to_tensor(w.clone(), ctx))
+            .map(|w| T::variable(w.clone(), ctx))
             .collect();
 
         // Create input
@@ -134,9 +149,14 @@ fn main() {
         // Backward pass
         let grads = T::grad(&[loss], &weight_tensors.iter().collect::<Vec<_>>());
 
-        // Evaluate gradients
+        // Evaluate gradients (see the "no checkpointing" section above for why
+        // only finiteness, not non-zero-ness, is asserted).
         for grad in grads {
-            let _ = grad.eval(ctx);
+            let grad_val = grad.eval(ctx).expect("gradient should be evaluable");
+            assert!(
+                grad_val.iter().all(|v: &f32| v.is_finite()),
+                "gradient must be finite even where it legitimately vanishes"
+            );
         }
 
         let memory_saved = T::CheckpointProfiler::memory_saved();
@@ -171,10 +191,11 @@ fn main() {
         T::CheckpointProfiler::reset_statistics();
         T::CheckpointProfiler::start_tracking();
 
-        // Convert weights to tensors
+        // Convert weights to tensors. Differentiated below via T::grad, so
+        // `T::variable` is required (see section 1 above for details).
         let weight_tensors: Vec<_> = weights
             .iter()
-            .map(|w| T::convert_to_tensor(w.clone(), ctx))
+            .map(|w| T::variable(w.clone(), ctx))
             .collect();
 
         // Create input
@@ -203,9 +224,14 @@ fn main() {
         // Backward pass
         let grads = T::grad(&[loss], &weight_tensors.iter().collect::<Vec<_>>());
 
-        // Evaluate gradients
+        // Evaluate gradients (see section 1 above for why only finiteness is
+        // asserted here).
         for grad in grads {
-            let _ = grad.eval(ctx);
+            let grad_val = grad.eval(ctx).expect("gradient should be evaluable");
+            assert!(
+                grad_val.iter().all(|v: &f32| v.is_finite()),
+                "gradient must be finite even where it legitimately vanishes"
+            );
         }
 
         let memory_saved = T::CheckpointProfiler::memory_saved();
@@ -218,8 +244,14 @@ fn main() {
             T::CheckpointProfiler::checkpoint_count()
         );
 
-        // Calculate adaptive checkpointing memory estimate
-        adaptive_ckpt_memory_estimate = non_ckpt_memory_estimate - memory_saved;
+        // Calculate adaptive checkpointing memory estimate. `memory_saved` is
+        // the profiler's own internal accounting (which can legitimately
+        // exceed this file's simple `feature_size * size_of::<f32>()` per-layer
+        // estimate, e.g. if it accounts for recomputation overhead
+        // differently); saturate instead of panicking on underflow so this
+        // pre-existing arithmetic mismatch (unrelated to the convert_to_tensor
+        // footgun) doesn't crash the example.
+        adaptive_ckpt_memory_estimate = non_ckpt_memory_estimate.saturating_sub(memory_saved);
 
         T::CheckpointProfiler::stop_tracking();
     });
@@ -233,14 +265,19 @@ fn main() {
 
     println!("\n4. Running with checkpoint group for multi-output operations...");
 
+    // Plain arrays kept outside the graph so a finite-difference check can
+    // perturb them and rebuild a fresh graph for verification below.
+    let a_arr = Array2::<f32>::eye(feature_size);
+    let b_arr = Array2::<f32>::ones((feature_size, feature_size));
+
     // Example using checkpoint groups for functions with multiple outputs
-    ag::run(|ctx| {
-        // Create inputs for a multi-output operation
-        let a = T::convert_to_tensor(Array2::<f32>::eye(feature_size).into_dyn(), ctx);
-        let b = T::convert_to_tensor(
-            Array2::<f32>::ones((feature_size, feature_size)).into_dyn(),
-            ctx,
-        );
+    let (grad1_val, grad2_val) = ag::run(|ctx| {
+        // Create inputs for a multi-output operation. Both are differentiated
+        // below via T::grad, so they must be `T::variable`: `convert_to_tensor`
+        // would silently zero every gradient in this section regardless of
+        // whether adaptive checkpointing preserves it correctly.
+        let a = T::variable(a_arr.clone().into_dyn(), ctx);
+        let b = T::variable(b_arr.clone().into_dyn(), ctx);
 
         println!("  Running multi-output operation without checkpointing...");
         let start = Instant::now();
@@ -252,7 +289,7 @@ fn main() {
 
         let loss1 = T::sum_all(c1) + T::sum_all(c2) + T::sum_all(c3);
         let grad1 = T::grad(&[loss1], &[&a])[0];
-        let _ = grad1.eval(ctx);
+        let grad1_val = grad1.eval(ctx).expect("Operation failed");
 
         let normal_time = start.elapsed();
         println!("    Time: {:?}", normal_time);
@@ -276,7 +313,7 @@ fn main() {
         let loss2 =
             T::sum_all(c1_checkpoint) + T::sum_all(c2_checkpoint) + T::sum_all(c3_checkpoint);
         let grad2 = T::grad(&[loss2], &[&a])[0];
-        let _ = grad2.eval(ctx);
+        let grad2_val = grad2.eval(ctx).expect("Operation failed");
 
         let adaptive_time = start.elapsed();
         println!("    Time: {:?}", adaptive_time);
@@ -284,7 +321,60 @@ fn main() {
             "    Time ratio: {:.2}x",
             adaptive_time.as_millis() as f64 / normal_time.as_millis() as f64
         );
+
+        (grad1_val, grad2_val)
     });
+
+    // Real correctness check (this used to pass vacuously: `a`/`b` were built
+    // with `convert_to_tensor`, so both `grad1` and `grad2` were silently the
+    // exact-zero fallback and trivially "matched" no matter what
+    // adaptive_checkpoint did).
+    let max_mismatch = grad1_val
+        .iter()
+        .zip(grad2_val.iter())
+        .map(|(x, y)| (x - y).abs())
+        .fold(0.0_f32, f32::max);
+    assert!(
+        max_mismatch < 1e-2,
+        "adaptive checkpointing must preserve the gradient: max |grad1 - grad2| = {max_mismatch}"
+    );
+    let grad1_abs_sum: f32 = grad1_val.iter().map(|v| v.abs()).sum();
+    assert!(
+        grad1_abs_sum > 0.0,
+        "gradient must be genuinely non-zero (it was a silent zero fallback before the fix)"
+    );
+    println!(
+        "    Consistency verified: max |grad1 - grad2| = {max_mismatch:.6}, sum|grad1| = {grad1_abs_sum:.3}"
+    );
+
+    // Independent finite-difference spot check on a single entry of `a`.
+    {
+        let h = 1.0_f32;
+        let mut a_plus = a_arr.clone();
+        a_plus[[0, 0]] += h;
+        let mut a_minus = a_arr.clone();
+        a_minus[[0, 0]] -= h;
+        let forward = |a_val: &Array2<f32>| -> f32 {
+            ag::run(|ctx| {
+                let a_t = T::convert_to_tensor(a_val.clone().into_dyn(), ctx);
+                let b_t = T::convert_to_tensor(b_arr.clone().into_dyn(), ctx);
+                let c1 = T::matmul(a_t, b_t);
+                let c2 = T::transpose(c1, &[1, 0]);
+                let c3 = T::matmul(c1, c2);
+                let loss = T::sum_all(c1) + T::sum_all(c2) + T::sum_all(c3);
+                loss.eval(ctx).expect("Operation failed")[[]]
+            })
+        };
+        let numeric = (forward(&a_plus) - forward(&a_minus)) / (2.0 * h);
+        let analytic = grad1_val[[0, 0]];
+        assert!(
+            (numeric - analytic).abs() < numeric.abs().max(1.0) * 0.05,
+            "finite-difference check failed at a[0,0]: analytic={analytic}, numeric={numeric}"
+        );
+        println!(
+            "    Finite-difference spot check at a[0,0]: analytic={analytic:.3}, numeric={numeric:.3}"
+        );
+    }
 
     println!("\nComparison Summary:");
     println!("--------------------");

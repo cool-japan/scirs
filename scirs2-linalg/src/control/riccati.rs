@@ -608,9 +608,14 @@ pub fn dare_solve<F: RiccatiFloat>(
 
     // Try symplectic Schur approach first (Laub, 1979).
     if let Ok(p_sym) = dare_symplectic(&a_own, &s, &q_own, n) {
-        let res = dare_residual_norm(&a_own, &b_own, &q_own, &r_own, &p_sym, n, m);
-        if res < F::from(1e-4).unwrap_or(F::epsilon()) {
-            return Ok(p_sym);
+        // `None` means the residual is genuinely undefined for this candidate
+        // (Bᵀ P B + R singular); treat that as "reject", not as "accept with
+        // an uncontrolled substitute value", and fall through to value
+        // iteration below.
+        if let Some(res) = dare_residual_norm(&a_own, &b_own, &q_own, &r_own, &p_sym, n, m) {
+            if res < F::from(1e-4).unwrap_or(F::epsilon()) {
+                return Ok(p_sym);
+            }
         }
     }
 
@@ -662,15 +667,20 @@ pub fn dare_solve<F: RiccatiFloat>(
         }
     }
 
-    // Check final residual
-    let res_norm = dare_residual_norm(&a_own, &b_own, &q_own, &r_own, &p, n, m);
-    if res_norm < F::from(1e-5).unwrap_or(F::epsilon()) {
-        return Ok(p);
+    // Check final residual. A `None` residual (Bᵀ P B + R singular for this
+    // `p`) is treated as non-convergence rather than silently substituting a
+    // zero inverse into the residual computation.
+    match dare_residual_norm(&a_own, &b_own, &q_own, &r_own, &p, n, m) {
+        Some(res_norm) if res_norm < F::from(1e-5).unwrap_or(F::epsilon()) => Ok(p),
+        Some(res_norm) => Err(LinalgError::ConvergenceError(format!(
+            "DARE did not converge; final residual = {res_norm}"
+        ))),
+        None => Err(LinalgError::ConvergenceError(
+            "DARE did not converge: final residual is undefined because (Bᵀ P B + R) is \
+             singular for the candidate solution"
+                .to_string(),
+        )),
     }
-
-    Err(LinalgError::ConvergenceError(format!(
-        "DARE did not converge; final residual = {res_norm}"
-    )))
 }
 
 /// Internal: solve DARE via symplectic matrix Schur decomposition (Laub, 1979).
@@ -735,6 +745,13 @@ fn dare_symplectic<F: RiccatiFloat>(
 }
 
 /// Compute DARE residual norm: ‖Aᵀ P A - P - Aᵀ P B (Bᵀ P B + R)⁻¹ Bᵀ P A + Q‖_F
+///
+/// Returns `None` if `(Bᵀ P B + R)` is singular, in which case the residual
+/// is genuinely undefined for the candidate `p`. Callers must treat `None`
+/// as "reject this candidate / not converged", never as an implicit zero
+/// residual: silently substituting a zero matrix for the failed inverse (as
+/// this function used to) changes the computed residual in an uncontrolled
+/// way and can cause a bad candidate to be accepted or a good one rejected.
 fn dare_residual_norm<F: RiccatiFloat>(
     a: &Array2<F>,
     b: &Array2<F>,
@@ -743,7 +760,7 @@ fn dare_residual_norm<F: RiccatiFloat>(
     p: &Array2<F>,
     n: usize,
     m: usize,
-) -> F {
+) -> Option<F> {
     let at = a.t().to_owned();
     let bt = b.t().to_owned();
     let atp = mm(&at, p);
@@ -758,10 +775,7 @@ fn dare_residual_norm<F: RiccatiFloat>(
         }
         reg
     };
-    let inv = match mat_inv(&btpb_r) {
-        Ok(v) => v,
-        Err(_) => Array2::<F>::zeros((m, m)),
-    };
+    let inv = mat_inv(&btpb_r).ok()?;
     let atpb = mm(&atp, b);
     let correction = mm(&mm(&atpb, &inv), &mm(&bt, &mm(p, a)));
 
@@ -771,7 +785,7 @@ fn dare_residual_norm<F: RiccatiFloat>(
             res[[i, j]] = atpa[[i, j]] - p[[i, j]] - correction[[i, j]] + q[[i, j]];
         }
     }
-    frob_norm(&res)
+    Some(frob_norm(&res))
 }
 
 // ---------------------------------------------------------------------------
@@ -834,6 +848,7 @@ mod tests {
         let n = a.nrows();
         let m = b.ncols();
         dare_residual_norm(a, b, q, r, p, n, m)
+            .expect("(Bᵀ P B + R) should be invertible for a valid DARE solution")
     }
 
     #[test]
@@ -892,5 +907,22 @@ mod tests {
         }
         let res = dare_residual_check(&a, &b, &q, &r, &p);
         assert!(res < 1e-4, "DARE stable residual = {res}");
+    }
+
+    #[test]
+    fn test_dare_residual_norm_returns_none_when_singular() {
+        // B = 0 and R = 0 make (Bᵀ P B + R) the exact zero (singular) matrix
+        // regardless of P: the residual must be reported as undefined
+        // (`None`), never silently computed by substituting a zero inverse.
+        let a = array![[1.0_f64, 0.0], [0.0, 1.0]];
+        let b = array![[0.0_f64], [0.0]];
+        let q = array![[1.0_f64, 0.0], [0.0, 1.0]];
+        let r = array![[0.0_f64]];
+        let p = array![[1.0_f64, 0.0], [0.0, 1.0]];
+        let result = dare_residual_norm(&a, &b, &q, &r, &p, 2, 1);
+        assert!(
+            result.is_none(),
+            "expected None for singular (Bᵀ P B + R), got {result:?}"
+        );
     }
 }

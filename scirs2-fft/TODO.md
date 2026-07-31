@@ -1,8 +1,8 @@
 # scirs2-fft Development TODO
 
-## Status: v0.6.3 (released, 2026-07-27)
+## Status: v0.6.5 (released, 2026-07-31)
 
-Untouched by this release's fix work (no fft-specific changes shipped in 0.6.3); the status and
+Untouched by this release's fix work (no fft-specific changes shipped in 0.6.5); the status and
 test results below — last reviewed against source on 2026-07-22 — remain accurate since the crate
 source is unchanged.
 

@@ -14,7 +14,7 @@
 use std::any::{Any, TypeId};
 use std::collections::HashMap;
 
-use ::ndarray::{Array1, Array2, Ix1, Ix2, IxDyn};
+use ::ndarray::{Ix1, Ix2, IxDyn};
 
 use crate::array_protocol::{
     get_implementing_args, ArrayFunction, ArrayProtocol, NdarrayWrapper, NotImplemented,
@@ -87,7 +87,8 @@ array_function_dispatch!(
         let boxed_a = Box::new(a.box_clone());
         let boxed_b = Box::new(b.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a, boxed_b];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::matmul", &boxed_args);
         if implementing_args.is_empty() {
             // Comprehensive fallback implementation for ndarray types
 
@@ -107,7 +108,7 @@ array_function_dispatch!(
                         for l in 0..k {
                             sum += a_array_owned[[i, l]] * b_array_owned[[l, j]];
                         }
-                        result[[0, j]] = sum;
+                        result[[i, j]] = sum;
                     }
                 }
                 return Ok(Box::new(NdarrayWrapper::new(result)));
@@ -136,7 +137,7 @@ array_function_dispatch!(
                         for l in 0..k {
                             sum += a_array_owned[[i, l]] * b_array_owned[[l, j]];
                         }
-                        result[[0, j]] = sum;
+                        result[[i, j]] = sum;
                     }
                 }
                 return Ok(Box::new(NdarrayWrapper::new(result)));
@@ -158,7 +159,7 @@ array_function_dispatch!(
                         for l in 0..k {
                             sum += a_array_owned[[i, l]] * b_array_owned[[l, j]];
                         }
-                        result[[0, j]] = sum;
+                        result[[i, j]] = sum;
                     }
                 }
                 return Ok(Box::new(NdarrayWrapper::new(result)));
@@ -187,7 +188,7 @@ array_function_dispatch!(
                         for l in 0..k {
                             sum += a_array_owned[[i, l]] * b_array_owned[[l, j]];
                         }
-                        result[[0, j]] = sum;
+                        result[[i, j]] = sum;
                     }
                 }
                 return Ok(Box::new(NdarrayWrapper::new(result)));
@@ -229,7 +230,8 @@ array_function_dispatch!(
         let boxed_a = Box::new(a.box_clone());
         let boxed_b = Box::new(b.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a, boxed_b];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::add", &boxed_args);
         if implementing_args.is_empty() {
             // Comprehensive fallback implementation for ndarray types
 
@@ -361,7 +363,8 @@ array_function_dispatch!(
         let boxed_a = Box::new(a.box_clone());
         let boxed_b = Box::new(b.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a, boxed_b];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::subtract", &boxed_args);
         if implementing_args.is_empty() {
             // Comprehensive fallback implementation for ndarray types
 
@@ -493,7 +496,8 @@ array_function_dispatch!(
         let boxed_a = Box::new(a.box_clone());
         let boxed_b = Box::new(b.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a, boxed_b];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::multiply", &boxed_args);
         if implementing_args.is_empty() {
             // Comprehensive fallback implementation for ndarray types
 
@@ -621,7 +625,8 @@ array_function_dispatch!(
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::sum", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             // Try with Ix2 dimension first (most common case)
@@ -681,7 +686,8 @@ array_function_dispatch!(
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::transpose", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             // Try with Ix2 dimension first (most common case)
@@ -750,7 +756,10 @@ where
     // Get implementing args
     let boxed_a = Box::new(a.box_clone());
     let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-    let implementing_args = get_implementing_args(&boxed_args);
+    let implementing_args = get_implementing_args(
+        "scirs2::array_protocol::operations::apply_elementwise",
+        &boxed_args,
+    );
     if implementing_args.is_empty() {
         // Fallback implementation for ndarray types
         if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
@@ -793,7 +802,10 @@ array_function_dispatch!(
             .map(|&a| Box::new(a.box_clone()) as Box<dyn Any>)
             .collect();
 
-        let implementing_args = get_implementing_args(&boxed_arrays);
+        let implementing_args = get_implementing_args(
+            "scirs2::array_protocol::operations::concatenate",
+            &boxed_arrays,
+        );
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             // For simplicity, we'll handle just the 2D f64 case
@@ -854,7 +866,8 @@ array_function_dispatch!(
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::reshape", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             // Try with Ix2 dimension first (most common case)
@@ -928,22 +941,31 @@ array_function_dispatch!(
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::svd", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-                // For this example, we'll use a placeholder implementation
-                // In a real implementation, we would use an actual SVD algorithm
-                let (m, n) = a_array.as_array().dim();
-                let u = Array2::<f64>::eye(m);
-                let s = Array1::<f64>::ones(std::cmp::min(m, n));
-                let vt = Array2::<f64>::eye(n);
-
-                return Ok((
-                    Box::new(NdarrayWrapper::new(u)),
-                    Box::new(NdarrayWrapper::new(s)),
-                    Box::new(NdarrayWrapper::new(vt)),
-                ));
+                // Real SVD via the OxiBLAS-backed LAPACK bindings (only
+                // available when the `linalg` feature is enabled, since that
+                // feature gates the optional oxiblas-* dependencies).
+                #[cfg(feature = "linalg")]
+                {
+                    let svd_result = crate::linalg::svd_ndarray(a_array.as_array())
+                        .map_err(|e| OperationError::Other(format!("SVD failed: {e}")))?;
+                    return Ok((
+                        Box::new(NdarrayWrapper::new(svd_result.u)),
+                        Box::new(NdarrayWrapper::new(svd_result.s)),
+                        Box::new(NdarrayWrapper::new(svd_result.vt)),
+                    ));
+                }
+                #[cfg(not(feature = "linalg"))]
+                {
+                    return Err(OperationError::NotImplemented(
+                        "svd requires the `linalg` feature (OxiBLAS-backed decomposition) to be enabled"
+                            .to_string(),
+                    ));
+                }
             }
             return Err(OperationError::NotImplemented(
                 "svd not implemented for this array type".to_string(),
@@ -985,12 +1007,11 @@ array_function_dispatch!(
         // Get implementing args
         let boxed_a = Box::new(a.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::operations::inverse", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-                // For this example, we'll use a placeholder implementation
-                // In a real implementation, we would use an actual matrix inversion algorithm
                 let (m, n) = a_array.as_array().dim();
                 if m != n {
                     return Err(OperationError::ShapeMismatch(
@@ -998,9 +1019,24 @@ array_function_dispatch!(
                     ));
                 }
 
-                // Placeholder: just return the identity matrix
-                let result = Array2::<f64>::eye(m);
-                return Ok(Box::new(NdarrayWrapper::new(result)));
+                // Real matrix inversion via the OxiBLAS-backed LAPACK
+                // bindings (only available when the `linalg` feature is
+                // enabled, since that feature gates the optional oxiblas-*
+                // dependencies).
+                #[cfg(feature = "linalg")]
+                {
+                    let inv = crate::linalg::inv_ndarray(a_array.as_array()).map_err(|e| {
+                        OperationError::Other(format!("Matrix inversion failed: {e}"))
+                    })?;
+                    return Ok(Box::new(NdarrayWrapper::new(inv)));
+                }
+                #[cfg(not(feature = "linalg"))]
+                {
+                    return Err(OperationError::NotImplemented(
+                        "inverse requires the `linalg` feature (OxiBLAS-backed decomposition) to be enabled"
+                            .to_string(),
+                    ));
+                }
             }
             return Err(OperationError::NotImplemented(
                 "inverse not implemented for this array type".to_string(),
@@ -1037,7 +1073,10 @@ pub fn multiply_by_scalar_f64(
     // Get implementing args
     let boxed_a = Box::new(a.box_clone());
     let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-    let implementing_args = get_implementing_args(&boxed_args);
+    let implementing_args = get_implementing_args(
+        "scirs2::array_protocol::operations::multiply_by_scalar_f64",
+        &boxed_args,
+    );
     if implementing_args.is_empty() {
         // Fallback implementation for ndarray types
         if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix1>>() {
@@ -1088,7 +1127,10 @@ pub fn multiply_by_scalar_f32(
     // Get implementing args
     let boxed_a = Box::new(a.box_clone());
     let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-    let implementing_args = get_implementing_args(&boxed_args);
+    let implementing_args = get_implementing_args(
+        "scirs2::array_protocol::operations::multiply_by_scalar_f32",
+        &boxed_args,
+    );
     if implementing_args.is_empty() {
         // Fallback implementation for ndarray types
         if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f32, Ix1>>() {
@@ -1139,7 +1181,10 @@ pub fn divide_by_scalar_f64(
     // Get implementing args
     let boxed_a = Box::new(a.box_clone());
     let boxed_args: Vec<Box<dyn Any>> = vec![boxed_a];
-    let implementing_args = get_implementing_args(&boxed_args);
+    let implementing_args = get_implementing_args(
+        "scirs2::array_protocol::operations::divide_by_scalar_f64",
+        &boxed_args,
+    );
     if implementing_args.is_empty() {
         // Fallback implementation for ndarray types
         if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix1>>() {
@@ -1203,79 +1248,202 @@ mod tests {
         let wrapped_b = NdarrayWrapper::new(b.clone());
 
         // Test matrix multiplication
-        if let Ok(result) = matmul(&wrapped_a, &wrapped_b) {
-            if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-                assert_eq!(result_array.as_array(), &a.dot(&b));
-            } else {
-                panic!("Matrix multiplication result is not the expected type");
-            }
-        } else {
-            // Skip the test if the operation is not implemented
-            println!("Skipping matrix multiplication test - operation not implemented");
-        }
+        let matmul_result = matmul(&wrapped_a, &wrapped_b).expect("matmul should succeed");
+        let matmul_array = matmul_result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("matmul should return a NdarrayWrapper<f64, Ix2>");
+        assert_eq!(matmul_array.as_array(), &a.dot(&b));
 
         // Test addition
-        if let Ok(result) = add(&wrapped_a, &wrapped_b) {
-            if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-                assert_eq!(result_array.as_array(), &(a.clone() + b.clone()));
-            } else {
-                panic!("Addition result is not the expected type");
-            }
-        } else {
-            println!("Skipping addition test - operation not implemented");
-        }
+        let add_result = add(&wrapped_a, &wrapped_b).expect("add should succeed");
+        let add_array = add_result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("add should return a NdarrayWrapper<f64, Ix2>");
+        assert_eq!(add_array.as_array(), &(a.clone() + b.clone()));
 
         // Test multiplication
-        if let Ok(result) = multiply(&wrapped_a, &wrapped_b) {
-            if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-                assert_eq!(result_array.as_array(), &(a.clone() * b.clone()));
-            } else {
-                panic!("Multiplication result is not the expected type");
-            }
-        } else {
-            println!("Skipping multiplication test - operation not implemented");
-        }
+        let multiply_result = multiply(&wrapped_a, &wrapped_b).expect("multiply should succeed");
+        let multiply_array = multiply_result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("multiply should return a NdarrayWrapper<f64, Ix2>");
+        assert_eq!(multiply_array.as_array(), &(a.clone() * b.clone()));
 
         // Test sum
-        if let Ok(result) = sum(&wrapped_a, None) {
-            if let Some(sum_value) = result.downcast_ref::<f64>() {
-                assert_eq!(*sum_value, a.sum());
-            } else {
-                panic!("Sum result is not the expected type");
-            }
-        } else {
-            println!("Skipping sum test - operation not implemented");
-        }
+        let sum_result = sum(&wrapped_a, None).expect("sum should succeed");
+        let sum_value = sum_result
+            .downcast_ref::<f64>()
+            .expect("sum should return an f64");
+        assert_eq!(*sum_value, a.sum());
 
         // Test transpose
-        if let Ok(result) = transpose(&wrapped_a) {
-            if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-                assert_eq!(result_array.as_array(), &a.t().to_owned());
-            } else {
-                panic!("Transpose result is not the expected type");
-            }
-        } else {
-            println!("Skipping transpose test - operation not implemented");
-        }
+        let transpose_result = transpose(&wrapped_a).expect("transpose should succeed");
+        let transpose_array = transpose_result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("transpose should return a NdarrayWrapper<f64, Ix2>");
+        assert_eq!(transpose_array.as_array(), &a.t().to_owned());
 
-        // Test reshape
+        // Test reshape. `reshape`'s dispatch passes `shape` as a `Vec<usize>`
+        // (a runtime-length container), and `ndarray`'s `IntoDimension` maps
+        // `Vec<usize>` to `IxDyn` regardless of how many elements it holds —
+        // not to a fixed-size `Ix1`/`Ix2`/etc., even when the vec happens to
+        // have exactly 1 element. So the result is a `NdarrayWrapper<f64,
+        // IxDyn>`, not `NdarrayWrapper<f64, Ix1>`.
         let c = array![[1., 2., 3.], [4., 5., 6.]];
         let wrapped_c = NdarrayWrapper::new(c.clone());
-        if let Ok(result) = reshape(&wrapped_c, &[6]) {
-            if let Some(result_array) = result.as_any().downcast_ref::<NdarrayWrapper<f64, Ix1>>() {
-                let expected = c
-                    .clone()
-                    .into_shape_with_order(6)
-                    .expect("Operation failed");
-                assert_eq!(result_array.as_array(), &expected);
-            } else {
-                panic!("Reshape result is not the expected type");
-            }
-        } else {
-            println!("Skipping reshape test - operation not implemented");
-        }
+        let reshape_result = reshape(&wrapped_c, &[6]).expect("reshape should succeed");
+        let result_array = reshape_result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+            .expect("reshape should return a NdarrayWrapper<f64, IxDyn>");
+        let expected = c
+            .clone()
+            .into_shape_with_order(6)
+            .expect("Operation failed")
+            .into_dyn();
+        assert_eq!(result_array.as_array(), &expected);
+    }
 
-        // Test passed if we reach here without panicking
-        println!("All operations tested or skipped successfully");
+    /// Regression test for the `get_implementing_args` dispatch bug: before
+    /// the fix, `implementing_args` was never empty for `NdarrayWrapper`
+    /// arguments (since `NdarrayWrapper` boxed as `Box<dyn ArrayProtocol>`
+    /// always downcast successfully), so `subtract`/`multiply_by_scalar_f64`/
+    /// `divide_by_scalar_f64` always delegated straight into
+    /// `NdarrayWrapper::array_function` — which doesn't have a match arm for
+    /// any of these operations — and so always returned
+    /// `Err(OperationError::NotImplemented(..))` instead of ever reaching
+    /// the correct hand-written fallback code below. Uses non-constant data
+    /// so a fabricated all-same-value result couldn't pass by accident.
+    #[test]
+    fn test_subtract_and_scalar_ops_reach_fallback() {
+        array_protocol::init();
+
+        let a = Array2::from_shape_fn((3, 3), |(i, j)| (i * 3 + j) as f64 + 1.0);
+        let b = Array2::from_shape_fn((3, 3), |(i, j)| (i as f64) * 0.5 - (j as f64) * 0.25);
+
+        let wrapped_a = NdarrayWrapper::new(a.clone());
+        let wrapped_b = NdarrayWrapper::new(b.clone());
+
+        let subtract_result = subtract(&wrapped_a, &wrapped_b).expect("subtract should succeed");
+        let subtract_array = subtract_result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("subtract should return a NdarrayWrapper<f64, Ix2>");
+        assert_eq!(subtract_array.as_array(), &(a.clone() - b.clone()));
+
+        let scaled =
+            multiply_by_scalar_f64(&wrapped_a, 2.5).expect("multiply_by_scalar_f64 should succeed");
+        let scaled_array = scaled
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("multiply_by_scalar_f64 should return a NdarrayWrapper<f64, Ix2>");
+        assert_eq!(scaled_array.as_array(), &(a.clone() * 2.5));
+
+        let divided =
+            divide_by_scalar_f64(&wrapped_a, 4.0).expect("divide_by_scalar_f64 should succeed");
+        let divided_array = divided
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("divide_by_scalar_f64 should return a NdarrayWrapper<f64, Ix2>");
+        assert_eq!(divided_array.as_array(), &(a.clone() / 4.0));
+    }
+
+    /// Regression test for the fake `svd`/`inverse` placeholders: before the
+    /// fix, both always returned an identity/ones "decomposition" regardless
+    /// of the input, and — until the `get_implementing_args` dispatch fix —
+    /// were also unreachable dead code. Uses a non-symmetric, non-constant
+    /// matrix so an identity/ones fabrication provably fails reconstruction.
+    #[cfg(feature = "linalg")]
+    #[test]
+    fn test_svd_reconstructs_original_matrix() {
+        array_protocol::init();
+
+        let a = Array2::from_shape_fn((4, 3), |(i, j)| ((i + 1) as f64) * 1.7 - (j as f64) * 0.9);
+        let wrapped_a = NdarrayWrapper::new(a.clone());
+
+        let (u, s, vt) = svd(&wrapped_a).expect("svd should succeed");
+        let u = u
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("U should be a NdarrayWrapper<f64, Ix2>")
+            .as_array()
+            .clone();
+        let s = s
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, ::ndarray::Ix1>>()
+            .expect("S should be a NdarrayWrapper<f64, Ix1>")
+            .as_array()
+            .clone();
+        let vt = vt
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("Vt should be a NdarrayWrapper<f64, Ix2>")
+            .as_array()
+            .clone();
+
+        // A real SVD must NOT be the identity/ones placeholder: the old
+        // placeholder returned `s` as all-ones regardless of input, which a
+        // non-constant, non-orthogonal input matrix like `a` can never
+        // actually produce.
+        assert!(
+            s.iter().any(|&v| (v - 1.0).abs() > 1e-6),
+            "singular values look like the old all-ones placeholder: {s:?}"
+        );
+
+        // Build Sigma with whatever shape U/Vt actually came back with
+        // (implementations differ on full vs. economy SVD), then verify the
+        // defining reconstruction property A = U * Sigma * V^T.
+        let mut sigma = Array2::<f64>::zeros((u.ncols(), vt.nrows()));
+        for i in 0..s.len() {
+            sigma[[i, i]] = s[i];
+        }
+        let reconstructed = u.dot(&sigma).dot(&vt);
+
+        for i in 0..a.nrows() {
+            for j in 0..a.ncols() {
+                assert!(
+                    (reconstructed[[i, j]] - a[[i, j]]).abs() < 1e-8,
+                    "SVD reconstruction mismatch at ({i}, {j}): {reconstructed_val} vs {orig_val}",
+                    reconstructed_val = reconstructed[[i, j]],
+                    orig_val = a[[i, j]]
+                );
+            }
+        }
+    }
+
+    #[cfg(feature = "linalg")]
+    #[test]
+    fn test_inverse_is_a_real_inverse() {
+        array_protocol::init();
+
+        // A non-symmetric, non-trivial invertible matrix.
+        let a = array![[4.0, 3.0, 0.0], [2.0, 5.0, 1.0], [1.0, 0.0, 3.0]];
+        let wrapped_a = NdarrayWrapper::new(a.clone());
+
+        let inv_result = inverse(&wrapped_a).expect("inverse should succeed");
+        let inv_array = inv_result
+            .as_any()
+            .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+            .expect("inverse should return a NdarrayWrapper<f64, Ix2>")
+            .as_array()
+            .clone();
+
+        // The old placeholder always returned the identity matrix, which
+        // would trivially (and wrongly) satisfy `a.dot(&identity) == a`, not
+        // `a.dot(&inv) == identity` — assert the real property instead.
+        let product = a.dot(&inv_array);
+        for i in 0..3 {
+            for j in 0..3 {
+                let expected = if i == j { 1.0 } else { 0.0 };
+                assert!(
+                    (product[[i, j]] - expected).abs() < 1e-8,
+                    "A * inv(A) mismatch at ({i}, {j}): {actual}",
+                    actual = product[[i, j]]
+                );
+            }
+        }
     }
 }

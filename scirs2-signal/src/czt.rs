@@ -6,11 +6,23 @@
 //
 // The CZT is particularly useful for analyzing frequency components with
 // non-uniform spacing or for "zooming in" on specific frequency ranges.
+//
+// This module also provides targeted frequency-domain analysis tools built on
+// (or complementary to) the CZT:
+//
+// - **Zoom FFT** (`zoom_fft`): high-resolution DFT in a specific frequency band
+//   `[f1, f2]`, implemented directly in terms of [`czt`].
+// - **Goertzel algorithm** (`goertzel`): O(N) per-frequency DFT coefficient
+//   computation, more efficient than a full FFT when only a few frequencies
+//   are of interest.
+// - **Sliding DFT** (`SlidingDft`): recursive, O(1)-per-sample streaming DFT
+//   update for real-time / streaming applications.
 
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::{Float, NumCast};
 
+use std::collections::VecDeque;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -331,10 +343,364 @@ fn ifft_in_place(buf: &mut Vec<Complex64>) -> SignalResult<()> {
     fft_inplace(buf, true)
 }
 
+// ---------------------------------------------------------------------------
+// Zoom FFT
+// ---------------------------------------------------------------------------
+
+/// Compute high-resolution DFT in a specific frequency band using the Chirp Z-Transform.
+///
+/// The Zoom FFT computes `m` equally-spaced DFT samples in the frequency band
+/// `[f1, f2]`, providing higher frequency resolution within that band compared
+/// to a standard FFT of the same length.
+///
+/// Internally uses [`czt`] (Bluestein's algorithm) to evaluate the Z-transform
+/// along an arc from `exp(j*2π*f1/fs)` to `exp(j*2π*f2/fs)`.
+///
+/// # Arguments
+///
+/// * `x` - Input signal (time domain)
+/// * `f1` - Lower frequency bound (Hz), must be >= 0
+/// * `f2` - Upper frequency bound (Hz), must be > f1 and <= fs/2
+/// * `m` - Number of output frequency points (>= 1)
+/// * `fs` - Sampling frequency (Hz)
+///
+/// # Returns
+///
+/// Complex spectrum of length `m` covering frequencies `[f1, f2]`.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_signal::czt::{zoom_fft, zoom_fft_freqs};
+///
+/// let fs = 2000.0_f64;
+/// let n = 1024;
+/// // 500 Hz tone (Nyquist is fs/2 = 1000 Hz, so 400-600 Hz is a valid zoom band)
+/// let signal: Vec<f64> = (0..n)
+///     .map(|i| (2.0 * std::f64::consts::PI * 500.0 * i as f64 / fs).sin())
+///     .collect();
+///
+/// // Zoom into 400-600 Hz with 256 points
+/// let spectrum = zoom_fft(&signal, 400.0, 600.0, 256, fs).expect("zoom_fft failed");
+/// assert_eq!(spectrum.len(), 256);
+///
+/// let freqs = zoom_fft_freqs(400.0, 600.0, 256);
+/// assert_eq!(freqs.len(), 256);
+/// // 500 Hz should be near the center
+/// ```
+pub fn zoom_fft(x: &[f64], f1: f64, f2: f64, m: usize, fs: f64) -> SignalResult<Vec<Complex64>> {
+    if x.is_empty() {
+        return Err(SignalError::ValueError("Input signal is empty".into()));
+    }
+    if m == 0 {
+        return Err(SignalError::ValueError(
+            "Number of output points m must be >= 1".into(),
+        ));
+    }
+    if fs <= 0.0 {
+        return Err(SignalError::ValueError(
+            "Sampling frequency fs must be positive".into(),
+        ));
+    }
+    if f1 < 0.0 || f2 <= f1 {
+        return Err(SignalError::ValueError(
+            "Frequency bounds must satisfy 0 <= f1 < f2".into(),
+        ));
+    }
+    if f2 > fs / 2.0 {
+        return Err(SignalError::ValueError(
+            "f2 must not exceed the Nyquist frequency (fs/2)".into(),
+        ));
+    }
+
+    // Starting point on the unit circle: a = exp(j*2π*f1/fs)
+    let theta_start = 2.0 * PI * f1 / fs;
+    let a = Complex64::new(theta_start.cos(), theta_start.sin());
+
+    // Step between consecutive frequency samples:
+    // w = exp(-j * 2π * (f2-f1) / (fs * (m-1)))  for m > 1, else no step
+    let delta_f = if m > 1 {
+        (f2 - f1) / (m - 1) as f64
+    } else {
+        0.0
+    };
+    let theta_step = -2.0 * PI * delta_f / fs;
+    let w = Complex64::new(theta_step.cos(), theta_step.sin());
+
+    // Compute via the shared Bluestein CZT implementation.
+    czt(x, Some(m), Some(w), Some(a), None)
+}
+
+/// Compute the frequency axis for `zoom_fft` output.
+///
+/// Returns `m` linearly spaced frequencies between `f1` and `f2` (inclusive).
+///
+/// # Arguments
+///
+/// * `f1` - Lower frequency bound (Hz)
+/// * `f2` - Upper frequency bound (Hz)
+/// * `m` - Number of frequency points
+///
+/// # Returns
+///
+/// Vector of length `m` with frequency values in Hz.
+pub fn zoom_fft_freqs(f1: f64, f2: f64, m: usize) -> Vec<f64> {
+    if m == 0 {
+        return Vec::new();
+    }
+    if m == 1 {
+        return vec![f1];
+    }
+    (0..m)
+        .map(|i| f1 + i as f64 * (f2 - f1) / (m - 1) as f64)
+        .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Goertzel Algorithm
+// ---------------------------------------------------------------------------
+
+/// Compute DFT coefficients at specific frequencies using the Goertzel algorithm.
+///
+/// The Goertzel algorithm computes the DFT at arbitrary frequencies with O(N)
+/// complexity per frequency. It is more efficient than FFT when only a small
+/// number of specific frequencies are of interest.
+///
+/// The algorithm uses a second-order IIR filter approach equivalent to:
+/// ```text
+/// X(f) = sum_{n=0}^{N-1} x[n] * exp(-j * 2π * f * n / fs)
+/// ```
+///
+/// # Arguments
+///
+/// * `x` - Input signal
+/// * `freqs` - Frequencies at which to evaluate the DFT (Hz)
+/// * `fs` - Sampling frequency (Hz)
+///
+/// # Returns
+///
+/// Complex DFT values at each of the requested frequencies.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_signal::czt::goertzel;
+///
+/// let fs = 8000.0_f64;
+/// let n = 256;
+/// let freq = 1000.0_f64;
+/// let signal: Vec<f64> = (0..n)
+///     .map(|i| (2.0 * std::f64::consts::PI * freq * i as f64 / fs).sin())
+///     .collect();
+///
+/// let result = goertzel(&signal, &[freq], fs).expect("goertzel failed");
+/// // The magnitude at 1 kHz should be large
+/// assert!(result[0].norm() > 10.0);
+/// ```
+pub fn goertzel(x: &[f64], freqs: &[f64], fs: f64) -> SignalResult<Vec<Complex64>> {
+    if x.is_empty() {
+        return Err(SignalError::ValueError("Input signal is empty".into()));
+    }
+    if fs <= 0.0 {
+        return Err(SignalError::ValueError(
+            "Sampling frequency fs must be positive".into(),
+        ));
+    }
+
+    let n = x.len();
+    let mut results = Vec::with_capacity(freqs.len());
+
+    for &freq in freqs {
+        if freq < 0.0 || freq > fs / 2.0 {
+            return Err(SignalError::ValueError(format!(
+                "Frequency {} is outside valid range [0, {}]",
+                freq,
+                fs / 2.0
+            )));
+        }
+
+        // Normalized frequency: k = f * N / fs (real-valued for arbitrary f)
+        let k = freq * n as f64 / fs;
+        let omega = 2.0 * PI * k / n as f64;
+        let coeff = 2.0 * omega.cos();
+
+        // Goertzel IIR filter
+        let mut s_prev2 = 0.0_f64;
+        let mut s_prev1 = 0.0_f64;
+        for &sample in x {
+            let s = sample + coeff * s_prev1 - s_prev2;
+            s_prev2 = s_prev1;
+            s_prev1 = s;
+        }
+
+        // Final complex output: X = s_prev1 - s_prev2 * exp(-j*omega)
+        let re = s_prev1 - s_prev2 * omega.cos();
+        let im = s_prev2 * omega.sin();
+        results.push(Complex64::new(re, im));
+    }
+
+    Ok(results)
+}
+
+// ---------------------------------------------------------------------------
+// Sliding DFT
+// ---------------------------------------------------------------------------
+
+/// Sliding DFT for efficient streaming frequency analysis.
+///
+/// Maintains a sliding window DFT that updates in O(K) per sample (where K is
+/// the number of tracked frequencies), compared to O(N log N) for recomputing
+/// the full FFT every sample. The sliding DFT is exact for frequencies that are
+/// exact DFT bin frequencies (i.e., `f = k * fs / N` for integer k).
+///
+/// For arbitrary frequencies the algorithm uses the frequency-domain update rule:
+/// ```text
+/// X_new[k] = (X_old[k] - x_out + x_in) * W[k]
+/// ```
+/// where `W[k] = exp(j * 2π * f_k / fs)` and `x_out` is the oldest sample.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_signal::czt::SlidingDft;
+///
+/// let fs = 1000.0_f64;
+/// let freqs = vec![50.0, 100.0, 200.0];
+/// let window_size = 128;
+/// let mut sdft = SlidingDft::new(freqs, fs, window_size);
+///
+/// // Push samples one at a time
+/// for i in 0..256_usize {
+///     let sample = (2.0 * std::f64::consts::PI * 100.0 * i as f64 / fs).sin();
+///     let spectrum = sdft.push(sample);
+///     assert_eq!(spectrum.len(), 3); // one value per tracked frequency
+/// }
+/// ```
+pub struct SlidingDft {
+    /// Tracked frequencies (Hz)
+    freqs: Vec<f64>,
+    /// Sampling frequency
+    fs: f64,
+    /// Number of tracked frequencies
+    n_freqs: usize,
+    /// Window size (N)
+    window_size: usize,
+    /// Current DFT state (one complex value per tracked frequency)
+    state: Vec<Complex64>,
+    /// Circular buffer of input samples
+    buffer: VecDeque<f64>,
+    /// Rotation factors W[k] = exp(j * 2π * f_k / fs)
+    rotation: Vec<Complex64>,
+}
+
+impl SlidingDft {
+    /// Create a new SlidingDft tracker.
+    ///
+    /// # Arguments
+    ///
+    /// * `freqs` - Frequencies to track (Hz). Must be in [0, fs/2].
+    /// * `fs` - Sampling frequency (Hz)
+    /// * `window_size` - Analysis window length (number of samples)
+    pub fn new(freqs: Vec<f64>, fs: f64, window_size: usize) -> Self {
+        let n_freqs = freqs.len();
+
+        // Precompute rotation factors W[k] = exp(j * 2π * f_k / fs)
+        let rotation: Vec<Complex64> = freqs
+            .iter()
+            .map(|&f| {
+                let theta = 2.0 * PI * f / fs;
+                Complex64::new(theta.cos(), theta.sin())
+            })
+            .collect();
+
+        let state = vec![Complex64::new(0.0, 0.0); n_freqs];
+        let buffer = VecDeque::with_capacity(window_size + 1);
+
+        Self {
+            freqs,
+            fs,
+            n_freqs,
+            window_size,
+            state,
+            buffer,
+            rotation,
+        }
+    }
+
+    /// Push a new sample and return the updated DFT at all tracked frequencies.
+    ///
+    /// Uses the recursive update: `X_new[k] = (X_old[k] - x_out + x_in) * W[k]`
+    ///
+    /// # Returns
+    ///
+    /// Vector of complex DFT values at each tracked frequency. The values are
+    /// normalized by `1/window_size` so they are comparable to a DFT output.
+    pub fn push(&mut self, sample: f64) -> Vec<Complex64> {
+        // Get the oldest sample that is about to leave the window
+        let x_out = if self.buffer.len() >= self.window_size {
+            self.buffer.pop_front().unwrap_or(0.0)
+        } else {
+            0.0
+        };
+
+        // Add new sample to buffer
+        self.buffer.push_back(sample);
+
+        // Update DFT state for each tracked frequency
+        for k in 0..self.n_freqs {
+            // Sliding DFT update rule
+            self.state[k] = (self.state[k] - Complex64::new(x_out, 0.0)
+                + Complex64::new(sample, 0.0))
+                * self.rotation[k];
+        }
+
+        // Return normalized copy of state
+        let scale = 1.0 / self.window_size as f64;
+        self.state
+            .iter()
+            .map(|&c| Complex64::new(c.re * scale, c.im * scale))
+            .collect()
+    }
+
+    /// Return the tracked frequencies.
+    pub fn freqs(&self) -> &[f64] {
+        &self.freqs
+    }
+
+    /// Return the sampling frequency.
+    pub fn fs(&self) -> f64 {
+        self.fs
+    }
+
+    /// Return the window size.
+    pub fn window_size(&self) -> usize {
+        self.window_size
+    }
+
+    /// Return the current number of samples buffered.
+    pub fn buffered(&self) -> usize {
+        self.buffer.len()
+    }
+
+    /// Reset internal state (clear buffer and DFT state).
+    pub fn reset(&mut self) {
+        self.buffer.clear();
+        for s in self.state.iter_mut() {
+            *s = Complex64::new(0.0, 0.0);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    fn make_tone(freq: f64, n: usize, fs: f64) -> Vec<f64> {
+        (0..n)
+            .map(|i| (2.0 * PI * freq * i as f64 / fs).sin())
+            .collect()
+    }
 
     #[test]
     fn test_czt_points() {
@@ -524,5 +890,195 @@ mod tests {
                 c.norm()
             );
         }
+    }
+
+    // --- zoom_fft tests ---
+
+    #[test]
+    fn test_zoom_fft_output_length() {
+        let fs = 1000.0;
+        let signal = make_tone(200.0, 512, fs);
+        let m = 64;
+        let result = zoom_fft(&signal, 100.0, 300.0, m, fs).expect("zoom_fft failed");
+        assert_eq!(result.len(), m);
+    }
+
+    #[test]
+    fn test_zoom_fft_freqs_length() {
+        let freqs = zoom_fft_freqs(100.0, 300.0, 64);
+        assert_eq!(freqs.len(), 64);
+        assert_relative_eq!(freqs[0], 100.0, epsilon = 1e-10);
+        assert_relative_eq!(freqs[63], 300.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_zoom_fft_peak_at_tone_frequency() {
+        let fs = 1000.0;
+        let freq = 250.0;
+        let n = 512;
+        let signal = make_tone(freq, n, fs);
+        let m = 128;
+        // Zoom into [200, 300] Hz
+        let spectrum = zoom_fft(&signal, 200.0, 300.0, m, fs).expect("zoom_fft failed");
+        let freqs = zoom_fft_freqs(200.0, 300.0, m);
+
+        // Find peak
+        let (peak_idx, _) = spectrum
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| {
+                a.norm()
+                    .partial_cmp(&b.norm())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .expect("empty spectrum");
+
+        // The peak frequency should be close to 250 Hz
+        let peak_freq = freqs[peak_idx];
+        assert!(
+            (peak_freq - freq).abs() < 2.0,
+            "Expected peak near {} Hz, got {} Hz",
+            freq,
+            peak_freq
+        );
+    }
+
+    #[test]
+    fn test_zoom_fft_empty_signal_error() {
+        assert!(zoom_fft(&[], 100.0, 300.0, 64, 1000.0).is_err());
+    }
+
+    #[test]
+    fn test_zoom_fft_invalid_freqs_error() {
+        let signal = vec![1.0; 64];
+        assert!(zoom_fft(&signal, 300.0, 100.0, 64, 1000.0).is_err()); // f1 > f2
+        assert!(zoom_fft(&signal, 100.0, 600.0, 64, 1000.0).is_err()); // f2 > fs/2
+    }
+
+    #[test]
+    fn test_zoom_fft_freqs_single_point() {
+        let freqs = zoom_fft_freqs(300.0, 500.0, 1);
+        assert_eq!(freqs.len(), 1);
+        assert_relative_eq!(freqs[0], 300.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_zoom_fft_freqs_empty() {
+        let freqs = zoom_fft_freqs(100.0, 200.0, 0);
+        assert!(freqs.is_empty());
+    }
+
+    // --- Goertzel tests ---
+
+    #[test]
+    fn test_goertzel_matches_fft_magnitude() {
+        let fs = 8000.0;
+        let n = 256;
+        let freq = 1000.0_f64;
+        let signal = make_tone(freq, n, fs);
+
+        // Goertzel at exact DFT bin frequency
+        let bin_freq = (freq * n as f64 / fs).round() * fs / n as f64;
+        let goertzel_result = goertzel(&signal, &[bin_freq], fs).expect("goertzel failed");
+
+        // Compute DFT reference using the module's own FFT
+        let complex_signal: Vec<Complex64> =
+            signal.iter().map(|&s| Complex64::new(s, 0.0)).collect();
+        let mut buf = complex_signal;
+        // pad to power of 2 = 256
+        fft_inplace(&mut buf, false).expect("fft failed");
+
+        // Find the bin corresponding to bin_freq
+        let bin_idx = (bin_freq * n as f64 / fs).round() as usize;
+        let fft_mag = buf[bin_idx].norm();
+        let goertzel_mag = goertzel_result[0].norm();
+
+        // Magnitudes should match within 0.1%
+        assert_relative_eq!(goertzel_mag, fft_mag, epsilon = fft_mag * 0.001 + 0.01);
+    }
+
+    #[test]
+    fn test_goertzel_output_length() {
+        let signal = make_tone(1000.0, 256, 8000.0);
+        let freqs = [500.0, 1000.0, 2000.0, 3000.0];
+        let result = goertzel(&signal, &freqs, 8000.0).expect("goertzel failed");
+        assert_eq!(result.len(), 4);
+    }
+
+    #[test]
+    fn test_goertzel_empty_signal_error() {
+        assert!(goertzel(&[], &[1000.0], 8000.0).is_err());
+    }
+
+    #[test]
+    fn test_goertzel_out_of_range_freq_error() {
+        let signal = vec![0.0; 64];
+        assert!(goertzel(&signal, &[5000.0], 8000.0).is_err()); // f > fs/2
+    }
+
+    #[test]
+    fn test_goertzel_dc_component() {
+        // DC signal: all ones
+        let signal = vec![1.0_f64; 64];
+        let result = goertzel(&signal, &[0.0], 1000.0).expect("goertzel failed");
+        // DC DFT value should be N (sum of all samples)
+        assert_relative_eq!(result[0].re, 64.0, epsilon = 1e-8);
+        assert_relative_eq!(result[0].im, 0.0, epsilon = 1e-8);
+    }
+
+    // --- SlidingDft tests ---
+
+    #[test]
+    fn test_sliding_dft_output_length() {
+        let mut sdft = SlidingDft::new(vec![100.0, 200.0, 300.0], 1000.0, 64);
+        let spectrum = sdft.push(1.0);
+        assert_eq!(spectrum.len(), 3);
+    }
+
+    #[test]
+    fn test_sliding_dft_window_fills() {
+        let fs = 1000.0;
+        let window = 32;
+        let freq = 100.0;
+        let mut sdft = SlidingDft::new(vec![freq], fs, window);
+
+        // Push a full window of a 100 Hz tone
+        for i in 0..(window * 2) {
+            let s = (2.0 * PI * freq * i as f64 / fs).sin();
+            let spectrum = sdft.push(s);
+            assert_eq!(spectrum.len(), 1);
+        }
+        // After a full window, the DFT at 100 Hz should have non-zero magnitude
+        let final_spectrum = sdft.push(0.0);
+        let mag = final_spectrum[0].norm();
+        // Should detect significant energy at 100 Hz
+        assert!(
+            mag > 0.0,
+            "SlidingDft should have non-zero output after window fills"
+        );
+    }
+
+    #[test]
+    fn test_sliding_dft_reset() {
+        let mut sdft = SlidingDft::new(vec![100.0], 1000.0, 32);
+        for i in 0..32_usize {
+            sdft.push(i as f64 * 0.1);
+        }
+        sdft.reset();
+        assert_eq!(sdft.buffered(), 0);
+        let spectrum = sdft.push(0.0);
+        assert_relative_eq!(spectrum[0].norm(), 0.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_sliding_dft_accessors() {
+        let freqs = vec![50.0, 100.0];
+        let fs = 500.0;
+        let window = 64;
+        let sdft = SlidingDft::new(freqs.clone(), fs, window);
+        assert_eq!(sdft.freqs(), freqs.as_slice());
+        assert_relative_eq!(sdft.fs(), fs, epsilon = 1e-10);
+        assert_eq!(sdft.window_size(), window);
+        assert_eq!(sdft.buffered(), 0);
     }
 }

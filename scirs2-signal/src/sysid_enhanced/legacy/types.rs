@@ -33,11 +33,20 @@ impl AdaptiveIdentifier {
     ) -> SignalResult<bool> {
         let result = enhanced_system_identification(input, output, &self.config)?;
         let should_adapt = if let Some(ref current_params) = self.parameter_history.last() {
-            let diff = &result.parameters.values - *current_params;
-            let diff_norm = diff.iter().map(|&x| x * x).sum::<f64>().sqrt();
-            let curr_norm = current_params.iter().map(|&x| x * x).sum::<f64>().sqrt();
-            let param_change = diff_norm / curr_norm.max(1e-15);
-            param_change > self.adaptation_threshold
+            if result.parameters.values.len() != current_params.len() {
+                // Order/structure selection picked a different parameter
+                // count than the previous fit (e.g. the model order changed
+                // between windows) — element-wise diffing two different-
+                // length vectors would panic (ndarray shape mismatch), and a
+                // structural change is itself significant enough to adapt.
+                true
+            } else {
+                let diff = &result.parameters.values - *current_params;
+                let diff_norm = diff.iter().map(|&x| x * x).sum::<f64>().sqrt();
+                let curr_norm = current_params.iter().map(|&x| x * x).sum::<f64>().sqrt();
+                let param_change = diff_norm / curr_norm.max(1e-15);
+                param_change > self.adaptation_threshold
+            }
         } else {
             true
         };

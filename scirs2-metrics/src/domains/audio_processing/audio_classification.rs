@@ -21,6 +21,10 @@ pub struct AudioClassificationMetrics {
     audio_specific: AudioSpecificMetrics,
     /// Temporal metrics for audio segments
     temporal_metrics: TemporalAudioMetrics,
+    /// Cache of the last full result computed by [`Self::compute_metrics`],
+    /// so [`Self::get_results`] can return real values instead of fabricated
+    /// zeros.
+    last_results: Option<AudioClassificationResults>,
 }
 
 /// Audio-specific classification metrics
@@ -88,16 +92,23 @@ impl AudioClassificationMetrics {
             classification_metrics: crate::sklearn_compat::ClassificationMetrics::new(),
             audio_specific: AudioSpecificMetrics::new(),
             temporal_metrics: TemporalAudioMetrics::new(),
+            last_results: None,
         }
     }
 
     /// Compute comprehensive audio classification metrics
+    ///
+    /// `frame_ground_truth`, when provided alongside `frame_predictions`,
+    /// enables a real frame-level accuracy computation (see
+    /// [`TemporalAudioMetrics::compute_frame_accuracy`]); without it, frame
+    /// accuracy is left at its last-known value rather than fabricated.
     pub fn compute_metrics<F: Float + std::fmt::Debug>(
         &mut self,
         y_true: ArrayView1<i32>,
         y_pred: ArrayView1<i32>,
         y_scores: Option<ArrayView2<F>>,
         frame_predictions: Option<ArrayView2<i32>>,
+        frame_ground_truth: Option<ArrayView2<i32>>,
     ) -> Result<AudioClassificationResults> {
         // Compute standard classification metrics
         let standard_results = self.classification_metrics.compute(
@@ -114,12 +125,15 @@ impl AudioClassificationMetrics {
 
         // Compute temporal metrics if frame-level data is available
         if let Some(frame_preds) = frame_predictions {
-            self.temporal_metrics.compute_frame_accuracy(frame_preds)?;
+            if let Some(frame_truth) = frame_ground_truth {
+                self.temporal_metrics
+                    .compute_frame_accuracy(frame_preds, frame_truth)?;
+            }
             self.temporal_metrics
                 .compute_temporal_consistency(frame_preds)?;
         }
 
-        Ok(AudioClassificationResults {
+        let results = AudioClassificationResults {
             accuracy: standard_results.accuracy,
             precision: standard_results.precision_weighted,
             recall: standard_results.recall_weighted,
@@ -127,7 +141,9 @@ impl AudioClassificationMetrics {
             eer: self.audio_specific.eer,
             auc: standard_results.auc_roc,
             frame_accuracy: self.temporal_metrics.frame_accuracy,
-        })
+        };
+        self.last_results = Some(results.clone());
+        Ok(results)
     }
 
     /// Compute Equal Error Rate (EER)
@@ -148,10 +164,14 @@ impl AudioClassificationMetrics {
         self.audio_specific.compute_dcf(y_true, y_scores)
     }
 
-    /// Compute frame-level accuracy
-    pub fn compute_frame_accuracy(&mut self, frame_predictions: ArrayView2<i32>) -> Result<f64> {
+    /// Compute frame-level accuracy against real ground-truth frame labels
+    pub fn compute_frame_accuracy(
+        &mut self,
+        frame_predictions: ArrayView2<i32>,
+        frame_ground_truth: ArrayView2<i32>,
+    ) -> Result<f64> {
         self.temporal_metrics
-            .compute_frame_accuracy(frame_predictions)
+            .compute_frame_accuracy(frame_predictions, frame_ground_truth)
     }
 
     /// Compute temporal consistency
@@ -174,17 +194,23 @@ impl AudioClassificationMetrics {
             .detect_boundaries(predictions, timestamps)
     }
 
-    /// Get comprehensive results
+    /// Get the comprehensive results from the last call to
+    /// [`Self::compute_metrics`].
+    ///
+    /// Returns honest all-zero placeholders (documented, not fabricated)
+    /// only if `compute_metrics` has never been called yet.
     pub fn get_results(&self) -> AudioClassificationResults {
-        AudioClassificationResults {
-            accuracy: 0.0, // Would be computed from standard metrics
-            precision: 0.0,
-            recall: 0.0,
-            f1_score: 0.0,
-            eer: self.audio_specific.eer,
-            auc: 0.0,
-            frame_accuracy: self.temporal_metrics.frame_accuracy,
-        }
+        self.last_results
+            .clone()
+            .unwrap_or(AudioClassificationResults {
+                accuracy: 0.0,
+                precision: 0.0,
+                recall: 0.0,
+                f1_score: 0.0,
+                eer: self.audio_specific.eer,
+                auc: 0.0,
+                frame_accuracy: self.temporal_metrics.frame_accuracy,
+            })
     }
 }
 
@@ -316,17 +342,33 @@ impl TemporalAudioMetrics {
         }
     }
 
-    /// Compute frame-level accuracy
-    pub fn compute_frame_accuracy(&mut self, frame_predictions: ArrayView2<i32>) -> Result<f64> {
+    /// Compute frame-level accuracy as the real fraction of frames where
+    /// `frame_predictions` agrees with `frame_ground_truth`.
+    pub fn compute_frame_accuracy(
+        &mut self,
+        frame_predictions: ArrayView2<i32>,
+        frame_ground_truth: ArrayView2<i32>,
+    ) -> Result<f64> {
+        if frame_predictions.dim() != frame_ground_truth.dim() {
+            return Err(MetricsError::InvalidInput(format!(
+                "frame_predictions {:?} and frame_ground_truth {:?} must have the same shape",
+                frame_predictions.dim(),
+                frame_ground_truth.dim()
+            )));
+        }
+
         let (n_utterances, n_frames) = frame_predictions.dim();
 
         if n_utterances == 0 || n_frames == 0 {
             return Ok(0.0);
         }
 
-        // Placeholder: would compute frame-level accuracy from ground truth
         let total_frames = (n_utterances * n_frames) as f64;
-        let correct_frames = total_frames * 0.85; // Placeholder
+        let correct_frames = frame_predictions
+            .iter()
+            .zip(frame_ground_truth.iter())
+            .filter(|(pred, truth)| pred == truth)
+            .count() as f64;
 
         self.frame_accuracy = correct_frames / total_frames;
         Ok(self.frame_accuracy)
@@ -495,5 +537,101 @@ impl Default for TemporalAudioMetrics {
 impl Default for BoundaryDetectionMetrics {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    #[test]
+    fn frame_accuracy_matches_hand_computed_value_on_non_constant_data() {
+        // 2 utterances x 5 frames; deliberately non-constant so a fabricated
+        // constant (e.g. the old hardcoded 0.85) cannot coincidentally pass.
+        let predictions =
+            Array2::from_shape_vec((2, 5), vec![1, 0, 1, 1, 0, 0, 0, 1, 0, 1]).expect("shape");
+        let ground_truth =
+            Array2::from_shape_vec((2, 5), vec![1, 0, 0, 1, 1, 0, 1, 1, 0, 0]).expect("shape");
+        // Mismatches at flat indices 2, 4, 6, 9 -> 6 correct out of 10 -> 0.6
+        let mut temporal = TemporalAudioMetrics::new();
+        let acc = temporal
+            .compute_frame_accuracy(predictions.view(), ground_truth.view())
+            .expect("shapes match");
+        assert!(
+            (acc - 0.6).abs() < 1e-9,
+            "expected 0.6 (6/10 correct), got {acc}"
+        );
+        // Must not be the old fabricated constant.
+        assert!((acc - 0.85).abs() > 1e-9);
+    }
+
+    #[test]
+    fn frame_accuracy_is_perfect_when_predictions_match_ground_truth_exactly() {
+        let data = Array2::from_shape_vec((3, 4), vec![1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0])
+            .expect("shape");
+        let mut temporal = TemporalAudioMetrics::new();
+        let acc = temporal
+            .compute_frame_accuracy(data.view(), data.view())
+            .expect("shapes match");
+        assert!((acc - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn frame_accuracy_is_zero_when_every_frame_disagrees() {
+        let predictions = Array2::from_shape_vec((1, 4), vec![1, 1, 1, 1]).expect("shape");
+        let ground_truth = Array2::from_shape_vec((1, 4), vec![0, 0, 0, 0]).expect("shape");
+        let mut temporal = TemporalAudioMetrics::new();
+        let acc = temporal
+            .compute_frame_accuracy(predictions.view(), ground_truth.view())
+            .expect("shapes match");
+        assert!((acc - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn frame_accuracy_rejects_mismatched_shapes() {
+        let predictions = Array2::from_shape_vec((1, 4), vec![1, 1, 1, 1]).expect("shape");
+        let ground_truth = Array2::from_shape_vec((1, 3), vec![0, 0, 0]).expect("shape");
+        let mut temporal = TemporalAudioMetrics::new();
+        let result = temporal.compute_frame_accuracy(predictions.view(), ground_truth.view());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn compute_metrics_threads_frame_ground_truth_into_real_frame_accuracy() {
+        let y_true = scirs2_core::ndarray::array![0, 1, 1, 0];
+        let y_pred = scirs2_core::ndarray::array![0, 1, 0, 0];
+        let frame_predictions =
+            Array2::from_shape_vec((2, 3), vec![1, 0, 1, 0, 1, 1]).expect("shape");
+        let frame_truth = Array2::from_shape_vec((2, 3), vec![1, 0, 0, 0, 1, 0]).expect("shape");
+        // Mismatches at flat indices 2 and 5 -> 4/6 correct
+        let mut metrics = AudioClassificationMetrics::new();
+        let results = metrics
+            .compute_metrics::<f64>(
+                y_true.view(),
+                y_pred.view(),
+                None,
+                Some(frame_predictions.view()),
+                Some(frame_truth.view()),
+            )
+            .expect("computation should succeed");
+        assert!(
+            (results.frame_accuracy - 4.0 / 6.0).abs() < 1e-9,
+            "expected 4/6, got {}",
+            results.frame_accuracy
+        );
+
+        // get_results() must reflect the same real, cached computation
+        let cached = metrics.get_results();
+        assert!((cached.frame_accuracy - 4.0 / 6.0).abs() < 1e-9);
+        assert!((cached.accuracy - results.accuracy).abs() < 1e-9);
+    }
+
+    #[test]
+    fn get_results_before_any_computation_is_honest_zero_not_fabricated() {
+        let metrics = AudioClassificationMetrics::new();
+        let results = metrics.get_results();
+        assert_eq!(results.accuracy, 0.0);
+        assert_eq!(results.frame_accuracy, 0.0);
     }
 }

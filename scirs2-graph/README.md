@@ -7,7 +7,9 @@
 
 **scirs2-graph** is the graph theory and network analysis crate for the [SciRS2](https://github.com/cool-japan/scirs) scientific computing library. It provides a comprehensive suite of graph algorithms, data structures, graph neural networks, embeddings, and visualization tools for scientific computing, machine learning, and network science applications.
 
-**Status (2026-07-27, v0.6.3)**: Stable. No `todo!()`/`unimplemented!()` stubs found anywhere in `src/`. Test suite: 1418/1418 passing with default features (8 skipped), 1479/1479 passing with `--all-features` (8 skipped, including GPU-dispatch smoke tests under the `wgpu` feature) — 0 failures in either configuration.
+**Status (2026-07-31, v0.6.5)**: Stable. No `todo!()`/`unimplemented!()` stubs found anywhere in `src/`. Test suite: 1418/1418 passing with default features (8 skipped), 1479/1479 passing with `--all-features` (8 skipped, including GPU-dispatch smoke tests under the `wgpu` feature) — 0 failures in either configuration, as of 2026-07-27 baseline; not independently re-run for this docs update.
+
+**Fixed in 0.6.5**: spectral clustering (`spectral::spectral_clustering`, `spectral_graph::spectral_clustering`) and Hungarian (assignment-problem) matching (`algorithms::matching::hungarian_algorithm`) now compute their real linear-algebra/optimal-assignment answers instead of a random/stand-in result; `advanced::AdvancedProcessor` (`advanced/mod.rs`) now accumulates genuine wall-clock timing and structural/RSS-sampled memory statistics instead of fabricated constants; `generators::watts_strogatz_graph`'s rewiring step used `has_node` (always `true`) instead of `has_edge`, so it hung on ~99.8% of seeds at `p > 0` — now fixed. See [CHANGELOG.md](../CHANGELOG.md) `[0.6.5]` for full detail.
 
 ## What scirs2-graph Provides
 
@@ -22,7 +24,7 @@ Use scirs2-graph when you need to:
 - Visualize graphs as SVG or DOT output
 - Detect graph isomorphism or subgraph patterns
 
-## Features (v0.6.3)
+## Features (v0.6.5)
 
 ### Core Graph Representations
 - Directed and undirected graphs with efficient adjacency storage
@@ -170,14 +172,14 @@ Use scirs2-graph when you need to:
 
 ```toml
 [dependencies]
-scirs2-graph = "0.6.4"
+scirs2-graph = "0.6.5"
 ```
 
 For parallel processing support:
 
 ```toml
 [dependencies]
-scirs2-graph = { version = "0.6.4", features = ["parallel"] }
+scirs2-graph = { version = "0.6.5", features = ["parallel"] }
 ```
 
 ## Quick Start

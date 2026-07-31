@@ -58,7 +58,9 @@ use std::time::Instant;
 pub struct ProcessingConfig {
     /// Chunk size (number of data points per chunk)
     pub chunk_size: usize,
-    /// Overlap between chunks (for continuity in analysis)
+    /// Overlap between chunks (for continuity in analysis). Effective overlap is
+    /// capped at `chunk_size - 1` so processing always advances by at least one
+    /// point per chunk, regardless of how `chunk_size`/`overlap` are combined.
     pub overlap: usize,
     /// Enable parallel processing of chunks
     pub parallel_processing: bool,
@@ -528,6 +530,10 @@ impl ChunkedProcessor {
     {
         self.start_time = Instant::now();
         self.progress.total_points = totalpoints as u64;
+        // Estimate assuming no overlap; when overlap forces a smaller stride
+        // than chunk_size, the actual chunk count (and hence chunk_number in
+        // progress reports) legitimately exceeds this — it's a display
+        // estimate only, points_processed/total_points is the accurate ratio.
         self.progress.total_chunks = totalpoints.div_ceil(self.config.chunk_size);
 
         let reader = Arc::new(reader);
@@ -549,26 +555,33 @@ impl ChunkedProcessor {
         F: Fn(usize, usize) -> Result<Array1<f64>> + Send + Sync + 'static,
     {
         let mut start_idx = 0;
+        // Leading elements of the next chunk that duplicate the tail of the
+        // current one (overlap re-reads the same source range); they must be
+        // skipped when folding into `stats` or every overlapping point would
+        // be counted once per chunk that reads it.
+        let mut skip = 0;
 
         while start_idx < total_points {
             let chunk_size = (self.config.chunk_size).min(total_points - start_idx);
             let chunk = reader(start_idx, chunk_size)?;
 
-            // Update statistics
-            for &value in chunk.iter() {
+            // Update statistics, excluding the overlap already counted above
+            for &value in chunk.iter().skip(skip) {
                 self.stats.update(value);
             }
 
             // Update progress
             self.progress.chunk_number += 1;
-            self.progress.points_processed += chunk.len() as u64;
+            self.progress.points_processed += chunk.len().saturating_sub(skip) as u64;
             self.update_progress();
 
             if self.config.report_progress {
                 self.report_progress();
             }
 
-            start_idx += chunk_size - self.config.overlap.min(chunk_size);
+            let stride = (chunk_size - self.config.overlap.min(chunk_size)).max(1);
+            skip = chunk_size.saturating_sub(stride);
+            start_idx += stride;
         }
 
         Ok(self.stats.clone())
@@ -586,22 +599,32 @@ impl ChunkedProcessor {
         let chunk_size = self.config.chunk_size;
         let overlap = self.config.overlap;
         let mut chunk_starts = Vec::new();
+        // Per-chunk count of leading elements that duplicate the tail of the
+        // previous chunk (see process_sequential for why these must not be
+        // folded into stats twice); 0 for the first chunk.
+        let mut chunk_skips = Vec::new();
         let mut start_idx = 0;
+        let mut skip = 0;
 
         while start_idx < totalpoints {
             chunk_starts.push(start_idx);
+            chunk_skips.push(skip);
             let current_chunk_size = chunk_size.min(totalpoints - start_idx);
-            start_idx += current_chunk_size - overlap.min(current_chunk_size);
+            let stride = (current_chunk_size - overlap.min(current_chunk_size)).max(1);
+            skip = current_chunk_size.saturating_sub(stride);
+            start_idx += stride;
         }
 
         // Spawn worker threads
         let chunk_starts = Arc::new(chunk_starts);
+        let chunk_skips = Arc::new(chunk_skips);
         let total_chunks = chunk_starts.len();
 
         for thread_id in 0..num_threads {
             let tx = tx.clone();
             let reader = Arc::clone(&reader);
             let chunk_starts = Arc::clone(&chunk_starts);
+            let chunk_skips = Arc::clone(&chunk_skips);
             let chunk_size = self.config.chunk_size;
             let total_points = totalpoints;
 
@@ -612,11 +635,12 @@ impl ChunkedProcessor {
                     }
 
                     let current_chunk_size = chunk_size.min(total_points - start_idx);
+                    let skip = chunk_skips[chunk_idx];
 
                     match reader(start_idx, current_chunk_size) {
                         Ok(chunk) => {
                             let mut local_stats = StreamingStats::new();
-                            for &value in chunk.iter() {
+                            for &value in chunk.iter().skip(skip) {
                                 local_stats.update(value);
                             }
 
@@ -1074,7 +1098,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test has infinite loop bug - progress counter exceeds 397702600%"]
     fn test_csv_processing() {
         // Create a temporary CSV file
         let mut temp_file = NamedTempFile::new().expect("Operation failed");
@@ -1097,6 +1120,37 @@ mod tests {
         assert!((stats.mean - 15.5).abs() < 1e-10);
         assert_eq!(stats.min, 10.5);
         assert_eq!(stats.max, 20.3);
+    }
+
+    #[test]
+    fn test_csv_processing_parallel_with_overlap_does_not_double_count() {
+        // Same shape as test_csv_processing (chunk_size 2, default overlap 1000
+        // forces the minimum 1-point stride), but exercises process_parallel:
+        // per-chunk stats are merged from worker threads, so the overlap-skip
+        // bookkeeping must be threaded through chunk_starts/chunk_skips too,
+        // not just the sequential path.
+        let mut temp_file = NamedTempFile::new().expect("Operation failed");
+        writeln!(temp_file, "time,value,other").expect("Operation failed");
+        for i in 1..=20 {
+            writeln!(temp_file, "{i},{},z", i as f64 * 1.5).expect("Operation failed");
+        }
+        temp_file.flush().expect("Operation failed");
+
+        let config = ProcessingConfig::new()
+            .with_chunk_size(3)
+            .with_parallel_processing(true)
+            .with_threads(4);
+
+        let mut processor = ChunkedProcessor::new(config);
+        let stats = processor
+            .process_csv_file(temp_file.path(), 1, true)
+            .expect("Operation failed");
+
+        assert_eq!(stats.count, 20);
+        let expected_mean: f64 = (1..=20).map(|i| i as f64 * 1.5).sum::<f64>() / 20.0;
+        assert!((stats.mean - expected_mean).abs() < 1e-9);
+        assert_eq!(stats.min, 1.5);
+        assert_eq!(stats.max, 30.0);
     }
 
     #[test]

@@ -29,6 +29,19 @@ pub fn simd_distance_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| {
+                let diff = x - y;
+                diff * diff
+            })
+            .sum::<f32>()
+            .sqrt();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -40,8 +53,8 @@ pub fn simd_distance_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
 
                 // Process 8 f32s at a time
                 while i + 8 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 8];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 8];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 8];
                     let a_vec = _mm256_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_ps(b_slice.as_ptr());
                     let diff = _mm256_sub_ps(a_vec, b_vec);
@@ -75,8 +88,8 @@ pub fn simd_distance_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm_loadu_ps(b_slice.as_ptr());
                     let diff = _mm_sub_ps(a_vec, b_vec);
@@ -117,8 +130,8 @@ pub fn simd_distance_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
             let mut i = 0;
 
             while i + 4 <= len {
-                let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                 let a_vec = vld1q_f32(a_slice.as_ptr());
                 let b_vec = vld1q_f32(b_slice.as_ptr());
                 let diff = vsubq_f32(a_vec, b_vec);
@@ -162,6 +175,19 @@ pub fn simd_distance_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| {
+                let diff = x - y;
+                diff * diff
+            })
+            .sum::<f64>()
+            .sqrt();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -173,8 +199,8 @@ pub fn simd_distance_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
 
                 // Process 4 f64s at a time
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm256_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_pd(b_slice.as_ptr());
                     let diff = _mm256_sub_pd(a_vec, b_vec);
@@ -205,8 +231,8 @@ pub fn simd_distance_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 2];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 2];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                     let a_vec = _mm_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm_loadu_pd(b_slice.as_ptr());
                     let diff = _mm_sub_pd(a_vec, b_vec);
@@ -245,8 +271,8 @@ pub fn simd_distance_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
             let mut i = 0;
 
             while i + 2 <= len {
-                let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 2];
-                let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 2];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                 let a_vec = vld1q_f64(a_slice.as_ptr());
                 let b_vec = vld1q_f64(b_slice.as_ptr());
                 let diff = vsubq_f64(a_vec, b_vec);
@@ -300,6 +326,18 @@ pub fn simd_distance_squared_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| {
+                let diff = x - y;
+                diff * diff
+            })
+            .sum::<f32>();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -310,8 +348,8 @@ pub fn simd_distance_squared_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f
                 let mut i = 0;
 
                 while i + 8 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 8];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 8];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 8];
                     let a_vec = _mm256_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_ps(b_slice.as_ptr());
                     let diff = _mm256_sub_ps(a_vec, b_vec);
@@ -342,8 +380,8 @@ pub fn simd_distance_squared_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm_loadu_ps(b_slice.as_ptr());
                     let diff = _mm_sub_ps(a_vec, b_vec);
@@ -384,8 +422,8 @@ pub fn simd_distance_squared_euclidean_f32(a: &ArrayView1<f32>, b: &ArrayView1<f
             let mut i = 0;
 
             while i + 4 <= len {
-                let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                 let a_vec = vld1q_f32(a_slice.as_ptr());
                 let b_vec = vld1q_f32(b_slice.as_ptr());
                 let diff = vsubq_f32(a_vec, b_vec);
@@ -439,6 +477,18 @@ pub fn simd_distance_squared_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| {
+                let diff = x - y;
+                diff * diff
+            })
+            .sum::<f64>();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -449,8 +499,8 @@ pub fn simd_distance_squared_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm256_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_pd(b_slice.as_ptr());
                     let diff = _mm256_sub_pd(a_vec, b_vec);
@@ -479,8 +529,8 @@ pub fn simd_distance_squared_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 2];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 2];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                     let a_vec = _mm_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm_loadu_pd(b_slice.as_ptr());
                     let diff = _mm_sub_pd(a_vec, b_vec);
@@ -519,8 +569,8 @@ pub fn simd_distance_squared_euclidean_f64(a: &ArrayView1<f64>, b: &ArrayView1<f
             let mut i = 0;
 
             while i + 2 <= len {
-                let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 2];
-                let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 2];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                 let a_vec = vld1q_f64(a_slice.as_ptr());
                 let b_vec = vld1q_f64(b_slice.as_ptr());
                 let diff = vsubq_f64(a_vec, b_vec);
@@ -564,6 +614,15 @@ pub fn simd_distance_manhattan_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| (x - y).abs())
+            .sum::<f32>();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -575,8 +634,8 @@ pub fn simd_distance_manhattan_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
                 let mut i = 0;
 
                 while i + 8 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 8];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 8];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 8];
                     let a_vec = _mm256_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_ps(b_slice.as_ptr());
                     let diff = _mm256_sub_ps(a_vec, b_vec);
@@ -607,8 +666,8 @@ pub fn simd_distance_manhattan_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm_loadu_ps(b_slice.as_ptr());
                     let diff = _mm_sub_ps(a_vec, b_vec);
@@ -647,8 +706,8 @@ pub fn simd_distance_manhattan_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
             let mut i = 0;
 
             while i + 4 <= len {
-                let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                 let a_vec = vld1q_f32(a_slice.as_ptr());
                 let b_vec = vld1q_f32(b_slice.as_ptr());
                 let diff = vsubq_f32(a_vec, b_vec);
@@ -690,6 +749,15 @@ pub fn simd_distance_manhattan_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| (x - y).abs())
+            .sum::<f64>();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -701,8 +769,8 @@ pub fn simd_distance_manhattan_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm256_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_pd(b_slice.as_ptr());
                     let diff = _mm256_sub_pd(a_vec, b_vec);
@@ -731,8 +799,8 @@ pub fn simd_distance_manhattan_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 2];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 2];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                     let a_vec = _mm_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm_loadu_pd(b_slice.as_ptr());
                     let diff = _mm_sub_pd(a_vec, b_vec);
@@ -769,8 +837,8 @@ pub fn simd_distance_manhattan_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
             let mut i = 0;
 
             while i + 2 <= len {
-                let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 2];
-                let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 2];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                 let a_vec = vld1q_f64(a_slice.as_ptr());
                 let b_vec = vld1q_f64(b_slice.as_ptr());
                 let diff = vsubq_f64(a_vec, b_vec);
@@ -812,6 +880,15 @@ pub fn simd_distance_chebyshev_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| (x - y).abs())
+            .fold(0.0f32, f32::max);
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -823,8 +900,8 @@ pub fn simd_distance_chebyshev_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
                 let mut i = 0;
 
                 while i + 8 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 8];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 8];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 8];
                     let a_vec = _mm256_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_ps(b_slice.as_ptr());
                     let diff = _mm256_sub_ps(a_vec, b_vec);
@@ -858,8 +935,8 @@ pub fn simd_distance_chebyshev_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm_loadu_ps(b_slice.as_ptr());
                     let diff = _mm_sub_ps(a_vec, b_vec);
@@ -904,8 +981,8 @@ pub fn simd_distance_chebyshev_f32(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> 
             let mut i = 0;
 
             while i + 4 <= len {
-                let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                 let a_vec = vld1q_f32(a_slice.as_ptr());
                 let b_vec = vld1q_f32(b_slice.as_ptr());
                 let diff = vsubq_f32(a_vec, b_vec);
@@ -953,6 +1030,15 @@ pub fn simd_distance_chebyshev_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
         return 0.0;
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| (x - y).abs())
+            .fold(0.0f64, f64::max);
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         use std::arch::x86_64::*;
@@ -964,8 +1050,8 @@ pub fn simd_distance_chebyshev_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
                 let mut i = 0;
 
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
                     let a_vec = _mm256_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_pd(b_slice.as_ptr());
                     let diff = _mm256_sub_pd(a_vec, b_vec);
@@ -997,8 +1083,8 @@ pub fn simd_distance_chebyshev_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
                 let mut i = 0;
 
                 while i + 2 <= len {
-                    let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 2];
-                    let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 2];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                     let a_vec = _mm_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm_loadu_pd(b_slice.as_ptr());
                     let diff = _mm_sub_pd(a_vec, b_vec);
@@ -1041,8 +1127,8 @@ pub fn simd_distance_chebyshev_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> 
             let mut i = 0;
 
             while i + 2 <= len {
-                let a_slice = &a.as_slice().expect("Test operation failed")[i..i + 2];
-                let b_slice = &b.as_slice().expect("Test operation failed")[i..i + 2];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
                 let a_vec = vld1q_f64(a_slice.as_ptr());
                 let b_vec = vld1q_f64(b_slice.as_ptr());
                 let diff = vsubq_f64(a_vec, b_vec);

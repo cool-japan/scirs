@@ -9,8 +9,17 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::RngExt;
 use scirs2_core::Rng;
 use statrs::statistics::Statistics;
+use std::any::Any;
+use std::sync::{Arc, Barrier, Condvar, Mutex};
+use std::thread;
 
 /// MPI interface abstraction for distributed optimization
+///
+/// Generic methods require `T: 'static` (in addition to the obvious
+/// `Clone + Send + Sync`) so that implementations backed by real threads
+/// (see [`ThreadRankMpi`]) can move data between ranks via `Box<dyn Any +
+/// Send>` type erasure. Every real caller in this module only ever
+/// instantiates `T = f64`, so this is not a practical restriction.
 pub trait MPIInterface {
     /// Get the rank of this process
     fn rank(&self) -> i32;
@@ -21,12 +30,12 @@ pub trait MPIInterface {
     /// Broadcast data from root to all processes
     fn broadcast<T>(&self, data: &mut [T], root: i32) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync;
+        T: Clone + Send + Sync + 'static;
 
     /// Gather data from all processes to root
     fn gather<T>(&self, send_data: &[T], recv_data: Option<&mut [T]>, root: i32) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync;
+        T: Clone + Send + Sync + 'static;
 
     /// All-to-all reduction operation
     fn allreduce<T>(
@@ -36,7 +45,7 @@ pub trait MPIInterface {
         op: ReductionOp,
     ) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync + std::ops::Add<Output = T> + PartialOrd;
+        T: Clone + Send + Sync + 'static + std::ops::Add<Output = T> + PartialOrd;
 
     /// Barrier synchronization
     fn barrier(&self) -> ScirsResult<()>;
@@ -44,12 +53,12 @@ pub trait MPIInterface {
     /// Send data to specific process
     fn send<T>(&self, data: &[T], dest: i32, tag: i32) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync;
+        T: Clone + Send + Sync + 'static;
 
     /// Receive data from specific process
     fn recv<T>(&self, data: &mut [T], source: i32, tag: i32) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync;
+        T: Clone + Send + Sync + 'static;
 }
 
 /// Reduction operations for MPI
@@ -271,6 +280,17 @@ impl<M: MPIInterface> DistributedOptimizationContext<M> {
             local_data.as_slice().expect("Operation failed"),
             result.as_slice_mut().expect("Operation failed"),
             ReductionOp::Min,
+        )?;
+        Ok(result)
+    }
+
+    /// Perform all-reduce operation (element-wise maximum)
+    pub fn allreduce_max(&self, local_data: &Array1<f64>) -> ScirsResult<Array1<f64>> {
+        let mut result = Array1::zeros(local_data.len());
+        self.mpi.allreduce(
+            local_data.as_slice().expect("Operation failed"),
+            result.as_slice_mut().expect("Operation failed"),
+            ReductionOp::Max,
         )?;
         Ok(result)
     }
@@ -791,8 +811,19 @@ pub mod algorithms {
 
             let std_dev = variance.sqrt();
 
-            // Simple convergence criterion
-            Ok(std_dev < 1e-12)
+            // The stop decision must be identical on every rank: each rank's
+            // local population is independently randomly initialized, so
+            // local std_dev can cross the threshold on some ranks well before
+            // others. If ranks disagreed here, one would `break` out of the
+            // main loop while others kept calling `find_global_best`/
+            // `migrate_individuals` every 10 iterations — permanently
+            // desynchronizing the collective call sequence and deadlocking
+            // every remaining rank on its next barrier wait. Agreeing on the
+            // worst (largest) std_dev across all ranks keeps the decision,
+            // and therefore the collective call count, identical everywhere.
+            let global_max_std_dev = self.context.allreduce_max(&Array1::from_elem(1, std_dev))?[0];
+
+            Ok(global_max_std_dev < 1e-12)
         }
     }
 
@@ -1059,21 +1090,30 @@ impl DistributedStats {
     }
 }
 
-/// Mock MPI implementation for testing
-#[cfg(test)]
+/// Minimal rank/size-only stub, for tests of logic that only reads
+/// [`MPIInterface::rank`]/[`MPIInterface::size`] (e.g. the crate-private
+/// `WorkDistribution`) and never actually exercises cross-rank communication.
+///
+/// Its collective methods are deliberately no-ops (`broadcast`/`gather` leave
+/// `data` untouched; `send`/`recv` never actually transfer anything) — with
+/// only one instance in existence there is no "other side" to communicate
+/// with, so pretending otherwise would silently fabricate results. Using
+/// this with `size > 1` to drive an actual algorithm (e.g.
+/// [`algorithms::DistributedDifferentialEvolution`]) will silently skip all
+/// cross-rank exchange. For real multi-rank end-to-end testing, use
+/// [`ThreadRankMpi`], which backs every collective with genuine
+/// cross-thread synchronization.
 pub struct MockMPI {
     rank: i32,
     size: i32,
 }
 
-#[cfg(test)]
 impl MockMPI {
     pub fn new(rank: i32, size: i32) -> Self {
         Self { rank, size }
     }
 }
 
-#[cfg(test)]
 impl MPIInterface for MockMPI {
     fn rank(&self) -> i32 {
         self.rank
@@ -1082,9 +1122,9 @@ impl MPIInterface for MockMPI {
         self.size
     }
 
-    fn broadcast<T>(&self, data: &mut [T], root: i32) -> ScirsResult<()>
+    fn broadcast<T>(&self, _data: &mut [T], _root: i32) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync,
+        T: Clone + Send + Sync + 'static,
     {
         Ok(())
     }
@@ -1096,7 +1136,7 @@ impl MPIInterface for MockMPI {
         _root: i32,
     ) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync,
+        T: Clone + Send + Sync + 'static,
     {
         Ok(())
     }
@@ -1108,8 +1148,10 @@ impl MPIInterface for MockMPI {
         _op: ReductionOp,
     ) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync + std::ops::Add<Output = T> + PartialOrd,
+        T: Clone + Send + Sync + 'static + std::ops::Add<Output = T> + PartialOrd,
     {
+        // Single simulated rank: the "reduction" over one contribution is
+        // itself, regardless of op (sum/min/max of one value is that value).
         for (i, item) in send_data.iter().enumerate() {
             if i < recv_data.len() {
                 recv_data[i] = item.clone();
@@ -1121,17 +1163,283 @@ impl MPIInterface for MockMPI {
     fn barrier(&self) -> ScirsResult<()> {
         Ok(())
     }
-    fn send<T>(&self, _data: &[T], _dest: i32, tag: i32) -> ScirsResult<()>
+    fn send<T>(&self, _data: &[T], _dest: i32, _tag: i32) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync,
+        T: Clone + Send + Sync + 'static,
     {
         Ok(())
     }
-    fn recv<T>(&self, _data: &mut [T], _source: i32, tag: i32) -> ScirsResult<()>
+    fn recv<T>(&self, _data: &mut [T], _source: i32, _tag: i32) -> ScirsResult<()>
     where
-        T: Clone + Send + Sync,
+        T: Clone + Send + Sync + 'static,
     {
         Ok(())
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Thread-simulated multi-rank MPI (no MPI runtime / process spawning needed)
+// ─────────────────────────────────────────────────────────────────────────
+
+/// Per-communicator state shared by every [`ThreadRankMpi`] handle in the
+/// same simulated communicator. Collectives rendezvous through `slots`
+/// (one entry per rank) guarded by a pair of reusable barriers; point-to-
+/// point `send`/`recv` rendezvous through per-destination `mailboxes`.
+struct ThreadMpiShared {
+    size: i32,
+    slots: Mutex<Vec<Option<Box<dyn Any + Send>>>>,
+    deposited: Barrier,
+    consumed: Barrier,
+    explicit_barrier: Barrier,
+    mailboxes: Mutex<Vec<Vec<(i32, i32, Box<dyn Any + Send>)>>>,
+    mail_cv: Condvar,
+}
+
+/// An [`MPIInterface`] implementation that simulates `size` MPI ranks using
+/// real OS threads within a single process, so distributed algorithms
+/// ([`algorithms::DistributedDifferentialEvolution`],
+/// [`algorithms::DistributedParticleSwarm`]) can be exercised end-to-end —
+/// with genuine cross-rank broadcast/gather/allreduce/send/recv — without an
+/// actual MPI runtime or multi-process setup. See [`spawn_ranks`] to
+/// construct and drive a full communicator.
+///
+/// Every generic method requires `T: 'static` (per [`MPIInterface`]) because
+/// values cross the simulated thread boundary via `Box<dyn Any + Send>`.
+pub struct ThreadRankMpi {
+    rank: i32,
+    shared: Arc<ThreadMpiShared>,
+}
+
+impl ThreadRankMpi {
+    /// Clone the `Vec<T>` behind a type-erased slot without consuming it —
+    /// collectives where multiple ranks all read the same slot (broadcast,
+    /// allreduce) must not `.take()` it, or only the first rank to acquire
+    /// the lock would see `Some` and every other rank would panic on `None`.
+    fn clone_from_slot<T: Clone + 'static>(boxed: &Box<dyn Any + Send>) -> Vec<T> {
+        boxed
+            .downcast_ref::<Vec<T>>()
+            .expect("ThreadRankMpi: type mismatch between ranks in the same collective call")
+            .clone()
+    }
+}
+
+/// Build a `size`-rank simulated communicator and run `body` on each
+/// simulated rank in its own thread, returning each rank's result in rank
+/// order. `body` receives a ready-to-use [`ThreadRankMpi`] handle; construct
+/// a [`DistributedOptimizationContext`] from it to drive a real algorithm.
+///
+/// # Panics
+/// Propagates a panic from `body` on any rank (via `JoinHandle::join`'s
+/// `Result::expect`) rather than silently losing a rank's failure.
+pub fn spawn_ranks<F, R>(size: usize, body: F) -> Vec<R>
+where
+    F: Fn(ThreadRankMpi) -> R + Send + Sync + Clone + 'static,
+    R: Send + 'static,
+{
+    let shared = Arc::new(ThreadMpiShared {
+        size: size as i32,
+        slots: Mutex::new((0..size).map(|_| None).collect()),
+        deposited: Barrier::new(size),
+        consumed: Barrier::new(size),
+        explicit_barrier: Barrier::new(size),
+        mailboxes: Mutex::new((0..size).map(|_| Vec::new()).collect()),
+        mail_cv: Condvar::new(),
+    });
+
+    let handles: Vec<_> = (0..size)
+        .map(|rank| {
+            let mpi = ThreadRankMpi {
+                rank: rank as i32,
+                shared: Arc::clone(&shared),
+            };
+            let body = body.clone();
+            thread::spawn(move || body(mpi))
+        })
+        .collect();
+
+    handles
+        .into_iter()
+        .map(|h| h.join().expect("rank thread panicked"))
+        .collect()
+}
+
+impl MPIInterface for ThreadRankMpi {
+    fn rank(&self) -> i32 {
+        self.rank
+    }
+
+    fn size(&self) -> i32 {
+        self.shared.size
+    }
+
+    fn broadcast<T>(&self, data: &mut [T], root: i32) -> ScirsResult<()>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        if self.rank == root {
+            let mut slots = self.shared.slots.lock().expect("mpi slots lock poisoned");
+            slots[root as usize] = Some(Box::new(data.to_vec()) as Box<dyn Any + Send>);
+        }
+        // Every rank (root included) waits here until root has deposited,
+        // then every rank reads the same slot below via a shared borrow
+        // (`clone_from_slot`) rather than consuming it — otherwise only
+        // whichever rank's thread acquired the lock first would see `Some`
+        // and every other rank would panic on a `None` it raced away.
+        self.shared.deposited.wait();
+        {
+            let slots = self.shared.slots.lock().expect("mpi slots lock poisoned");
+            let boxed = slots[root as usize]
+                .as_ref()
+                .expect("broadcast root did not deposit data");
+            let received: Vec<T> = Self::clone_from_slot(boxed);
+            for (dst, src) in data.iter_mut().zip(received.into_iter()) {
+                *dst = src;
+            }
+        }
+        self.shared.consumed.wait();
+        Ok(())
+    }
+
+    fn gather<T>(&self, send_data: &[T], recv_data: Option<&mut [T]>, root: i32) -> ScirsResult<()>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        {
+            let mut slots = self.shared.slots.lock().expect("mpi slots lock poisoned");
+            slots[self.rank as usize] = Some(Box::new(send_data.to_vec()) as Box<dyn Any + Send>);
+        }
+        self.shared.deposited.wait();
+
+        if self.rank == root {
+            let recv_data = recv_data.expect("gather root must supply recv_data");
+            let per_rank = send_data.len();
+            let slots = self.shared.slots.lock().expect("mpi slots lock poisoned");
+            for (r, slot) in slots.iter().enumerate().take(self.shared.size as usize) {
+                let boxed = slot.as_ref().expect("gather: rank did not deposit");
+                let v: Vec<T> = Self::clone_from_slot(boxed);
+                let start = r * per_rank;
+                for (i, val) in v.into_iter().enumerate() {
+                    if start + i < recv_data.len() {
+                        recv_data[start + i] = val;
+                    }
+                }
+            }
+        }
+        self.shared.consumed.wait();
+        Ok(())
+    }
+
+    fn allreduce<T>(&self, send_data: &[T], recv_data: &mut [T], op: ReductionOp) -> ScirsResult<()>
+    where
+        T: Clone + Send + Sync + 'static + std::ops::Add<Output = T> + PartialOrd,
+    {
+        {
+            let mut slots = self.shared.slots.lock().expect("mpi slots lock poisoned");
+            slots[self.rank as usize] = Some(Box::new(send_data.to_vec()) as Box<dyn Any + Send>);
+        }
+        self.shared.deposited.wait();
+
+        // Compute into a local result first — every rank must reach the
+        // `consumed` barrier below regardless of outcome (an early `return`
+        // from inside the reduction, e.g. on an unsupported op, would leave
+        // every other rank blocked on that barrier forever).
+        let result: ScirsResult<()> = (|| {
+            let len = send_data.len();
+            let slots = self.shared.slots.lock().expect("mpi slots lock poisoned");
+            let per_rank: Vec<Vec<T>> = slots
+                .iter()
+                .take(self.shared.size as usize)
+                .map(|slot| {
+                    Self::clone_from_slot::<T>(
+                        slot.as_ref().expect("allreduce: rank did not deposit"),
+                    )
+                })
+                .collect();
+            for i in 0..len {
+                let mut acc = per_rank[0][i].clone();
+                for contribution in per_rank.iter().skip(1) {
+                    let v = contribution[i].clone();
+                    acc = match op {
+                        ReductionOp::Sum => acc + v,
+                        ReductionOp::Min => {
+                            if v < acc {
+                                v
+                            } else {
+                                acc
+                            }
+                        }
+                        ReductionOp::Max => {
+                            if v > acc {
+                                v
+                            } else {
+                                acc
+                            }
+                        }
+                        ReductionOp::Prod => {
+                            return Err(ScirsError::InvalidInput(
+                                scirs2_core::error::ErrorContext::new(
+                                    "ThreadRankMpi::allreduce: ReductionOp::Prod is not \
+                                     supported (MPIInterface's trait bound only provides Add \
+                                     + PartialOrd, not Mul)"
+                                        .to_string(),
+                                ),
+                            ));
+                        }
+                    };
+                }
+                recv_data[i] = acc;
+            }
+            Ok(())
+        })();
+        self.shared.consumed.wait();
+        result
+    }
+
+    fn barrier(&self) -> ScirsResult<()> {
+        self.shared.explicit_barrier.wait();
+        Ok(())
+    }
+
+    fn send<T>(&self, data: &[T], dest: i32, tag: i32) -> ScirsResult<()>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        let mut mailboxes = self.shared.mailboxes.lock().expect("mailbox lock poisoned");
+        mailboxes[dest as usize].push((
+            self.rank,
+            tag,
+            Box::new(data.to_vec()) as Box<dyn Any + Send>,
+        ));
+        self.shared.mail_cv.notify_all();
+        Ok(())
+    }
+
+    fn recv<T>(&self, data: &mut [T], source: i32, tag: i32) -> ScirsResult<()>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        let mut mailboxes = self.shared.mailboxes.lock().expect("mailbox lock poisoned");
+        loop {
+            let inbox = &mut mailboxes[self.rank as usize];
+            if let Some(pos) = inbox
+                .iter()
+                .position(|(src, t, _)| *src == source && *t == tag)
+            {
+                let (_, _, boxed) = inbox.remove(pos);
+                let received: Vec<T> = *boxed
+                    .downcast::<Vec<T>>()
+                    .expect("ThreadRankMpi::recv: type mismatch with matching send");
+                for (dst, src) in data.iter_mut().zip(received.into_iter()) {
+                    *dst = src;
+                }
+                return Ok(());
+            }
+            mailboxes = self
+                .shared
+                .mail_cv
+                .wait(mailboxes)
+                .expect("mailbox condvar wait poisoned");
+        }
     }
 }
 
@@ -1190,5 +1498,150 @@ mod tests {
         stats.communication_time = 20.0;
 
         assert_eq!(stats.parallel_efficiency(), 0.8);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // ThreadRankMpi: real cross-thread collective semantics
+    // ─────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_thread_rank_mpi_broadcast_allreduce_sendrecv() {
+        let results = spawn_ranks(4, |mpi| {
+            let rank = mpi.rank();
+
+            // Broadcast: root (rank 2) deposits, every rank must see its data.
+            let mut buf = vec![rank as f64; 3];
+            mpi.broadcast(&mut buf, 2).expect("broadcast failed");
+            assert_eq!(buf, vec![2.0, 2.0, 2.0]);
+
+            // Allreduce Sum over one contribution per rank: 0+1+2+3 = 6.
+            let send = vec![rank as f64];
+            let mut sum = vec![0.0];
+            mpi.allreduce(&send, &mut sum, ReductionOp::Sum)
+                .expect("allreduce sum failed");
+            assert_eq!(sum, vec![6.0]);
+
+            // Allreduce Min/Max over the same contributions.
+            let mut min = vec![0.0];
+            mpi.allreduce(&send, &mut min, ReductionOp::Min)
+                .expect("allreduce min failed");
+            assert_eq!(min, vec![0.0]);
+
+            let mut max = vec![0.0];
+            mpi.allreduce(&send, &mut max, ReductionOp::Max)
+                .expect("allreduce max failed");
+            assert_eq!(max, vec![3.0]);
+
+            // Ring send/recv: every rank sends to its successor and receives
+            // from its predecessor. `send` is non-blocking (mailbox deposit),
+            // so this ordering cannot deadlock regardless of thread scheduling.
+            let next = (rank + 1) % 4;
+            let prev = (rank + 3) % 4; // (rank - 1).rem_euclid(4)
+            mpi.send(&[rank as f64], next, 0).expect("send failed");
+            let mut incoming = vec![0.0];
+            mpi.recv(&mut incoming, prev, 0).expect("recv failed");
+            assert_eq!(incoming, vec![prev as f64]);
+
+            mpi.barrier().expect("barrier failed");
+            rank
+        });
+
+        let mut sorted = results;
+        sorted.sort_unstable();
+        assert_eq!(sorted, vec![0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn test_thread_rank_mpi_gather() {
+        let results = spawn_ranks(3, |mpi| {
+            let rank = mpi.rank();
+            let send = vec![rank as f64, (rank * 10) as f64];
+
+            if mpi.rank() == 0 {
+                let mut recv = vec![0.0; 6];
+                mpi.gather(&send, Some(&mut recv), 0)
+                    .expect("gather failed");
+                Some(recv)
+            } else {
+                mpi.gather(&send, None, 0).expect("gather failed");
+                None
+            }
+        });
+
+        let root_result = results.into_iter().flatten().next().expect("root present");
+        assert_eq!(root_result, vec![0.0, 0.0, 1.0, 10.0, 2.0, 20.0]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // End-to-end distributed algorithms driven across simulated ranks
+    // ─────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_distributed_differential_evolution_thread_ranks() {
+        // Sphere function: f(x) = sum(x_i^2), global minimum 0 at the origin.
+        let bounds = vec![(-5.0, 5.0), (-5.0, 5.0)];
+
+        let results = spawn_ranks(4, move |mpi| {
+            let context = DistributedOptimizationContext::new(mpi, DistributedConfig::default());
+            let mut de = algorithms::DistributedDifferentialEvolution::new(context, 40, 300);
+            de.optimize(
+                |x: &ArrayView1<f64>| x.iter().map(|v| v * v).sum::<f64>(),
+                &bounds,
+            )
+            .expect("distributed DE optimize failed")
+        });
+
+        assert_eq!(results.len(), 4);
+        for result in &results {
+            assert!(result.success);
+            assert!(
+                result.fun < 1e-3,
+                "expected convergence near the sphere minimum, got fun={}",
+                result.fun
+            );
+            for &xi in result.x.iter() {
+                assert!(
+                    xi.abs() < 0.5,
+                    "expected x near the origin, got {:?}",
+                    result.x
+                );
+            }
+        }
+        // All ranks must agree on the reduced global best (it is the result
+        // of a `Min` all-reduce followed by a broadcast from the owning rank).
+        for result in &results[1..] {
+            assert_eq!(result.fun, results[0].fun);
+            assert_eq!(result.x, results[0].x);
+        }
+    }
+
+    #[test]
+    fn test_distributed_particle_swarm_thread_ranks() {
+        // Sphere function again, exercised through the PSO algorithm instead.
+        let bounds = vec![(-5.0, 5.0), (-5.0, 5.0), (-5.0, 5.0)];
+
+        let results = spawn_ranks(3, move |mpi| {
+            let context = DistributedOptimizationContext::new(mpi, DistributedConfig::default());
+            let mut pso = algorithms::DistributedParticleSwarm::new(context, 30, 300);
+            pso.optimize(
+                |x: &ArrayView1<f64>| x.iter().map(|v| v * v).sum::<f64>(),
+                &bounds,
+            )
+            .expect("distributed PSO optimize failed")
+        });
+
+        assert_eq!(results.len(), 3);
+        for result in &results {
+            assert!(result.success);
+            assert!(
+                result.fun < 1e-1,
+                "expected convergence near the sphere minimum, got fun={}",
+                result.fun
+            );
+        }
+        for result in &results[1..] {
+            assert_eq!(result.fun, results[0].fun);
+            assert_eq!(result.x, results[0].x);
+        }
     }
 }

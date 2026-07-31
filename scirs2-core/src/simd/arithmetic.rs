@@ -6,9 +6,14 @@
 use ndarray::{Array1, ArrayView1};
 
 pub fn simd_scalar_mul_f32(a: &ArrayView1<f32>, scalar: f32) -> Array1<f32> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() {
+        return a.mapv(|x| x * scalar);
+    }
+
     let len = a.len();
     let mut result = Array1::zeros(len);
-    let a_slice = a.as_slice().expect("Operation failed");
+    let a_slice = a.as_slice().expect("contiguity checked above");
     let result_slice: &mut [f32] = result.as_slice_mut().expect("Operation failed");
 
     #[cfg(target_arch = "x86_64")]
@@ -96,9 +101,14 @@ pub fn simd_scalar_mul_f32(a: &ArrayView1<f32>, scalar: f32) -> Array1<f32> {
 /// Apply scalar multiplication to an f64 array using unified SIMD operations
 #[allow(dead_code)]
 pub fn simd_scalar_mul_f64(a: &ArrayView1<f64>, scalar: f64) -> Array1<f64> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() {
+        return a.mapv(|x| x * scalar);
+    }
+
     let len = a.len();
     let mut result = Array1::zeros(len);
-    let a_slice = a.as_slice().expect("Operation failed");
+    let a_slice = a.as_slice().expect("contiguity checked above");
     let result_slice: &mut [f64] = result.as_slice_mut().expect("Operation failed");
 
     #[cfg(target_arch = "x86_64")]

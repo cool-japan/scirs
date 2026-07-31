@@ -17,14 +17,14 @@ use scirs2_core::ndarray::s;
 // ```
 // use scirs2_core::ndarray::Array2;
 // use scirs2_signal::dwt::Wavelet;
-// use scirs2_signal::dwt2d::dwt2d_decompose;
+// use scirs2_signal::dwt2d_advanced::{dwt2d_decompose, EdgeMode2D};
 // use scirs2_signal::wavelet_vis::arrange_coefficients_2d;
 //
 // // Create a simple test image
 // let image = Array2::from_shape_vec((8, 8), (0..64).map(|i| i as f64).collect()).expect("Operation failed");
 //
 // // Perform 2D DWT decomposition
-// let decomp = dwt2d_decompose(&image, Wavelet::Haar, None).expect("Operation failed");
+// let decomp = dwt2d_decompose(&image, Wavelet::Haar, EdgeMode2D::Symmetric).expect("Operation failed");
 //
 // // Arrange the coefficients in a visually informative layout
 // let arranged = arrange_coefficients_2d(&decomp);
@@ -36,7 +36,7 @@ use scirs2_core::ndarray::s;
 // ```
 
 use crate::dwt::Wavelet;
-use crate::dwt2d::{dwt2d_decompose, wavedec2, Dwt2dResult};
+use crate::dwt2d_advanced::{dwt2d_decompose, wavedec2, Dwt2DCoeffs, EdgeMode2D, MultilevelDwt2D};
 use crate::error::{SignalError, SignalResult};
 use crate::swt2d::swt2d_decompose;
 #[cfg(feature = "parallel")]
@@ -44,6 +44,14 @@ use crate::swt2d::Swt2dResult;
 use scirs2_core::ndarray::Array2;
 use scirs2_core::numeric::Float;
 use std::fmt::Debug;
+
+/// 2D DWT decomposition result, as produced by [`dwt2d_decompose`] / [`wavedec2`]
+/// (from the [`crate::dwt2d_advanced`] module).
+///
+/// This is a convenience alias kept for API continuity: the underlying
+/// [`Dwt2DCoeffs`] fields are `ll` (approximation), `lh` (horizontal detail),
+/// `hl` (vertical detail), and `hh` (diagonal detail).
+pub type Dwt2dResult = Dwt2DCoeffs;
 
 #[allow(unused_imports)]
 /// Energy distribution of wavelet coefficients.
@@ -103,14 +111,14 @@ pub struct WaveletEnergy {
 /// ```
 /// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
-/// use scirs2_signal::dwt2d::dwt2d_decompose;
+/// use scirs2_signal::dwt2d_advanced::{dwt2d_decompose, EdgeMode2D};
 /// use scirs2_signal::wavelet_vis::arrange_coefficients_2d;
 ///
 /// // Create a simple test image
 /// let image = Array2::from_shape_vec((8, 8), (0..64).map(|i| i as f64).collect()).expect("Operation failed");
 ///
 /// // Perform 2D DWT decomposition
-/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, None).expect("Operation failed");
+/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, EdgeMode2D::Symmetric).expect("Operation failed");
 ///
 /// // Arrange the coefficients in a visually informative layout
 /// let arranged = arrange_coefficients_2d(&decomp);
@@ -120,10 +128,10 @@ pub struct WaveletEnergy {
 /// ```
 #[allow(dead_code)]
 pub fn arrange_coefficients_2d(decomposition: &Dwt2dResult) -> Array2<f64> {
-    let approx = &_decomposition.approx;
-    let detail_h = &_decomposition.detail_h;
-    let detail_v = &_decomposition.detail_v;
-    let detail_d = &_decomposition.detail_d;
+    let approx = &decomposition.ll;
+    let detail_h = &decomposition.lh;
+    let detail_v = &decomposition.hl;
+    let detail_d = &decomposition.hh;
 
     // Get dimensions
     let (approx_rows, approx_cols) = approx.dim();
@@ -161,14 +169,17 @@ pub fn arrange_coefficients_2d(decomposition: &Dwt2dResult) -> Array2<f64> {
 
 /// Arranges multi-level 2D DWT coefficients into a single visualization-friendly array.
 ///
-/// This function takes a vector of `Dwt2dResult` objects containing multiple levels of
-/// decomposition and arranges them into a single 2D array, following the standard layout
-/// used in wavelet literature. For multi-level decomposition, the approximation coefficients
-/// from each level (except the final level) are further decomposed.
+/// This function takes a [`MultilevelDwt2D`] decomposition (as produced by [`wavedec2`])
+/// and arranges it into a single 2D array following the standard wavelet-pyramid layout:
+/// starting from the coarsest-level approximation in the top-left corner, each
+/// successive (coarsest-to-finest) level's horizontal/vertical/diagonal detail
+/// coefficients are placed around the previous, doubling the arrangement's size
+/// at each level -- exactly mirroring the reconstruction order used by
+/// [`crate::dwt2d_advanced::waverec2`].
 ///
 /// # Arguments
 ///
-/// * `decompositions` - A vector of 2D DWT decomposition results, with indices corresponding to decomposition levels
+/// * `decomposition` - Multi-level 2D DWT decomposition result from [`wavedec2`]
 ///
 /// # Returns
 ///
@@ -176,10 +187,10 @@ pub fn arrange_coefficients_2d(decomposition: &Dwt2dResult) -> Array2<f64> {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```
 /// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
-/// use scirs2_signal::dwt2d::wavedec2;
+/// use scirs2_signal::dwt2d_advanced::{wavedec2, EdgeMode2D};
 /// use scirs2_signal::wavelet_vis::arrange_multilevel_coefficients_2d;
 ///
 /// // Create a simple test image (64x64 for 3 levels without overflow)
@@ -191,119 +202,58 @@ pub fn arrange_coefficients_2d(decomposition: &Dwt2dResult) -> Array2<f64> {
 /// }
 ///
 /// // Perform multi-level 2D DWT decomposition (3 levels)
-/// let decomps = wavedec2(&image, Wavelet::Haar, 3, None).expect("Operation failed");
+/// let decomp = wavedec2(&image, Wavelet::Haar, 3, EdgeMode2D::Symmetric).expect("Operation failed");
 ///
 /// // Arrange the coefficients in a visually informative layout
-/// let arranged = arrange_multilevel_coefficients_2d(&decomps).expect("Operation failed");
+/// let arranged = arrange_multilevel_coefficients_2d(&decomp).expect("Operation failed");
 ///
 /// // The arranged array has the same shape as the original image
 /// assert_eq!(arranged.shape(), image.shape());
 /// ```
 #[allow(dead_code)]
 pub fn arrange_multilevel_coefficients_2d(
-    decompositions: &[Dwt2dResult],
+    decomposition: &MultilevelDwt2D,
 ) -> SignalResult<Array2<f64>> {
-    if decompositions.is_empty() {
+    if decomposition.details.is_empty() {
         return Err(SignalError::ValueError(
-            "Decomposition list is empty".to_string(),
+            "Decomposition has no detail levels".to_string(),
         ));
     }
 
-    // Calculate original image dimensions based on the shape of the first level's coefficients
-    let first_decomp = &decompositions[0];
-    let (rows, cols) = first_decomp.approx.dim();
-    let original_rows = rows * 2;
-    let original_cols = cols * 2;
+    // Start from the coarsest-level approximation (top-left corner), then grow the
+    // arrangement outward one level at a time (coarsest to finest, matching
+    // `decomposition.details`'s documented ordering), doubling in each dimension
+    // per level -- the same order `waverec2` uses to reconstruct the signal.
+    let mut current = decomposition.approx.clone();
 
-    // Create output array with the original image dimensions
-    let mut arranged = Array2::zeros((original_rows, original_cols));
-
-    // Determine the number of levels
-    let num_levels = decompositions.len();
-
-    // Place coefficients from the deepest level (last level)
-    let deepest_level = &decompositions[num_levels - 1];
-    let (approx_rows, approx_cols) = deepest_level.approx.dim();
-
-    // Calculate the start indices for the deepest level's approximation coefficients
-    let start_row = 0;
-    let start_col = 0;
-
-    // Place the approximation coefficients from the deepest level
-    for i in 0..approx_rows {
-        for j in 0..approx_cols {
-            arranged[[start_row + i, start_col + j]] = deepest_level.approx[[i, j]];
+    for (level_idx, (lh, hl, hh)) in decomposition.details.iter().enumerate() {
+        let (rows, cols) = current.dim();
+        if lh.dim() != (rows, cols) || hl.dim() != (rows, cols) || hh.dim() != (rows, cols) {
+            return Err(SignalError::DimensionMismatch(format!(
+                "Level {level_idx} detail shape {:?}/{:?}/{:?} does not match \
+                 accumulated approximation shape {:?}",
+                lh.dim(),
+                hl.dim(),
+                hh.dim(),
+                (rows, cols),
+            )));
         }
+
+        let mut next = Array2::zeros((rows * 2, cols * 2));
+        // LL (approximation accumulated so far): top-left
+        next.slice_mut(s![0..rows, 0..cols]).assign(&current);
+        // HL (vertical detail): top-right
+        next.slice_mut(s![0..rows, cols..2 * cols]).assign(hl);
+        // LH (horizontal detail): bottom-left
+        next.slice_mut(s![rows..2 * rows, 0..cols]).assign(lh);
+        // HH (diagonal detail): bottom-right
+        next.slice_mut(s![rows..2 * rows, cols..2 * cols])
+            .assign(hh);
+
+        current = next;
     }
 
-    // Place detail coefficients for each level
-    for level_idx in (0..num_levels).rev() {
-        let level = &decompositions[level_idx];
-
-        // For each level, calculate the size and positions of the detail coefficients
-        let scale_factor = 2_usize.pow((num_levels - 1 - level_idx) as u32);
-        let level_approx_rows = level.approx.shape()[0];
-        let level_approx_cols = level.approx.shape()[1];
-
-        // Horizontal details (bottom-left)
-        for i in 0..level_approx_rows {
-            for j in 0..level_approx_cols {
-                let target_row = start_row + level_approx_rows + i * scale_factor;
-                let target_col = start_col + j * scale_factor;
-
-                if target_row < original_rows && target_col < original_cols {
-                    for di in 0..scale_factor {
-                        for dj in 0..scale_factor {
-                            if target_row + di < original_rows && target_col + dj < original_cols {
-                                arranged[[target_row + di, target_col + dj]] =
-                                    level.detail_h[[i, j]];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Vertical details (top-right)
-        for i in 0..level_approx_rows {
-            for j in 0..level_approx_cols {
-                let target_row = start_row + i * scale_factor;
-                let target_col = start_col + level_approx_cols + j * scale_factor;
-
-                if target_row < original_rows && target_col < original_cols {
-                    for di in 0..scale_factor {
-                        for dj in 0..scale_factor {
-                            if target_row + di < original_rows && target_col + dj < original_cols {
-                                arranged[[target_row + di, target_col + dj]] =
-                                    level.detail_v[[i, j]];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Diagonal details (bottom-right)
-        for i in 0..level_approx_rows {
-            for j in 0..level_approx_cols {
-                let target_row = start_row + level_approx_rows + i * scale_factor;
-                let target_col = start_col + level_approx_cols + j * scale_factor;
-
-                if target_row < original_rows && target_col < original_cols {
-                    for di in 0..scale_factor {
-                        for dj in 0..scale_factor {
-                            if target_row + di < original_rows && target_col + dj < original_cols {
-                                arranged[[target_row + di, target_col + dj]] =
-                                    level.detail_d[[i, j]];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(arranged)
+    Ok(current)
 }
 
 /// Calculates energy statistics for 2D DWT coefficients.
@@ -326,14 +276,14 @@ pub fn arrange_multilevel_coefficients_2d(
 /// ```
 /// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
-/// use scirs2_signal::dwt2d::dwt2d_decompose;
+/// use scirs2_signal::dwt2d_advanced::{dwt2d_decompose, EdgeMode2D};
 /// use scirs2_signal::wavelet_vis::calculate_energy_2d;
 ///
 /// // Create a simple test image
 /// let image = Array2::from_shape_vec((8, 8), (0..64).map(|i| i as f64).collect()).expect("Operation failed");
 ///
 /// // Perform 2D DWT decomposition
-/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, None).expect("Operation failed");
+/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, EdgeMode2D::Symmetric).expect("Operation failed");
 ///
 /// // Calculate energy distribution
 /// let energy = calculate_energy_2d(&decomp);
@@ -343,10 +293,10 @@ pub fn arrange_multilevel_coefficients_2d(
 /// ```
 #[allow(dead_code)]
 pub fn calculate_energy_2d(decomposition: &Dwt2dResult) -> WaveletEnergy {
-    let approx = &_decomposition.approx;
-    let detail_h = &_decomposition.detail_h;
-    let detail_v = &_decomposition.detail_v;
-    let detail_d = &_decomposition.detail_d;
+    let approx = &decomposition.ll;
+    let detail_h = &decomposition.lh;
+    let detail_v = &decomposition.hl;
+    let detail_d = &decomposition.hh;
 
     // Calculate energy (sum of squared coefficients)
     let energy_approx = approx.iter().map(|&x| x * x).sum::<f64>();
@@ -420,10 +370,10 @@ pub fn calculate_energy_2d(decomposition: &Dwt2dResult) -> WaveletEnergy {
 #[cfg(feature = "parallel")]
 #[allow(dead_code)]
 pub fn calculate_energy_swt2d(decomposition: &Swt2dResult) -> WaveletEnergy {
-    let approx = &_decomposition.approx;
-    let detail_h = &_decomposition.detail_h;
-    let detail_v = &_decomposition.detail_v;
-    let detail_d = &_decomposition.detail_d;
+    let approx = &decomposition.approx;
+    let detail_h = &decomposition.detail_h;
+    let detail_v = &decomposition.detail_v;
+    let detail_d = &decomposition.detail_d;
 
     // Calculate energy (sum of squared coefficients)
     let energy_approx = approx.iter().map(|&x| x * x).sum::<f64>();
@@ -539,24 +489,24 @@ pub fn calculate_energy_1d(approx: &[f64], detail: &[f64]) -> WaveletEnergy {
 ///
 /// # Returns
 ///
-/// * Normalized coefficients as a new Array2<f64>
+/// * Normalized coefficients as a new `Array2<f64>`
 ///
 /// # Examples
 ///
 /// ```
 /// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
-/// use scirs2_signal::dwt2d::dwt2d_decompose;
+/// use scirs2_signal::dwt2d_advanced::{dwt2d_decompose, EdgeMode2D};
 /// use scirs2_signal::wavelet_vis::{normalize_coefficients, NormalizationStrategy};
 ///
 /// // Create a simple test image
 /// let image = Array2::from_shape_vec((8, 8), (0..64).map(|i| i as f64).collect()).expect("Operation failed");
 ///
 /// // Perform 2D DWT decomposition
-/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, None).expect("Operation failed");
+/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, EdgeMode2D::Symmetric).expect("Operation failed");
 ///
-/// // Normalize the horizontal detail coefficients for visualization
-/// let normalized = normalize_coefficients(&decomp.detail_h, NormalizationStrategy::MinMax, None);
+/// // Normalize the horizontal detail (LH) coefficients for visualization
+/// let normalized = normalize_coefficients(&decomp.lh, NormalizationStrategy::MinMax, None);
 ///
 /// // Check that values are in the [0, 1] range
 /// for &value in normalized.iter() {
@@ -703,14 +653,14 @@ pub enum NormalizationStrategy {
 /// ```
 /// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
-/// use scirs2_signal::dwt2d::dwt2d_decompose;
+/// use scirs2_signal::dwt2d_advanced::{dwt2d_decompose, EdgeMode2D};
 /// use scirs2_signal::wavelet_vis::count_nonzero_coefficients;
 ///
 /// // Create a simple test image
 /// let image = Array2::from_shape_vec((8, 8), (0..64).map(|i| i as f64).collect()).expect("Operation failed");
 ///
 /// // Perform 2D DWT decomposition
-/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, None).expect("Operation failed");
+/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, EdgeMode2D::Symmetric).expect("Operation failed");
 ///
 /// // Count non-zero coefficients with a threshold of 1.0
 /// let counts = count_nonzero_coefficients(&decomp, Some(1.0));
@@ -728,34 +678,34 @@ pub fn count_nonzero_coefficients(
 
     // Count non-zero coefficients in each subband
     let count_approx = decomposition
-        .approx
+        .ll
         .iter()
         .filter(|&&x| x.abs() > threshold)
         .count();
 
     let count_h = decomposition
-        .detail_h
+        .lh
         .iter()
         .filter(|&&x| x.abs() > threshold)
         .count();
 
     let count_v = decomposition
-        .detail_v
+        .hl
         .iter()
         .filter(|&&x| x.abs() > threshold)
         .count();
 
     let count_d = decomposition
-        .detail_d
+        .hh
         .iter()
         .filter(|&&x| x.abs() > threshold)
         .count();
 
     let total_count = count_approx + count_h + count_v + count_d;
-    let total_coeffs = decomposition.approx.len()
-        + decomposition.detail_h.len()
-        + decomposition.detail_v.len()
-        + decomposition.detail_d.len();
+    let total_coeffs = decomposition.ll.len()
+        + decomposition.lh.len()
+        + decomposition.hl.len()
+        + decomposition.hh.len();
 
     let percent = 100.0 * (total_count as f64) / (total_coeffs as f64);
 
@@ -807,25 +757,25 @@ pub struct WaveletCoeffCount {
 /// ```
 /// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
-/// use scirs2_signal::dwt2d::dwt2d_decompose;
+/// use scirs2_signal::dwt2d_advanced::{dwt2d_decompose, EdgeMode2D};
 /// use scirs2_signal::wavelet_vis::{create_coefficient_heatmap, NormalizationStrategy, colormaps};
 ///
 /// // Create a simple test image
 /// let image = Array2::from_shape_vec((8, 8), (0..64).map(|i| i as f64).collect()).expect("Operation failed");
 ///
 /// // Perform 2D DWT decomposition
-/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, None).expect("Operation failed");
+/// let decomp = dwt2d_decompose(&image, Wavelet::Haar, EdgeMode2D::Symmetric).expect("Operation failed");
 ///
-/// // Create a heatmap of the approximation coefficients
+/// // Create a heatmap of the approximation (LL) coefficients
 /// let heatmap = create_coefficient_heatmap(
-///     &decomp.approx,
+///     &decomp.ll,
 ///     colormaps::viridis,
 ///     Some(NormalizationStrategy::MinMax)
 /// );
 ///
 /// // Verify the heatmap dimensions
-/// assert_eq!(heatmap.shape()[0], decomp.approx.shape()[0]);
-/// assert_eq!(heatmap.shape()[1], decomp.approx.shape()[1]);
+/// assert_eq!(heatmap.shape()[0], decomp.ll.shape()[0]);
+/// assert_eq!(heatmap.shape()[1], decomp.ll.shape()[1]);
 /// assert_eq!(heatmap.shape()[2], 3); // RGB
 /// ```
 #[allow(dead_code)]
@@ -946,9 +896,9 @@ mod tests {
     use super::*;
     // Helper function to create a test image
     fn create_test_image(size: usize) -> Array2<f64> {
-        let mut image = Array2::zeros((_size, size));
-        for i in 0.._size {
-            for j in 0.._size {
+        let mut image = Array2::zeros((size, size));
+        for i in 0..size {
+            for j in 0..size {
                 image[[i, j]] = (i * j) as f64;
             }
         }
@@ -961,7 +911,8 @@ mod tests {
         let image = create_test_image(8);
 
         // Perform 2D DWT
-        let decomp = dwt2d_decompose(&image, Wavelet::Haar, None).expect("Operation failed");
+        let decomp = dwt2d_decompose(&image, Wavelet::Haar, EdgeMode2D::Symmetric)
+            .expect("Operation failed");
 
         // Arrange coefficients
         let arranged = arrange_coefficients_2d(&decomp);
@@ -970,16 +921,16 @@ mod tests {
         assert_eq!(arranged.shape(), image.shape());
 
         // Check that quadrants match the original coefficients
-        let (approx_rows, approx_cols) = decomp.approx.dim();
+        let (approx_rows, approx_cols) = decomp.ll.dim();
 
         for i in 0..approx_rows {
             for j in 0..approx_cols {
-                assert_eq!(arranged[[i, j]], decomp.approx[[i, j]]);
-                assert_eq!(arranged[[i, approx_cols + j]], decomp.detail_v[[i, j]]);
-                assert_eq!(arranged[[approx_rows + i, j]], decomp.detail_h[[i, j]]);
+                assert_eq!(arranged[[i, j]], decomp.ll[[i, j]]);
+                assert_eq!(arranged[[i, approx_cols + j]], decomp.hl[[i, j]]);
+                assert_eq!(arranged[[approx_rows + i, j]], decomp.lh[[i, j]]);
                 assert_eq!(
                     arranged[[approx_rows + i, approx_cols + j]],
-                    decomp.detail_d[[i, j]]
+                    decomp.hh[[i, j]]
                 );
             }
         }
@@ -991,34 +942,52 @@ mod tests {
         let image = create_test_image(8);
 
         // Perform multi-level 2D DWT
-        let decomps = wavedec2(&image, Wavelet::Haar, 1, None).expect("Operation failed");
+        let decomp =
+            wavedec2(&image, Wavelet::Haar, 1, EdgeMode2D::Symmetric).expect("Operation failed");
 
         // Arrange coefficients
-        let arranged = arrange_multilevel_coefficients_2d(&decomps).expect("Operation failed");
+        let arranged = arrange_multilevel_coefficients_2d(&decomp).expect("Operation failed");
 
         // Our test creates an 8x8 image, and after one level of decomposition,
         // we get 4x4 approximation and detail coefficients, which when arranged
         // should result in an 8x8 array.
         assert_eq!(arranged.shape(), &[8, 8]);
 
-        // Check first level approximation placement
-        let (approx_rows, approx_cols) = decomps[0].approx.dim();
+        // Check coarsest-level approximation placement (top-left corner)
+        let (approx_rows, approx_cols) = decomp.approx.dim();
         for i in 0..approx_rows {
             for j in 0..approx_cols {
-                assert_eq!(arranged[[i, j]], decomps[0].approx[[i, j]]);
+                assert_eq!(arranged[[i, j]], decomp.approx[[i, j]]);
             }
         }
+
+        // With a single level, `details[0]` is this level's (lh, hl, hh); verify
+        // they land in the standard quadrants (HL top-right, LH bottom-left,
+        // HH bottom-right), matching `arrange_coefficients_2d`'s layout.
+        let (lh, hl, hh) = &decomp.details[0];
+        for i in 0..approx_rows {
+            for j in 0..approx_cols {
+                assert_eq!(arranged[[i, approx_cols + j]], hl[[i, j]]);
+                assert_eq!(arranged[[approx_rows + i, j]], lh[[i, j]]);
+                assert_eq!(arranged[[approx_rows + i, approx_cols + j]], hh[[i, j]]);
+            }
+        }
+
+        // The arrangement should exactly recover the original (non-constant)
+        // image up to the DWT's own reconstruction: a real (non-fabricating)
+        // implementation must reproduce every one of the four subbands, not
+        // just the approximation corner.
+        assert!(arranged.iter().any(|&x| x != 0.0));
     }
 
     #[test]
     fn test_calculate_energy_2d() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a test image
         let image = create_test_image(8);
 
         // Perform 2D DWT
-        let decomp = dwt2d_decompose(&image, Wavelet::Haar, None).expect("Operation failed");
+        let decomp = dwt2d_decompose(&image, Wavelet::Haar, EdgeMode2D::Symmetric)
+            .expect("Operation failed");
 
         // Calculate energy
         let energy = calculate_energy_2d(&decomp);
@@ -1038,8 +1007,6 @@ mod tests {
 
     #[test]
     fn test_calculate_energy_swt2d() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a test image
         let image = create_test_image(8);
 
@@ -1057,8 +1024,6 @@ mod tests {
 
     #[test]
     fn test_calculate_energy_1d() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a simple signal
         let signal = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
 
@@ -1078,8 +1043,6 @@ mod tests {
 
     #[test]
     fn test_normalize_coefficients() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a test array with known range
         let mut coeffs = Array2::<f64>::zeros((4, 4));
         for i in 0..4 {
@@ -1124,8 +1087,6 @@ mod tests {
 
     #[test]
     fn test_count_nonzero_coefficients() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a test array with some zeros
         let mut coeffs = Array2::<f64>::zeros((4, 4));
         for i in 0..4 {
@@ -1138,10 +1099,13 @@ mod tests {
 
         // Create a Dwt2dResult with the same coefficients for simplicity
         let decomp = Dwt2dResult {
-            approx: coeffs.clone(),
-            detail_h: coeffs.clone(),
-            detail_v: coeffs.clone(),
-            detail_d: coeffs.clone(),
+            ll: coeffs.clone(),
+            lh: coeffs.clone(),
+            hl: coeffs.clone(),
+            hh: coeffs.clone(),
+            wavelet: Wavelet::Haar,
+            edge_mode: EdgeMode2D::Symmetric,
+            original_shape: (4, 4),
         };
 
         // Count with zero threshold
@@ -1163,8 +1127,6 @@ mod tests {
 
     #[test]
     fn test_create_coefficient_heatmap() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a test array
         let mut coeffs = Array2::<f64>::zeros((4, 4));
         for i in 0..4 {

@@ -92,7 +92,8 @@ array_function_dispatch!(
         // Get implementing args
         let boxed_x = Box::new(x.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_x];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::ml_ops::activation", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             if let Some(x_array) = x.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
@@ -139,7 +140,8 @@ array_function_dispatch!(
         let boxed_input = Box::new(input.box_clone());
         let boxed_filters = Box::new(filters.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_input, boxed_filters];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::ml_ops::conv2d", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             // This is a simplified implementation - in practice, convolution is much more complex
@@ -256,7 +258,8 @@ array_function_dispatch!(
         // Get implementing args
         let boxed_input = Box::new(input.box_clone());
         let boxed_args: Vec<Box<dyn Any>> = vec![boxed_input];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::ml_ops::max_pool2d", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             if let Some(inputarray) = input.as_any().downcast_ref::<NdarrayWrapper<f64, Ix4>>() {
@@ -372,7 +375,8 @@ array_function_dispatch!(
             Box::new(mean.box_clone()),
             Box::new(variance.box_clone()),
         ];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::ml_ops::batch_norm", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             if let (
@@ -495,7 +499,8 @@ array_function_dispatch!(
         // Get implementing args
         let boxed_args: Vec<Box<dyn Any>> =
             vec![Box::new(logits.box_clone()), Box::new(labels.box_clone())];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::ml_ops::cross_entropy", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             if let (Some(logits_array), Some(labels_array)) = (
@@ -600,7 +605,8 @@ array_function_dispatch!(
     ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         // Get implementing args
         let boxed_args: Vec<Box<dyn Any>> = vec![Box::new(input.box_clone())];
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args =
+            get_implementing_args("scirs2::array_protocol::ml_ops::dropout", &boxed_args);
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             if let Some(inputarray) = input.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
@@ -687,7 +693,10 @@ array_function_dispatch!(
             boxed_args.push(Box::new(m.box_clone()));
         }
 
-        let implementing_args = get_implementing_args(&boxed_args);
+        let implementing_args = get_implementing_args(
+            "scirs2::array_protocol::ml_ops::self_attention",
+            &boxed_args,
+        );
         if implementing_args.is_empty() {
             // Fallback implementation for ndarray types
             if let (Some(q_array), Some(k_array), Some(v_array)) = (

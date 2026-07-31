@@ -295,4 +295,48 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn test_null_mask_survives_roundtrip() {
+        let dir = std::env::temp_dir().join("scirs2_columnar_test_nulls");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("nulls.scircol");
+
+        // Non-constant data; the placeholder values at null positions (999.0 /
+        // -999) are deliberately implausible so a bug that mis-restores the mask
+        // (or drops it) is caught by the stats, not just by re-reading raw values.
+        let nullable_temp = Column::float64_with_nulls(
+            "temp",
+            vec![20.5, 999.0, 18.0, 999.0],
+            vec![false, true, false, true],
+        )
+        .expect("Failed to create column");
+        let plain_id = Column::int64("id", vec![1, 2, 3, 4]);
+
+        let table = ColumnarTable::from_columns(vec![nullable_temp, plain_id])
+            .expect("Failed to create table");
+
+        write_columnar(&path, &table).expect("Failed to write");
+        let loaded = read_columnar(&path).expect("Failed to read");
+
+        let temp_col = loaded.column("temp").expect("Failed to get column");
+        assert_eq!(temp_col.null_count(), 2);
+        assert!(temp_col.is_null(1));
+        assert!(temp_col.is_null(3));
+        assert!(!temp_col.is_null(0));
+        assert!(!temp_col.is_null(2));
+
+        let stats = ColumnStats::from_column(temp_col);
+        assert_eq!(stats.null_count, 2);
+        assert!((stats.min.expect("no min") - 18.0).abs() < 1e-10);
+        assert!((stats.max.expect("no max") - 20.5).abs() < 1e-10);
+        assert!((stats.sum.expect("no sum") - (20.5 + 18.0)).abs() < 1e-10);
+
+        // The plain (non-nullable) column must round trip with no null mask.
+        let id_col = loaded.column("id").expect("Failed to get column");
+        assert_eq!(id_col.null_count(), 0);
+        assert!(id_col.null_mask.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

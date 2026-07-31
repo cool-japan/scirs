@@ -30,7 +30,7 @@ pub use histogram::extract_histogram_features;
 pub use lbp::extract_lbp_features;
 pub use moments::extract_moment_features;
 pub use statistical::extract_intensity_features;
-pub use texture::extracttexture_features;
+pub use texture::extract_texture_features;
 pub use types::ImageFeatureOptions;
 
 // Common imports for internal use
@@ -104,7 +104,7 @@ where
 
     // Extract texture features
     if options.texture {
-        extracttexture_features(&image_f64, options, &mut features)?;
+        extract_texture_features(&image_f64, options, &mut features)?;
     }
 
     // Extract Haralick features

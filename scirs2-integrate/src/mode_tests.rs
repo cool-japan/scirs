@@ -244,13 +244,14 @@ mod simd_acceleration_tests {
 
     #[test]
     fn test_advanced_vector_add_fma() {
-        let accelerator = match AdvancedSimdAccelerator::<f64>::new() {
-            Ok(acc) => acc,
-            Err(e) => {
-                println!("SIMD accelerator creation failed: {e:?} - skipping test");
-                return;
-            }
-        };
+        // AdvancedSimdAccelerator::new() has no fallible step anywhere in its call chain
+        // (capability detection is plain `is_x86_feature_detected!`/hardcoded-default
+        // bookkeeping; VectorizationStrategies::new() and MixedPrecisionEngine::new() in
+        // advanced_simd_acceleration.rs both unconditionally return Ok(..)). Construction
+        // failure here would indicate a real regression, so treat it as a hard test
+        // failure rather than a silent skip.
+        let accelerator =
+            AdvancedSimdAccelerator::<f64>::new().expect("Test: SIMD accelerator creation failed");
 
         let a = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
         let b = Array1::from_vec(vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]);
@@ -279,13 +280,9 @@ mod simd_acceleration_tests {
 
     #[test]
     fn test_advanced_matrix_vector_multiply() {
-        let accelerator = match AdvancedSimdAccelerator::<f64>::new() {
-            Ok(acc) => acc,
-            Err(e) => {
-                println!("SIMD accelerator creation failed: {e:?} - skipping test");
-                return;
-            }
-        };
+        // See test_advanced_vector_add_fma above: construction cannot fail here.
+        let accelerator =
+            AdvancedSimdAccelerator::<f64>::new().expect("Test: SIMD accelerator creation failed");
 
         // Create a simple 4x4 matrix
         let matrix = Array2::from_shape_vec(
@@ -322,13 +319,9 @@ mod simd_acceleration_tests {
 
     #[test]
     fn test_advanced_dot_product() {
-        let accelerator = match AdvancedSimdAccelerator::<f64>::new() {
-            Ok(acc) => acc,
-            Err(e) => {
-                println!("SIMD accelerator creation failed: {e:?} - skipping test");
-                return;
-            }
-        };
+        // See test_advanced_vector_add_fma above: construction cannot fail here.
+        let accelerator =
+            AdvancedSimdAccelerator::<f64>::new().expect("Test: SIMD accelerator creation failed");
 
         let a = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
         let b = Array1::from_vec(vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]);
@@ -348,13 +341,9 @@ mod simd_acceleration_tests {
 
     #[test]
     fn test_advanced_reduce_sum() {
-        let accelerator = match AdvancedSimdAccelerator::<f64>::new() {
-            Ok(acc) => acc,
-            Err(e) => {
-                println!("SIMD accelerator creation failed: {e:?} - skipping test");
-                return;
-            }
-        };
+        // See test_advanced_vector_add_fma above: construction cannot fail here.
+        let accelerator =
+            AdvancedSimdAccelerator::<f64>::new().expect("Test: SIMD accelerator creation failed");
 
         let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]);
 
@@ -373,13 +362,9 @@ mod simd_acceleration_tests {
 
     #[test]
     fn test_advanced_rk4_vectorized() {
-        let accelerator = match AdvancedSimdAccelerator::<f64>::new() {
-            Ok(acc) => acc,
-            Err(e) => {
-                println!("SIMD accelerator creation failed: {e:?} - skipping test");
-                return;
-            }
-        };
+        // See test_advanced_vector_add_fma above: construction cannot fail here.
+        let accelerator =
+            AdvancedSimdAccelerator::<f64>::new().expect("Test: SIMD accelerator creation failed");
 
         let y = Array1::from_vec(vec![1.0, 0.0]); // [position, velocity]
         let t = 0.0;
@@ -582,13 +567,11 @@ mod integration_tests {
         // SIMD dispatch overhead dominates, making wall-clock comparisons
         // inherently non-deterministic across machines and CI environments.
         // Benchmarks (criterion) are the right tool for performance regression checks.
-        let simd_accelerator = match AdvancedSimdAccelerator::<f64>::new() {
-            Ok(acc) => acc,
-            Err(e) => {
-                println!("SIMD accelerator creation failed: {e:?} - skipping performance comparison test");
-                return;
-            }
-        };
+        // AdvancedSimdAccelerator::new() has no fallible step (pure-software capability
+        // detection + bookkeeping; see test_advanced_vector_add_fma in
+        // simd_acceleration_tests above) -- treat construction failure as a real bug.
+        let simd_accelerator =
+            AdvancedSimdAccelerator::<f64>::new().expect("Test: SIMD accelerator creation failed");
 
         let data = Array1::from_vec((0..100).map(|i| (i as f64) * 0.0001).collect());
 
@@ -614,7 +597,12 @@ fn test_advanced_mode_comprehensive() {
     simd_acceleration_tests::test_advanced_simd_accelerator_creation();
     performance_adaptation_tests::test_real_time_adaptive_optimizer_creation();
 
-    // Skip the full integration test in comprehensive mode to avoid long runtime
+    // `integration_tests::test_full_advanced_mode_integration` is intentionally NOT
+    // re-invoked here: it already runs as its own independent #[test] (see the
+    // `integration_tests` module above) and is picked up by the normal test runner on
+    // every run, so calling it again from this smoke-test bundle would only duplicate
+    // slower work, not add coverage. This is a scope/runtime decision, not a masked
+    // failure -- none of that test's assertions are skipped anywhere in the suite.
     // integration_tests::test_full_advanced_mode_integration();
 
     println!("All Advanced mode tests passed successfully!");

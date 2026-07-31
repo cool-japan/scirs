@@ -47,7 +47,7 @@
 //! }
 //! ```
 //!
-use std::any::type_name;
+use std::any::{type_name, TypeId};
 use std::marker::PhantomData;
 
 pub use crate::error::OpError;
@@ -56,7 +56,13 @@ use crate::tensor::Tensor;
 use crate::{Float, NdArray};
 
 /// Trait for tensor operations. `Tensor` structs wrap this.
-pub trait Op<F: Float> {
+///
+/// The `'static` supertrait bound is not new in practice: the only place an `Op` is ever
+/// installed into a graph ([`crate::tensor::TensorBuilder::build`]) already requires
+/// `O: Op<F> + 'static`, and every node stores its op as `Rc<dyn Op<F>>` (implicitly
+/// `+ 'static`). Declaring the bound on the trait itself just makes that existing fact
+/// available to default methods such as [`Op::concrete_type_id`].
+pub trait Op<F: Float>: 'static {
     /// Name of this op
     fn name(&self) -> &'static str {
         type_name::<Self>()
@@ -66,11 +72,43 @@ pub trait Op<F: Float> {
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError>;
 
     /// Returns gradients for input nodes by use of output's gradients etc.
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>);
+    ///
+    /// This is the **live** backward pass: the crate-private
+    /// `gradient::compute_gradients` builds a
+    /// [`GradientContext`] for every node on the backprop path and calls this method.
+    /// An implementation must call [`GradientContext::append_input_grad`] once per
+    /// backprop input; inputs that are genuinely non-differentiable (shapes, axes,
+    /// indices, ...) must be given an explicit `None` rather than being left out.
+    ///
+    /// The two lifetimes are deliberately independent: `'a` is the (short) borrow of the
+    /// per-node scratch buffers owned by the backprop loop, while `'graph` is the lifetime
+    /// of the computation graph that the newly-built gradient tensors belong to.
+    fn grad<'a, 'graph>(&self, ctx: &mut GradientContext<'a, 'graph, F>);
 
     /// Returns self as Any for downcasting. Default returns None.
     fn as_any(&self) -> Option<&dyn std::any::Any> {
         None
+    }
+
+    /// Returns the `TypeId` of the concrete Rust type implementing this op.
+    ///
+    /// [`Op::name`] is **not** a safe way to identify a specific built-in op and must
+    /// never be used to select behaviour (e.g. which VJP to run): it can be overridden
+    /// to return an arbitrary caller-supplied string (see
+    /// [`crate::custom_gradient::CustomGradientOp::name`], which forwards the *user's*
+    /// name verbatim through `CustomGradientWrapper::name`), and several unrelated
+    /// internal op structs intentionally share the same `name()` string across modules
+    /// (for example two distinct `Cholesky`-family ops). A caller-supplied name must
+    /// never be able to select another op's gradient rule.
+    ///
+    /// This method is the safe replacement: it is a default method with no per-op
+    /// override, so it always reflects the *actual* concrete type behind `&dyn Op<F>`
+    /// regardless of anything the op chooses to return from `name()`. Code that must
+    /// recognise a specific built-in op type (such as the backward-pass override table
+    /// in the crate-private `gradient` module) should compare `concrete_type_id()` against
+    /// `TypeId::of::<TheConcreteStruct>()`, never `name()` strings.
+    fn concrete_type_id(&self) -> TypeId {
+        TypeId::of::<Self>()
     }
 }
 
@@ -187,18 +225,24 @@ impl<F: Float> ComputeContext<F> {
 }
 
 /// Context given to `Op::grad`.
+///
+/// `'a` borrows the per-node scratch buffers owned by the backprop loop in
+/// the crate-private `gradient` module; `'graph` is the lifetime of the computation graph the newly-built
+/// gradient tensors belong to. They are intentionally **not** unified — the scratch
+/// buffers are locals of the backprop loop and can never live as long as the graph
+/// borrow, which is exactly what previously made this type impossible to construct.
 pub struct GradientContext<'a, 'graph, F: Float> {
     /// tensor outputs. No owned data.
-    pub(crate) zs: &'a [&'graph Tensor<'graph, F>],
+    pub(crate) zs: &'a [&'a Tensor<'graph, F>],
 
     /// tensor inputs. No owned data.
-    pub(crate) xs: &'a [&'graph Tensor<'graph, F>],
+    pub(crate) xs: &'a [&'a Tensor<'graph, F>],
 
-    /// Context graph reference
-    pub(crate) context: &'graph crate::Context<'graph, F>,
+    /// Graph the gradient sub-graph is built into.
+    pub(crate) context: &'graph crate::graph::Graph<F>,
 
     /// gradients of outputs. No owned data.
-    pub(crate) gzs: &'a [&'graph Tensor<'graph, F>],
+    pub(crate) gzs: &'a [&'a Tensor<'graph, F>],
 
     /// gradient tensors to be the result.
     pub(crate) results: &'a mut Vec<Option<Tensor<'graph, F>>>,
@@ -210,11 +254,31 @@ pub struct GradientContext<'a, 'graph, F: Float> {
     pub(crate) _marker: PhantomData<&'a mut &'graph F>,
 }
 
-impl<'graph, F: Float> GradientContext<'_, 'graph, F> {
-    // We can't implement the new method with the current struct design due to lifetime issues
-    // Just implement a stub method to support backward compatibility
-    #[doc(hidden)]
-    pub fn _new_stub() {}
+impl<'a, 'graph, F: Float> GradientContext<'a, 'graph, F> {
+    /// Creates a context for a single backprop node.
+    ///
+    /// * `zs`  — the outputs of the node being differentiated
+    /// * `xs`  — the node's *backprop* inputs, in backprop-input order
+    /// * `gzs` — the upstream cotangents, one per entry of `zs`
+    /// * `context` — the graph the gradient sub-graph is built into
+    /// * `results` — output buffer, indexed by backprop-input position
+    pub(crate) fn new(
+        zs: &'a [&'a Tensor<'graph, F>],
+        xs: &'a [&'a Tensor<'graph, F>],
+        gzs: &'a [&'a Tensor<'graph, F>],
+        context: &'graph crate::graph::Graph<F>,
+        results: &'a mut Vec<Option<Tensor<'graph, F>>>,
+    ) -> Self {
+        GradientContext {
+            zs,
+            xs,
+            gzs,
+            context,
+            results,
+            array_field_id: 0,
+            _marker: PhantomData,
+        }
+    }
 
     /// Compute input gradients
     pub fn compute_input_grads(&self) -> Vec<Option<Tensor<'graph, F>>> {
@@ -222,20 +286,28 @@ impl<'graph, F: Float> GradientContext<'_, 'graph, F> {
     }
 }
 
-impl<'graph, F: Float> GradientContext<'_, 'graph, F> {
+impl<'a, 'graph, F: Float> GradientContext<'a, 'graph, F> {
     /// Returns the output array.
-    pub fn output(&self) -> &'graph Tensor<'graph, F> {
+    pub fn output(&self) -> &'a Tensor<'graph, F> {
         self.zs[self.array_field_id]
     }
 
     /// Returns the gradient of output array.
-    pub fn output_grad(&self) -> &'graph Tensor<'graph, F> {
+    pub fn output_grad(&self) -> &'a Tensor<'graph, F> {
         self.gzs[self.array_field_id]
     }
 
     /// Returns the `i`-th input array.
-    pub fn input(&self, i: usize) -> &'graph Tensor<'graph, F> {
+    pub fn input(&self, i: usize) -> &'a Tensor<'graph, F> {
         self.xs[i]
+    }
+
+    /// Returns the `i`-th input array, or `None` when `i` is out of range.
+    ///
+    /// Prefer this over [`Self::input`] in `Op::grad` implementations whose op can be
+    /// built with a variable number of backprop inputs.
+    pub fn try_input(&self, i: usize) -> Option<&'a Tensor<'graph, F>> {
+        self.xs.get(i).copied()
     }
 
     /// Returns the number of inputs.
@@ -248,8 +320,8 @@ impl<'graph, F: Float> GradientContext<'_, 'graph, F> {
         self.zs.len()
     }
 
-    /// Returns the context graph.
-    pub fn graph(&self) -> &'graph crate::Context<'graph, F> {
+    /// Returns the graph the gradient sub-graph is built into.
+    pub fn graph(&self) -> &'graph crate::graph::Graph<F> {
         self.context
     }
 
@@ -274,7 +346,7 @@ impl<'graph, F: Float> GradientContext<'_, 'graph, F> {
     }
 
     /// Returns all input tensors.
-    pub fn inputs(&self) -> &[&'graph Tensor<'graph, F>] {
+    pub fn inputs(&self) -> &'a [&'a Tensor<'graph, F>] {
         self.xs
     }
 }

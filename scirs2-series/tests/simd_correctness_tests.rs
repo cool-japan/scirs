@@ -309,7 +309,8 @@ mod simd_tests {
 mod no_simd_tests {
     #[test]
     fn simd_feature_not_enabled() {
-        // This test just verifies the module compiles without SIMD
-        assert!(true);
+        // This test's only purpose is to verify the crate compiles and this
+        // test executes without the `simd` feature enabled; a passing test
+        // run already demonstrates that with no assertion needed.
     }
 }

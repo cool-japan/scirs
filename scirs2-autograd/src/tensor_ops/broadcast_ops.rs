@@ -8,8 +8,9 @@ use crate::ndarray_ext::{NdArray, NdArrayView};
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops;
+use crate::tensor_ops::binary_ops;
 use crate::Float;
-use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_core::ndarray::{Array, IxDyn, Zip};
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
@@ -257,7 +258,7 @@ impl<F: Float> Op<F> for OptimizedBroadcastOp<F> {
         let result = match self.info.strategy {
             BroadcastStrategy::NoOp => {
                 // Same shapes - direct operation
-                apply_binary_op_sameshape(&left, &right, self.operation)
+                apply_binary_op_sameshape(&left, &right, self.operation)?
             }
             BroadcastStrategy::ScalarBroadcast => {
                 apply_scalar_broadcast(&left, &right, self.operation, &self.info)?
@@ -283,7 +284,10 @@ impl<F: Float> Op<F> for OptimizedBroadcastOp<F> {
         let right_input = ctx.input(1);
         let g = ctx.graph();
 
-        // Compute gradients based on operation type
+        // Compute gradients based on operation type. These may still be shaped like the
+        // (possibly-broadcast) output/`gy` rather than like `left_input`/`right_input`
+        // themselves -- the reduction back to each operand's own shape happens
+        // unconditionally below.
         let (left_grad, right_grad) = match self.operation {
             BinaryOperation::Add => (*gy, *gy),
             BinaryOperation::Subtract => (*gy, tensor_ops::neg(gy)),
@@ -296,10 +300,16 @@ impl<F: Float> Op<F> for OptimizedBroadcastOp<F> {
                 (left_grad, right_grad)
             }
             BinaryOperation::Power => {
-                // Simplified power gradient (for now, assume power by scalar)
-                // In a full implementation, tensor-tensor power would need more complex handling
-                let left_grad = (*gy) * right_input;
-                let right_grad = (*gy) * left_input;
+                // General elementwise tensor^tensor power (both operands may vary; this is
+                // NOT `tensor_ops::pow`, which only raises to a fixed Rust-level scalar
+                // exponent). For `z = x^y`:
+                //   dz/dx = y * x^(y-1) = y * z / x
+                //   dz/dy = x^y * ln(x) = z * ln(x)
+                // Reusing the already-computed output `z` avoids needing a dedicated
+                // tensor-tensor power primitive just for this derivative.
+                let output = *ctx.output();
+                let left_grad = (*gy) * right_input * (output / left_input);
+                let right_grad = (*gy) * output * tensor_ops::ln(left_input);
                 (left_grad, right_grad)
             }
             BinaryOperation::Maximum => {
@@ -318,18 +328,18 @@ impl<F: Float> Op<F> for OptimizedBroadcastOp<F> {
             }
         };
 
-        // Apply reduction if broadcasting occurred
-        let left_final = if self.info.left_needs_broadcast {
-            reduce_for_broadcast_grad(&left_grad, &self.info.left_reduce_axes, ctx.input(0), g)
-        } else {
-            left_grad
-        };
-
-        let right_final = if self.info.right_needs_broadcast {
-            reduce_for_broadcast_grad(&right_grad, &self.info.right_reduce_axes, ctx.input(1), g)
-        } else {
-            right_grad
-        };
+        // Reduce each contribution back down to its own operand's actual shape.
+        //
+        // This MUST be computed dynamically -- mirroring `AddOp`/`SubOp`/`MulOp`/`DivOp`
+        // in `binary_ops.rs`, which build a runtime `shape(x)` node and reduce against it
+        // via `MaybeReduceSum` -- rather than trusting `self.info.{left,right}_reduce_axes`.
+        // `broadcast_binary_op` (below) builds `self.info` from hardcoded placeholder
+        // shapes, so those fields never reflect the operands actually bound to this node;
+        // using them here silently returned a gradient shaped like `gy`/the output instead
+        // of like the operand, which later fails (or corrupts an accumulation) wherever
+        // that operand's gradient is consumed at its own shape.
+        let left_final = binary_ops::maybe_reduce(&tensor_ops::shape(left_input), &left_grad, g);
+        let right_final = binary_ops::maybe_reduce(&tensor_ops::shape(right_input), &right_grad, g);
 
         ctx.append_input_grad(0, Some(left_final));
         ctx.append_input_grad(1, Some(right_final));
@@ -342,37 +352,56 @@ fn apply_binary_op_sameshape<'a, F: Float>(
     left: &NdArrayView<'a, F>,
     right: &NdArrayView<'a, F>,
     op: BinaryOperation,
-) -> NdArray<F> {
+) -> Result<NdArray<F>, OpError> {
     match op {
-        BinaryOperation::Add => left + right,
-        BinaryOperation::Subtract => left - right,
-        BinaryOperation::Multiply => left * right,
-        BinaryOperation::Divide => left / right,
-        BinaryOperation::Power => {
-            let vec: Vec<F> = left
-                .iter()
-                .zip(right.iter())
-                .map(|(&a, &b)| a.powf(b))
-                .collect();
-            Array::from_shape_vec(IxDyn(left.shape()), vec).expect("Operation failed")
-        }
-        BinaryOperation::Maximum => {
-            let vec: Vec<F> = left
-                .iter()
-                .zip(right.iter())
-                .map(|(&a, &b)| a.max(b))
-                .collect();
-            Array::from_shape_vec(IxDyn(left.shape()), vec).expect("Operation failed")
-        }
-        BinaryOperation::Minimum => {
-            let vec: Vec<F> = left
-                .iter()
-                .zip(right.iter())
-                .map(|(&a, &b)| a.min(b))
-                .collect();
-            Array::from_shape_vec(IxDyn(left.shape()), vec).expect("Operation failed")
-        }
+        BinaryOperation::Add => Ok(left + right),
+        BinaryOperation::Subtract => Ok(left - right),
+        BinaryOperation::Multiply => Ok(left * right),
+        BinaryOperation::Divide => Ok(left / right),
+        // `+`/`-`/`*`//` broadcast correctly via `ndarray`'s own operator overloads even
+        // when `left`/`right` differ in shape (see `ndarray::impl_ops`), but there is no
+        // built-in broadcasting operator for an arbitrary closure, so `powf`/`max`/`min`
+        // need their own broadcasting helper.
+        BinaryOperation::Power => broadcast_elementwise(left, right, |a, b| a.powf(b)),
+        BinaryOperation::Maximum => broadcast_elementwise(left, right, |a, b| a.max(b)),
+        BinaryOperation::Minimum => broadcast_elementwise(left, right, |a, b| a.min(b)),
     }
+}
+
+/// Applies `f` element-wise to `left` and `right`, broadcasting either operand up to
+/// their common shape first (matching `numpy`/`ndarray`'s broadcasting rules).
+///
+/// [`BinaryOperation::Power`], [`BinaryOperation::Maximum`] and [`BinaryOperation::Minimum`]
+/// used to zip `left.iter()` directly with `right.iter()`. That silently truncates to the
+/// shorter of the two *flat* iterators whenever the shapes differ -- exactly the case this
+/// module exists for -- and then panics (`Array::from_shape_vec(...).expect(...)`)
+/// reshaping the truncated result back into `left`'s full shape. Reusing
+/// [`analyze_broadcast`] keeps the notion of "the broadcast output shape" identical to the
+/// one this module's gradient-shape metadata is computed from.
+fn broadcast_elementwise<F: Float>(
+    left: &NdArrayView<F>,
+    right: &NdArrayView<F>,
+    f: impl Fn(F, F) -> F,
+) -> Result<NdArray<F>, OpError> {
+    if left.shape() == right.shape() {
+        return Ok(Zip::from(left).and(right).map_collect(|&a, &b| f(a, b)));
+    }
+    let outputshape = analyze_broadcast(left.shape(), right.shape())?.outputshape;
+    let left_b = left.broadcast(outputshape.as_slice()).ok_or_else(|| {
+        OpError::IncompatibleShape(format!(
+            "Cannot broadcast shape {:?} to {outputshape:?}",
+            left.shape()
+        ))
+    })?;
+    let right_b = right.broadcast(outputshape.as_slice()).ok_or_else(|| {
+        OpError::IncompatibleShape(format!(
+            "Cannot broadcast shape {:?} to {outputshape:?}",
+            right.shape()
+        ))
+    })?;
+    Ok(Zip::from(&left_b)
+        .and(&right_b)
+        .map_collect(|&a, &b| f(a, b)))
 }
 
 /// Apply binary operation with scalar broadcasting
@@ -468,86 +497,16 @@ fn apply_standard_broadcast<'a, F: Float>(
     right: &NdArrayView<'a, F>,
     op: BinaryOperation,
 ) -> Result<NdArray<F>, OpError> {
-    match op {
-        BinaryOperation::Add => Ok(left + right),
-        BinaryOperation::Subtract => Ok(left - right),
-        BinaryOperation::Multiply => Ok(left * right),
-        BinaryOperation::Divide => Ok(left / right),
-        BinaryOperation::Power => {
-            // Element-wise power with broadcasting
-            let broadcasted_left = left.broadcast(right.shape()).ok_or_else(|| {
-                OpError::IncompatibleShape("Cannot broadcast for power operation".into())
-            })?;
-            let broadcasted_right = right.broadcast(left.shape()).ok_or_else(|| {
-                OpError::IncompatibleShape("Cannot broadcast for power operation".into())
-            })?;
-
-            let vec: Vec<F> = broadcasted_left
-                .iter()
-                .zip(broadcasted_right.iter())
-                .map(|(&a, &b)| a.powf(b))
-                .collect();
-            let result = Array::from_shape_vec(IxDyn(broadcasted_left.shape()), vec)
-                .expect("Operation failed");
-            Ok(result)
-        }
-        BinaryOperation::Maximum => {
-            let broadcasted_left = left.broadcast(right.shape()).ok_or_else(|| {
-                OpError::IncompatibleShape("Cannot broadcast for max operation".into())
-            })?;
-            let broadcasted_right = right.broadcast(left.shape()).ok_or_else(|| {
-                OpError::IncompatibleShape("Cannot broadcast for max operation".into())
-            })?;
-
-            let vec: Vec<F> = broadcasted_left
-                .iter()
-                .zip(broadcasted_right.iter())
-                .map(|(&a, &b)| a.max(b))
-                .collect();
-            let result = Array::from_shape_vec(IxDyn(broadcasted_left.shape()), vec)
-                .expect("Operation failed");
-            Ok(result)
-        }
-        BinaryOperation::Minimum => {
-            let broadcasted_left = left.broadcast(right.shape()).ok_or_else(|| {
-                OpError::IncompatibleShape("Cannot broadcast for min operation".into())
-            })?;
-            let broadcasted_right = right.broadcast(left.shape()).ok_or_else(|| {
-                OpError::IncompatibleShape("Cannot broadcast for min operation".into())
-            })?;
-
-            let vec: Vec<F> = broadcasted_left
-                .iter()
-                .zip(broadcasted_right.iter())
-                .map(|(&a, &b)| a.min(b))
-                .collect();
-            let result = Array::from_shape_vec(IxDyn(broadcasted_left.shape()), vec)
-                .expect("Operation failed");
-            Ok(result)
-        }
-    }
-}
-
-/// Reduce gradients appropriately for broadcasting
-#[allow(dead_code)]
-fn reduce_for_broadcast_grad<'g, F: Float>(
-    grad: &Tensor<'g, F>,
-    reduce_axes: &[usize],
-    original_input: &Tensor<'g, F>,
-    graph: &'g crate::Graph<F>,
-) -> Tensor<'g, F> {
-    let mut result = *grad;
-
-    // Sum over broadcasted dimensions
-    for &axis in reduce_axes {
-        result = tensor_ops::reduce_sum(result, &[axis as isize], true);
-    }
-
-    // Reshape to match original _input shape if needed
-    let originalshape = tensor_ops::shape(original_input);
-    result = tensor_ops::reshape(result, &originalshape);
-
-    result
+    // NOTE: this used to broadcast `left` to `right`'s shape AND `right` to `left`'s shape
+    // unconditionally (`left.broadcast(right.shape())?` followed by
+    // `right.broadcast(left.shape())?`). `ArrayView::broadcast` only ever *grows* a shape
+    // (adds/repeats dimensions), so for the very asymmetric-shape case this module exists
+    // for (e.g. left=[3,4], right=[4]) the first call -- broadcasting the *larger* [3,4]
+    // down to [4] -- always failed, short-circuiting the whole function via `?` before the
+    // correct direction was ever tried. Delegating to `apply_binary_op_sameshape` computes
+    // the true broadcast output shape once (via `analyze_broadcast`) and only grows each
+    // operand up to it.
+    apply_binary_op_sameshape(left, right, op)
 }
 
 /// Public API functions for optimized broadcasting
@@ -608,10 +567,24 @@ fn broadcast_binary_op<'g, F: Float>(
 ) -> Tensor<'g, F> {
     let g = left.graph();
 
-    // Get shapes for analysis (placeholder implementation)
-    // In a real implementation, we'd need to evaluate or infer shapes
-    let leftshape = vec![1]; // Placeholder
-    let rightshape = vec![1]; // Placeholder
+    // NOTE: these are deliberately NOT `left.shape()`/`right.shape()`. `Tensor::shape()`
+    // only reports a "known shape" hint that is set by *some* ops at construction time and
+    // is `vec![]` (empty) whenever it isn't -- and an empty shape is indistinguishable here
+    // from a genuine scalar. Feeding a wrong/stale hint into `analyze_broadcast` could
+    // select `BroadcastStrategy::ScalarBroadcast`, whose `compute()` path
+    // (`apply_scalar_broadcast`) then extracts a *single* element and applies it to the
+    // whole other operand -- silently discarding real data if the tensor was not actually
+    // a scalar. Using a fixed, always-equal placeholder instead forces
+    // `analyze_broadcast_impl` down its `leftshape == rightshape` branch every time, i.e.
+    // `BroadcastStrategy::NoOp` unconditionally, whose `compute()` path
+    // (`apply_binary_op_sameshape`) delegates to plain `ndarray` operator overloads —
+    // which broadcast correctly on their own (see `ndarray::impl_ops`) regardless of the
+    // operands' actual shapes. So `compute()` is correct today independent of this
+    // placeholder. `grad()` (above) does NOT read `self.info` for its shape-reduction
+    // decisions for the same reason -- see its own comment -- so nothing downstream
+    // depends on this analysis being accurate either.
+    let leftshape = vec![1];
+    let rightshape = vec![1];
 
     // Create optimized operation
     if let Ok(op) = OptimizedBroadcastOp::new(operation, &leftshape, &rightshape) {

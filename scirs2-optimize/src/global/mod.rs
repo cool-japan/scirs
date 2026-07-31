@@ -21,6 +21,7 @@ mod multi_start;
 pub mod multistart;
 #[allow(dead_code)]
 mod particle_swarm;
+pub mod qmc;
 #[allow(dead_code)]
 mod simulated_annealing;
 

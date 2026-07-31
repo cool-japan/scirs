@@ -64,128 +64,25 @@ impl<F: Float> Op<F> for KroneckerOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Lazy VJP: build a `KroneckerGradOp` node per input instead of evaluating the
+        // operands here.  The previous implementation called `.eval()` during graph
+        // construction and read the operand extents from `Tensor::shape()` -- which is
+        // the *knownshape* hint and is empty for most tensors, so it bailed out with a
+        // 0-d gradient.  Building the backward op keeps the tape intact (higher-order
+        // differentiation still works) and reads the true runtime shapes.
+        let g = ctx.graph();
         let gy = ctx.output_grad();
         let a = ctx.input(0);
         let b = ctx.input(1);
-        let g = ctx.graph();
 
-        // Get shapes
-        let ashape = a.shape();
-        let bshape = b.shape();
-
-        if ashape.len() != 2 || bshape.len() != 2 {
-            ctx.append_input_grad(0, None);
-            ctx.append_input_grad(1, None);
-            return;
+        for index in 0..2 {
+            let gx = Tensor::builder(g)
+                .append_input(gy, false)
+                .append_input(a, false)
+                .append_input(b, false)
+                .build(KroneckerGradOp { input_index: index });
+            ctx.append_input_grad(index, Some(gx));
         }
-
-        let (m, n) = (ashape[0], ashape[1]);
-        let (p, q) = (bshape[0], bshape[1]);
-
-        // For Kronecker product C = A ⊗ B (mp×nq):
-        // ∂L/∂A[i,j] = sum over k,l of (∂L/∂C)[i*p+k, j*q+l] * B[k,l]
-        // ∂L/∂B[k,l] = sum over i,j of (∂L/∂C)[i*p+k, j*q+l] * A[i,j]
-        //
-        // The output gradient gy has shape (mp, nq).  If gy comes in as 0-dim
-        // (scalar seed from sum_all), we broadcast it to fill (mp, nq).
-
-        let gy_eval = match gy.eval(g) {
-            Ok(v) => v,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-        let a_eval = match a.eval(g) {
-            Ok(v) => v,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-        let b_eval = match b.eval(g) {
-            Ok(v) => v,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Broadcast scalar gy to (m*p, n*q) if needed
-        let gy_2d_owned: Array2<F>;
-        let gy_2d = if gy_eval.ndim() == 0 {
-            // Scalar gradient — broadcast to full output shape
-            let scalar = gy_eval.iter().next().copied().unwrap_or(F::one());
-            gy_2d_owned = Array2::from_elem((m * p, n * q), scalar);
-            gy_2d_owned.view()
-        } else {
-            match gy_eval.view().into_dimensionality::<Ix2>() {
-                Ok(v) => {
-                    // Need owned version for lifetime; borrow after assignment
-                    gy_2d_owned = v.to_owned();
-                    gy_2d_owned.view()
-                }
-                Err(_) => {
-                    ctx.append_input_grad(0, None);
-                    ctx.append_input_grad(1, None);
-                    return;
-                }
-            }
-        };
-
-        let a_2d = match a_eval.view().into_dimensionality::<Ix2>() {
-            Ok(v) => v.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-        let b_2d = match b_eval.view().into_dimensionality::<Ix2>() {
-            Ok(v) => v.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Gradient w.r.t. A — shape (m, n)
-        let mut grad_a = Array2::<F>::zeros((m, n));
-        for i in 0..m {
-            for j in 0..n {
-                let mut sum = F::zero();
-                for k in 0..p {
-                    for l in 0..q {
-                        sum += gy_2d[[i * p + k, j * q + l]] * b_2d[[k, l]];
-                    }
-                }
-                grad_a[[i, j]] = sum;
-            }
-        }
-
-        // Gradient w.r.t. B — shape (p, q)
-        let mut grad_b = Array2::<F>::zeros((p, q));
-        for k in 0..p {
-            for l in 0..q {
-                let mut sum = F::zero();
-                for i in 0..m {
-                    for j in 0..n {
-                        sum += gy_2d[[i * p + k, j * q + l]] * a_2d[[i, j]];
-                    }
-                }
-                grad_b[[k, l]] = sum;
-            }
-        }
-
-        let grad_a_tensor = crate::tensor_ops::convert_to_tensor(grad_a, g);
-        let grad_b_tensor = crate::tensor_ops::convert_to_tensor(grad_b, g);
-
-        ctx.append_input_grad(0, Some(grad_a_tensor));
-        ctx.append_input_grad(1, Some(grad_b_tensor));
     }
 }
 

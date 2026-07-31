@@ -231,9 +231,7 @@ pub fn stft_synchrosqueeze(
         ));
     }
     if hop == 0 {
-        return Err(SignalError::InvalidArgument(
-            "hop must be > 0".to_string(),
-        ));
+        return Err(SignalError::InvalidArgument("hop must be > 0".to_string()));
     }
     if fs <= 0.0 {
         return Err(SignalError::ValueError("fs must be positive".to_string()));
@@ -253,12 +251,22 @@ pub fn stft_synchrosqueeze(
     let n_frames = (signal.len().saturating_sub(win_len)) / hop + 1;
     let n_bins = nfft / 2 + 1;
 
-    // Derivative window for instantaneous frequency: Dh[k] = h[k] * k
-    let dh: Vec<f64> = window
-        .iter()
-        .enumerate()
-        .map(|(k, &w)| w * (k as f64 - (win_len - 1) as f64 / 2.0))
-        .collect();
+    // Derivative window for instantaneous frequency: Dh[k] = h'(k), the
+    // window's own (finite-difference) derivative -- *not* the time-ramp
+    // window `k * h(k)` (that window computes the *group delay* / time
+    // reassignment correction instead, see [`crate::spectral::reassignment`]
+    // for the validated three-window reassignment formulation this mirrors).
+    let dh: Vec<f64> = {
+        let mut d = vec![0.0f64; win_len];
+        if win_len > 1 {
+            d[0] = window[1] - window[0];
+            for k in 1..(win_len - 1) {
+                d[k] = (window[k + 1] - window[k - 1]) / 2.0;
+            }
+            d[win_len - 1] = window[win_len - 1] - window[win_len - 2];
+        }
+        d
+    };
 
     let mut sst = Array2::<f64>::zeros((n_bins, n_frames));
 
@@ -285,13 +293,14 @@ pub fn stft_synchrosqueeze(
             if mag_sq.sqrt() < gamma_val {
                 continue;
             }
-            // Instantaneous frequency estimate:
-            // ω̂(t,f) = (ω·|S|² - Im(S* · ∂_t S)) / |S|²
-            // ∂_t S ≈ S_dh   (since dh[k] = h[k] · k corresponds to time derivative)
+            // Instantaneous frequency estimate (reassignment formula):
+            //   f̂ = f_nominal - Im{ S_Dh / S_h } · fs / (2π · nfft)
+            // where `S_Dh` is the STFT computed with the window's derivative
+            // `Dh[k] = h'(k)`.
             let sdh = stft_dh[f];
-            let if_correction = (sh.conj() * sdh).im / mag_sq;
+            let ratio_dh = sdh / sh;
             let f_nominal = f as f64 * fs / nfft as f64;
-            let if_hz = f_nominal - if_correction * fs / (2.0 * PI);
+            let if_hz = f_nominal - ratio_dh.im * fs / (2.0 * PI * nfft as f64);
 
             if if_hz < 0.0 || if_hz > fs / 2.0 {
                 continue;
@@ -591,9 +600,7 @@ pub fn extract_ridges(
 
     // Initialise ridges with NaN
     let nan = f64::NAN;
-    let mut ridges: Vec<Vec<f64>> = (0..n_ridges)
-        .map(|_| vec![nan; n_time])
-        .collect();
+    let mut ridges: Vec<Vec<f64>> = (0..n_ridges).map(|_| vec![nan; n_time]).collect();
 
     // Current ridge positions (frequency bin index).  None = ridge not yet started.
     let mut ridge_pos: Vec<Option<usize>> = vec![None; n_ridges];
@@ -814,7 +821,8 @@ mod tests {
         let fs = 500.0;
         let n = 256;
         let signal = sine(50.0, fs, n);
-        let sst = cwt_synchrosqueeze(&signal, 12, None, Some(fs), None).expect("failed to create sst");
+        let sst =
+            cwt_synchrosqueeze(&signal, 12, None, Some(fs), None).expect("failed to create sst");
         assert_eq!(sst.shape()[1], n);
         assert!(sst.shape()[0] > 0);
     }
@@ -823,7 +831,8 @@ mod tests {
     fn test_cwt_sst_non_negative_magnitude() {
         let fs = 500.0;
         let signal = sine(50.0, fs, 256);
-        let sst = cwt_synchrosqueeze(&signal, 8, None, Some(fs), None).expect("failed to create sst");
+        let sst =
+            cwt_synchrosqueeze(&signal, 8, None, Some(fs), None).expect("failed to create sst");
         // Magnitudes (norms) must be non-negative
         assert!(sst.iter().all(|c| c.norm() >= 0.0));
     }
@@ -849,7 +858,8 @@ mod tests {
         let fs = 1000.0;
         let signal = sine(100.0, fs, 512);
         let window = hann(64);
-        let sst = stft_synchrosqueeze(&signal, &window, 16, None, fs, None).expect("failed to create sst");
+        let sst = stft_synchrosqueeze(&signal, &window, 16, None, fs, None)
+            .expect("failed to create sst");
         let n_bins = 33; // nfft=64, nfft/2+1=33
         assert_eq!(sst.shape()[0], n_bins);
         assert!(sst.shape()[1] > 0);
@@ -860,7 +870,8 @@ mod tests {
         let fs = 1000.0;
         let signal = sine(100.0, fs, 512);
         let window = hann(64);
-        let sst = stft_synchrosqueeze(&signal, &window, 16, None, fs, None).expect("failed to create sst");
+        let sst = stft_synchrosqueeze(&signal, &window, 16, None, fs, None)
+            .expect("failed to create sst");
         assert!(sst.iter().all(|&v| v >= 0.0));
     }
 
@@ -872,7 +883,8 @@ mod tests {
         let n = 1024;
         let signal = sine(f0, fs, n);
         let window = hann(128);
-        let sst = stft_synchrosqueeze(&signal, &window, 32, None, fs, None).expect("failed to create sst");
+        let sst = stft_synchrosqueeze(&signal, &window, 32, None, fs, None)
+            .expect("failed to create sst");
         let nfft = 128;
         let n_bins = nfft / 2 + 1;
 
@@ -890,8 +902,10 @@ mod tests {
                 let fv = f as f64 * df;
                 fv >= f_lo && fv <= f_hi
             })
-            .map(|f| sst.column(0).iter().enumerate().map(|_| 0.0).sum::<f64>()
-                + sst.row(f).iter().sum::<f64>())
+            .map(|f| {
+                sst.column(0).iter().enumerate().map(|_| 0.0).sum::<f64>()
+                    + sst.row(f).iter().sum::<f64>()
+            })
             .sum();
 
         // At least 20% of total energy should land near f0
@@ -949,7 +963,8 @@ mod tests {
         let cwt: Array2<Complex64> = Array2::ones((8, 64));
         let if_mat: Array2<f64> = Array2::from_elem((8, 64), 2.0 * PI * 100.0);
         let voices: Vec<f64> = (0..32).map(|k| k as f64 * 10.0).collect();
-        let sst = squeezing_operator(&cwt, &if_mat, &voices, 10.0, 1e-8).expect("failed to create sst");
+        let sst =
+            squeezing_operator(&cwt, &if_mat, &voices, 10.0, 1e-8).expect("failed to create sst");
         assert_eq!(sst.shape()[0], 32);
         assert_eq!(sst.shape()[1], 64);
         assert!(sst.iter().all(|&v| v >= 0.0));
@@ -1002,11 +1017,7 @@ mod tests {
         assert!(!ridges.is_empty());
         assert_eq!(ridges[0].len(), 128);
         // The dominant ridge should follow bin 10
-        let valid: Vec<f64> = ridges[0]
-            .iter()
-            .filter(|v| !v.is_nan())
-            .cloned()
-            .collect();
+        let valid: Vec<f64> = ridges[0].iter().filter(|v| !v.is_nan()).cloned().collect();
         assert!(!valid.is_empty());
         for &v in &valid {
             assert_eq!(v as usize, 10);

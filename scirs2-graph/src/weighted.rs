@@ -811,18 +811,35 @@ pub mod utils {
         // Add or merge edges from second graph
         for edge in graph2.edges() {
             if merged.has_edge(&edge.source, &edge.target) {
-                // Edge exists, merge weights
+                // Edge exists in both graphs: combine the two weights and
+                // update the edge IN PLACE via petgraph's `update_edge`,
+                // rather than calling `add_edge` again (which always inserts
+                // a brand new parallel edge, silently doubling the edge
+                // count and discarding the combined weight).
                 let existing_weight = merged.edge_weight(&edge.source, &edge.target)?;
-                let _new_weight = existing_weight + edge.weight.clone();
+                let new_weight = existing_weight + edge.weight.clone();
 
-                // For now, we can't easily update edge weights in place
-                // This is a limitation that could be addressed with a more sophisticated merge
-                // For now, just add the edge with the original weight from the second graph
-                merged.add_edge(
-                    edge.source.clone(),
-                    edge.target.clone(),
-                    edge.weight.clone(),
-                )?;
+                let src_idx = merged.node_index(&edge.source).ok_or_else(|| {
+                    GraphError::InvalidGraph(format!(
+                        "merge_weighted_graphs: node {:?} missing from merged graph",
+                        edge.source
+                    ))
+                })?;
+                let tgt_idx = merged.node_index(&edge.target).ok_or_else(|| {
+                    GraphError::InvalidGraph(format!(
+                        "merge_weighted_graphs: node {:?} missing from merged graph",
+                        edge.target
+                    ))
+                })?;
+
+                merged
+                    .inner_mut()
+                    .try_update_edge(src_idx, tgt_idx, new_weight)
+                    .map_err(|e| {
+                        GraphError::InvalidGraph(format!(
+                            "merge_weighted_graphs: failed to update edge weight: {e:?}"
+                        ))
+                    })?;
             } else {
                 // New edge
                 merged.add_edge(
@@ -1013,5 +1030,36 @@ mod tests {
         assert_eq!(sorted_edges_desc[0].2, 3.0);
         assert_eq!(sorted_edges_desc[1].2, 2.0);
         assert_eq!(sorted_edges_desc[2].2, 1.0);
+    }
+
+    #[test]
+    fn test_merge_weighted_graphs_sums_overlapping_edge_weights() {
+        let mut graph1: Graph<i32, f64> = Graph::new();
+        graph1.add_edge(1, 2, 1.0).expect("Operation failed");
+        graph1.add_edge(2, 3, 2.0).expect("Operation failed");
+
+        let mut graph2: Graph<i32, f64> = Graph::new();
+        graph2.add_edge(2, 3, 5.0).expect("Operation failed"); // overlaps with graph1's (2,3)
+        graph2.add_edge(3, 4, 7.0).expect("Operation failed"); // new edge
+
+        let merged = utils::merge_weighted_graphs(&graph1, &graph2).expect("merge failed");
+
+        // The overlapping (2,3) pair must be merged in place -- not
+        // duplicated into a second parallel edge -- so the merged graph has
+        // exactly 3 distinct edges, not 4.
+        assert_eq!(
+            merged.edge_count(),
+            3,
+            "overlapping edge must be merged in place, not duplicated"
+        );
+
+        // The overlapping edge's weight must be the SUM of both graphs'
+        // weights (2.0 + 5.0 = 7.0), not just graph2's original weight (5.0).
+        let overlap_weight = merged.edge_weight(&2, &3).expect("edge missing");
+        assert_eq!(overlap_weight, 7.0);
+
+        // Non-overlapping edges must be preserved unchanged.
+        assert_eq!(merged.edge_weight(&1, &2).expect("edge missing"), 1.0);
+        assert_eq!(merged.edge_weight(&3, &4).expect("edge missing"), 7.0);
     }
 }

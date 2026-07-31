@@ -271,7 +271,7 @@ where
     }
 
     fn dtype(&self) -> &str {
-        "float" // Placeholder; ideally would return the actual type
+        std::any::type_name::<T>()
     }
 
     fn to_array(&self) -> Array2<T> {
@@ -919,6 +919,24 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_dia_array_dtype_reflects_actual_element_type() {
+        let data_f64 = vec![Array1::from_vec(vec![1.0f64, 2.0, 3.0])];
+        let data_f32 = vec![Array1::from_vec(vec![1.0f32, 2.0, 3.0])];
+        let offsets = vec![0];
+        let shape = (3, 3);
+
+        let dia_f64 = DiaArray::new(data_f64, offsets.clone(), shape).expect("Operation failed");
+        let dia_f32 = DiaArray::new(data_f32, offsets, shape).expect("Operation failed");
+
+        // Previously `dtype()` always returned the literal string "float"
+        // regardless of the actual generic element type.
+        assert_eq!(dia_f64.dtype(), "f64");
+        assert_eq!(dia_f32.dtype(), "f32");
+        assert_ne!(dia_f64.dtype(), "float");
+        assert_ne!(dia_f32.dtype(), dia_f64.dtype());
+    }
 
     #[test]
     fn test_dia_array_create() {

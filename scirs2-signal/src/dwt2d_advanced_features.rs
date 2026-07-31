@@ -10,12 +10,15 @@ use scirs2_core::ndarray::s;
 // - Directional wavelets and steerable filters
 
 use crate::dwt::Wavelet;
-use crate::dwt2d_enhanced::{enhanced_dwt2d_decompose, BoundaryMode, Dwt2dConfig};
+use crate::dwt2d_enhanced::{
+    enhanced_dwt2d_decompose, enhanced_dwt2d_reconstruct, BoundaryMode, Dwt2dConfig,
+    EnhancedDwt2dResult,
+};
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::Array2;
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::random::{Rng, RngExt};
 use scirs2_core::validation::checkarray_finite;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -205,9 +208,15 @@ pub fn advanced_wavelet_denoising(
 
     // Apply adaptive thresholding
     let processed_image = if config.adaptive_processing {
-        adaptive_threshold_processing(noisy_image, &multi_scale, noise_variance, config)?
+        adaptive_threshold_processing(noisy_image, &multi_scale, noise_variance, config, wavelet)?
     } else {
-        standard_threshold_processing(&multi_scale, noise_variance, config)?
+        standard_threshold_processing(
+            &multi_scale,
+            noise_variance,
+            config,
+            wavelet,
+            noisy_image.dim(),
+        )?
     };
 
     // Edge enhancement if requested
@@ -351,8 +360,9 @@ fn adaptive_threshold_processing(
     multi_scale: &MultiScaleDecomposition,
     noise_variance: f64,
     config: &AdvancedWaveletConfig,
+    wavelet: Wavelet,
 ) -> SignalResult<Array2<f64>> {
-    let (rows, cols) = image.dim();
+    let original_shape = image.dim();
     let mut processed_levels = Vec::new();
 
     for (level_idx, level) in multi_scale.levels.iter().enumerate() {
@@ -386,7 +396,7 @@ fn adaptive_threshold_processing(
     }
 
     // Reconstruct from processed coefficients
-    reconstruct_from_levels(&processed_levels)
+    reconstruct_from_levels(&processed_levels, wavelet, original_shape)
 }
 
 /// Compute adaptive threshold for a decomposition level
@@ -578,7 +588,7 @@ fn apply_threshold_2d(
 
 /// Apply adaptive thresholding
 #[allow(dead_code)]
-fn adaptive_threshold_2d(_coeffs: &mut Array2<f64>, basethreshold: f64) -> SignalResult<()> {
+fn adaptive_threshold_2d(coeffs: &mut Array2<f64>, basethreshold: f64) -> SignalResult<()> {
     let (rows, cols) = coeffs.dim();
     let window_size = 5;
     let half_window = window_size / 2;
@@ -596,7 +606,7 @@ fn adaptive_threshold_2d(_coeffs: &mut Array2<f64>, basethreshold: f64) -> Signa
                 window.iter().map(|&x| x.powi(2)).sum::<f64>().sqrt() / window.len() as f64;
 
             // Adaptive _threshold
-            let adaptive_thresh = base_threshold * (1.0 + local_std);
+            let adaptive_thresh = basethreshold * (1.0 + local_std);
 
             // Apply soft thresholding
             let x = coeffs[[i, j]];
@@ -646,6 +656,8 @@ fn standard_threshold_processing(
     multi_scale: &MultiScaleDecomposition,
     noise_variance: f64,
     config: &AdvancedWaveletConfig,
+    wavelet: Wavelet,
+    original_shape: (usize, usize),
 ) -> SignalResult<Array2<f64>> {
     let sigma = noise_variance.sqrt();
     let universal_threshold =
@@ -680,7 +692,7 @@ fn standard_threshold_processing(
         });
     }
 
-    reconstruct_from_levels(&processed_levels)
+    reconstruct_from_levels(&processed_levels, wavelet, original_shape)
 }
 
 /// Edge-preserving enhancement
@@ -739,30 +751,61 @@ fn compute_edge_map(image: &Array2<f64>) -> SignalResult<Array2<f64>> {
 }
 
 /// Reconstruct image from processed wavelet levels
+///
+/// `levels[0]` was decomposed directly from the original image; each
+/// subsequent `levels[k]` (`k >= 1`) was decomposed from `levels[k-1].approx`
+/// (see [`compute_multi_scale_decomposition`]). This performs a full
+/// multi-level inverse 2D DWT, reconstructing from the coarsest level back up
+/// to `original_shape`, using [`enhanced_dwt2d_reconstruct`] at each step so
+/// the result has exactly the same dimensions as the original input image
+/// (not the halved dimensions of a single detail subband).
 #[allow(dead_code)]
-fn reconstruct_from_levels(levels: &[WaveletLevel]) -> SignalResult<Array2<f64>> {
-    // This is a simplified reconstruction - would need proper inverse DWT
-    // For now, return the finest scale approximation with detail enhancement
-    if let Some(finest_level) = levels.first() {
-        let mut result = finest_level.approx.clone();
-
-        // Add back some high-frequency information
-        let detail_contribution = 0.1;
-        for i in 0..result.nrows().min(finest_level.details.0.nrows()) {
-            for j in 0..result.ncols().min(finest_level.details.0.ncols()) {
-                result[[i, j]] += detail_contribution
-                    * (finest_level.details.0[[i, j]]
-                        + finest_level.details.1[[i, j]]
-                        + finest_level.details.2[[i, j]]);
-            }
-        }
-
-        Ok(result)
-    } else {
-        Err(SignalError::ComputationError(
-            "No wavelet _levels to reconstruct from".to_string(),
-        ))
+fn reconstruct_from_levels(
+    levels: &[WaveletLevel],
+    wavelet: Wavelet,
+    original_shape: (usize, usize),
+) -> SignalResult<Array2<f64>> {
+    if levels.is_empty() {
+        return Err(SignalError::ComputationError(
+            "No wavelet levels to reconstruct from".to_string(),
+        ));
     }
+
+    let config = Dwt2dConfig {
+        boundary_mode: BoundaryMode::Symmetric,
+        use_simd: true,
+        compute_metrics: false,
+        ..Default::default()
+    };
+
+    let n = levels.len();
+    let mut current_approx = levels[n - 1].approx.clone();
+
+    for k in (0..n).rev() {
+        // The shape the signal had *before* level `k`'s own decomposition:
+        // for the finest level (k == 0) that is the original image shape;
+        // for coarser levels it is the previous (finer) level's own
+        // approximation shape.
+        let level_input_shape = if k == 0 {
+            original_shape
+        } else {
+            levels[k - 1].approx.dim()
+        };
+
+        let single_level = EnhancedDwt2dResult {
+            approx: current_approx,
+            detail_h: levels[k].details.0.clone(),
+            detail_v: levels[k].details.1.clone(),
+            detail_d: levels[k].details.2.clone(),
+            originalshape: level_input_shape,
+            boundary_mode: BoundaryMode::Symmetric,
+            metrics: None,
+        };
+
+        current_approx = enhanced_dwt2d_reconstruct(&single_level, wavelet, &config)?;
+    }
+
+    Ok(current_approx)
 }
 
 /// Compute denoising quality metrics
@@ -916,6 +959,7 @@ mod tests {
     use super::{
         advanced_wavelet_denoising, apply_threshold_2d, AdvancedWaveletConfig, ThresholdMethod,
     };
+    use std::f64::consts::PI;
     #[test]
     fn test_advanced_wavelet_denoising() {
         // Create test image with noise
@@ -930,7 +974,8 @@ mod tests {
         let noisy_image = clean_image.mapv(|x| x + 0.1 * rng.random_range(-1.0..1.0));
 
         let config = AdvancedWaveletConfig::default();
-        let result = advanced_wavelet_denoising(&noisy_image..Wavelet::DB(4), &config).expect("Operation failed");
+        let result = advanced_wavelet_denoising(&noisy_image, Wavelet::DB(4), &config)
+            .expect("Operation failed");
 
         assert_eq!(result.processed_image.dim(), noisy_image.dim());
         assert!(result.denoising_metrics.noise_variance > 0.0);
@@ -950,12 +995,14 @@ mod tests {
         let threshold = 0.5;
 
         // Test soft thresholding
-        let soft_result = apply_threshold_2d(&coeffs, threshold, ThresholdMethod::Soft).expect("Operation failed");
+        let soft_result = apply_threshold_2d(&coeffs, threshold, ThresholdMethod::Soft)
+            .expect("Operation failed");
         assert!(soft_result[[0, 0]] == 0.0); // Below threshold
         assert!(soft_result[[2, 2]] == 0.7); // 1.2 - 0.5
 
         // Test hard thresholding
-        let hard_result = apply_threshold_2d(&coeffs, threshold, ThresholdMethod::Hard).expect("Operation failed");
+        let hard_result = apply_threshold_2d(&coeffs, threshold, ThresholdMethod::Hard)
+            .expect("Operation failed");
         assert!(hard_result[[0, 0]] == 0.0); // Below threshold
         assert!(hard_result[[2, 2]] == 1.2); // Above threshold, unchanged
     }

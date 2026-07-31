@@ -129,45 +129,60 @@ impl<T: Float> op::Op<T> for InferBinOpShape {
         let b_is_scalar = ndarray_ext::is_scalarshape(bshape.as_slice());
 
         if !a_is_scalar && !b_is_scalar {
+            // NumPy-style broadcasting: right-align the two shapes and take the larger
+            // extent per axis.  Requiring equal ranks (which this used to do) rejected
+            // the most common broadcast of all -- a bias vector added to a batch matrix,
+            // `[3, 4] + [4]` -- and the resulting `OpError` then propagated as a *missing
+            // input* to whatever consumed the shape.
             let a_rank = ashape_float.len();
             let b_rank = bshape_float.len();
-            if a_rank != b_rank {
-                return Err(op::OpError::IncompatibleShape(
-                    "InferBinOpShape: rank of lhs and rhs must match.".to_string(),
-                ));
-            }
+            let rank = a_rank.max(b_rank);
+            let a_pad = rank - a_rank;
+            let b_pad = rank - b_rank;
+
             // Element-wise max, but handle negative sentinel values:
             // - If both are non-negative, take max
             // - If one is negative, take the other (it's the known dimension)
             // - If both are negative, propagate the negative value
-            let max: Vec<T> = ashape_float
-                .iter()
-                .zip(bshape_float.iter())
-                .map(|(a, b)| {
-                    let a_neg = *a < T::zero();
-                    let b_neg = *b < T::zero();
-                    if !a_neg && !b_neg {
-                        // Both known: take max
-                        if *a > *b {
-                            *a
+            // Axes that only one operand has are simply that operand's extent.
+            let mut max: Vec<T> = Vec::with_capacity(rank);
+            for axis in 0..rank {
+                let a = if axis >= a_pad {
+                    Some(ashape_float[axis - a_pad])
+                } else {
+                    None
+                };
+                let b = if axis >= b_pad {
+                    Some(bshape_float[axis - b_pad])
+                } else {
+                    None
+                };
+                let dim = match (a, b) {
+                    (Some(a), Some(b)) => {
+                        let a_neg = a < T::zero();
+                        let b_neg = b < T::zero();
+                        if !a_neg && !b_neg {
+                            if a > b {
+                                a
+                            } else {
+                                b
+                            }
+                        } else if a_neg && !b_neg {
+                            b
                         } else {
-                            *b
+                            // b unknown (or both unknown): use / propagate a
+                            a
                         }
-                    } else if a_neg && !b_neg {
-                        // a is unknown, use b
-                        *b
-                    } else if !a_neg && b_neg {
-                        // b is unknown, use a
-                        *a
-                    } else {
-                        // Both unknown, propagate sentinel
-                        *a
                     }
-                })
-                .collect();
+                    (Some(a), None) => a,
+                    (None, Some(b)) => b,
+                    (None, None) => T::zero(),
+                };
+                max.push(dim);
+            }
             ctx.append_output(
-                NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[a_rank]), max)
-                    .expect("Operation failed"),
+                NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[rank]), max)
+                    .map_err(|e| op::OpError::IncompatibleShape(format!("InferBinOpShape: {e}")))?,
             )
         } else if !a_is_scalar {
             ctx.append_output(ashape_float.to_owned());
@@ -559,17 +574,42 @@ pub(crate) fn inplace_add_impl<F: Float>(mut a: NdArrayViewMut<F>, b: &NdArrayVi
 impl<T: Float> op::Op<T> for AddN {
     fn compute(&self, ctx: &mut op::ComputeContext<T>) -> Result<(), op::OpError> {
         let inputs_len = ctx.inputs().len();
-        if 0 == inputs_len {
-            unreachable!()
-        } else if 1 == inputs_len {
+        if inputs_len == 0 {
+            // Previously `unreachable!()`: reachable in practice whenever a
+            // caller builds `AddN` with no inputs (e.g. an op with zero
+            // backprop consumers gets its gradients accumulated via AddN).
+            // Report it as a normal `OpError` instead of panicking.
+            return Err(op::OpError::IncompatibleShape(
+                "AddN: requires at least one input, got 0".to_string(),
+            ));
+        }
+
+        // All inputs must share exactly one shape: AddN exists to accumulate
+        // several gradients flowing into the *same* tensor, so a shape
+        // mismatch here means an upstream op produced a wrongly-shaped
+        // gradient (see e.g. the einsum/tensordot backward gaps). ndarray's
+        // `+`/`+=` operators panic on mismatched shapes rather than
+        // returning a `Result`, which used to surface as an uncatchable
+        // panic (or a `ShapeError`-flavoured abort) instead of a normal
+        // `OpError` -- validate shapes explicitly first so this becomes a
+        // recoverable error.
+        let firstshape = ctx.input(0).shape().to_vec();
+        for i in 1..inputs_len {
+            let ishape = ctx.input(i).shape().to_vec();
+            if ishape != firstshape {
+                return Err(op::OpError::IncompatibleShape(format!(
+                    "AddN: mismatched shapes -- input 0 has shape {firstshape:?}, \
+                     input {i} has shape {ishape:?}"
+                )));
+            }
+        }
+
+        if inputs_len == 1 {
             let ret = ctx.input(0);
             ctx.append_output(ret.to_owned());
-        } else if 2 == inputs_len {
-            let ret = &ctx.input(0) + &ctx.input(1);
-            ctx.append_output(ret);
         } else {
-            let mut base = &ctx.input(0) + &ctx.input(1);
-            for i in 2..inputs_len {
+            let mut base = ctx.input(0).to_owned();
+            for i in 1..inputs_len {
                 base += &ctx.input(i);
             }
             ctx.append_output(base);
@@ -649,18 +689,20 @@ impl<T: Float> op::Op<T> for Concat {
     }
 
     fn grad(&self, ctx: &mut op::GradientContext<T>) {
-        // [x1, x2, x3, ..., gy]
+        // ConcatGrad's inputs are laid out as [gy, x1, x2, x3, ...].
         let num_inputs = ctx.inputs().len();
         let output_grad = ctx.output_grad();
         let graph = ctx.graph();
-        let input0shape = shape(ctx.input(0));
 
         // Clone all inputs to avoid borrow issues
         let inputs: Vec<&Tensor<T>> = (0..num_inputs).map(|i| ctx.input(i)).collect();
 
         for i in 0..num_inputs {
+            // The shape hint must be the shape of *this* input; concat accepts inputs
+            // with different extents along `axis`, so reusing input 0's shape made
+            // `shape(gx_i)` lie for every i > 0.
             let mut builder = Tensor::builder(graph)
-                .setshape(&input0shape)
+                .setshape(&shape(inputs[i]))
                 .append_input(output_grad, false);
 
             for input in &inputs {
@@ -686,19 +728,25 @@ impl<T: Float> op::Op<T> for ConcatGrad {
             self.axis as usize
         };
 
-        // make slice indices
-        let mut start_idx = 0;
-        for i in 1..self.index {
-            start_idx += ctx.input(i).shape()[axis];
+        // Inputs are laid out as `[gy, x0, x1, ..., xn]`, so the tensor concatenated at
+        // position `j` is `ctx.input(j + 1)`.  The region of `gy` belonging to
+        // `self.index` therefore starts after all of x0..x_{index-1} and ends
+        // `region_len` later -- both the start offset (which skipped x_{index-1}) and the
+        // end bound (which used the length as an absolute index) used to be wrong, so
+        // every input except the first read back the *first* input's slice of `gy`.
+        let mut start_idx = 0_usize;
+        for i in 0..self.index {
+            start_idx += ctx.input(i + 1).shape()[axis];
         }
-        let region_len = ctx.input(self.index + 1).shape()[axis] as isize;
+        let region_len = ctx.input(self.index + 1).shape()[axis];
+        let end_idx = (start_idx + region_len) as isize;
         let indices = (0..gy.ndim())
             .map(move |_axis| {
                 if _axis == axis {
                     // partial region
                     SliceInfoElem::Slice {
                         start: start_idx as isize,
-                        end: Some(region_len),
+                        end: Some(end_idx),
                         step: 1,
                     }
                 } else {
@@ -959,5 +1007,133 @@ impl<T: Float> op::Op<T> for ExpandDims {
     fn grad(&self, ctx: &mut op::GradientContext<T>) {
         ctx.append_input_grad(0, Some(squeeze(ctx.output_grad(), ctx.input(1))));
         ctx.append_input_grad(1, None);
+    }
+}
+
+#[cfg(test)]
+mod addn_tests {
+    // Regression tests for `AddN::compute` (see the impl above): it used to
+    // reach `unreachable!()` for zero inputs and let ndarray's `+`/`+=`
+    // operators panic on any shape mismatch instead of returning an
+    // `OpError`. Both would have aborted the whole test process rather than
+    // failing gracefully, so these tests would have crashed the test binary
+    // before the fix and now correctly observe an `Err`.
+    use crate::tensor::Tensor;
+    use crate::tensor_ops::{add_n, concat, convert_to_tensor, grad, variable};
+
+    #[test]
+    fn add_n_with_zero_inputs_reports_error_not_unreachable_panic() {
+        // `add_n(&[])` cannot be built through the public API (it asserts
+        // `len != 0`), but nothing stops a raw `Tensor::builder(..).build(AddN)`
+        // with no appended inputs, which used to hit `unreachable!()`.
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let zero_input_sum: Tensor<f64> = Tensor::builder(ctx).build(super::AddN);
+            let result = zero_input_sum.eval(ctx);
+            assert!(
+                result.is_err(),
+                "AddN with zero inputs must report an OpError, not panic via unreachable!()"
+            );
+        });
+    }
+
+    #[test]
+    fn add_n_reports_shape_mismatch_as_error_not_panic() {
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let a = convert_to_tensor(
+                scirs2_core::ndarray::Array::from_shape_vec(
+                    scirs2_core::ndarray::IxDyn(&[3]),
+                    vec![1.0f64, 2.0, 3.0],
+                )
+                .expect("Operation failed"),
+                ctx,
+            );
+            let b = convert_to_tensor(
+                scirs2_core::ndarray::Array::from_shape_vec(
+                    scirs2_core::ndarray::IxDyn(&[2]),
+                    vec![4.0f64, 5.0],
+                )
+                .expect("Operation failed"),
+                ctx,
+            );
+
+            let sum = add_n(&[a, b]);
+            let result = sum.eval(ctx);
+            assert!(
+                result.is_err(),
+                "AddN must report a shape mismatch as an OpError, not panic or silently succeed"
+            );
+        });
+    }
+
+    #[test]
+    fn add_n_still_sums_matching_shapes_correctly() {
+        // Guards against an overzealous fix that rejects legitimate,
+        // same-shape accumulation.
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let a = convert_to_tensor(
+                scirs2_core::ndarray::Array::from_shape_vec(
+                    scirs2_core::ndarray::IxDyn(&[3]),
+                    vec![1.0f64, 2.0, 3.0],
+                )
+                .expect("Operation failed"),
+                ctx,
+            );
+            let b = convert_to_tensor(
+                scirs2_core::ndarray::Array::from_shape_vec(
+                    scirs2_core::ndarray::IxDyn(&[3]),
+                    vec![10.0f64, 20.0, 30.0],
+                )
+                .expect("Operation failed"),
+                ctx,
+            );
+            let c = convert_to_tensor(
+                scirs2_core::ndarray::Array::from_shape_vec(
+                    scirs2_core::ndarray::IxDyn(&[3]),
+                    vec![100.0f64, 200.0, 300.0],
+                )
+                .expect("Operation failed"),
+                ctx,
+            );
+
+            let sum = add_n(&[a, b, c]).eval(ctx).expect("Operation failed");
+            assert_eq!(
+                sum.iter().copied().collect::<Vec<_>>(),
+                vec![111.0f64, 222.0, 333.0]
+            );
+        });
+    }
+
+    /// `concat(&[x, x], 0)` feeds `x` into the same `Concat` op twice, so its
+    /// backward pass produces two separate gradient contributions for `x`
+    /// that must be summed via `AddN`. Before the gradient-dispatch routing
+    /// fix landed (see `gradient.rs`) this combination panicked inside
+    /// `AddN::compute`. Non-constant data: a uniform (all-ones/all-equal)
+    /// `x` could not distinguish "correctly doubled gradient" from a
+    /// fabricated or mis-routed one. Built with `variable` (not
+    /// `convert_to_tensor`, which marks its output non-differentiable and
+    /// would make any gradient -- correct or not -- silently collapse to
+    /// zero; see `tests/gradient_fd_harness.rs`'s header comment).
+    #[test]
+    fn concat_self_backward_no_longer_panics_and_doubles_gradient() {
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let x = variable(
+                scirs2_core::ndarray::Array::from_shape_vec(
+                    scirs2_core::ndarray::IxDyn(&[3]),
+                    vec![1.0f64, 2.0, 3.0],
+                )
+                .expect("Operation failed"),
+                ctx,
+            );
+
+            let y = concat(&[x, x], 0);
+            let yshape = y.eval(ctx).expect("Operation failed").shape().to_vec();
+            assert_eq!(yshape, vec![6]);
+
+            let gx = grad(&[y], &[x])[0];
+            let gx_val = gx.eval(ctx).expect("Operation failed");
+            // Each element of `x` feeds two positions of `y`, so d(sum(y))/dx
+            // is 2 everywhere, regardless of x's own (non-constant) values.
+            assert_eq!(gx_val.iter().copied().collect::<Vec<_>>(), vec![2.0f64; 3]);
+        });
     }
 }

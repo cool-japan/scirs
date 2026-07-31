@@ -465,20 +465,33 @@ impl RegressionDetector {
 pub struct RegressionTestUtils;
 
 impl RegressionTestUtils {
-    /// Run a complete regression test suite
-    pub fn run_regression_tests(benchmark_names: &[&str]) -> CoreResult<Vec<RegressionAnalysis>> {
+    /// Run a complete regression test suite against the real, caller-supplied
+    /// benchmark closures.
+    ///
+    /// Each entry is `(name, benchmark_fn)`: `benchmark_fn` is actually
+    /// executed (with real warmup/measurement iterations via
+    /// [`BenchmarkRunner::run`]) to produce the timing data that regression
+    /// analysis is based on. There is no way to detect a *real* performance
+    /// regression without measuring the actual named workload — timing a
+    /// placeholder no-op regardless of `name` (the previous behavior) can
+    /// only ever produce noise.
+    ///
+    /// `config` controls where historical results are stored (see
+    /// [`RegressionConfig::results_directory`]); pass a config pointing at a
+    /// scratch directory in tests rather than relying on the default
+    /// (`./benchmark_results`, relative to the current working directory).
+    pub fn run_regression_tests(
+        benchmarks: &mut [(&str, &mut dyn FnMut() -> CoreResult<()>)],
+        config: RegressionConfig,
+    ) -> CoreResult<Vec<RegressionAnalysis>> {
         let mut analyses = Vec::new();
         let benchmark_runner =
             BenchmarkRunner::new(crate::benchmarking::BenchmarkConfig::default());
-        let detector = RegressionDetector::new(RegressionConfig::default());
+        let detector = RegressionDetector::new(config);
 
-        for &name in benchmark_names {
-            // Run benchmark (this is simplified - in practice you'd have the actual benchmark functions)
-            let result = benchmark_runner.run(name, || {
-                // Placeholder benchmark - replace with actual benchmark
-                std::thread::sleep(Duration::from_micros(100));
-                Ok(())
-            })?;
+        for (name, benchmark_fn) in benchmarks.iter_mut() {
+            // Run the real, caller-supplied benchmark.
+            let result = benchmark_runner.run(name, &mut **benchmark_fn)?;
 
             // Store result for future analysis
             detector.store_result(&result)?;
@@ -631,6 +644,56 @@ mod tests {
     fn test_performance_trend() {
         assert_eq!(PerformanceTrend::Improving, PerformanceTrend::Improving);
         assert_ne!(PerformanceTrend::Improving, PerformanceTrend::Degrading);
+    }
+
+    /// Regression test: `run_regression_tests` used to time a hardcoded
+    /// 100us `sleep` for *every* benchmark name, so two named benchmarks
+    /// doing genuinely different amounts of work would have measured
+    /// statistically indistinguishable durations. With real per-benchmark
+    /// closures actually executed, a "slow" workload must measure
+    /// meaningfully longer than a "fast" one.
+    #[test]
+    fn test_run_regression_tests_executes_real_named_benchmarks_not_a_shared_sleep() {
+        let temp_dir = TempDir::new().expect("tempdir");
+        let config = RegressionConfig::new()
+            .with_results_directory(temp_dir.path())
+            .with_min_historical_samples(1);
+
+        let mut fast = || -> CoreResult<()> {
+            let mut acc = 0u64;
+            for i in 0..100u64 {
+                acc = acc.wrapping_add(i);
+            }
+            std::hint::black_box(acc);
+            Ok(())
+        };
+        let mut slow = || -> CoreResult<()> {
+            let mut acc = 0u64;
+            for i in 0..5_000_000u64 {
+                acc = acc.wrapping_add(i);
+            }
+            std::hint::black_box(acc);
+            Ok(())
+        };
+
+        let analyses = RegressionTestUtils::run_regression_tests(
+            &mut [("fast_bench", &mut fast), ("slow_bench", &mut slow)],
+            config,
+        )
+        .expect("Operation failed");
+
+        assert_eq!(analyses.len(), 2);
+        assert_eq!(analyses[0].benchmark_name, "fast_bench");
+        assert_eq!(analyses[1].benchmark_name, "slow_bench");
+
+        let fast_time = analyses[0].current_result.mean_execution_time_nanos;
+        let slow_time = analyses[1].current_result.mean_execution_time_nanos;
+        assert!(
+            slow_time > fast_time * 2,
+            "expected the slow benchmark ({slow_time}ns) to measure meaningfully longer than \
+             the fast one ({fast_time}ns) now that they run distinct real workloads instead of \
+             an identical placeholder sleep"
+        );
     }
 
     #[test]

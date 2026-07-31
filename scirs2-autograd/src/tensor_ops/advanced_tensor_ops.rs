@@ -40,53 +40,124 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for TensorSolveOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let a = ctx.input(0);
-        let _b = ctx.input(1);
-        let x = ctx.output();
+        // `tensor_solve` flattens `A` to a matrix and `b` to a vector, solves, and
+        // reshapes; its VJP is therefore the linear-solve VJP applied to the flattened
+        // problem and reshaped back.  See `TensorSolveVjpOp`.
+        //
+        // The previous rule called two helpers whose bodies were
+        // `grad_x.clone()` and `ArrayD::zeros(ashape)` — a copy of the cotangent for `b`
+        // and an identically-zero gradient for `A`.
+        let a = *ctx.input(0);
+        let b = *ctx.input(1);
+        let x = *ctx.output();
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
 
-        // Evaluate tensors
-        let a_array = match a.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
+        let mut node = |wrt_a: bool| {
+            Tensor::builder(g)
+                .append_input(a, false)
+                .append_input(b, false)
+                .append_input(x, false)
+                .append_input(gy, false)
+                .build(TensorSolveVjpOp {
+                    axes: self.axes.clone(),
+                    wrt_a,
+                })
+        };
+        let grad_a = node(true);
+        let grad_b = node(false);
+        ctx.append_input_grad(0, Some(grad_a));
+        ctx.append_input_grad(1, Some(grad_b));
+    }
+}
+
+/// Backward node of [`TensorSolveOp`].
+///
+/// Inputs are `(A, b, x, gy)`; the output is `Ā` (`wrt_a = true`) or `b̄`.
+///
+/// After flattening, `x` solves `A x = b` (square) or the normal equations
+/// `AᵀA x = Aᵀ b` (over-determined). Differentiating the defining relation gives
+///
+/// ```text
+///   square:            b̄ = A^-ᵀ gy,        Ā = -b̄ xᵀ
+///   full column rank:  b̄ = A⁺ᵀ gy,         Ā = -b̄ xᵀ + r (A⁺ A⁺ᵀ gy)ᵀ,  r = b - A x
+/// ```
+///
+/// The residual term is what distinguishes a least-squares solve from an exact one; it
+/// vanishes identically when `A` is square (`r = 0`), so the two branches agree there.
+pub struct TensorSolveVjpOp {
+    axes: Option<Vec<i32>>,
+    wrt_a: bool,
+}
+
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for TensorSolveVjpOp {
+    fn name(&self) -> &'static str {
+        "TensorSolveVjp"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a = ctx.input(0);
+        let b = ctx.input(1);
+        let x = ctx.input(2);
+        let gy = ctx.input(3);
+
+        let ashape = a.shape().to_vec();
+        let bshape = b.shape().to_vec();
+        let (prod_x, prod_b) = validate_tensor_solveshapes(&ashape, &bshape, &self.axes)?;
+
+        let a_mat = reshape_for_solve(&a.view(), prod_b, prod_x)?;
+        let b_vec = reshape_vector(&b.view(), prod_b)?;
+        let x_vec = reshape_vector(&x.view(), prod_x)?;
+        let gy_vec = reshape_vector(&gy.view(), prod_x)?;
+
+        let (grad_b_vec, grad_a_mat) = if prod_b == prod_x {
+            // Square: b̄ solves Aᵀ b̄ = gy.
+            let y = solve_square_system(&a_mat.t().to_owned(), &gy_vec)?;
+            let mut grad_a = Array2::<F>::zeros((prod_b, prod_x));
+            for i in 0..prod_b {
+                for j in 0..prod_x {
+                    grad_a[[i, j]] = -(y[i] * x_vec[j]);
+                }
             }
+            (y, grad_a)
+        } else {
+            // Least squares through the normal equations: A⁺ = (AᵀA)^-1 Aᵀ.
+            let ata = a_mat.t().dot(&a_mat);
+            let ata_inv = crate::tensor_ops::matrix_calculus::inverse(&ata.view())?;
+            let pinv = ata_inv.dot(&a_mat.t()); // prod_x x prod_b
+            let y = pinv.t().dot(&gy_vec); // prod_b
+            let residual = &b_vec - &a_mat.dot(&x_vec); // prod_b
+            let correction = pinv.dot(&pinv.t()).dot(&gy_vec); // prod_x
+            let mut grad_a = Array2::<F>::zeros((prod_b, prod_x));
+            for i in 0..prod_b {
+                for j in 0..prod_x {
+                    grad_a[[i, j]] = -(y[i] * x_vec[j]) + residual[i] * correction[j];
+                }
+            }
+            (y, grad_a)
         };
 
-        let x_array = match x.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
+        if self.wrt_a {
+            let flat: Vec<F> = grad_a_mat.iter().copied().collect();
+            let out = ArrayD::from_shape_vec(IxDyn(&ashape), flat).map_err(|_| {
+                OpError::IncompatibleShape("tensor_solve backward: cannot reshape dL/dA".into())
+            })?;
+            ctx.append_output(out);
+        } else {
+            let flat: Vec<F> = grad_b_vec.iter().copied().collect();
+            let out = ArrayD::from_shape_vec(IxDyn(&bshape), flat).map_err(|_| {
+                OpError::IncompatibleShape("tensor_solve backward: cannot reshape dL/db".into())
+            })?;
+            ctx.append_output(out);
+        }
+        Ok(())
+    }
 
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Compute gradients
-        // grad_b = a @ grad_x (reshaped appropriately)
-        let grad_b = compute_grad_b(&a_array, &grad_output_array, &self.axes);
-
-        // grad_a = -grad_x ⊗ x (outer product, reshaped)
-        let grad_a = compute_grad_a(&grad_output_array, &x_array, a_array.shape(), &self.axes);
-
-        // Convert to tensors
-        let grad_a_tensor = convert_to_tensor(grad_a, g);
-        let grad_b_tensor = convert_to_tensor(grad_b, g);
-
-        ctx.append_input_grad(0, Some(grad_a_tensor));
-        ctx.append_input_grad(1, Some(grad_b_tensor));
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+            ctx,
+            "tensor_solve: second-order differentiation is not implemented".into(),
+        );
     }
 }
 
@@ -104,44 +175,141 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for EinsumOp {
         // Parse einsum pattern
         let (input_specs, output_spec) = parse_einsum_pattern(&self.pattern)?;
 
-        // For now, implement a simplified version for common cases
-        if input_specs.len() == 2 {
-            let a = ctx.input(0);
-            let b = ctx.input(1);
+        if input_specs.len() != 2 {
+            return Err(OpError::Other(format!(
+                "einsum: only binary equations are supported, got {} operands in '{}'",
+                input_specs.len(),
+                self.pattern
+            )));
+        }
 
-            // Handle common patterns
-            if self.pattern == "ij,jk->ik" {
-                // Matrix multiplication
-                let result = compute_matmul(&a.view(), &b.view())?;
-                ctx.append_output(result);
-            } else if self.pattern == "i,i->" {
-                // Dot product
-                let result = compute_dot_product(&a.view(), &b.view())?;
-                ctx.append_output(result);
-            } else if self.pattern == "ij,ij->ij" {
-                // Element-wise multiplication
-                let result = compute_elementwise_mul(&a.view(), &b.view())?;
-                ctx.append_output(result);
-            } else {
-                // General einsum (simplified)
-                let result =
-                    compute_general_einsum(&a.view(), &b.view(), &input_specs, &output_spec)?;
-                ctx.append_output(result);
-            }
+        let a = ctx.input(0);
+        let b = ctx.input(1);
+
+        // `ij,jk->ik` keeps its BLAS-backed fast path; everything else goes through the
+        // general contraction.  The previous `else` branch returned the *first operand
+        // unchanged* for any equation outside three hard-coded patterns.
+        if self.pattern == "ij,jk->ik" {
+            let result = compute_matmul(&a.view(), &b.view())?;
+            ctx.append_output(result);
         } else {
-            return Err(OpError::Other(
-                "Only binary einsum operations supported".into(),
-            ));
+            let result = einsum_contract(
+                &[&input_specs[0], &input_specs[1]],
+                &[&a.view(), &b.view()],
+                &output_spec,
+                None,
+            )?;
+            ctx.append_output(result);
         }
 
         Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        // Simplified gradient - pass through
-        let gy = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*gy));
-        ctx.append_input_grad(1, Some(*gy));
+        // Einsum is differentiated by *rewriting the equation*: swap the output subscript
+        // with the subscript of the operand being differentiated.  For `a_A b_B -> y_Y`,
+        //
+        //     ā = einsum("Y,B->A", gy, b)      b̄ = einsum("Y,A->B", gy, a)
+        //
+        // e.g. for `ij,jk->ik` this yields `ik,jk->ij` (gy · bᵀ) and `ik,ij->jk`
+        // (aᵀ · gy), the familiar matmul rules — but it is equally correct for
+        // contractions, free indices, summed-away indices and repeated (diagonal)
+        // indices, because a label that appears only in the *target* spec is simply an
+        // output label with no input to read from, i.e. a broadcast.
+        //
+        // The previous rule handed the raw output cotangent to both operands, which is
+        // not even shape-correct: `einsum("ij->i")` produced an `i`-shaped gradient for
+        // an `ij`-shaped input and made the accumulation in `AddN` hit `unreachable!()`.
+        let (input_specs, out_spec) = match parse_einsum_pattern(&self.pattern) {
+            Ok(parsed) => parsed,
+            Err(e) => {
+                crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+                    ctx,
+                    format!("einsum: cannot differentiate an unparsable equation: {e}"),
+                );
+                return;
+            }
+        };
+        if input_specs.len() != 2 {
+            crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+                ctx,
+                format!(
+                    "einsum: only binary equations are supported, got {} operands in '{}'",
+                    input_specs.len(),
+                    self.pattern
+                ),
+            );
+            return;
+        }
+
+        let a = *ctx.input(0);
+        let b = *ctx.input(1);
+        let gy = *ctx.output_grad();
+        let g = ctx.graph();
+
+        // Inputs are (gy, other operand, target operand).  The target is passed only so
+        // the backward node can read its shape: a label that appears in the target spec
+        // and nowhere else has no size anywhere in the rewritten equation.
+        let grad_a = Tensor::builder(g)
+            .append_input(gy, false)
+            .append_input(b, false)
+            .append_input(a, false)
+            .build(EinsumGradOp {
+                out_spec: out_spec.clone(),
+                other_spec: input_specs[1].clone(),
+                target_spec: input_specs[0].clone(),
+            });
+        let grad_b = Tensor::builder(g)
+            .append_input(gy, false)
+            .append_input(a, false)
+            .append_input(b, false)
+            .build(EinsumGradOp {
+                out_spec,
+                other_spec: input_specs[0].clone(),
+                target_spec: input_specs[1].clone(),
+            });
+
+        ctx.append_input_grad(0, Some(grad_a));
+        ctx.append_input_grad(1, Some(grad_b));
+    }
+}
+
+/// Backward node of [`EinsumOp`] for one operand.
+///
+/// Inputs are `(gy, other, target)`; the result is
+/// `einsum("{out_spec},{other_spec}->{target_spec}", gy, other)`, shaped like `target`.
+pub struct EinsumGradOp {
+    out_spec: String,
+    other_spec: String,
+    target_spec: String,
+}
+
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for EinsumGradOp {
+    fn name(&self) -> &'static str {
+        "EinsumGrad"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let gy = ctx.input(0);
+        let other = ctx.input(1);
+        let target = ctx.input(2);
+        let result = einsum_contract(
+            &[&self.out_spec, &self.other_spec],
+            &[&gy.view(), &other.view()],
+            &self.target_spec,
+            Some(target.shape()),
+        )?;
+        ctx.append_output(result);
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Second order would need the same rewrite applied once more with the roles of
+        // `gy` and `other` swapped; not implemented, and reported rather than faked.
+        crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+            ctx,
+            "einsum: second-order differentiation is not implemented".into(),
+        );
     }
 }
 
@@ -453,15 +621,166 @@ fn compute_elementwise_mul<F: Float>(
     Ok((a * b).into_owned())
 }
 
-#[allow(dead_code)]
-fn compute_general_einsum<F: Float>(
-    a: &scirs2_core::ndarray::ArrayViewD<F>,
-    _b: &scirs2_core::ndarray::ArrayViewD<F>,
-    _input_specs: &[String],
-    _output_spec: &str,
+/// General Einstein summation over an arbitrary number of operands.
+///
+/// Every label that appears in `out_spec` becomes an output axis; every label that
+/// appears only in the operands is contracted (summed over). A label repeated *within*
+/// one operand selects that operand's diagonal, and a label that appears only in
+/// `out_spec` is broadcast — its size then has to come from `out_shape_hint`, which the
+/// backward pass supplies from the shape of the operand it is differentiating.
+///
+/// The implementation walks the full index space with an odometer. That is
+/// `O(prod of all label sizes)` rather than an optimised contraction order, but it is
+/// exactly the definition of the notation and therefore correct for every equation
+/// shape — including the ones the backward rewrite produces.
+fn einsum_contract<F: Float>(
+    specs: &[&str],
+    arrays: &[&scirs2_core::ndarray::ArrayViewD<F>],
+    out_spec: &str,
+    out_shape_hint: Option<&[usize]>,
 ) -> Result<ArrayD<F>, OpError> {
-    // Simplified implementation - just return first input for now
-    Ok(a.to_owned())
+    if specs.len() != arrays.len() {
+        return Err(OpError::Other(
+            "einsum: subscript count does not match operand count".into(),
+        ));
+    }
+
+    let out_labels: Vec<char> = out_spec.chars().collect();
+    for (i, l) in out_labels.iter().enumerate() {
+        if out_labels[..i].contains(l) {
+            return Err(OpError::Other(format!(
+                "einsum: output label '{l}' appears more than once in '{out_spec}'"
+            )));
+        }
+    }
+
+    // Label -> extent, collected from the operands (and from the hint for output-only
+    // labels), with a consistency check.
+    let mut sizes: Vec<(char, usize)> = Vec::new();
+    let mut set =
+        |label: char, dim: usize, sizes: &mut Vec<(char, usize)>| -> Result<(), OpError> {
+            match sizes.iter_mut().find(|(l, _)| *l == label) {
+                Some((_, existing)) => {
+                    if *existing != dim {
+                        return Err(OpError::IncompatibleShape(format!(
+                            "einsum: label '{label}' has extent {existing} and {dim}"
+                        )));
+                    }
+                }
+                None => sizes.push((label, dim)),
+            }
+            Ok(())
+        };
+
+    for (spec, array) in specs.iter().zip(arrays.iter()) {
+        let labels: Vec<char> = spec.chars().collect();
+        if labels.len() != array.ndim() {
+            return Err(OpError::IncompatibleShape(format!(
+                "einsum: subscript '{spec}' has {} labels but the operand has {} axes",
+                labels.len(),
+                array.ndim()
+            )));
+        }
+        for (axis, &label) in labels.iter().enumerate() {
+            set(label, array.shape()[axis], &mut sizes)?;
+        }
+    }
+
+    if let Some(hint) = out_shape_hint {
+        if hint.len() != out_labels.len() {
+            return Err(OpError::IncompatibleShape(format!(
+                "einsum: output subscript '{out_spec}' has {} labels but the requested \
+                 shape has {} axes",
+                out_labels.len(),
+                hint.len()
+            )));
+        }
+        for (axis, &label) in out_labels.iter().enumerate() {
+            set(label, hint[axis], &mut sizes)?;
+        }
+    }
+
+    for label in &out_labels {
+        if !sizes.iter().any(|(l, _)| l == label) {
+            return Err(OpError::Other(format!(
+                "einsum: output label '{label}' does not appear in any operand, so its \
+                 extent is unknown"
+            )));
+        }
+    }
+
+    let extent = |label: char| -> usize {
+        sizes
+            .iter()
+            .find(|(l, _)| *l == label)
+            .map(|(_, d)| *d)
+            .unwrap_or(0)
+    };
+
+    // Iteration order: the output labels first, then everything contracted.
+    let mut loop_labels: Vec<char> = out_labels.clone();
+    for (label, _) in &sizes {
+        if !loop_labels.contains(label) {
+            loop_labels.push(*label);
+        }
+    }
+    let loop_extents: Vec<usize> = loop_labels.iter().map(|&l| extent(l)).collect();
+    let out_shape: Vec<usize> = out_labels.iter().map(|&l| extent(l)).collect();
+
+    let mut out = ArrayD::<F>::zeros(IxDyn(&out_shape));
+    let total: usize = loop_extents.iter().product();
+    if total == 0 {
+        return Ok(out);
+    }
+
+    // Precomputed per-operand axis -> position in `loop_labels`.
+    let operand_axes: Vec<Vec<usize>> = specs
+        .iter()
+        .map(|spec| {
+            spec.chars()
+                .map(|c| {
+                    loop_labels
+                        .iter()
+                        .position(|&l| l == c)
+                        .unwrap_or(usize::MAX)
+                })
+                .collect()
+        })
+        .collect();
+
+    let mut counter = vec![0usize; loop_labels.len()];
+    let mut out_index = vec![0usize; out_labels.len()];
+    let mut operand_index: Vec<Vec<usize>> = specs
+        .iter()
+        .map(|s| vec![0usize; s.chars().count()])
+        .collect();
+
+    for _ in 0..total {
+        let mut product = F::one();
+        for (k, array) in arrays.iter().enumerate() {
+            let idx = &mut operand_index[k];
+            for (axis, &pos) in operand_axes[k].iter().enumerate() {
+                idx[axis] = counter[pos];
+            }
+            product *= array[IxDyn(idx)];
+            if product == F::zero() {
+                break;
+            }
+        }
+        out_index[..out_labels.len()].copy_from_slice(&counter[..out_labels.len()]);
+        out[IxDyn(&out_index)] += product;
+
+        // Odometer increment (last label fastest).
+        for pos in (0..counter.len()).rev() {
+            counter[pos] += 1;
+            if counter[pos] < loop_extents[pos] {
+                break;
+            }
+            counter[pos] = 0;
+        }
+    }
+
+    Ok(out)
 }
 
 // Public API functions
@@ -504,176 +823,14 @@ pub fn einsum<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
 /// Kronecker product (tensor product of matrices)
 #[allow(dead_code)]
 pub fn kron<'g, F: Float>(a: &Tensor<'g, F>, b: &Tensor<'g, F>) -> Tensor<'g, F> {
-    let g = a.graph();
-
-    // Use einsum to compute Kronecker product
-    // For 2D matrices: kron(A, B)[i*p+k, j*q+l] = A[i,j] * B[k,l]
-    // This can be expressed as: einsum("ij,kl->ikjl", A, B).reshape(...)
-
-    // For now, use a simple implementation
-    Tensor::builder(g)
-        .append_input(a, false)
-        .append_input(b, false)
-        .build(KroneckerOp)
-}
-
-/// Kronecker product operation
-struct KroneckerOp;
-
-impl<F: Float> Op<F> for KroneckerOp {
-    fn name(&self) -> &'static str {
-        "Kronecker"
-    }
-
-    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
-        let a = ctx.input(0);
-        let b = ctx.input(1);
-
-        let ashape = a.shape();
-        let bshape = b.shape();
-
-        if ashape.len() != 2 || bshape.len() != 2 {
-            return Err(OpError::IncompatibleShape(
-                "Kronecker product requires 2D matrices".into(),
-            ));
-        }
-
-        let (m, n) = (ashape[0], ashape[1]);
-        let (p, q) = (bshape[0], bshape[1]);
-
-        let mut result = ArrayD::<F>::zeros(IxDyn(&[m * p, n * q]));
-
-        // Compute Kronecker product
-        for i in 0..m {
-            for j in 0..n {
-                let a_ij = a[[i, j]];
-                for k in 0..p {
-                    for l in 0..q {
-                        result[[i * p + k, j * q + l]] = a_ij * b[[k, l]];
-                    }
-                }
-            }
-        }
-
-        ctx.append_output(result);
-        Ok(())
-    }
-
-    fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let a = ctx.input(0);
-        let b = ctx.input(1);
-        let g = ctx.graph();
-
-        let ashape = a.shape();
-        let bshape = b.shape();
-
-        if ashape.len() != 2 || bshape.len() != 2 {
-            ctx.append_input_grad(0, None);
-            ctx.append_input_grad(1, None);
-            return;
-        }
-
-        let (m, n) = (ashape[0], ashape[1]);
-        let (p, q) = (bshape[0], bshape[1]);
-
-        // For C = A ⊗ B, the gradients are:
-        // ∂L/∂A[i,j] = sum_{k,l} (∂L/∂C)[i*p+k, j*q+l] * B[k,l]
-        // ∂L/∂B[k,l] = sum_{i,j} (∂L/∂C)[i*p+k, j*q+l] * A[i,j]
-        let gy_eval = match gy.eval(g) {
-            Ok(v) => v,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-        let a_eval = match a.eval(g) {
-            Ok(v) => v,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-        let b_eval = match b.eval(g) {
-            Ok(v) => v,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Broadcast scalar gy to (m*p, n*q) if needed
-        let gy_2d_owned: Array2<F>;
-        let gy_2d = if gy_eval.ndim() == 0 {
-            let scalar = gy_eval.iter().next().copied().unwrap_or(F::one());
-            gy_2d_owned = Array2::from_elem((m * p, n * q), scalar);
-            gy_2d_owned.view()
-        } else {
-            match gy_eval.view().into_dimensionality::<Ix2>() {
-                Ok(v) => {
-                    gy_2d_owned = v.to_owned();
-                    gy_2d_owned.view()
-                }
-                Err(_) => {
-                    ctx.append_input_grad(0, None);
-                    ctx.append_input_grad(1, None);
-                    return;
-                }
-            }
-        };
-
-        let a_2d = match a_eval.view().into_dimensionality::<Ix2>() {
-            Ok(v) => v.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-        let b_2d = match b_eval.view().into_dimensionality::<Ix2>() {
-            Ok(v) => v.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Gradient w.r.t. A — shape (m, n)
-        let mut grad_a = Array2::<F>::zeros((m, n));
-        for i in 0..m {
-            for j in 0..n {
-                let mut sum = F::zero();
-                for k in 0..p {
-                    for l in 0..q {
-                        sum += gy_2d[[i * p + k, j * q + l]] * b_2d[[k, l]];
-                    }
-                }
-                grad_a[[i, j]] = sum;
-            }
-        }
-
-        // Gradient w.r.t. B — shape (p, q)
-        let mut grad_b = Array2::<F>::zeros((p, q));
-        for k in 0..p {
-            for l in 0..q {
-                let mut sum = F::zero();
-                for i in 0..m {
-                    for j in 0..n {
-                        sum += gy_2d[[i * p + k, j * q + l]] * a_2d[[i, j]];
-                    }
-                }
-                grad_b[[k, l]] = sum;
-            }
-        }
-
-        let grad_a_tensor = crate::tensor_ops::convert_to_tensor(grad_a.into_dyn(), g);
-        let grad_b_tensor = crate::tensor_ops::convert_to_tensor(grad_b.into_dyn(), g);
-
-        ctx.append_input_grad(0, Some(grad_a_tensor));
-        ctx.append_input_grad(1, Some(grad_b_tensor));
-    }
+    // Delegates to `kronecker_ops::kron`.
+    //
+    // This module used to carry its own private `KroneckerOp` that returned the same
+    // `name()` string ("Kronecker") as the one in `kronecker_ops`. While the backward
+    // pass dispatched on `name()`, the duplicate silently borrowed the *other* op's
+    // (correct) gradient rule and looked fine; once dispatch moved to the concrete type
+    // the duplicate's own rule went live, and it read the operand extents from
+    // `Tensor::shape()` — the static shape hint, empty for most tensors — so it emitted a
+    // 0-d gradient for a 2x2 input. One implementation, one gradient rule.
+    crate::tensor_ops::kronecker_ops::kron(a, b)
 }

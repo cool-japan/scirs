@@ -201,9 +201,21 @@ pub mod math {
     /// Pre-warp frequency for bilinear transform
     ///
     /// Pre-warps the digital frequency to compensate for the frequency warping
-    /// effect of the bilinear transform.
+    /// effect of the bilinear transform `z = (2 + s) / (2 - s)` (equivalently
+    /// `s = 2*(z-1)/(z+1)`, i.e. the standard bilinear transform with
+    /// sampling period T=1). For that transform, a digital angular
+    /// frequency `omega = pi * digitalfreq` (digitalfreq normalized so 1.0
+    /// is Nyquist) maps to the analog frequency `Omega = (2/T)*tan(omega/2)
+    /// = 2*tan(pi*digitalfreq/2)`.
+    ///
+    /// Previously this returned `tan(pi*digitalfreq/2)` (missing the
+    /// factor of 2 that matches this module's `(2+s)/(2-s)` bilinear
+    /// transform), which silently shifted every IIR filter's actual
+    /// cutoff/passband/stopband edges away from the frequency the caller
+    /// requested (e.g. a Butterworth lowpass filter designed for a 0.3
+    /// normalized cutoff had its true -3dB point below 0.2).
     pub fn prewarp_frequency(_digitalfreq: f64) -> f64 {
-        (PI * _digitalfreq / 2.0).tan()
+        2.0 * (PI * _digitalfreq / 2.0).tan()
     }
 
     /// Apply bilinear transform to convert analog pole to digital

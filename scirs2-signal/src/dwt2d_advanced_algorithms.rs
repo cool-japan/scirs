@@ -12,12 +12,13 @@
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::dwt2d_enhanced::{Dwt2dConfig, EnhancedDwt2dResult};
 use crate::error::{SignalError, SignalResult};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
+use std::f64::consts::PI;
 
 #[allow(unused_imports)]
 /// Advanced 2D DWT decomposition result with multiple representations
@@ -40,7 +41,7 @@ pub struct AdvancedDwt2dResult {
 /// Undecimated (stationary) 2D DWT result
 #[derive(Debug, Clone)]
 pub struct UndecimatedDwt2dResult {
-    /// Multiple levels of decomposition [level][band]
+    /// Multiple levels of decomposition `[level][band]`
     pub coefficients: Vec<Array3<f64>>, // [level][band][spatial]
     /// Scale factors for each level
     pub scales: Vec<f64>,
@@ -51,7 +52,7 @@ pub struct UndecimatedDwt2dResult {
 /// Directional 2D DWT result for improved edge analysis
 #[derive(Debug, Clone)]
 pub struct DirectionalDwt2dResult {
-    /// Directional coefficients [angle][scale]
+    /// Directional coefficients `[angle][scale]`
     pub directional_coeffs: Array3<f64>,
     /// Dominant orientations at each location
     pub orientation_map: Array2<f64>,
@@ -514,7 +515,7 @@ fn dilate_filter(filter: &[f64], scale: usize) -> Vec<f64> {
     }
 
     let mut dilated = Vec::new();
-    for &coeff in _filter {
+    for &coeff in filter {
         dilated.push(coeff);
         for _ in 1..scale {
             dilated.push(0.0);
@@ -715,12 +716,12 @@ fn compute_edge_map(data: &Array2<f64>) -> SignalResult<Array2<f64>> {
     for i in 1..rows - 1 {
         for j in 1..cols - 1 {
             let gx = data[[i - 1, j - 1]] - data[[i - 1, j + 1]]
-                + 2.0 * (_data[[i, j - 1]] - data[[i, j + 1]])
+                + 2.0 * (data[[i, j - 1]] - data[[i, j + 1]])
                 + data[[i + 1, j - 1]]
                 - data[[i + 1, j + 1]];
 
             let gy = data[[i - 1, j - 1]] - data[[i + 1, j - 1]]
-                + 2.0 * (_data[[i - 1, j]] - data[[i + 1, j]])
+                + 2.0 * (data[[i - 1, j]] - data[[i + 1, j]])
                 + data[[i - 1, j + 1]]
                 - data[[i + 1, j + 1]];
 
@@ -740,12 +741,12 @@ fn compute_structural_similarity(img1: &Array2<f64>, img2: &Array2<f64>) -> Sign
     let var1 = img1.mapv(|x| (x - mean1).powi(2)).mean();
     let var2 = img2.mapv(|x| (x - mean2).powi(2)).mean();
 
-    let covar = _img1
+    let covar = img1
         .iter()
         .zip(img2.iter())
         .map(|(&a, &b)| (a - mean1) * (b - mean2))
         .sum::<f64>()
-        / (_img1.len() as f64);
+        / (img1.len() as f64);
 
     let c1 = 0.01;
     let c2 = 0.03;
@@ -804,8 +805,8 @@ fn find_optimal_decomposition_depth(_scaleenergy: &[f64]) -> usize {
     let mut max_ratio = 0.0;
     let mut optimal_depth = 1;
 
-    for i in 1.._scale_energy.len() {
-        let ratio = scale_energy[i - 1] / (_scale_energy[i] + 1e-10);
+    for i in 1.._scaleenergy.len() {
+        let ratio = _scaleenergy[i - 1] / (_scaleenergy[i] + 1e-10);
         if ratio > max_ratio {
             max_ratio = ratio;
             optimal_depth = i;

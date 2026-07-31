@@ -36,11 +36,11 @@ pub fn ica(
 ) -> SignalResult<(Array2<f64>, Array2<f64>)> {
     let (n_signals, n_samples) = signals.dim();
 
-    // Determine number of _components
+    // Determine number of components
     let n_comp = n_components.unwrap_or(n_signals);
     if n_comp > n_signals {
         return Err(SignalError::ValueError(format!(
-            "Number of _components ({}) cannot exceed number of signals ({})",
+            "Number of components ({}) cannot exceed number of signals ({})",
             n_comp, n_signals
         )));
     }

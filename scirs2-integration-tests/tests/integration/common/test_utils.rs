@@ -82,6 +82,52 @@ where
     Ok((result, measurement))
 }
 
+/// Measure execution time with a warm-up call, adaptive repetition, and
+/// `std::hint::black_box` on every discarded result.
+///
+/// [`measure_time`]'s single untimed sample is unreliable for operations fast
+/// enough that (a) the compiler can prove the result is unused and elides the
+/// computation entirely, or (b) the whole call completes in a fraction of a
+/// millisecond, so the reported duration is dominated by OS timer resolution
+/// noise rather than the operation itself. This warms up once, then doubles
+/// the iteration count until the measured window reaches `min_duration_ms`,
+/// reporting the per-iteration average.
+pub fn measure_time_repeated<F, R>(
+    operation_name: &str,
+    min_duration_ms: f64,
+    f: F,
+) -> TestResult<(R, PerfMeasurement)>
+where
+    F: Fn() -> TestResult<R>,
+{
+    // Warm-up: prime caches/allocators once, discard timing and result.
+    std::hint::black_box(f()?);
+
+    let mut iterations: u32 = 1;
+    let (result, elapsed_ms) = loop {
+        let start = Instant::now();
+        for _ in 0..iterations - 1 {
+            std::hint::black_box(f()?);
+        }
+        let result = f()?;
+        let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
+
+        if elapsed_ms >= min_duration_ms || iterations >= 1_000_000 {
+            break (result, elapsed_ms);
+        }
+        std::hint::black_box(&result);
+        iterations = iterations.saturating_mul(2);
+    };
+
+    let measurement = PerfMeasurement {
+        duration_ms: elapsed_ms / iterations as f64,
+        operation_name: operation_name.to_string(),
+        data_size: 0,
+    };
+
+    Ok((result, measurement))
+}
+
 /// Check if arrays are approximately equal
 pub fn arrays_approx_equal<T, D>(
     a: &ndarray::ArrayBase<ndarray::OwnedRepr<T>, D>,

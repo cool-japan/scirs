@@ -1,8 +1,31 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
+use crate::tensor_ops::matrix_calculus::{
+    self, MatrixFnKind, MatrixFnVjpOp, ScalarFnSymmetricVjpOp,
+};
 use crate::Float;
 use scirs2_core::ndarray::{Array1, Array2, Ix2};
 use scirs2_core::numeric::FromPrimitive;
+
+/// Builds the backward node of a matrix function: `MatrixFnVjp(A, gy)`.
+///
+/// Every op in this module is a *matrix* function `f(A)`, not an element-wise one, so its
+/// VJP is the adjoint of the Fréchet derivative `L_f(A, .)` applied to the cotangent —
+/// evaluated as the top-right block of `f([[Aᵀ, gy], [0, Aᵀ]])`.
+///
+/// The rules replaced here were element-wise: `sin(A)` used `cos(A) * gy` entry by entry,
+/// which is the chain rule for `mapv(sin)`, a completely different function. `sign(A)` and
+/// `funm` simply returned the cotangent unchanged.
+fn append_matrix_fn_grad<F: Float>(ctx: &mut GradientContext<F>, kind: MatrixFnKind) {
+    let a = *ctx.input(0);
+    let gy = *ctx.output_grad();
+    let g = ctx.graph();
+    let gx = Tensor::builder(g)
+        .append_input(a, false)
+        .append_input(gy, false)
+        .build(MatrixFnVjpOp { kind });
+    ctx.append_input_grad(0, Some(gx));
+}
 
 /// Matrix sine function
 pub struct MatrixSineOp;
@@ -33,29 +56,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of sin(A) is cos(A) ⊙ grad_output (element-wise product)
-        if let Ok(input_array) = input.eval(g) {
-            if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-                if let Ok(cos_a) = compute_matrix_cosine(&input_2d) {
-                    if let Ok(grad_array) = grad_output.eval(g) {
-                        if let Ok(grad_2d) = grad_array.view().into_dimensionality::<Ix2>() {
-                            // Element-wise multiplication
-                            let grad_input = cos_a * grad_2d;
-                            let grad_tensor =
-                                crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-                            ctx.append_input_grad(0, Some(grad_tensor));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
-        ctx.append_input_grad(0, None);
+        append_matrix_fn_grad(ctx, MatrixFnKind::Sin);
     }
 }
 
@@ -88,28 +89,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of cos(A) is -sin(A) ⊙ grad_output
-        if let Ok(input_array) = input.eval(g) {
-            if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-                if let Ok(sin_a) = compute_matrix_sine(&input_2d) {
-                    if let Ok(grad_array) = grad_output.eval(g) {
-                        if let Ok(grad_2d) = grad_array.view().into_dimensionality::<Ix2>() {
-                            let grad_input = -sin_a * grad_2d;
-                            let grad_tensor =
-                                crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-                            ctx.append_input_grad(0, Some(grad_tensor));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
-        ctx.append_input_grad(0, None);
+        append_matrix_fn_grad(ctx, MatrixFnKind::Cos);
     }
 }
 
@@ -142,9 +122,12 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        // Gradient of sign function is complex, using simplified version
-        let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
+        // `sign` is piecewise constant *along the real axis*, but sign(A) is not a
+        // constant function of the matrix A: rotating the invariant subspaces moves it.
+        // The Fréchet derivative is the solution of the Sylvester equation
+        // `S L + L S = E - S E S`, obtained here through the same block-matrix trick
+        // (the Newton iteration preserves block-triangular structure).
+        append_matrix_fn_grad(ctx, MatrixFnKind::Sign);
     }
 }
 
@@ -177,28 +160,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of sinh(A) is cosh(A) ⊙ grad_output
-        if let Ok(input_array) = input.eval(g) {
-            if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-                if let Ok(cosh_a) = compute_matrix_cosh(&input_2d) {
-                    if let Ok(grad_array) = grad_output.eval(g) {
-                        if let Ok(grad_2d) = grad_array.view().into_dimensionality::<Ix2>() {
-                            let grad_input = cosh_a * grad_2d;
-                            let grad_tensor =
-                                crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-                            ctx.append_input_grad(0, Some(grad_tensor));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
-        ctx.append_input_grad(0, None);
+        append_matrix_fn_grad(ctx, MatrixFnKind::Sinh);
     }
 }
 
@@ -231,28 +193,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of cosh(A) is sinh(A) ⊙ grad_output
-        if let Ok(input_array) = input.eval(g) {
-            if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-                if let Ok(sinh_a) = compute_matrix_sinh(&input_2d) {
-                    if let Ok(grad_array) = grad_output.eval(g) {
-                        if let Ok(grad_2d) = grad_array.view().into_dimensionality::<Ix2>() {
-                            let grad_input = sinh_a * grad_2d;
-                            let grad_tensor =
-                                crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-                            ctx.append_input_grad(0, Some(grad_tensor));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
-        ctx.append_input_grad(0, None);
+        append_matrix_fn_grad(ctx, MatrixFnKind::Cosh);
     }
 }
 
@@ -288,200 +229,77 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        // Simplified gradient
-        let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
+        // `funm` applies an arbitrary scalar `fn(F) -> F` through the spectrum, so the
+        // Fréchet derivative is the Daleckii-Krein formula built from divided differences
+        // of that scalar function.  See `matrix_calculus::scalar_fn_symmetric_vjp`.
+        let a = *ctx.input(0);
+        let gy = *ctx.output_grad();
+        let g = ctx.graph();
+        let gx = Tensor::builder(g)
+            .append_input(a, false)
+            .append_input(gy, false)
+            .build(ScalarFnSymmetricVjpOp {
+                function: self.function,
+            });
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 
 // Helper functions
 
-/// Compute matrix sine using Taylor series
+/// Matrix sine `sin(A)`.
+///
+/// Scaling plus double-angle recovery, shared with the backward pass so that forward and
+/// gradient are consistent by construction (see
+/// [`crate::tensor_ops::matrix_calculus::sin_cos_m`]).
 #[allow(dead_code)]
 fn compute_matrix_sine<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-    let mut result = matrix.to_owned();
-    let mut term = matrix.to_owned();
-    let a2 = matrix.dot(matrix);
-
-    // sin(A) = A - A³/3! + A⁵/5! - A⁷/7! + ...
-    for k in 1..10 {
-        term = -term.dot(&a2) / F::from((2 * k) * (2 * k + 1)).expect("Operation failed");
-        let old_result = result.clone();
-        result += &term;
-
-        // Check convergence
-        let diff = (&result - &old_result).mapv(|x| x.abs()).sum();
-        if diff < F::epsilon() * F::from(n as f64).expect("Failed to convert to float") {
-            break;
-        }
-    }
-
-    Ok(result)
+    matrix_calculus::sin_cos_m(matrix).map(|(sin, _)| sin)
 }
 
-/// Compute matrix cosine using Taylor series
+/// Matrix cosine `cos(A)`.
 #[allow(dead_code)]
 fn compute_matrix_cosine<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-    let mut result = Array2::<F>::eye(n);
-    let mut term = Array2::<F>::eye(n);
-    let a2 = matrix.dot(matrix);
-
-    // cos(A) = I - A²/2! + A⁴/4! - A⁶/6! + ...
-    for k in 1..10 {
-        term = -term.dot(&a2) / F::from((2 * k - 1) * (2 * k)).expect("Operation failed");
-        let old_result = result.clone();
-        result += &term;
-
-        // Check convergence
-        let diff = (&result - &old_result).mapv(|x| x.abs()).sum();
-        if diff < F::epsilon() * F::from(n as f64).expect("Failed to convert to float") {
-            break;
-        }
-    }
-
-    Ok(result)
+    matrix_calculus::sin_cos_m(matrix).map(|(_, cos)| cos)
 }
 
-/// Compute matrix sign function using Newton iteration
+/// Matrix sign function, by the Newton iteration `X <- (X + X^-1) / 2`.
 #[allow(dead_code)]
 fn compute_matrix_sign<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-    let mut x = matrix.to_owned();
-    let max_iter = 20;
-    let tol = F::epsilon() * F::from(100.0).expect("Failed to convert constant to float");
-
-    // Newton iteration: X_{k+1} = (X_k + X_k^{-1}) / 2
-    for _ in 0..max_iter {
-        let x_inv = compute_matrix_inverse(&x.view())?;
-        let x_new = (&x + &x_inv) / F::from(2.0).expect("Failed to convert constant to float");
-
-        // Check convergence
-        let diff = (&x_new - &x).mapv(|x| x.abs()).sum();
-        x = x_new;
-
-        if diff < tol * F::from(n as f64).expect("Failed to convert to float") {
-            break;
-        }
-    }
-
-    Ok(x)
+    matrix_calculus::signm(matrix)
 }
 
-/// Compute matrix hyperbolic sine
+/// Matrix hyperbolic sine `sinh(A) = (exp(A) - exp(-A)) / 2`.
 #[allow(dead_code)]
 fn compute_matrix_sinh<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
-    // sinh(A) = (exp(A) - exp(-A)) / 2
-    let exp_a = compute_matrix_exp(matrix)?;
-    let neg_a = matrix.mapv(|x| -x);
-    let exp_neg_a = compute_matrix_exp(&neg_a.view())?;
-
-    Ok((exp_a - exp_neg_a) / F::from(2.0).expect("Failed to convert constant to float"))
+    matrix_calculus::sinh_cosh_m(matrix).map(|(sinh, _)| sinh)
 }
 
-/// Compute matrix hyperbolic cosine
+/// Matrix hyperbolic cosine `cosh(A) = (exp(A) + exp(-A)) / 2`.
 #[allow(dead_code)]
 fn compute_matrix_cosh<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
-    // cosh(A) = (exp(A) + exp(-A)) / 2
-    let exp_a = compute_matrix_exp(matrix)?;
-    let neg_a = matrix.mapv(|x| -x);
-    let exp_neg_a = compute_matrix_exp(&neg_a.view())?;
-
-    Ok((exp_a + exp_neg_a) / F::from(2.0).expect("Failed to convert constant to float"))
+    matrix_calculus::sinh_cosh_m(matrix).map(|(_, cosh)| cosh)
 }
 
-/// Compute matrix exponential (from matrix_ops.rs)
-#[allow(dead_code)]
-fn compute_matrix_exp<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &scirs2_core::ndarray::ArrayView2<F>,
-) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-    let mut result = Array2::<F>::eye(n);
-    let mut term = Array2::<F>::eye(n);
-
-    // Use Taylor series with more terms for accuracy
-    for k in 1..=20 {
-        term = term.dot(matrix) / F::from(k).expect("Failed to convert to float");
-        let old_result = result.clone();
-        result += &term;
-
-        // Check convergence
-        let diff = (&result - &old_result).mapv(|x| x.abs()).sum();
-        if diff < F::epsilon() * F::from(n as f64).expect("Failed to convert to float") {
-            break;
-        }
-    }
-
-    Ok(result)
-}
-
-/// Compute matrix inverse
-#[allow(dead_code)]
-fn compute_matrix_inverse<F: Float>(
-    matrix: &scirs2_core::ndarray::ArrayView2<F>,
-) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-    let mut a = matrix.to_owned();
-    let mut inv = Array2::<F>::eye(n);
-
-    // Gauss-Jordan elimination
-    for i in 0..n {
-        // Find pivot
-        let mut max_row = i;
-        for k in (i + 1)..n {
-            if a[[k, i]].abs() > a[[max_row, i]].abs() {
-                max_row = k;
-            }
-        }
-
-        if a[[max_row, i]].abs() < F::epsilon() {
-            return Err(OpError::IncompatibleShape("Matrix is singular".into()));
-        }
-
-        // Swap rows
-        if max_row != i {
-            for j in 0..n {
-                a.swap((i, j), (max_row, j));
-                inv.swap((i, j), (max_row, j));
-            }
-        }
-
-        // Scale pivot row
-        let pivot = a[[i, i]];
-        for j in 0..n {
-            a[[i, j]] /= pivot;
-            inv[[i, j]] /= pivot;
-        }
-
-        // Eliminate column
-        for k in 0..n {
-            if k != i {
-                let factor = a[[k, i]];
-                for j in 0..n {
-                    let a_ij = a[[i, j]];
-                    let inv_ij = inv[[i, j]];
-                    a[[k, j]] -= factor * a_ij;
-                    inv[[k, j]] -= factor * inv_ij;
-                }
-            }
-        }
-    }
-
-    Ok(inv)
-}
-
-/// Compute general matrix function using eigendecomposition
+/// Applies a scalar function through the spectrum: `f(A) = V diag(f(lambda)) Vᵀ`.
+///
+/// # Errors
+///
+/// Returns an error for a non-symmetric argument. A real non-symmetric matrix has no real
+/// orthogonal eigendecomposition, so `f` cannot be pushed through its spectrum this way;
+/// the correct general algorithm is Schur-Parlett, which this crate does not implement.
+/// The previous code returned the *input matrix unchanged* in that case, which silently
+/// reported `f(A) = A` for every non-symmetric input.
 #[allow(dead_code)]
 fn compute_matrix_function<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
@@ -489,188 +307,24 @@ fn compute_matrix_function<F: Float + scirs2_core::ndarray::ScalarOperand + From
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
 
-    // Check if matrix is symmetric
-    let is_symmetric = is_symmetric_matrix(matrix);
-
-    if is_symmetric {
-        // For symmetric matrices, use real eigendecomposition
-        let (eigenvalues, eigenvectors) = compute_symmetric_eigen(matrix)?;
-
-        // Apply function to eigenvalues
-        let mut func_eigenvalues = Array1::<F>::zeros(n);
-        for i in 0..n {
-            func_eigenvalues[i] = func(eigenvalues[i]);
-        }
-
-        // Reconstruct: f(A) = V * diag(f(λ)) * V^T
-        let mut temp = Array2::<F>::zeros((n, n));
-        for i in 0..n {
-            for j in 0..n {
-                temp[[i, j]] = eigenvectors[[i, j]] * func_eigenvalues[j];
-            }
-        }
-
-        let result = temp.dot(&eigenvectors.t());
-        Ok(result)
-    } else {
-        // For general matrices, use Taylor series or other approximation
-        // This is a placeholder - implement based on specific function
-        Ok(matrix.to_owned())
+    if !matrix_calculus::is_symmetric(matrix) {
+        return Err(OpError::Other(
+            "funm: applying a scalar function through the spectrum is only supported for \
+             symmetric matrices (a non-symmetric argument needs a Schur-Parlett \
+             evaluation, which this crate does not provide)"
+                .into(),
+        ));
     }
-}
 
-/// Check if matrix is symmetric
-#[allow(dead_code)]
-fn is_symmetric_matrix<F: Float>(matrix: &scirs2_core::ndarray::ArrayView2<F>) -> bool {
-    let n = matrix.shape()[0];
+    let (eigenvalues, eigenvectors) = matrix_calculus::symmetric_eigen(matrix)?;
+
+    let mut temp = Array2::<F>::zeros((n, n));
     for i in 0..n {
-        for j in i + 1..n {
-            if (matrix[[i, j]] - matrix[[j, i]]).abs()
-                > F::epsilon() * F::from(10.0).expect("Failed to convert constant to float")
-            {
-                return false;
-            }
+        for j in 0..n {
+            temp[[i, j]] = eigenvectors[[i, j]] * func(eigenvalues[j]);
         }
     }
-    true
-}
-
-/// Simple symmetric eigendecomposition
-#[allow(dead_code)]
-fn compute_symmetric_eigen<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &scirs2_core::ndarray::ArrayView2<F>,
-) -> Result<(Array1<F>, Array2<F>), OpError> {
-    let n = matrix.shape()[0];
-
-    // For small matrices, use analytical solution
-    if n == 2 {
-        let a = matrix[[0, 0]];
-        let b = matrix[[0, 1]];
-        let c = matrix[[1, 1]];
-
-        let trace = a + c;
-        let det = a * c - b * b;
-        let discriminant =
-            trace * trace - F::from(4.0).expect("Failed to convert constant to float") * det;
-
-        if discriminant < F::zero() {
-            return Err(OpError::Other("Complex eigenvalues".into()));
-        }
-
-        let sqrt_disc = discriminant.sqrt();
-        let lambda1 =
-            (trace + sqrt_disc) / F::from(2.0).expect("Failed to convert constant to float");
-        let lambda2 =
-            (trace - sqrt_disc) / F::from(2.0).expect("Failed to convert constant to float");
-
-        let eigenvalues = Array1::from_vec(vec![lambda1, lambda2]);
-
-        // Compute eigenvectors
-        let mut eigenvectors = Array2::<F>::zeros((2, 2));
-
-        if b.abs() > F::epsilon() {
-            // First eigenvector
-            let v1_0 = lambda1 - c;
-            let v1_1 = b;
-            let norm1 = (v1_0 * v1_0 + v1_1 * v1_1).sqrt();
-            eigenvectors[[0, 0]] = v1_0 / norm1;
-            eigenvectors[[1, 0]] = v1_1 / norm1;
-
-            // Second eigenvector
-            let v2_0 = lambda2 - c;
-            let v2_1 = b;
-            let norm2 = (v2_0 * v2_0 + v2_1 * v2_1).sqrt();
-            eigenvectors[[0, 1]] = v2_0 / norm2;
-            eigenvectors[[1, 1]] = v2_1 / norm2;
-        } else {
-            // Matrix is diagonal
-            eigenvectors[[0, 0]] = F::one();
-            eigenvectors[[1, 1]] = F::one();
-        }
-
-        return Ok((eigenvalues, eigenvectors));
-    }
-
-    // For larger matrices, use simplified Jacobi method
-    let mut eigenvalues = Array1::<F>::zeros(n);
-    let mut eigenvectors = Array2::<F>::eye(n);
-    let mut a = matrix.to_owned();
-
-    let max_iter = 50;
-    let tol = F::epsilon() * F::from(10.0).expect("Failed to convert constant to float");
-
-    for _ in 0..max_iter {
-        // Find largest off-diagonal element
-        let mut max_val = F::zero();
-        let mut p = 0;
-        let mut q = 1;
-
-        for i in 0..n {
-            for j in i + 1..n {
-                if a[[i, j]].abs() > max_val {
-                    max_val = a[[i, j]].abs();
-                    p = i;
-                    q = j;
-                }
-            }
-        }
-
-        if max_val < tol {
-            break;
-        }
-
-        // Compute rotation
-        let theta = (a[[q, q]] - a[[p, p]])
-            / (F::from(2.0).expect("Failed to convert constant to float") * a[[p, q]]);
-        let t = if theta >= F::zero() {
-            F::one() / (theta + (F::one() + theta * theta).sqrt())
-        } else {
-            -F::one() / (-theta + (F::one() + theta * theta).sqrt())
-        };
-
-        let c = F::one() / (F::one() + t * t).sqrt();
-        let s = t * c;
-
-        // Update matrix
-        let app = a[[p, p]];
-        let aqq = a[[q, q]];
-        let apq = a[[p, q]];
-
-        a[[p, p]] = c * c * app
-            - F::from(2.0).expect("Failed to convert constant to float") * s * c * apq
-            + s * s * aqq;
-        a[[q, q]] = s * s * app
-            + F::from(2.0).expect("Failed to convert constant to float") * s * c * apq
-            + c * c * aqq;
-        a[[p, q]] = F::zero();
-        a[[q, p]] = F::zero();
-
-        for i in 0..n {
-            if i != p && i != q {
-                let aip = a[[i, p]];
-                let aiq = a[[i, q]];
-                a[[i, p]] = c * aip - s * aiq;
-                a[[p, i]] = a[[i, p]];
-                a[[i, q]] = s * aip + c * aiq;
-                a[[q, i]] = a[[i, q]];
-            }
-        }
-
-        // Update eigenvectors
-        for i in 0..n {
-            let vip = eigenvectors[[i, p]];
-            let viq = eigenvectors[[i, q]];
-            eigenvectors[[i, p]] = c * vip - s * viq;
-            eigenvectors[[i, q]] = s * vip + c * viq;
-        }
-    }
-
-    // Extract diagonal as eigenvalues
-    for i in 0..n {
-        eigenvalues[i] = a[[i, i]];
-    }
-
-    Ok((eigenvalues, eigenvectors))
+    Ok(temp.dot(&eigenvectors.t()))
 }
 
 // Public API functions

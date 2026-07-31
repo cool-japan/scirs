@@ -55,6 +55,21 @@ pub struct DeprecationEntry {
 // Core check logic
 // ---------------------------------------------------------------------------
 
+/// Crates excluded from this check entirely.
+///
+/// `cargo-scirs2-policy`'s own unit tests (in this file, `api_compat.rs`,
+/// etc.) construct literal fixture strings such as
+/// `r#"#[deprecated(since = "0.4.0")] pub fn old_function() {}"#` inside
+/// `#[cfg(test)]` blocks, purely as input data for testing
+/// [`parse_deprecated_attributes`]. Because this check scans raw file text
+/// rather than a real Rust AST, it cannot tell "attribute text embedded in a
+/// string literal used as test data" apart from "a real `#[deprecated]`
+/// attribute on a real item", so scanning this crate's own test files
+/// re-detects its own fixtures as if they were production deprecations. The
+/// same class of self-referential noise is already documented and excluded
+/// in [`crate::checks::ignore_audit`]; this mirrors that precedent.
+const EXCLUDED_CRATES: &[&str] = &["cargo-scirs2-policy"];
+
 /// Run the deprecation policy check against all crates in the workspace.
 ///
 /// Returns a list of policy violations for any deprecation attributes that
@@ -66,6 +81,9 @@ pub fn check_deprecation_policy(
     let mut violations = Vec::new();
 
     for krate in &workspace.crates {
+        if EXCLUDED_CRATES.contains(&krate.name.as_str()) {
+            continue;
+        }
         let crate_version = read_crate_version(&krate.path);
         let rs_files = workspace::walk_rust_files(&krate.path);
 

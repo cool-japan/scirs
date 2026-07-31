@@ -276,21 +276,43 @@ mod tests {
             neural_hidden_size: 64,
         };
 
-        let processor = AdvancedProcessor::new(config.clone());
-        // Test that processor is created with custom config
-        // (actual config validation would need processor API access)
-        assert!(true); // Placeholder assertion
+        let mut processor = AdvancedProcessor::new(config.clone());
+        // Exercise the processor with the custom config and verify it
+        // genuinely accumulates real statistics (rather than a tautological
+        // placeholder assertion) -- see `AdvancedProcessor::get_optimization_stats`.
+        let mut rng = scirs2_core::random::rng();
+        let graph = erdos_renyi_graph(10, 0.3, &mut rng).expect("Operation failed");
+        processor
+            .execute(&graph, |g| Ok(g.node_count()))
+            .expect("Operation failed");
+        let stats = processor.get_optimization_stats();
+        assert_eq!(
+            stats.total_operations, 1,
+            "one execute() call should be recorded"
+        );
+        assert!(
+            stats.avg_execution_time_ms >= 0.0,
+            "recorded execution time must be non-negative"
+        );
     }
 
     #[test]
     fn test_advanced_performance_metrics() {
         let mut rng = scirs2_core::random::rng();
         let graph = erdos_renyi_graph(50, 0.04, &mut rng).expect("Operation failed");
-        // Run a test algorithm
-        let _ = execute_with_advanced(&graph, |g| pagerank_centrality(g, 0.85, 1e-4))
+        // Run a test algorithm and verify the result is a genuine,
+        // well-formed PageRank distribution (one score per node, all
+        // non-negative), instead of only checking that the call didn't panic.
+        let ranks = execute_with_advanced(&graph, |g| pagerank_centrality(g, 0.85, 1e-4))
             .expect("Operation failed");
-
-        // Verify test completed successfully (placeholder since we can't access processor stats)
-        assert!(true);
+        assert_eq!(
+            ranks.len(),
+            graph.node_count(),
+            "PageRank should return exactly one score per node"
+        );
+        assert!(
+            ranks.values().all(|&r| r >= 0.0),
+            "PageRank scores must be non-negative"
+        );
     }
 }

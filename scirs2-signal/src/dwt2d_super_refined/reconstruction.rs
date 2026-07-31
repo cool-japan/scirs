@@ -92,10 +92,32 @@ fn reconstruct_from_coefficients_simple(coefficients: &Array3<f64>) -> SignalRes
     Ok(reconstructed)
 }
 
-/// Compute reconstruction quality metrics
+/// Compute reconstruction quality metrics.
+///
+/// `original_image`, when available, enables a genuine pixel-domain
+/// reconstruction error (RMSE, normalized by the original image's RMS
+/// level). When it is not available -- which is the common case for this
+/// module's actual usage pattern, where reconstruction happens *from*
+/// stored/transmitted coefficients with no original image at hand -- a
+/// genuine coefficient-domain proxy is used instead: the relative energy
+/// mismatch `|energy_preservation - 1.0|`, which is exactly zero for a
+/// perfect reconstruction and grows with genuine energy loss/gain from the
+/// coefficient processing and reconstruction steps. Either way this
+/// replaces a previous stand-in that hardcoded `reconstruction_error =
+/// 0.01` regardless of the actual reconstruction quality.
 pub fn compute_reconstruction_metrics(
     reconstructed_image: &Array2<f64>,
     original_result: &AdvancedRefinedWaveletPacketResult,
+) -> SignalResult<ReconstructionQualityMetrics> {
+    compute_reconstruction_metrics_with_reference(reconstructed_image, original_result, None)
+}
+
+/// As [`compute_reconstruction_metrics`], but accepts an optional reference
+/// to the true pre-decomposition image for an exact pixel-domain error.
+pub fn compute_reconstruction_metrics_with_reference(
+    reconstructed_image: &Array2<f64>,
+    original_result: &AdvancedRefinedWaveletPacketResult,
+    original_image: Option<&Array2<f64>>,
 ) -> SignalResult<ReconstructionQualityMetrics> {
     // Compute energy preservation
     let reconstructed_energy: f64 = reconstructed_image.iter().map(|&x| x * x).sum();
@@ -107,8 +129,24 @@ pub fn compute_reconstruction_metrics(
         0.0
     };
 
-    // Simplified reconstruction error (would need original image for proper calculation)
-    let reconstruction_error = 0.01; // Placeholder
+    let reconstruction_error = match original_image {
+        Some(original) if original.dim() == reconstructed_image.dim() && !original.is_empty() => {
+            let mse: f64 = original
+                .iter()
+                .zip(reconstructed_image.iter())
+                .map(|(&o, &r)| (o - r).powi(2))
+                .sum::<f64>()
+                / original.len() as f64;
+            let rms: f64 =
+                (original.iter().map(|&o| o * o).sum::<f64>() / original.len() as f64).sqrt();
+            if rms > 1e-12 {
+                mse.sqrt() / rms
+            } else {
+                mse.sqrt()
+            }
+        }
+        _ => (energy_preservation - 1.0).abs(),
+    };
 
     // Simplified perceptual similarity
     let perceptual_similarity = energy_preservation.min(1.0);
@@ -174,8 +212,13 @@ pub fn analyze_noise_characteristics(
     // Estimate spatial correlation (simplified)
     let spatial_correlation = estimate_spatial_correlation(noisy_image)?;
 
-    // Placeholder frequency characteristics
-    let frequency_characteristics = vec![estimated_variance; 10];
+    // Genuine per-band frequency characteristics: mean squared difference
+    // between pixels separated by `2^band` positions (band = 0..10), a
+    // real (if simple) multi-scale spectral-content proxy -- lower bands
+    // (small separation) capture high-spatial-frequency content, higher
+    // bands (large separation) capture lower-frequency structure -- rather
+    // than repeating the single overall variance estimate 10 times.
+    let frequency_characteristics = compute_multiscale_frequency_characteristics(noisy_image, 10);
 
     Ok(NoiseAnalysis {
         noise_type,
@@ -221,6 +264,50 @@ fn estimate_spatial_correlation(image: &Array2<f64>) -> SignalResult<f64> {
     } else {
         0.0
     })
+}
+
+/// Compute `num_bands` genuine per-band spectral-content estimates: for
+/// band `b`, the mean squared difference between pixels separated by
+/// `2^b` positions (horizontally and vertically). This is a simple but
+/// real multi-scale energy decomposition (larger separations probe lower
+/// spatial frequencies), rather than a single scalar repeated for every
+/// band.
+fn compute_multiscale_frequency_characteristics(image: &Array2<f64>, num_bands: usize) -> Vec<f64> {
+    let (height, width) = image.dim();
+    let mut characteristics = Vec::with_capacity(num_bands);
+
+    for band in 0..num_bands {
+        let lag = 1usize << band;
+        let mut energy = 0.0;
+        let mut count = 0usize;
+
+        if width > lag {
+            for y in 0..height {
+                for x in 0..(width - lag) {
+                    let diff = image[[y, x + lag]] - image[[y, x]];
+                    energy += diff * diff;
+                    count += 1;
+                }
+            }
+        }
+        if height > lag {
+            for y in 0..(height - lag) {
+                for x in 0..width {
+                    let diff = image[[y + lag, x]] - image[[y, x]];
+                    energy += diff * diff;
+                    count += 1;
+                }
+            }
+        }
+
+        characteristics.push(if count > 0 {
+            energy / count as f64
+        } else {
+            0.0
+        });
+    }
+
+    characteristics
 }
 
 /// Apply adaptive denoising based on noise analysis
@@ -610,5 +697,126 @@ mod tests {
 
         let reconstructed = result.expect("Operation failed");
         assert_eq!(reconstructed.dim(), (8, 8));
+    }
+
+    fn make_test_result(coefficients: Array3<f64>) -> AdvancedRefinedWaveletPacketResult {
+        AdvancedRefinedWaveletPacketResult {
+            energy_map: Array2::zeros((coefficients.shape()[1], coefficients.shape()[2])),
+            coefficients,
+            decomposition_tree: DecompositionTree {
+                nodes: Vec::new(),
+                optimal_basis: Vec::new(),
+                cost_function: CostFunction::Entropy,
+                traversal_stats: TreeTraversalStats {
+                    total_nodes: 0,
+                    leaf_nodes: 0,
+                    max_depth: 0,
+                    avg_branching_factor: 0.0,
+                },
+            },
+            quality_metrics: AdvancedRefinedQualityMetrics {
+                perceptual_quality: 0.0,
+                energy_preservation: 0.0,
+                sparsity: 0.0,
+                compression_ratio: 0.0,
+                edge_preservation: 0.0,
+                frequency_analysis: FrequencyAnalysis {
+                    spectral_energy_distribution: Vec::new(),
+                    dominant_frequencies: Vec::new(),
+                    frequency_content_preservation: 0.0,
+                    aliasing_artifacts: 0.0,
+                },
+                compression_metrics: CompressionMetrics {
+                    theoretical_compression_ratio: 0.0,
+                    effective_compression_ratio: 0.0,
+                    rate_distortion_score: 0.0,
+                },
+            },
+            memory_stats: MemoryStatistics {
+                peak_memory_mb: 0.0,
+                average_memory_mb: 0.0,
+                memory_efficiency: 0.0,
+                allocation_count: 0,
+            },
+            performance_metrics: ProcessingMetrics {
+                total_time_ms: 0.0,
+                decomposition_time_ms: 0.0,
+                simd_acceleration_factor: 0.0,
+                parallel_efficiency: 0.0,
+                cache_hit_ratio: 0.0,
+            },
+        }
+    }
+
+    #[test]
+    fn test_compute_reconstruction_metrics_reacts_to_energy_mismatch() {
+        // Coefficients with a known total energy.
+        let coefficients = Array3::from_shape_fn((1, 4, 4), |(_, _, _)| 1.0); // energy = 16
+        let result = make_test_result(coefficients);
+
+        // A reconstructed image with a very different (much smaller)
+        // energy: energy_preservation should be far from 1.0, and
+        // reconstruction_error should reflect that mismatch directly
+        // rather than the old hardcoded 0.01.
+        let mismatched = Array2::from_shape_fn((4, 4), |(_, _)| 0.1); // energy = 0.16
+        let metrics = compute_reconstruction_metrics(&mismatched, &result).expect("should succeed");
+
+        let expected_energy_preservation = 0.16 / 16.0;
+        assert!((metrics.energy_preservation - expected_energy_preservation).abs() < 1e-9);
+        assert!(
+            (metrics.reconstruction_error - (expected_energy_preservation - 1.0).abs()).abs()
+                < 1e-9
+        );
+        assert!((metrics.reconstruction_error - 0.01).abs() > 0.01);
+
+        // A well-matched reconstruction should show near-zero error.
+        let matched = Array2::from_shape_fn((4, 4), |(_, _)| 1.0); // energy = 16
+        let good_metrics =
+            compute_reconstruction_metrics(&matched, &result).expect("should succeed");
+        assert!(good_metrics.reconstruction_error < 1e-9);
+    }
+
+    #[test]
+    fn test_compute_reconstruction_metrics_with_reference_uses_pixel_domain_error() {
+        let coefficients = Array3::from_shape_fn((1, 4, 4), |(_, _, _)| 1.0);
+        let result = make_test_result(coefficients);
+
+        let original = Array2::from_shape_fn((4, 4), |(i, j)| (i + j) as f64);
+        let mut reconstructed = original.clone();
+        reconstructed[[0, 0]] += 2.0; // introduce a known pixel-domain error
+
+        let metrics =
+            compute_reconstruction_metrics_with_reference(&reconstructed, &result, Some(&original))
+                .expect("should succeed");
+
+        let expected_mse: f64 = 4.0 / 16.0; // one pixel off by 2.0, over 16 pixels
+        let expected_rms = (original.iter().map(|&o| o * o).sum::<f64>() / 16.0).sqrt();
+        let expected_error = expected_mse.sqrt() / expected_rms;
+        assert!((metrics.reconstruction_error - expected_error).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_multiscale_frequency_characteristics_vary_by_band() {
+        // A checkerboard-like pattern with strong high-frequency content
+        // but no low-frequency (large-scale) variation.
+        let high_freq_image =
+            Array2::from_shape_fn((32, 32), |(i, j)| if (i + j) % 2 == 0 { 1.0 } else { -1.0 });
+        let high_freq_bands = compute_multiscale_frequency_characteristics(&high_freq_image, 6);
+
+        // The fabricated implementation always repeated a single scalar for
+        // every band; a genuine multi-scale analysis must show real
+        // variation across bands for a signal with structure concentrated
+        // at a specific scale.
+        let all_equal = high_freq_bands
+            .windows(2)
+            .all(|w| (w[0] - w[1]).abs() < 1e-9);
+        assert!(
+            !all_equal,
+            "expected per-band variation, got {high_freq_bands:?}"
+        );
+
+        // Band 0 (lag=1, the checkerboard's own period) should show the
+        // strongest response since adjacent pixels always differ by 2.0.
+        assert!((high_freq_bands[0] - 4.0).abs() < 1e-9);
     }
 }

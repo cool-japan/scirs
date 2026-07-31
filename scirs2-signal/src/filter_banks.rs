@@ -50,6 +50,7 @@ use crate::error::{SignalError, SignalResult};
 use crate::filter::{butter, FilterType};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
+use std::f64::consts::PI;
 
 #[allow(unused_imports)]
 /// Types of filter banks
@@ -108,7 +109,7 @@ impl QmfBank {
     ///
     /// # Returns
     /// * QMF filter bank instance
-    pub fn new(num_channels: usize, banktype: FilterBankType) -> SignalResult<Self> {
+    pub fn new(num_channels: usize, bank_type: FilterBankType) -> SignalResult<Self> {
         if num_channels < 2 {
             return Err(SignalError::ValueError(
                 "Number of channels must be at least 2".to_string(),
@@ -500,10 +501,10 @@ impl QmfBank {
     fn compute_aliasing_distortion(&self, magnituderesponses: &Array2<f64>) -> f64 {
         let mut max_aliasing = 0.0f64;
 
-        for i in 0..magnitude_responses.ncols() {
+        for i in 0..magnituderesponses.ncols() {
             let mut sum = 0.0;
             for k in 0..self.num_channels {
-                sum += magnitude_responses[[k, i]].powi(2);
+                sum += magnituderesponses[[k, i]].powi(2);
             }
 
             // Aliasing occurs when sum deviates from constant
@@ -520,12 +521,12 @@ impl QmfBank {
 
         // Check passband ripple for each filter
         for k in 0..self.num_channels {
-            let passband_end = magnitude_responses.ncols() / (2 * self.num_channels);
+            let passband_end = magnituderesponses.ncols() / (2 * self.num_channels);
             let mut passband_min = f64::INFINITY;
             let mut passband_max = 0.0f64;
 
             for i in 0..passband_end {
-                let mag = magnitude_responses[[k, i]];
+                let mag = magnituderesponses[[k, i]];
                 passband_min = passband_min.min(mag);
                 passband_max = passband_max.max(mag);
             }
@@ -538,7 +539,7 @@ impl QmfBank {
     }
 
     /// Compute stopband attenuation
-    fn compute_stopband_attenuation(&self, magnituderesponses: &Array2<f64>) -> f64 {
+    fn compute_stopband_attenuation(&self, magnitude_responses: &Array2<f64>) -> f64 {
         let mut min_attenuation = f64::INFINITY;
 
         for k in 0..self.num_channels {
@@ -594,7 +595,7 @@ impl WaveletFilterBank {
         }
 
         // Parse wavelet _name and get filters
-        let wavelet = Self::parse_wavelet_name(wavelet_name)?;
+        let wavelet = Self::parse_wavelet_name(waveletname)?;
         let filters = wavelet.filters()?;
 
         Ok(Self {
@@ -602,7 +603,7 @@ impl WaveletFilterBank {
             highpass_dec: Array1::from(filters.dec_hi),
             lowpass_rec: Array1::from(filters.rec_lo),
             highpass_rec: Array1::from(filters.rec_hi),
-            wavelet_name: wavelet_name.to_string(),
+            wavelet_name: waveletname.to_string(),
             levels,
         })
     }
@@ -635,7 +636,7 @@ impl WaveletFilterBank {
             "dmeyer" => Ok(Wavelet::DMeyer),
             _ => Err(SignalError::ValueError(format!(
                 "Unknown wavelet _name: {}",
-                _name
+                name
             ))),
         }
     }
@@ -1011,7 +1012,7 @@ impl IirStabilizer {
         if coeffs.len() == 2 {
             // Linear case: ax + b = 0
             if coeffs[0] != 0.0 {
-                roots.push(Complex64::new(-_coeffs[1] / coeffs[0], 0.0));
+                roots.push(Complex64::new(-coeffs[1] / coeffs[0], 0.0));
             }
         } else if coeffs.len() == 3 {
             // Quadratic case: ax^2 + bx + c = 0
@@ -1041,7 +1042,7 @@ impl IirStabilizer {
     fn polynomial_from_roots(roots: &[Complex64]) -> SignalResult<Array1<f64>> {
         let mut coeffs = vec![1.0];
 
-        for &root in _roots {
+        for &root in roots {
             let mut new_coeffs = vec![0.0; coeffs.len() + 1];
 
             // Multiply by (z - root)
@@ -1115,7 +1116,8 @@ mod tests {
 
     #[test]
     fn test_cosine_modulated_filter_bank() {
-        let cmfb = CosineModulatedFilterBank::new(4, 2, FilterBankWindow::Hann).expect("Operation failed");
+        let cmfb =
+            CosineModulatedFilterBank::new(4, 2, FilterBankWindow::Hann).expect("Operation failed");
         let input = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
 
         let subbands = cmfb.analysis(&input).expect("Operation failed");
@@ -1141,7 +1143,8 @@ mod tests {
         let a = Array1::from_vec(vec![1.0, -1.5, 0.7]); // Potentially unstable
 
         let (b_stab, a_stab) =
-            IirStabilizer::stabilize_filter(&b, &a, StabilizationMethod::RadialProjection).expect("Operation failed");
+            IirStabilizer::stabilize_filter(&b, &a, StabilizationMethod::RadialProjection)
+                .expect("Operation failed");
 
         assert_eq!(b_stab.len(), b.len());
         assert_eq!(a_stab.len(), a.len());

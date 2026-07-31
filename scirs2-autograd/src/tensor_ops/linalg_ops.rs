@@ -19,9 +19,9 @@ impl<F: Float> Op<F> for EyeOp {
         Ok(())
     }
 
-    fn grad<'a>(&self, _ctx: &mut GradientContext<'a, 'a, F>) {
-        // Identity matrix is constant, no gradient
-    }
+    /// `eye(n)` is a generator: its value depends only on `self.size`, and the node has
+    /// **no inputs**.  There is nothing to append and nothing to propagate.
+    fn grad<'a, 'g>(&self, _ctx: &mut GradientContext<'a, 'g, F>) {}
 }
 
 /// Trace operation

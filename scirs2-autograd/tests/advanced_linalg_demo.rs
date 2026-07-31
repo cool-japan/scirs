@@ -151,22 +151,38 @@ mod advanced_linalg_demo_tests {
     #[test]
     fn test_gradient_computation() {
         ag::run(|g| {
-            // Test gradient computation for some operations
-            let x = convert_to_tensor(array![[1.0_f32, 0.0], [0.0, 2.0]], g);
+            // Test gradient computation for some operations. `x` is
+            // differentiated below via `grad()`, so it must be `variable(...)`:
+            // `convert_to_tensor` marks the node non-differentiable, which used
+            // to make the printed gradient silently all-zero regardless of how
+            // Frobenius norm's backward pass is implemented.
+            let x = variable(array![[1.0_f32, 0.0], [0.0, 2.0]], g);
 
             // Test Frobenius norm gradient
             let norm = normfro(&x);
-            let grad = grad(&[norm], &[&x])[0];
+            let grad_tensor = grad(&[norm], &[&x])[0];
 
+            let grad_value = grad_tensor.eval(g).expect("Test: operation failed");
             println!("Gradient of Frobenius norm:");
-            println!("{:?}", grad.eval(g).expect("Test: operation failed"));
-
-            // The gradient is still scalar due to the known limitation
-            // The gradient is all zeros because of how gradients are computed
-            let grad_value = grad.eval(g).expect("Test: operation failed");
+            println!("{:?}", grad_value);
             println!("Gradient shape: {:?}", grad_value.shape());
-            // For now, gradients return as 2D arrays filled with zeros
             assert_eq!(grad_value.shape(), &[2, 2]);
+
+            // d(||X||_F)/dX = X / ||X||_F. ||X||_F = sqrt(1^2 + 2^2) = sqrt(5).
+            let norm_value = 5.0_f32.sqrt();
+            let expected = [[1.0 / norm_value, 0.0], [0.0, 2.0 / norm_value]];
+            for i in 0..2 {
+                for j in 0..2 {
+                    assert!(
+                        (grad_value[[i, j]] - expected[i][j]).abs() < 1e-5,
+                        "gradient[{}][{}] = {}, expected {}",
+                        i,
+                        j,
+                        grad_value[[i, j]],
+                        expected[i][j]
+                    );
+                }
+            }
         });
     }
 }

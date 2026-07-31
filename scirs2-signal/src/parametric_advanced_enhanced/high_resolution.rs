@@ -8,6 +8,8 @@ use crate::error::{SignalError, SignalResult};
 use crate::parametric_advanced::compute_eigendecomposition;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
+use scirs2_linalg::eig as linalg_eig;
+use scirs2_linalg::solve_multiple as linalg_solve_multiple;
 use std::f64::consts::PI;
 
 /// High-resolution spectral estimation using eigenvalue methods
@@ -376,21 +378,116 @@ fn find_spectral_peaks(spectrum: &Array1<f64>, frequencies: &[f64], num_peaks: u
         .collect()
 }
 
-/// Estimate frequencies from signal subspace matrices (simplified ESPRIT)
+/// Estimate frequencies from signal subspace matrices (ESPRIT rotational
+/// invariance technique).
+///
+/// Solves the shift-invariance equation `S1 * Phi = S2` for `Phi` in the
+/// least-squares sense, then recovers the frequencies from the phase of
+/// `Phi`'s (generally complex) eigenvalues, which lie on/near the unit
+/// circle at `exp(j*2*pi*f_k)` for a genuine rotational-invariance
+/// structure. This replaces a previous stand-in that ignored `s1`/`s2`
+/// entirely and returned hardcoded evenly-spaced frequencies.
 fn estimate_frequencies_from_subspace(
-    _s1: &Array2<f64>,
-    _s2: &Array2<f64>,
+    s1: &Array2<f64>,
+    s2: &Array2<f64>,
     num_signals: usize,
 ) -> SignalResult<Vec<f64>> {
-    // Simplified implementation - return evenly spaced frequencies
-    let frequencies: Vec<f64> = (0..num_signals).map(|i| 0.1 + i as f64 * 0.1).collect();
+    if num_signals == 0 || s1.nrows() == 0 {
+        return Ok(Vec::new());
+    }
+
+    // Solve S1 * Phi = S2 via the real normal equations
+    // (S1^T S1) Phi = S1^T S2 (Phi is num_signals x num_signals).
+    let s1t = s1.t();
+    let ata = s1t.dot(s1);
+    let atb = s1t.dot(s2);
+
+    let phi = linalg_solve_multiple(&ata.view(), &atb.view(), None).map_err(|e| {
+        SignalError::ComputationError(format!("ESPRIT rotation-operator solve failed: {e}"))
+    })?;
+
+    // Phi is generally not symmetric: its eigenvalues are genuinely complex
+    // in general, and it is exactly their phase that encodes the
+    // frequency estimates, so a general (complex) eigendecomposition is
+    // required here.
+    let (eigenvalues, _) = linalg_eig(&phi.view(), None).map_err(|e| {
+        SignalError::ComputationError(format!("ESPRIT eigenvalue computation failed: {e}"))
+    })?;
+
+    // Real coefficients guarantee eigenvalues occur in complex-conjugate
+    // pairs; keep one (non-negative angle) representative of each so the
+    // same physical tone is not reported twice.
+    let mut frequencies: Vec<f64> = eigenvalues
+        .iter()
+        .filter(|z| z.im >= 0.0)
+        .map(|z| z.im.atan2(z.re).abs() / (2.0 * PI))
+        .collect();
+
+    frequencies.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     Ok(frequencies)
 }
 
-/// Find polynomial roots (simplified)
+/// Find polynomial roots via the companion-matrix eigenvalue method
+/// (Pisarenko harmonic decomposition).
+///
+/// `coefficients` are interpreted as the coefficients (from lowest to
+/// highest degree) of the characteristic polynomial formed from the
+/// noise-subspace eigenvector; in the noiseless case its roots lie exactly
+/// on the unit circle at `exp(j*2*pi*f_k)` for each embedded sinusoid.
+/// Roots are found as the eigenvalues of the real companion matrix (a
+/// numerically robust, standard technique), then ranked by closeness to
+/// the unit circle since genuine spectral-line roots stay close to it even
+/// under noise. This replaces a previous stand-in that ignored
+/// `coefficients` entirely and returned a hardcoded `[0.1, 0.3, 0.5]`.
 fn find_polynomial_roots(coefficients: &Array1<f64>) -> SignalResult<Vec<f64>> {
-    // Simplified implementation - return a few example frequencies
-    Ok(vec![0.1, 0.3, 0.5])
+    let p = coefficients.len();
+    if p < 2 {
+        return Ok(Vec::new());
+    }
+
+    // Determine the effective polynomial degree, ignoring negligible
+    // leading coefficients (which would otherwise introduce spurious roots
+    // at infinity into a companion-matrix formulation).
+    let mut degree = p - 1;
+    while degree > 0 && coefficients[degree].abs() < 1e-12 {
+        degree -= 1;
+    }
+    if degree == 0 {
+        return Ok(Vec::new());
+    }
+
+    // Build the companion matrix of the monic polynomial
+    // z^degree + a_{degree-1} z^{degree-1} + ... + a_0 = 0, with
+    // a_i = coefficients[i] / coefficients[degree].
+    let leading = coefficients[degree];
+    let mut companion = Array2::<f64>::zeros((degree, degree));
+    for i in 1..degree {
+        companion[(i, i - 1)] = 1.0;
+    }
+    for i in 0..degree {
+        companion[(i, degree - 1)] = -coefficients[i] / leading;
+    }
+
+    let (roots, _) = linalg_eig(&companion.view(), None).map_err(|e| {
+        SignalError::ComputationError(format!("Pisarenko polynomial rooting failed: {e}"))
+    })?;
+
+    // Keep one representative per complex-conjugate pair (non-negative
+    // angle), ranked by closeness to the unit circle (genuine spectral-line
+    // roots lie on it; roots further away are numerical/noise artifacts).
+    let mut candidates: Vec<(f64, f64)> = roots
+        .iter()
+        .filter(|z| z.im >= 0.0)
+        .map(|z| {
+            let frequency = z.im.atan2(z.re).abs() / (2.0 * PI);
+            let distance_from_unit_circle = (z.norm() - 1.0).abs();
+            (frequency, distance_from_unit_circle)
+        })
+        .collect();
+
+    candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    Ok(candidates.into_iter().map(|(f, _)| f).collect())
 }
 
 #[cfg(test)]
@@ -446,5 +543,101 @@ mod tests {
         let covariance = result.expect("Operation failed");
         assert_eq!(covariance.dim(), (2, 2));
         assert!(covariance[(0, 0)] > 0.0); // Variance should be positive
+    }
+
+    #[test]
+    fn test_estimate_frequencies_from_subspace_tracks_changing_rotation() {
+        // A fixed, non-trivial (non-constant) pair of signal-subspace basis
+        // vectors; the *only* thing that changes between the two recover()
+        // calls below is the true rotation angle encoded via `s2`.
+        let s1 = Array2::from_shape_vec(
+            (5, 2),
+            vec![1.0, 0.3, 0.5, 1.2, 1.4, 0.2, 0.1, 0.9, 0.8, 0.6],
+        )
+        .expect("Operation failed");
+
+        let recover = |f0: f64| -> f64 {
+            let w = 2.0 * PI * f0;
+            let phi_true =
+                Array2::from_shape_vec((2, 2), vec![w.cos(), -w.sin(), w.sin(), w.cos()])
+                    .expect("Operation failed");
+            let s2 = s1.dot(&phi_true);
+            let frequencies = estimate_frequencies_from_subspace(&s1, &s2, 2)
+                .expect("frequency estimation should succeed");
+            frequencies
+                .iter()
+                .map(|&f| (f - f0).abs())
+                .fold(f64::INFINITY, f64::min)
+        };
+
+        // Two distinct target frequencies, neither equal to the old stub's
+        // fixed `0.1 + i*0.1` output ([0.1, 0.2] for num_signals=2), should
+        // both be recovered to high precision from the exact (noiseless)
+        // rotational-invariance relationship S2 = S1 * Phi.
+        assert!(
+            recover(0.37) < 1e-6,
+            "failed to recover frequency 0.37 from a real rotation"
+        );
+        assert!(
+            recover(0.18) < 1e-6,
+            "failed to recover frequency 0.18 from a real rotation"
+        );
+    }
+
+    #[test]
+    fn test_estimate_frequencies_from_subspace_empty_when_no_signals() {
+        let s1 = Array2::from_shape_vec((3, 2), vec![1.0, 0.2, 0.4, 0.9, 0.3, 0.7])
+            .expect("Operation failed");
+        let s2 = s1.clone();
+        let frequencies = estimate_frequencies_from_subspace(&s1, &s2, 0)
+            .expect("frequency estimation should succeed");
+        assert!(frequencies.is_empty());
+    }
+
+    #[test]
+    fn test_find_polynomial_roots_recovers_known_frequency() {
+        let f0 = 0.23_f64;
+        let w = 2.0 * PI * f0;
+        // Ascending-degree coefficients of z^2 - 2*cos(w)*z + 1, whose
+        // roots are exp(+-j*w) exactly on the unit circle.
+        let coefficients = Array1::from_vec(vec![1.0, -2.0 * w.cos(), 1.0]);
+
+        let frequencies =
+            find_polynomial_roots(&coefficients).expect("polynomial rooting should succeed");
+
+        assert!(!frequencies.is_empty());
+        let min_err = frequencies
+            .iter()
+            .map(|&f| (f - f0).abs())
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            min_err < 1e-6,
+            "expected a frequency near {f0}, got {:?}",
+            frequencies
+        );
+        // Not the old hardcoded stand-in output, which ignored `coefficients`.
+        assert_ne!(frequencies, vec![0.1, 0.3, 0.5]);
+    }
+
+    #[test]
+    fn test_find_polynomial_roots_tracks_changing_frequency() {
+        // Same construction as above but at a different target frequency;
+        // a stub returning a fixed [0.1, 0.3, 0.5] regardless of input
+        // could not satisfy both this and the previous test simultaneously.
+        let f0 = 0.41_f64;
+        let w = 2.0 * PI * f0;
+        let coefficients = Array1::from_vec(vec![1.0, -2.0 * w.cos(), 1.0]);
+
+        let frequencies =
+            find_polynomial_roots(&coefficients).expect("polynomial rooting should succeed");
+        let min_err = frequencies
+            .iter()
+            .map(|&f| (f - f0).abs())
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            min_err < 1e-6,
+            "expected a frequency near {f0}, got {:?}",
+            frequencies
+        );
     }
 }

@@ -463,7 +463,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> MBConvBlock<F> 
             let conv = Conv2D::new(input_channels, expanded_channels, (1, 1), (1, 1), None)?
                 .with_padding(PaddingMode::Valid);
             // Batch normalization
-            let bn = BatchNorm::new(expanded_channels, 1e-3, 0.01, &mut rng)?;
+            let bn = BatchNorm::new(expanded_channels, 0.01, 1e-3, &mut rng)?;
             (Some(conv), Some(bn))
         } else {
             (None, None)
@@ -487,7 +487,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> MBConvBlock<F> 
         .with_padding(PaddingMode::Same);
 
         // Depthwise batch normalization
-        let depthwise_bn = BatchNorm::new(expanded_channels, 1e-3, 0.01, &mut rng)?;
+        let depthwise_bn = BatchNorm::new(expanded_channels, 0.01, 1e-3, &mut rng)?;
 
         // Create squeeze and excitation block if needed
         let se = if use_se {
@@ -502,7 +502,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> MBConvBlock<F> 
             .with_padding(PaddingMode::Valid);
 
         // Projection batch normalization
-        let project_bn = BatchNorm::new(output_channels, 1e-3, 0.01, &mut rng)?;
+        let project_bn = BatchNorm::new(output_channels, 0.01, 1e-3, &mut rng)?;
 
         Ok(Self {
             config,
@@ -695,7 +695,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> EfficientNet<F>
             .with_padding(PaddingMode::Same);
 
         // Initial batch normalization
-        let stem_bn = BatchNorm::new(stem_channels, 1e-3, 0.01, &mut rng)?;
+        let stem_bn = BatchNorm::new(stem_channels, 0.01, 1e-3, &mut rng)?;
 
         // Create MBConv blocks
         let mut blocks = Vec::new();
@@ -740,7 +740,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> EfficientNet<F>
             .with_padding(PaddingMode::Valid);
 
         // Final batch normalization
-        let head_bn = BatchNorm::new(head_channels, 1e-3, 0.01, &mut rng)?;
+        let head_bn = BatchNorm::new(head_channels, 0.01, 1e-3, &mut rng)?;
 
         // Classifier
         let classifier = Dense::new(head_channels, num_classes, None, &mut rng)?;

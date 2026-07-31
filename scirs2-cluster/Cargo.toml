@@ -32,6 +32,12 @@ oxiarc-deflate = { workspace = true }  # Pure Rust GZIP compression (COOLJAPAN P
 chrono = { workspace = true }
 num_cpus = { workspace = true }
 
+# Optional real system resource sampling (CPU/memory) for distributed
+# clustering's worker performance monitoring. Off by default to keep the
+# default build minimal; when disabled, resource readings honestly report
+# as "unknown/neutral" rather than fabricating a plausible-looking number.
+sysinfo = { workspace = true, optional = true }
+
 # Optional serialization formats
 serde_yaml = { workspace = true, optional = true }
 
@@ -67,6 +73,10 @@ all_compression = ["lz4_compression", "zstd_compression", "bzip2_compression"]
 
 # SIMD acceleration for clustering operations
 simd = ["scirs2-core/simd"]
+
+# Real per-worker CPU/memory sampling for distributed clustering (see
+# `sysinfo` dependency above); never fabricates load figures when disabled.
+sysinfo = ["dep:sysinfo"]
 
 # GPU acceleration features
 gpu = []

@@ -238,7 +238,7 @@ where
 }
 #[cfg(test)]
 mod tests {
-    use super::super::functions::{eigs_gen, lanczos, SparseMatrix};
+    use super::super::functions::{eigs_gen, lanczos_with_seed, SparseMatrix};
     use super::*;
     /// Build a 5x5 symmetric tridiagonal SPD matrix in CSR format (1D Laplacian).
     fn tridiag_csr_5x5() -> CsrMatrix<f64> {
@@ -329,10 +329,11 @@ mod tests {
         }
     }
     #[test]
-    #[ignore = "flaky: random initial vector causes rare convergence failure in parallel test runs"]
     fn test_lanczos_with_csr() {
         let csr = tridiag_csr_5x5();
-        let result = lanczos(&csr, 2, "largest", 0.0_f64, 100, 1e-6);
+        // Deterministic seed so the test is reproducible rather than
+        // occasionally hitting an unlucky random start (see lanczos_with_seed).
+        let result = lanczos_with_seed(&csr, 2, "largest", 0.0_f64, 100, 1e-6, 42);
         assert!(
             result.is_ok(),
             "Lanczos should succeed on tridiagonal: {:?}",

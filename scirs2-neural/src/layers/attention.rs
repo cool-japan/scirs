@@ -114,8 +114,17 @@ pub struct MultiHeadAttention<F: Float + Debug + Send + Sync + NumAssign> {
     dw_output: Arc<RwLock<Array<F, IxDyn>>>,
     /// Scaling factor for attention scores
     scale: F,
-    /// Input cache for backward pass
+    /// Query-side input cache for backward pass
     input_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+    /// Key/value-side input cache for backward pass
+    ///
+    /// Equal to `input_cache` for self-attention; different for cross-attention
+    /// (see [`MultiHeadAttention::forward_with_kv`]).
+    kv_input_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+    /// Whether the last forward pass was self-attention (query and key/value
+    /// came from the same tensor), which decides how `Layer::backward` folds
+    /// the two input gradients together
+    self_attention_cache: Arc<RwLock<bool>>,
     /// Attention weights cache for backward pass
     attention_weights_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
     /// Layer name
@@ -206,6 +215,8 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Multi
             dw_output,
             scale,
             input_cache: Arc::new(RwLock::new(None)),
+            kv_input_cache: Arc::new(RwLock::new(None)),
+            self_attention_cache: Arc::new(RwLock::new(true)),
             attention_weights_cache: Arc::new(RwLock::new(None)),
             name: None,
             training: true,
@@ -333,6 +344,353 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Multi
         output
     }
 
+    /// Multi-head attention where the queries and the keys/values come from
+    /// different tensors (cross-attention).
+    ///
+    /// # Arguments
+    /// * `query_input` - Query source `[batch, query_len, d_model]`
+    /// * `kv_input` - Key/value source `[batch, kv_len, d_model]`
+    ///
+    /// # Returns
+    /// Attended output `[batch, query_len, d_model]`
+    ///
+    /// [`Layer::forward`] is the special case `forward_with_kv(x, x)`.
+    pub fn forward_with_kv(
+        &self,
+        query_input: &Array<F, IxDyn>,
+        kv_input: &Array<F, IxDyn>,
+    ) -> Result<Array<F, IxDyn>> {
+        let is_self_attention = query_input.shape() == kv_input.shape() && query_input == kv_input;
+        self.attend(query_input, kv_input, is_self_attention)
+    }
+
+    /// Shared implementation of the self- and cross-attention forward passes.
+    fn attend(
+        &self,
+        query_input: &Array<F, IxDyn>,
+        kv_input: &Array<F, IxDyn>,
+        is_self_attention: bool,
+    ) -> Result<Array<F, IxDyn>> {
+        let qshape = query_input.shape();
+        let kvshape = kv_input.shape();
+        if qshape.len() != 3 || kvshape.len() != 3 {
+            return Err(NeuralError::InferenceError(format!(
+                "MultiHeadAttention expects 3D inputs (batch, seq, d_model), got {}D and {}D",
+                qshape.len(),
+                kvshape.len()
+            )));
+        }
+        if qshape[2] != self.d_model || kvshape[2] != self.d_model {
+            return Err(NeuralError::InferenceError(format!(
+                "Input dimensions {} / {} do not match d_model {}",
+                qshape[2], kvshape[2], self.d_model
+            )));
+        }
+        if qshape[0] != kvshape[0] {
+            return Err(NeuralError::InferenceError(format!(
+                "Batch size mismatch between query ({}) and key/value ({})",
+                qshape[0], kvshape[0]
+            )));
+        }
+
+        let batch_size = qshape[0];
+        let query_len = qshape[1];
+        let kv_len = kvshape[1];
+        let num_heads = self.config.num_heads;
+        let head_dim = self.config.head_dim;
+
+        // Cache both inputs for the backward pass.
+        if let Ok(mut cache) = self.input_cache.write() {
+            *cache = Some(query_input.clone());
+        }
+        if let Ok(mut cache) = self.kv_input_cache.write() {
+            *cache = Some(kv_input.clone());
+        }
+        if let Ok(mut flag) = self.self_attention_cache.write() {
+            *flag = is_self_attention;
+        }
+
+        // Project queries, keys and values.
+        let query = self.reshape_for_heads(&self.linear_projection(query_input, &self.w_query)?)?;
+        let key = self.reshape_for_heads(&self.linear_projection(kv_input, &self.w_key)?)?;
+        let value = self.reshape_for_heads(&self.linear_projection(kv_input, &self.w_value)?)?;
+
+        // Scaled dot-product scores: [batch, num_heads, query_len, kv_len]
+        let mut scores = Array::zeros(IxDyn(&[batch_size, num_heads, query_len, kv_len]));
+        for b in 0..batch_size {
+            for h in 0..num_heads {
+                for i in 0..query_len {
+                    for j in 0..kv_len {
+                        let mut dot_product = F::zero();
+                        for d in 0..head_dim {
+                            dot_product += query[[b, i, h, d]] * key[[b, j, h, d]];
+                        }
+                        scores[[b, h, i, j]] = dot_product * self.scale;
+                    }
+                }
+            }
+        }
+
+        if self.config.causal {
+            self.apply_causal_mask(&mut scores);
+        }
+
+        let attention_weights = self.softmax(&scores);
+        if let Ok(mut cache) = self.attention_weights_cache.write() {
+            *cache = Some(attention_weights.clone());
+        }
+
+        // Weighted sum of the values.
+        let mut attended = Array::zeros(IxDyn(&[batch_size, query_len, num_heads, head_dim]));
+        for b in 0..batch_size {
+            for i in 0..query_len {
+                for h in 0..num_heads {
+                    for d in 0..head_dim {
+                        let mut sum = F::zero();
+                        for j in 0..kv_len {
+                            sum += attention_weights[[b, h, i, j]] * value[[b, j, h, d]];
+                        }
+                        attended[[b, i, h, d]] = sum;
+                    }
+                }
+            }
+        }
+
+        let concatenated = attended
+            .into_shape_with_order(IxDyn(&[batch_size, query_len, self.d_model]))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("Failed to concatenate heads: {}", e))
+            })?;
+
+        self.linear_projection(&concatenated, &self.w_output)
+    }
+
+    /// Exact gradient of the attention block.
+    ///
+    /// Returns `(grad_query_input, grad_kv_input)` for the tensors that the
+    /// last forward pass consumed, and stores the gradients of the four
+    /// projection matrices for [`Layer::update`].
+    ///
+    /// For self-attention the two returned gradients are the separate query and
+    /// key/value contributions of the *same* tensor; [`Layer::backward`] adds
+    /// them together.
+    pub fn backward_with_kv(
+        &self,
+        grad_output: &Array<F, IxDyn>,
+    ) -> Result<(Array<F, IxDyn>, Array<F, IxDyn>)> {
+        let q_guard = self.input_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on input cache".to_string())
+        })?;
+        let kv_guard = self.kv_input_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on kv cache".to_string())
+        })?;
+        let attn_guard = self.attention_weights_cache.read().map_err(|_| {
+            NeuralError::InferenceError(
+                "Failed to acquire read lock on attention weights".to_string(),
+            )
+        })?;
+        let missing = || {
+            NeuralError::InferenceError(
+                "No cached values for backward pass. Call forward() first.".to_string(),
+            )
+        };
+        let query_input = q_guard.as_ref().ok_or_else(missing)?;
+        let kv_input = kv_guard.as_ref().ok_or_else(missing)?;
+        let attention_weights = attn_guard.as_ref().ok_or_else(missing)?;
+
+        let batch_size = query_input.shape()[0];
+        let query_len = query_input.shape()[1];
+        let kv_len = kv_input.shape()[1];
+        let num_heads = self.config.num_heads;
+        let head_dim = self.config.head_dim;
+        let d_model = self.d_model;
+
+        if grad_output.shape() != [batch_size, query_len, d_model] {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Expected output gradient of shape [{batch_size}, {query_len}, {d_model}], got {:?}",
+                grad_output.shape()
+            )));
+        }
+
+        // Recompute the projections; they are cheap relative to the attention.
+        let query = self.reshape_for_heads(&self.linear_projection(query_input, &self.w_query)?)?;
+        let key = self.reshape_for_heads(&self.linear_projection(kv_input, &self.w_key)?)?;
+        let value = self.reshape_for_heads(&self.linear_projection(kv_input, &self.w_value)?)?;
+
+        // Recompute the concatenated attention output (input of w_output).
+        let mut attended = Array::zeros(IxDyn(&[batch_size, query_len, num_heads, head_dim]));
+        for b in 0..batch_size {
+            for i in 0..query_len {
+                for h in 0..num_heads {
+                    for d in 0..head_dim {
+                        let mut sum = F::zero();
+                        for j in 0..kv_len {
+                            sum += attention_weights[[b, h, i, j]] * value[[b, j, h, d]];
+                        }
+                        attended[[b, i, h, d]] = sum;
+                    }
+                }
+            }
+        }
+        let concatenated = attended
+            .into_shape_with_order(IxDyn(&[batch_size, query_len, d_model]))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("Failed to concatenate heads: {}", e))
+            })?;
+
+        // Output projection.
+        let mut dw_output = Array::zeros(IxDyn(&[d_model, d_model]));
+        let mut d_concat = Array::zeros(IxDyn(&[batch_size, query_len, d_model]));
+        for b in 0..batch_size {
+            for i in 0..query_len {
+                for o in 0..d_model {
+                    let g = grad_output[[b, i, o]];
+                    if g == F::zero() {
+                        continue;
+                    }
+                    for k in 0..d_model {
+                        dw_output[[k, o]] += concatenated[[b, i, k]] * g;
+                        d_concat[[b, i, k]] += g * self.w_output[[k, o]];
+                    }
+                }
+            }
+        }
+        let d_attended = d_concat
+            .into_shape_with_order(IxDyn(&[batch_size, query_len, num_heads, head_dim]))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("Failed to split attention heads: {}", e))
+            })?;
+
+        // Attention weights and values.
+        let mut d_attn = Array::zeros(IxDyn(&[batch_size, num_heads, query_len, kv_len]));
+        let mut d_value = Array::zeros(IxDyn(&[batch_size, kv_len, num_heads, head_dim]));
+        for b in 0..batch_size {
+            for h in 0..num_heads {
+                for i in 0..query_len {
+                    for j in 0..kv_len {
+                        let a = attention_weights[[b, h, i, j]];
+                        let mut sum = F::zero();
+                        for d in 0..head_dim {
+                            let g = d_attended[[b, i, h, d]];
+                            sum += g * value[[b, j, h, d]];
+                            d_value[[b, j, h, d]] += a * g;
+                        }
+                        d_attn[[b, h, i, j]] = sum;
+                    }
+                }
+            }
+        }
+
+        // Softmax Jacobian, then the scaled dot product.
+        let mut d_query = Array::zeros(IxDyn(&[batch_size, query_len, num_heads, head_dim]));
+        let mut d_key = Array::zeros(IxDyn(&[batch_size, kv_len, num_heads, head_dim]));
+        for b in 0..batch_size {
+            for h in 0..num_heads {
+                for i in 0..query_len {
+                    let mut dot = F::zero();
+                    for j in 0..kv_len {
+                        dot += attention_weights[[b, h, i, j]] * d_attn[[b, h, i, j]];
+                    }
+                    for j in 0..kv_len {
+                        let d_score =
+                            attention_weights[[b, h, i, j]] * (d_attn[[b, h, i, j]] - dot);
+                        let scaled = d_score * self.scale;
+                        if scaled == F::zero() {
+                            continue;
+                        }
+                        for d in 0..head_dim {
+                            d_query[[b, i, h, d]] += scaled * key[[b, j, h, d]];
+                            d_key[[b, j, h, d]] += scaled * query[[b, i, h, d]];
+                        }
+                    }
+                }
+            }
+        }
+
+        let d_query = d_query
+            .into_shape_with_order(IxDyn(&[batch_size, query_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("Failed to merge heads: {}", e)))?;
+        let d_key = d_key
+            .into_shape_with_order(IxDyn(&[batch_size, kv_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("Failed to merge heads: {}", e)))?;
+        let d_value = d_value
+            .into_shape_with_order(IxDyn(&[batch_size, kv_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("Failed to merge heads: {}", e)))?;
+
+        // Input projections: dW = source^T dProj, dSource = dProj W^T.
+        let mut dw_query = Array::zeros(IxDyn(&[d_model, d_model]));
+        let mut grad_query_input = Array::zeros(query_input.dim());
+        Self::project_backward(
+            query_input,
+            &d_query,
+            &self.w_query,
+            &mut dw_query,
+            &mut grad_query_input,
+        );
+
+        let mut dw_key = Array::zeros(IxDyn(&[d_model, d_model]));
+        let mut dw_value = Array::zeros(IxDyn(&[d_model, d_model]));
+        let mut grad_kv_input = Array::zeros(kv_input.dim());
+        Self::project_backward(
+            kv_input,
+            &d_key,
+            &self.w_key,
+            &mut dw_key,
+            &mut grad_kv_input,
+        );
+        Self::project_backward(
+            kv_input,
+            &d_value,
+            &self.w_value,
+            &mut dw_value,
+            &mut grad_kv_input,
+        );
+
+        let store = |cell: &Arc<RwLock<Array<F, IxDyn>>>, value: Array<F, IxDyn>| -> Result<()> {
+            let mut guard = cell.write().map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire write lock on weight gradients".to_string(),
+                )
+            })?;
+            *guard = value;
+            Ok(())
+        };
+        store(&self.dw_query, dw_query)?;
+        store(&self.dw_key, dw_key)?;
+        store(&self.dw_value, dw_value)?;
+        store(&self.dw_output, dw_output)?;
+
+        Ok((grad_query_input, grad_kv_input))
+    }
+
+    /// Accumulate the weight gradient and the source gradient of one
+    /// `[batch, seq, d_model] x [d_model, d_model]` projection.
+    fn project_backward(
+        source: &Array<F, IxDyn>,
+        d_proj: &Array<F, IxDyn>,
+        weights: &Array<F, IxDyn>,
+        d_weights: &mut Array<F, IxDyn>,
+        d_source: &mut Array<F, IxDyn>,
+    ) {
+        let batch_size = source.shape()[0];
+        let seq_len = source.shape()[1];
+        let d_model = source.shape()[2];
+        for b in 0..batch_size {
+            for s in 0..seq_len {
+                for o in 0..d_model {
+                    let g = d_proj[[b, s, o]];
+                    if g == F::zero() {
+                        continue;
+                    }
+                    for i in 0..d_model {
+                        d_weights[[i, o]] += source[[b, s, i]] * g;
+                        d_source[[b, s, i]] += g * weights[[i, o]];
+                    }
+                }
+            }
+        }
+    }
+
     /// Apply causal mask (upper triangular with -inf)
     fn apply_causal_mask(&self, scores: &mut Array<F, IxDyn>) {
         let shape = scores.shape().to_vec();
@@ -361,111 +719,36 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
     for MultiHeadAttention<F>
 {
     fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
-        let shape = input.shape();
-        if shape.len() != 3 {
-            return Err(NeuralError::InferenceError(format!(
-                "MultiHeadAttention expects 3D input (batch, seq, d_model), got {}D",
-                shape.len()
-            )));
-        }
-
-        let batch_size = shape[0];
-        let seq_len = shape[1];
-        let d_model = shape[2];
-
-        if d_model != self.d_model {
-            return Err(NeuralError::InferenceError(format!(
-                "Input dimension {} doesn't match expected {}",
-                d_model, self.d_model
-            )));
-        }
-
-        // Cache input for backward pass
-        if let Ok(mut cache) = self.input_cache.write() {
-            *cache = Some(input.clone());
-        }
-
-        // Project queries, keys, values
-        let query = self.linear_projection(input, &self.w_query)?;
-        let key = self.linear_projection(input, &self.w_key)?;
-        let value = self.linear_projection(input, &self.w_value)?;
-
-        // Reshape for multi-head attention
-        let query = self.reshape_for_heads(&query)?;
-        let key = self.reshape_for_heads(&key)?;
-        let value = self.reshape_for_heads(&value)?;
-
-        // Compute attention scores: [batch, num_heads, seq_q, seq_k]
-        let num_heads = self.config.num_heads;
-        let head_dim = self.config.head_dim;
-
-        let mut scores = Array::zeros(IxDyn(&[batch_size, num_heads, seq_len, seq_len]));
-
-        for b in 0..batch_size {
-            for h in 0..num_heads {
-                for i in 0..seq_len {
-                    for j in 0..seq_len {
-                        let mut dot_product = F::zero();
-                        for d in 0..head_dim {
-                            dot_product += query[[b, i, h, d]] * key[[b, j, h, d]];
-                        }
-                        scores[[b, h, i, j]] = dot_product * self.scale;
-                    }
-                }
-            }
-        }
-
-        // Apply causal mask if configured
-        if self.config.causal {
-            self.apply_causal_mask(&mut scores);
-        }
-
-        // Apply softmax
-        let attention_weights = self.softmax(&scores);
-
-        // Cache attention weights for backward pass
-        if let Ok(mut cache) = self.attention_weights_cache.write() {
-            *cache = Some(attention_weights.clone());
-        }
-
-        // Apply attention to values: [batch, seq, num_heads, head_dim]
-        let mut attended = Array::zeros(IxDyn(&[batch_size, seq_len, num_heads, head_dim]));
-
-        for b in 0..batch_size {
-            for i in 0..seq_len {
-                for h in 0..num_heads {
-                    for d in 0..head_dim {
-                        let mut sum = F::zero();
-                        for j in 0..seq_len {
-                            sum += attention_weights[[b, h, i, j]] * value[[b, j, h, d]];
-                        }
-                        attended[[b, i, h, d]] = sum;
-                    }
-                }
-            }
-        }
-
-        // Reshape back to [batch, seq, d_model]
-        let concatenated = attended
-            .into_shape_with_order(IxDyn(&[batch_size, seq_len, d_model]))
-            .map_err(|e| {
-                NeuralError::InferenceError(format!("Failed to concatenate heads: {}", e))
-            })?;
-
-        // Output projection
-        let output = self.linear_projection(&concatenated, &self.w_output)?;
-
-        Ok(output)
+        // Self-attention: queries, keys and values all come from `input`.
+        self.attend(input, input, true)
     }
 
+    /// Exact gradient with respect to the layer input.
+    ///
+    /// For self-attention the query and key/value paths gradients are summed,
+    /// because both are derivatives of the same tensor. For a cross-attention
+    /// forward pass (see [`MultiHeadAttention::forward_with_kv`]) only the
+    /// query-side gradient is returned here; use
+    /// [`MultiHeadAttention::backward_with_kv`] to obtain both.
     fn backward(
         &self,
         _input: &Array<F, IxDyn>,
         grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // Simplified backward pass - return gradient scaled by some factor
-        // A full implementation would compute gradients for all weights
-        Ok(grad_output.clone())
+        let is_self_attention = match self.self_attention_cache.read() {
+            Ok(flag) => *flag,
+            Err(_) => {
+                return Err(NeuralError::InferenceError(
+                    "Failed to acquire read lock on attention mode".to_string(),
+                ))
+            }
+        };
+        let (grad_query, grad_kv) = self.backward_with_kv(grad_output)?;
+        if is_self_attention {
+            Ok(grad_query + grad_kv)
+        } else {
+            Ok(grad_query)
+        }
     }
 
     fn update(&mut self, learning_rate: F) -> Result<()> {
@@ -630,6 +913,10 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
 
     fn gradients(&self) -> Vec<Array<F, IxDyn>> {
         self.attention.gradients()
+    }
+
+    fn set_params(&mut self, params: &[Array<F, IxDyn>]) -> Result<()> {
+        self.attention.set_params(params)
     }
 
     fn set_training(&mut self, training: bool) {

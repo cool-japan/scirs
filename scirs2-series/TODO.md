@@ -1,5 +1,30 @@
 # scirs2-series TODO
 
+## Status: v0.6.5 — out_of_core Streaming Fixes (2026-07-31)
+
+`out_of_core::ChunkedProcessor` had two real bugs, both fixed this cycle:
+
+- [x] **Hang / unbounded memory growth on large inputs** — when `overlap` (default 1,000) was
+  `>=` the effective chunk size, the old stride computation
+  (`start_idx += chunk_size - overlap.min(chunk_size)`) evaluated to **zero**, so the processing
+  loop never advanced; `test_csv_processing` carried
+  `#[ignore = "Test has infinite loop bug - progress counter exceeds 397702600%"]` because of
+  exactly this. Both `process_sequential` and `process_parallel` now compute
+  `stride = (chunk_size - overlap.min(chunk_size)).max(1)`, guaranteeing forward progress every
+  iteration; the `#[ignore]` has been removed and the test now runs and passes.
+- [x] **Double-counting at chunk boundaries** — the leading elements of every chunk after the
+  first duplicate the tail of the previous chunk (that is what `overlap` is for), but the old
+  code folded every element of every chunk into `StreamingStats` unconditionally, counting the
+  overlapped region multiple times. Fixed by tracking a per-chunk `skip` count (`chunk_skips`,
+  threaded through to worker threads in the parallel path via `Arc<Vec<usize>>` alongside the
+  existing `chunk_starts`) and skipping that many leading elements before folding a chunk into
+  stats. New regression test: `test_csv_processing_parallel_with_overlap_does_not_double_count`
+  (chunk_size 3, 4 worker threads, verifies `stats.count`/`mean`/`min`/`max` over 20 points match
+  the non-chunked ground truth exactly).
+- Files: `src/out_of_core.rs`.
+- Crate-wide `#[ignore]` count is now **0** (was 1) — see README.md "Testing".
+- See `CHANGELOG.md` `[0.6.5]` for full detail.
+
 ## Status: v0.6.3 — Documentation Audit (July 15, 2026)
 
 Untouched by this release's fix work (no series-specific changes shipped in 0.6.3); this documentation audit was performed for 0.6.2 and remains accurate for 0.6.3 since the crate source is unchanged.

@@ -5,17 +5,17 @@
 [![Documentation](https://img.shields.io/docsrs/scirs2-io)](https://docs.rs/scirs2-io)
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 
-**Scientific data input/output for the SciRS2 scientific computing library (v0.6.3).**
+**Scientific data input/output for the SciRS2 scientific computing library (v0.6.5).**
 
 `scirs2-io` provides comprehensive, high-performance file I/O for scientific and numerical workloads. It covers everything from classic scientific formats (MATLAB, NetCDF, HDF5, WAV, NumPy, Fortran unformatted, IDL) through domain-specific formats (FITS/VOTable, FASTA/FASTQ/SAM/BAM/VCF, GeoTIFF/Shapefile/GeoJSON/KML), modern columnar and lakehouse formats (Parquet, Arrow IPC, Zarr, Delta Lake, Iceberg), to cloud storage, ETL pipelines, data catalogs, and lineage tracking — all as pure Rust with no required C/Fortran dependencies.
 
-## Features (v0.6.3)
+## Features (v0.6.5)
 
 ### Classic Scientific Formats
 - **MATLAB (.mat)**: `.mat` v4/v5 read/write with structures and cell arrays, plus v7.3 (HDF5-based) read/write — `EnhancedMatFile`, `V73MatFile`, `PartialIoSupport` — now available in default builds via the pure-Rust `oxih5` backend; no `hdf5` Cargo feature or system `libhdf5` required
 - **WAV**: Professional-grade WAV audio read/write
 - **ARFF**: Complete Weka Attribute-Relation File Format support
-- **NetCDF**: Hand-rolled, pure-Rust NetCDF3 Classic and NetCDF4/HDF5 reader/writer with unlimited dimensions and chunking (`netcdf/`, 1300+ lines; does **not** wrap the external `netcdf3` crate — that dependency is currently unused dead weight in `Cargo.toml`)
+- **NetCDF**: NetCDF3 Classic (CDF-1/CDF-2) read/write via a real backend (`netcdf/classic_backend.rs`) that adapts `NetCDFFile` onto the pure-Rust `netcdf3` crate — including a documented workaround for a `netcdf3` 0.6.1 `FileWriter::close()` defect that could otherwise silently corrupt fixed-size-variable data in a dataset that also contains record variables; the pre-0.6.5 no-op stand-in is kept for reference under `netcdf/backup/`. NetCDF4 (HDF5-based) uses a separate, always-real in-crate HDF5 backend (`crate::hdf5`, `oxih5`-backed) with unlimited dimensions, chunking, and compression
 - **HDF5**: Pure-Rust hierarchical data format read/write via [`oxih5`](https://crates.io/crates/oxih5) — no `libhdf5`, no C toolchain, and no feature flag to enable. Covers superblocks v0–v3, version-1 and version-2 B-trees, fractal heaps, symbol-table and link-message groups, contiguous/chunked/compact layouts, extensible and fixed array chunk indices, virtual datasets, hyperslab selections, deflate and szip decompression, memory-mapped reads, and attributes on groups and datasets
 - **NumPy (.npy/.npz)**: NumPy binary array format and ZIP-of-arrays archives
 - **Fortran unformatted files**: Read/write support for Fortran sequential unformatted records, common in physics/weather/engineering codes
@@ -125,14 +125,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.6.4"
+scirs2-io = "0.6.5"
 ```
 
 To enable optional feature groups:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.6.4", features = ["async", "parquet"] }
+scirs2-io = { version = "0.6.5", features = ["async", "parquet"] }
 ```
 
 ### Reading a CSV file
@@ -219,7 +219,7 @@ println!(
 |--------|---------|
 | `matlab` | `.mat` v4/v5/v7.3 (HDF5-based, via `oxih5`) file read/write |
 | `wavfile` | WAV audio read/write |
-| `netcdf` | NetCDF3/4 (hand-rolled, does not use the `netcdf3` crate) |
+| `netcdf` | NetCDF3 Classic (real, via the `netcdf3` crate, `netcdf/classic_backend.rs`) / NetCDF4 (hand-rolled HDF5 backend, `oxih5`-based) |
 | `hdf5` | Pure-Rust HDF5 read/write via `oxih5` (always available) |
 | `npy` | NumPy `.npy`/`.npz` read/write |
 | `fortran` | Fortran unformatted file read/write |
@@ -323,9 +323,12 @@ cargo nextest run -p scirs2-io               # default features: 1294 tests run,
 cargo nextest run -p scirs2-io --all-features # all-features:     1405 tests run, 1405 passed, 0 skipped
 ```
 
-Both runs: 0 failed. See [TODO.md](./TODO.md) for the feature-by-feature maturity caveats (several
-feature-gated areas — `postgres`/`mysql`/`mongodb`/`redis`, live cloud HTTP, Azure SAS signing —
-are explicit, off-by-default stubs, not silent gaps in the tested surface above).
+Both runs: 0 failed. (NetCDF3 Classic's real `netcdf3`-crate backend, `netcdf/classic_backend.rs`,
+landed in 0.6.5 with its own test coverage; the counts above predate that change and are not
+being re-quoted as exact current totals — see [TODO.md](./TODO.md) "Status: v0.6.5".) See
+[TODO.md](./TODO.md) for the feature-by-feature maturity caveats (several feature-gated areas —
+`postgres`/`mysql`/`mongodb`/`redis`, live cloud HTTP, Azure SAS signing — are explicit,
+off-by-default stubs, not silent gaps in the tested surface above).
 
 ## Documentation
 

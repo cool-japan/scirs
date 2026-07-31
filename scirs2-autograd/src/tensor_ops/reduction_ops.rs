@@ -537,7 +537,7 @@ impl<T: Float> op::Op<T> for ReduceMin {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad<'a, 'g>(&self, ctx: &mut crate::op::GradientContext<'a, 'g, T>) {
         min_max_grad(
             ctx.output_grad(),
             ctx.input(0),
@@ -559,7 +559,7 @@ impl<T: Float> op::Op<T> for ReduceMax {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad<'a, 'g>(&self, ctx: &mut crate::op::GradientContext<'a, 'g, T>) {
         min_max_grad(
             ctx.output_grad(),
             ctx.input(0),
@@ -573,14 +573,14 @@ impl<T: Float> op::Op<T> for ReduceMax {
 }
 
 #[allow(dead_code)]
-fn min_max_grad<'a, 'g: 'a, T: Float>(
+fn min_max_grad<'a, 'g, T: Float>(
     gy: &Tensor<'g, T>,
     x1: &Tensor<'g, T>,
     x2: &Tensor<'g, T>,
     y: &Tensor<'g, T>,
     keep_dims: bool,
     sparse_axes: bool,
-    ctx: &mut op::GradientContext<'a, 'a, T>,
+    ctx: &mut op::GradientContext<'a, 'g, T>,
 ) {
     let grad_op1 = ReduceGradCommon {
         should_make_broadcast_dims: !keep_dims,
@@ -811,16 +811,46 @@ impl<T: Float> op::Op<T> for ReduceVariance {
     }
 
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
-        // Variance gradient is complex, for now provide a simple pass-through
-        let grad_op = ReduceGradCommon {
-            should_make_broadcast_dims: !self.keep_dims,
-            sparse_axes: self.sparse_axes,
-        };
-        let gx = Tensor::builder(ctx.graph())
+        // var(x) = (1/N) Σ_j (x_j - x̄)² over the reduced axes, so
+        //
+        //     ∂var/∂x_i = (2/N) (x_i - x̄)
+        //
+        // and the VJP is `broadcast(gy) * (2/N) * (x - x̄)`.  The previous rule stopped
+        // after `broadcast(gy)`: it dropped the `(2/N)(x - x̄)` factor entirely, so the
+        // gradient of a variance was a plain broadcast of the cotangent — the same value
+        // for every element, with no dependence on `x` at all.
+        //
+        // `N` is recovered as `size(x) / size(var)` rather than read off the axes tensor,
+        // which keeps this correct for `keep_dims` in either setting and for multiple
+        // reduced axes.
+        let x = ctx.input(0);
+        let axes = ctx.input(1);
+        let g = ctx.graph();
+
+        let broadcast_gy = Tensor::builder(g)
             .append_input(ctx.output_grad(), false)
-            .append_input(shape(ctx.input(0)), false)
-            .append_input(ctx.input(1), false)
-            .build(grad_op);
+            .append_input(shape(x), false)
+            .append_input(axes, false)
+            .build(ReduceGradCommon {
+                should_make_broadcast_dims: !self.keep_dims,
+                sparse_axes: self.sparse_axes,
+            });
+
+        // Mean over the same axes, keeping the reduced dimensions so that `x - mean`
+        // broadcasts back to the shape of `x`.
+        let mean = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(axes, false)
+            .build(ReduceMean {
+                keep_dims: true,
+                sparse_axes: self.sparse_axes,
+            });
+
+        let reduced_count = tensor_ops::size(x) / tensor_ops::size(ctx.output());
+        let two = tensor_ops::scalar(T::from(2.0).unwrap_or_else(|| T::one() + T::one()), g);
+        let centered = x - mean;
+        let gx = broadcast_gy * (two / reduced_count) * centered;
+
         ctx.append_input_grad(0, Some(gx));
         ctx.append_input_grad(1, None);
     }
@@ -852,14 +882,18 @@ impl<T: Float> op::Op<T> for ReduceMeanAll {
     }
 
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
-        let x = &ctx.input(0);
-        // Use a simplified approach - create a constant scalar for division
-        let _grad_scalar = ctx.output_grad();
+        let x = ctx.input(0);
 
-        let gx = Tensor::builder(ctx.graph())
+        // d mean_all(x) / d x_i = 1/N.  Broadcasting the upstream scalar without the
+        // 1/N factor (which is what this did) makes `mean_all` indistinguishable from
+        // `sum_all` in the backward pass.
+        let broadcast = Tensor::builder(ctx.graph())
             .append_input(ctx.output_grad(), false)
             .append_input(shape(x), false)
             .build(ReduceSumToScalarGrad);
+
+        // `size` is non-differentiable, so this introduces no backprop dependency on x.
+        let gx = broadcast / crate::tensor_ops::size(x);
 
         ctx.append_input_grad(0, Some(gx))
     }

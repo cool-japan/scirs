@@ -1,14 +1,24 @@
 # scirs2-linalg Development TODO
 
-## Status: v0.6.3 (released 2026-07-27; last reviewed 2026-07-27)
+## Status: v0.6.5 (released 2026-07-31; last reviewed 2026-07-31)
 
-Untouched by this release (no linalg-specific changes shipped in 0.6.3); the v0.6.2 status below
-remains accurate since the crate source is unchanged.
+Added a real, convergence-checked general (non-symmetric) eigenvalue/Schur decomposition engine:
+`eigen/general.rs` implements Householder→upper-Hessenberg reduction followed by implicit
+double-shift Francis QR with deflation (Golub & Van Loan), with sub-diagonal-norm convergence
+checking at every step. `decomposition::schur` (`crate::eigen::general::real_schur`), `lapack::eig`,
+and `eigen::advanced_precision_eig`'s non-symmetric path (`crate::eigen::general::general_eig`) now
+all share this single implementation instead of each carrying its own broken one — previously a
+fixed count of *unshifted* QR iterations with no convergence check (verified empirically to leave
+sub-diagonal entries around `1e-4` and eigenvalues off by 1-3% on a companion matrix with
+closely-spaced eigenvalues), or a placeholder only correct for already-diagonal input. `lstsq`/`pinv`
+(`compat.rs`) were already real (delegate to the crate's genuine SVD-based solvers), so this
+completes the eig/schur/lstsq trio end-to-end. New unit tests in `eigen/general.rs`:
+`test_hessenberg_reduction_preserves_similarity`, `test_real_schur_nonsymmetric_companion`,
+`test_general_eig_complex_pair`, `test_general_eig_eigenvector_residual_companion`. See
+`CHANGELOG.md` `[0.6.5]` for full detail.
 
-scirs2-linalg's own test suite (freshly run 2026-07-15): 2018 tests pass, 0 failed, 2 skipped (default
-features); 2248 tests pass, 0 failed, 2 skipped (`--all-features`). This session's dev-dependency packaging fix
-(`scirs2-autograd` / `scirs2-sparse` dev-deps: `workspace=true` → `path=`) is packaging-only, no
-functional/feature change.
+scirs2-linalg's own test suite (last independently run 2026-07-15, pre-fix): 2018 tests pass, 0 failed, 2 skipped (default
+features); 2248 tests pass, 0 failed, 2 skipped (`--all-features`). Not re-run for this docs update.
 
 ## v0.3.3 — COMPLETED
 

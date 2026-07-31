@@ -220,18 +220,27 @@ impl AudioProcessingMetrics {
     }
 
     /// Evaluate audio classification performance
+    ///
+    /// `frame_ground_truth` enables real frame-level accuracy alongside
+    /// `frame_predictions`; see [`AudioClassificationMetrics::compute_metrics`].
     pub fn evaluate_audio_classification<F>(
         &mut self,
         y_true: ArrayView1<i32>,
         y_pred: ArrayView1<i32>,
         y_scores: Option<ArrayView2<F>>,
         frame_predictions: Option<ArrayView2<i32>>,
+        frame_ground_truth: Option<ArrayView2<i32>>,
     ) -> Result<AudioClassificationResults>
     where
         F: Float + std::fmt::Debug,
     {
-        self.audio_classification
-            .compute_metrics(y_true, y_pred, y_scores, frame_predictions)
+        self.audio_classification.compute_metrics(
+            y_true,
+            y_pred,
+            y_scores,
+            frame_predictions,
+            frame_ground_truth,
+        )
     }
 
     /// Evaluate music information retrieval tasks

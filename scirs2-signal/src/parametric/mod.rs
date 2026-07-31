@@ -38,6 +38,7 @@
 // Module declarations - these will contain the actual implementations
 pub mod ar_estimation;
 pub mod arma_estimation;
+pub mod diagnostics;
 pub mod ma_estimation;
 pub mod robust_estimation;
 // pub mod order_selection;

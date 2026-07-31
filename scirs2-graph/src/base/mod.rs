@@ -560,28 +560,51 @@ impl<N: Node + std::fmt::Debug, E: EdgeWeight, Ix: IndexType> Hypergraph<N, E, I
         matrix
     }
 
-    /// Find maximal cliques in the hypergraph
-    /// This is a simplified implementation that finds connected components
-    /// A more sophisticated algorithm would be needed for true maximal cliques
+    /// Find all maximal cliques in the hypergraph's 2-section graph (the
+    /// ordinary graph in which two nodes are adjacent iff they co-occur in
+    /// at least one hyperedge -- see [`Hypergraph::to_graph`]).
+    ///
+    /// A maximal clique is a set of pairwise-adjacent nodes that cannot be
+    /// extended by adding any further node. This uses the Bron-Kerbosch
+    /// algorithm with pivoting, which enumerates *every* maximal clique
+    /// (there can be exponentially many in the worst case -- this is an
+    /// inherent property of the problem, not of this implementation).
     pub fn maximal_cliques(&self) -> Vec<Vec<N>>
     where
         N: Clone + PartialEq,
     {
-        let mut cliques = Vec::new();
-        let mut visited_nodes = std::collections::HashSet::new();
+        // Build the 2-section adjacency: two nodes are adjacent iff some
+        // hyperedge contains both of them.
+        let all_nodes: Vec<N> = self.nodes().cloned().collect();
+        let mut adjacency: HashMap<N, std::collections::HashSet<N>> = all_nodes
+            .iter()
+            .cloned()
+            .map(|n| (n, std::collections::HashSet::new()))
+            .collect();
 
         for hyperedge in &self.hyperedges {
-            let mut clique = Vec::new();
-            for node in &hyperedge.nodes {
-                if !visited_nodes.contains(node) {
-                    clique.push(node.clone());
-                    visited_nodes.insert(node.clone());
+            for i in 0..hyperedge.nodes.len() {
+                for j in (i + 1)..hyperedge.nodes.len() {
+                    let (a, b) = (&hyperedge.nodes[i], &hyperedge.nodes[j]);
+                    if a != b {
+                        adjacency.entry(a.clone()).or_default().insert(b.clone());
+                        adjacency.entry(b.clone()).or_default().insert(a.clone());
+                    }
                 }
             }
-            if !clique.is_empty() {
-                cliques.push(clique);
-            }
         }
+
+        let all_node_set: std::collections::HashSet<N> = all_nodes.into_iter().collect();
+
+        let mut cliques: Vec<Vec<N>> = Vec::new();
+        let mut r: std::collections::HashSet<N> = std::collections::HashSet::new();
+        bron_kerbosch_pivot(
+            &adjacency,
+            &mut r,
+            all_node_set,
+            std::collections::HashSet::new(),
+            &mut cliques,
+        );
 
         cliques
     }
@@ -612,8 +635,157 @@ impl<N: Node + std::fmt::Debug, E: EdgeWeight, Ix: IndexType> Hypergraph<N, E, I
     }
 }
 
+/// Recursive Bron-Kerbosch maximal-clique enumeration with pivoting.
+///
+/// `r` is the clique built so far, `p` the set of candidates that could
+/// still extend it, and `x` the set of nodes already excluded (because every
+/// clique containing them was already reported via a different branch).
+/// Choosing the pivot `u` from `p ∪ x` that maximizes `|p ∩ N(u)|` and only
+/// branching on `p \ N(u)` is what keeps this from degenerating into a naive
+/// (and much slower) enumeration of all cliques rather than only maximal
+/// ones.
+fn bron_kerbosch_pivot<N: Clone + Eq + std::hash::Hash>(
+    adjacency: &HashMap<N, std::collections::HashSet<N>>,
+    r: &mut std::collections::HashSet<N>,
+    mut p: std::collections::HashSet<N>,
+    mut x: std::collections::HashSet<N>,
+    cliques: &mut Vec<Vec<N>>,
+) {
+    if p.is_empty() && x.is_empty() {
+        if !r.is_empty() {
+            cliques.push(r.iter().cloned().collect());
+        }
+        return;
+    }
+
+    let empty_neighbors = std::collections::HashSet::new();
+    let pivot = p
+        .iter()
+        .chain(x.iter())
+        .max_by_key(|u| {
+            adjacency
+                .get(*u)
+                .unwrap_or(&empty_neighbors)
+                .intersection(&p)
+                .count()
+        })
+        .cloned();
+    let pivot_neighbors = pivot
+        .as_ref()
+        .and_then(|u| adjacency.get(u))
+        .cloned()
+        .unwrap_or_default();
+
+    let candidates: Vec<N> = p.difference(&pivot_neighbors).cloned().collect();
+
+    for v in candidates {
+        let v_neighbors = adjacency.get(&v).cloned().unwrap_or_default();
+
+        r.insert(v.clone());
+        let next_p: std::collections::HashSet<N> = p.intersection(&v_neighbors).cloned().collect();
+        let next_x: std::collections::HashSet<N> = x.intersection(&v_neighbors).cloned().collect();
+
+        bron_kerbosch_pivot(adjacency, r, next_p, next_x, cliques);
+
+        r.remove(&v);
+        p.remove(&v);
+        x.insert(v);
+    }
+}
+
 impl<N: Node + std::fmt::Debug, E: EdgeWeight, Ix: IndexType> Default for Hypergraph<N, E, Ix> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hypergraph_maximal_cliques_are_real_cliques_and_maximal() {
+        // Hyperedge e0 = {1,2,3} makes 1, 2, 3 pairwise-adjacent in the
+        // 2-section graph (a genuine triangle). Hyperedge e1 = {3,4} makes 3
+        // and 4 adjacent too. Node 4 is NOT adjacent to 1 or 2.
+        //
+        // The old "greedy partition" implementation processed hyperedges in
+        // order and skipped any node already claimed by an earlier
+        // hyperedge, so for e1 it would emit the single-node group `[4]`
+        // (since node 3 was already claimed by e0) even though 3 and 4 ARE
+        // adjacent -- that is neither a maximal clique (it could be extended
+        // with node 3) nor does it reflect real adjacency at all.
+        let mut hg: Hypergraph<i32, f64> = Hypergraph::new();
+        hg.add_hyperedge(vec![1, 2, 3], 1.0).expect("add hyperedge");
+        hg.add_hyperedge(vec![3, 4], 1.0).expect("add hyperedge");
+
+        let cliques = hg.maximal_cliques();
+
+        // Independently recompute 2-section adjacency straight from the
+        // hyperedges, so the correctness checks below don't just re-run the
+        // implementation under test.
+        let all_nodes = [1, 2, 3, 4];
+        let adjacent = |a: i32, b: i32| -> bool {
+            if a == b {
+                return true;
+            }
+            hg.hyperedges()
+                .iter()
+                .any(|e| e.nodes.contains(&a) && e.nodes.contains(&b))
+        };
+
+        for clique in &cliques {
+            // Every reported clique must be a real clique: all pairs adjacent.
+            for i in 0..clique.len() {
+                for j in (i + 1)..clique.len() {
+                    assert!(
+                        adjacent(clique[i], clique[j]),
+                        "reported clique {clique:?} contains a non-adjacent pair ({}, {})",
+                        clique[i],
+                        clique[j]
+                    );
+                }
+            }
+            // Every reported clique must be maximal: no outside node is
+            // adjacent to every member.
+            for &candidate in &all_nodes {
+                if clique.contains(&candidate) {
+                    continue;
+                }
+                let could_extend = clique.iter().all(|&member| adjacent(member, candidate));
+                assert!(
+                    !could_extend,
+                    "clique {clique:?} is not maximal: node {candidate} is adjacent to every member"
+                );
+            }
+        }
+
+        // The two real maximal cliques here are {1,2,3} and {3,4}.
+        let mut normalized: Vec<Vec<i32>> = cliques
+            .iter()
+            .map(|c| {
+                let mut sorted = c.clone();
+                sorted.sort();
+                sorted
+            })
+            .collect();
+        normalized.sort();
+
+        assert_eq!(normalized, vec![vec![1, 2, 3], vec![3, 4]]);
+    }
+
+    #[test]
+    fn test_hypergraph_maximal_cliques_isolated_node_is_singleton_clique() {
+        // A node that belongs to no hyperedge at all has no neighbors, so
+        // it forms its own (trivially maximal) singleton clique.
+        let mut hg: Hypergraph<i32, f64> = Hypergraph::new();
+        hg.add_hyperedge(vec![1, 2], 1.0).expect("add hyperedge");
+        hg.add_node(99);
+
+        let cliques = hg.maximal_cliques();
+        assert!(
+            cliques.iter().any(|c| c == &vec![99]),
+            "isolated node should appear as its own maximal clique: {cliques:?}"
+        );
     }
 }

@@ -55,12 +55,29 @@ use crate::error::{SignalError, SignalResult};
 use crate::swt;
 use scirs2_core::ndarray::{Array2, Axis};
 use scirs2_core::numeric::{Float, NumCast};
+// Import parallel ops for parallel processing when the "parallel" feature is enabled.
+// Unused (but harmless) when the "parallel" feature is disabled, e.g. on wasm32.
+#[allow(unused_imports)]
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 
-#[allow(unused_imports)]
-// Import parallel ops for parallel processing when the "parallel" feature is enabled
-#[cfg(feature = "parallel")]
+/// Converts a generic float array to `f64`, propagating a proper [`SignalError`]
+/// instead of panicking if a value cannot be represented as `f64`.
+fn to_f64_array<T>(data: &Array2<T>) -> SignalResult<Array2<f64>>
+where
+    T: Float + NumCast + Debug,
+{
+    let shape = data.dim();
+    let mut converted = Vec::with_capacity(data.len());
+    for &val in data.iter() {
+        let v: f64 = NumCast::from(val)
+            .ok_or_else(|| SignalError::ValueError(format!("Could not convert {val:?} to f64")))?;
+        converted.push(v);
+    }
+    Array2::from_shape_vec(shape, converted)
+        .map_err(|e| SignalError::ValueError(format!("Shape error during conversion: {e}")))
+}
+
 /// Result of a 2D SWT decomposition, containing the approximation and detail coefficients.
 ///
 /// Unlike the standard 2D DWT, all coefficient subbands have the same size as the input image.
@@ -136,10 +153,7 @@ where
     }
 
     // Convert input to f64
-    let data_f64 = data.mapv(|val| {
-        NumCast::from(val)
-            .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
-    });
+    let data_f64: Array2<f64> = to_f64_array(data)?;
 
     let (rows, cols) = data_f64.dim();
 
@@ -153,13 +167,12 @@ where
         // Create a vector to hold the results of row processing
         let row_results: Vec<(usize, Vec<f64>, Vec<f64>)> = (0..rows)
             .into_par_iter()
-            .map(|i| {
+            .map(|i| -> SignalResult<(usize, Vec<f64>, Vec<f64>)> {
                 let row = data_f64.index_axis(Axis(0), i).to_vec();
-                let (approx, detail) =
-                    swt::swt_decompose(&row, wavelet, level, mode).expect("Row SWT failed");
-                (i, approx, detail)
+                let (approx, detail) = swt::swt_decompose(&row, wavelet, level, mode)?;
+                Ok((i, approx, detail))
             })
-            .collect();
+            .collect::<SignalResult<Vec<_>>>()?;
 
         // Copy results back to the arrays
         for (i, approx, detail) in row_results {
@@ -196,24 +209,22 @@ where
         // Process low-pass filtered rows in parallel
         let lo_col_results: Vec<(usize, Vec<f64>, Vec<f64>)> = (0..cols)
             .into_par_iter()
-            .map(|j| {
+            .map(|j| -> SignalResult<(usize, Vec<f64>, Vec<f64>)> {
                 let col = rows_lo.index_axis(Axis(1), j).to_vec();
-                let (approx, detail) = swt::swt_decompose(&col, wavelet, level, mode)
-                    .expect("Column SWT failed (low-pass)");
-                (j, approx, detail)
+                let (approx, detail) = swt::swt_decompose(&col, wavelet, level, mode)?;
+                Ok((j, approx, detail))
             })
-            .collect();
+            .collect::<SignalResult<Vec<_>>>()?;
 
         // Process high-pass filtered rows in parallel
         let hi_col_results: Vec<(usize, Vec<f64>, Vec<f64>)> = (0..cols)
             .into_par_iter()
-            .map(|j| {
+            .map(|j| -> SignalResult<(usize, Vec<f64>, Vec<f64>)> {
                 let col = rows_hi.index_axis(Axis(1), j).to_vec();
-                let (approx, detail) = swt::swt_decompose(&col, wavelet, level, mode)
-                    .expect("Column SWT failed (high-pass)");
-                (j, approx, detail)
+                let (approx, detail) = swt::swt_decompose(&col, wavelet, level, mode)?;
+                Ok((j, approx, detail))
             })
-            .collect();
+            .collect::<SignalResult<Vec<_>>>()?;
 
         // Copy results back to output arrays
         for (j, approx, detail) in lo_col_results {
@@ -327,10 +338,7 @@ where
     let mut results = Vec::with_capacity(levels);
 
     // Convert input to f64
-    let mut approx = data.mapv(|val| {
-        NumCast::from(val)
-            .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
-    });
+    let mut approx = to_f64_array(data)?;
 
     // Process each level
     for level in 1..=levels {
@@ -424,33 +432,31 @@ pub fn swt2d_reconstruct(
         // Process columns in parallel
         let col_results_lo: Vec<(usize, Vec<f64>)> = (0..cols)
             .into_par_iter()
-            .map(|j| {
+            .map(|j| -> SignalResult<(usize, Vec<f64>)> {
                 // Get the columns from LL and HL subbands
                 let approx_col = ll.index_axis(Axis(1), j).to_vec();
                 let detail_col = hl.index_axis(Axis(1), j).to_vec();
 
                 // Reconstruct column
-                let reconstructed = swt::swt_reconstruct(&approx_col, &detail_col, wavelet, level)
-                    .expect("Low-pass column reconstruction failed");
+                let reconstructed = swt::swt_reconstruct(&approx_col, &detail_col, wavelet, level)?;
 
-                (j, reconstructed)
+                Ok((j, reconstructed))
             })
-            .collect();
+            .collect::<SignalResult<Vec<_>>>()?;
 
         let col_results_hi: Vec<(usize, Vec<f64>)> = (0..cols)
             .into_par_iter()
-            .map(|j| {
+            .map(|j| -> SignalResult<(usize, Vec<f64>)> {
                 // Get the columns from LH and HH subbands
                 let approx_col = lh.index_axis(Axis(1), j).to_vec();
                 let detail_col = hh.index_axis(Axis(1), j).to_vec();
 
                 // Reconstruct column
-                let reconstructed = swt::swt_reconstruct(&approx_col, &detail_col, wavelet, level)
-                    .expect("High-pass column reconstruction failed");
+                let reconstructed = swt::swt_reconstruct(&approx_col, &detail_col, wavelet, level)?;
 
-                (j, reconstructed)
+                Ok((j, reconstructed))
             })
-            .collect();
+            .collect::<SignalResult<Vec<_>>>()?;
 
         // Store column reconstruction results
         for (j, col) in col_results_lo {
@@ -494,18 +500,17 @@ pub fn swt2d_reconstruct(
         // Process rows in parallel
         let row_results: Vec<(usize, Vec<f64>)> = (0..rows)
             .into_par_iter()
-            .map(|i| {
+            .map(|i| -> SignalResult<(usize, Vec<f64>)> {
                 // Get the rows from low and high frequency parts
                 let approx_row = rows_lo.index_axis(Axis(0), i).to_vec();
                 let detail_row = rows_hi.index_axis(Axis(0), i).to_vec();
 
                 // Reconstruct row
-                let reconstructed = swt::swt_reconstruct(&approx_row, &detail_row, wavelet, level)
-                    .expect("Row reconstruction failed");
+                let reconstructed = swt::swt_reconstruct(&approx_row, &detail_row, wavelet, level)?;
 
-                (i, reconstructed)
+                Ok((i, reconstructed))
             })
-            .collect();
+            .collect::<SignalResult<Vec<_>>>()?;
 
         // Store row reconstruction results
         for (i, row) in row_results {
@@ -645,6 +650,41 @@ mod tests {
         assert!(err_result.is_err());
     }
 
+    /// Regression test: a failure deep inside the per-row/per-column SWT calls
+    /// (e.g. an unsupported extension mode) must be propagated as a proper
+    /// `Err`, not turned into a panic. This exercises the `#[cfg(feature =
+    /// "parallel")]` code path (the crate's default), which used to call
+    /// `.expect(...)` on each row/column result and would therefore abort the
+    /// whole computation instead of returning an error.
+    #[test]
+    fn test_swt2d_decompose_propagates_error_instead_of_panicking() {
+        // Non-constant data so this isn't a trivially-passing all-same-value case.
+        let mut image = Array2::zeros((6, 6));
+        for i in 0..6 {
+            for j in 0..6 {
+                image[[i, j]] = ((i as f64 + 1.0) * 2.7 - (j as f64) * 1.3).sin();
+            }
+        }
+
+        // "not_a_real_mode" is not one of the supported extension modes
+        // ("symmetric", "periodic", "zero"), so the underlying per-row/per-column
+        // `swt::swt_decompose` call fails deterministically for every row/column.
+        let result = swt2d_decompose(&image, Wavelet::Haar, 1, Some("not_a_real_mode"));
+        assert!(
+            result.is_err(),
+            "an unsupported extension mode must surface as SignalResult::Err, not a panic"
+        );
+
+        // Same guarantee for the multi-level driver, which internally calls
+        // `swt2d_decompose` once per level.
+        let multi_result = swt2d(&image, Wavelet::Haar, 2, Some("not_a_real_mode"));
+        assert!(multi_result.is_err());
+
+        // A valid mode must still succeed (the fix only changes panic -> Err,
+        // it must not turn valid calls into errors).
+        assert!(swt2d_decompose(&image, Wavelet::Haar, 1, None).is_ok());
+    }
+
     #[test]
     fn test_swt2d_reconstruct() {
         let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -660,10 +700,12 @@ mod tests {
         .expect("Operation failed");
 
         // Decompose
-        let decomposition = swt2d_decompose(&data, Wavelet::Haar, 1, None).expect("Operation failed");
+        let decomposition =
+            swt2d_decompose(&data, Wavelet::Haar, 1, None).expect("Operation failed");
 
         // Reconstruct
-        let reconstructed = swt2d_reconstruct(&decomposition, Wavelet::Haar, 1, None).expect("Operation failed");
+        let reconstructed =
+            swt2d_reconstruct(&decomposition, Wavelet::Haar, 1, None).expect("Operation failed");
 
         // Check dimensions
         assert_eq!(reconstructed.shape(), data.shape());

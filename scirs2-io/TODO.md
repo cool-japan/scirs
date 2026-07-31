@@ -1,5 +1,25 @@
 # scirs2-io TODO
 
+## Status: v0.6.5 (2026-07-31)
+
+**NetCDF3 Classic backend is now real.** `netcdf/classic_backend.rs` (490 lines, new) adapts
+`NetCDFFile` onto the pure-Rust `netcdf3` crate (`netcdf3 = { workspace = true }` in `Cargo.toml`
+— previously listed as unused dead weight; see the corrected Known Issues entry below) for
+genuine CDF-1/CDF-2 binary read/write, including a documented workaround for a `netcdf3` 0.6.1
+`FileWriter::close()` defect (verified via standalone reproduction against the `netcdf3` crate
+directly: `close()` fills any variable that was never explicitly written using the
+*dataset-wide* record count/stride rather than that variable's own — correct for record
+variables, but wrong for a fixed-size variable sharing a dataset with record variables that have
+`numrecs > 1`, which silently corrupted already-written sibling data). This module now always
+writes every fixed-size variable explicitly instead of relying on `close()`'s auto-fill. The
+previous no-op stand-in is preserved for reference under `netcdf/backup/`. NetCDF4 (HDF5-based)
+is unaffected — it already used the separate, real `oxih5`-backed `crate::hdf5` path.
+
+Dependency bumps this cycle: `oxicode` 0.2.4 → 0.2.5, `oxiz` 0.3.0 → 0.3.1,
+`oxiarc-archive`/`-lz4`/`-bzip2`/`-zstd`/`-deflate`/`-snappy`/`-brotli` 0.3.6 → 0.4.0. This crate
+has zero `#[ignore]`d tests both before and after the workspace-wide ignore-legitimacy audit
+(132 → 59 ignores workspace-wide) — unaffected by that pass.
+
 ## Status: v0.6.3 (2026-07-27)
 
 Untouched by this release (no io-specific changes shipped in 0.6.3); the 0.6.2 changes and test
@@ -116,6 +136,7 @@ Zero `todo!()`/`unimplemented!()` stubs in `src/`. Freshly measured test counts 
 
 ## Known Issues
 
+- **[Corrected 2026-07-31]** ~~NetCDF: Hand-rolled, pure-Rust NetCDF3 Classic and NetCDF4/HDF5 reader/writer with unlimited dimensions and chunking (`netcdf/`, 1300+ lines; does not wrap the external `netcdf3` crate — that dependency is currently unused dead weight in `Cargo.toml`)~~ Obsolete as of 0.6.5: `netcdf/classic_backend.rs` (490 lines, new) now adapts `NetCDFFile` onto the real `netcdf3` crate for genuine CDF-1/CDF-2 binary read/write (previously a no-op stand-in, now kept for reference under `netcdf/backup/`), including a documented workaround for a `netcdf3` 0.6.1 `FileWriter::close()` defect that could silently corrupt fixed-size-variable data in a dataset that also contains record variables. `netcdf3` is no longer unused/dead weight in `Cargo.toml`. NetCDF4 (HDF5-based) was and remains real via the separate `oxih5`-backed `crate::hdf5` path.
 - **[Corrected 2026-07-22]** ~~Large HDF5 files with deeply nested groups may be slow on the pure-Rust hdf5-lite reader; the system-library `hdf5` feature should be preferred for those workloads.~~ Obsolete as of 0.6.2: the `hdf5_lite` module was deleted outright (2697 lines), superseded by the pure-Rust `oxih5` backend for every HDF5 path in the crate; the `hdf5` Cargo feature is now a no-op alias (HDF5 support is unconditional), not a system-library switch — there is no `libhdf5` alternative to fall back to any more. Performance of `oxih5` on deeply-nested-group files has not been independently benchmarked.
 - **[Corrected 2026-07-15]** ~~The ORC reader does not yet support all column encodings (RLE v2, dictionary, DIRECT_V2); unsupported columns fall back to raw bytes.~~ Verified stale: both `formats::orc` and `formats::orc_lite` implement RLE v2 integer encoding (direct/delta/variable-length modes), dictionary string encoding, and bit-packed boolean RLE (`orc.rs::decode_i64`/`decode_dict_strings`/`decode_bool_rle`, `orc_lite.rs::IntRleV2`). Remaining caveat: neither format reads/writes third-party `.orc` files produced by Hive/Spark/etc. — both use their own magic bytes and framing (`ORCEXT\0\0` / `ORCLITE\0`) rather than the real Apache ORC Protobuf postscript/footer, so they are ORC-inspired pure-Rust formats, not Apache-ORC-file-compatible readers.
 - **[Corrected 2026-07-15]** ~~Arrow IPC streaming does not yet validate all IPC message types; unknown message types are silently skipped.~~ Verified stale: `arrow_ipc::read_message`/`read_batches` and `arrow_streaming::read_message` now return `IoError::FormatError` ("Unexpected/unexpected message type ...") on any unrecognized message tag instead of skipping it silently.

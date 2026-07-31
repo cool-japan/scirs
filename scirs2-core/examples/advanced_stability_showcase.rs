@@ -525,9 +525,18 @@ mod tests {
             );
         }
 
-        // Check data points were recorded
-        // Note: In a real implementation, we'd have methods to check this
-        assert!(true); // Placeholder assertion
+        // Check that the 3 recorded measurements actually landed in the
+        // manager's immutable audit trail, instead of a tautological
+        // placeholder assertion.
+        assert_eq!(
+            manager.get_audit_trail_length(),
+            3,
+            "each record_performance() call should append one audit record"
+        );
+        assert!(
+            manager.verify_audit_integrity(),
+            "audit trail hash chain should remain valid after the recordings"
+        );
     }
 
     #[test]

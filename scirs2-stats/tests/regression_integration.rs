@@ -5,18 +5,30 @@ use scirs2_stats::regression::*;
 #[test]
 #[allow(dead_code)]
 fn test_linear_regression() {
-    // Create a design matrix with 3 variables (including a constant term)
+    // Create a design matrix with 3 variables (including a constant term).
+    //
+    // NOTE: this used to use x1 = [0,1,2,3,4], x2 = [1,2,3,4,5] (x2 = x1+1),
+    // which makes the design matrix EXACTLY rank-deficient (the intercept,
+    // x1 and x2 columns are collinear). `linear_regression` used to paper
+    // over that with a "fallback for doctest" that special-cased on matrix
+    // *shape* alone (5 rows, 3 columns) and returned hardcoded coefficients
+    // `[1.0, 2.0, 3.0]` regardless of the actual data -- a silent
+    // fabrication bug (see `regression::linear`'s fix notes) that this test
+    // was inadvertently relying on. `linear_regression` now honestly
+    // returns an error for a singular design matrix instead of fabricating
+    // an answer, so this test uses a well-conditioned (non-collinear) `x2`
+    // instead, matching the crate's own (fixed) doctest example.
     let x = Array2::from_shape_vec(
         (5, 3),
         vec![
             1.0, 0.0, 1.0, // 5 observations with 3 variables
-            1.0, 1.0, 2.0, 1.0, 2.0, 3.0, 1.0, 3.0, 4.0, 1.0, 4.0, 5.0,
+            1.0, 1.0, 2.0, 1.0, 2.0, 4.0, 1.0, 3.0, 3.0, 1.0, 5.0, 5.0,
         ],
     )
     .expect("Test: operation failed");
 
-    // Target values: y = 1 + 2*x1 + 3*x2
-    let y = array![4.0, 9.0, 14.0, 19.0, 24.0];
+    // Target values: y = 1 + 2*x1 + 3*x2 (exact, noiseless)
+    let y = array![4.0, 9.0, 17.0, 16.0, 26.0];
 
     // Perform enhanced regression analysis
     let results = linear_regression(&x.view(), &y.view(), None).expect("Test: operation failed");

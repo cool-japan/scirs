@@ -1,6 +1,6 @@
 # scirs2-transform TODO
 
-## Status: v0.6.3 (current, 2026-07-27) — reassessed Stable → Partial
+## Status: v0.6.5 (current, 2026-07-31) — reassessed Stable → Partial
 
 - [x] **Fixed `AdvancedMemoryPool::prewarm_common_sizes` eager pre-allocation (0.6.3)** (`src/performance.rs`) — it eagerly pre-allocated up to ~5.5 GB of spare buffers just to construct an `AdvancedPCA`; Linux's overcommit hid the cost, but Windows backed the whole reservation up front and aborted the process. Pre-warming is now capped by a 64 MB total budget spent smallest-size-first. Verified by code review and the (unchanged) test counts below; not exercised under Windows CI. See `CHANGELOG.md` `[0.6.3]` for full detail.
 - [x] **Removed unused direct `rand` dependency** — `scirs2-transform`'s `Cargo.toml` carried a direct `rand` crate dependency (previously banned; all random-number generation in this workspace goes through `scirs2_core::random`) with zero actual `rand::`/`use rand` call sites anywhere in `src/`. Removed as pure cleanup; no behavior change. (All apparent `rand`-prefixed hits in a naive grep, e.g. in `performance.rs`, are `scirs2_core::random::{Rng, RngExt}` usage and identifiers like `random_matrix`/`use_randomized` — substring matches on "rand" inside "random", not the banned crate.)

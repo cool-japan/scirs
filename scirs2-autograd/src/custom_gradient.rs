@@ -44,7 +44,7 @@
 //!         &self,
 //!         output_grad: &ag::Tensor<'g, f64>,
 //!         _saved_tensors: &[ag::Tensor<'g, f64>],
-//!         _ctx: &'g ag::Context<'g, f64>,
+//!         _ctx: &'g ag::Graph<f64>,
 //!     ) -> Vec<Option<ag::Tensor<'g, f64>>> {
 //!         // STE: pass gradient through unchanged
 //!         vec![Some(*output_grad)]
@@ -104,7 +104,7 @@ pub trait CustomGradientOp<F: Float>: Send + Sync {
         &self,
         output_grad: &Tensor<'g, F>,
         saved_tensors: &[Tensor<'g, F>],
-        ctx: &'g Context<'g, F>,
+        ctx: &'g crate::graph::Graph<F>,
     ) -> Vec<Option<Tensor<'g, F>>>;
 
     /// Number of inputs this op expects.
@@ -152,7 +152,7 @@ impl<F: Float> op::Op<F> for CustomGradientWrapper<F> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let output_grad = ctx.output_grad();
         let graph = ctx.graph();
 
@@ -211,7 +211,7 @@ impl<F: Float> op::Op<F> for CustomGradientWrapper<F> {
 ///         &self,
 ///         output_grad: &ag::Tensor<'g, f64>,
 ///         _saved: &[ag::Tensor<'g, f64>],
-///         _ctx: &'g ag::Context<'g, f64>,
+///         _ctx: &'g ag::Graph<f64>,
 ///     ) -> Vec<Option<ag::Tensor<'g, f64>>> {
 ///         vec![Some(*output_grad * 2.0)]
 ///     }
@@ -249,12 +249,54 @@ pub fn custom_op<'g, F: Float>(
 /// single-output operation where both forward and backward can be expressed
 /// as closures.
 ///
+/// The backward closure is called during backpropagation with
+/// `(output_grad, input, output)` and returns the gradient w.r.t. the input, or
+/// `None` to block the gradient entirely. It is applied **verbatim**: this function
+/// makes no attempt to check the rule against the forward pass, which is the whole
+/// point of a custom gradient (straight-through estimators, stabilized rules,
+/// deliberately approximate rules). Use
+/// [`crate::test_helper::gradient_check`] if you want the rule verified numerically.
+///
 /// # Arguments
 /// * `name` - Name for debugging
 /// * `forward_fn` - Closure computing the forward pass
 /// * `backward_fn` - Closure computing the gradient given (output_grad, input, output)
 /// * `input` - The input tensor
 /// * `ctx` - The autograd context
+///
+/// # Closure signature
+///
+/// `backward_fn` must be generic over the graph lifetime (a higher-ranked bound):
+/// annotate its parameters with an anonymous lifetime — `&Tensor<'_, f64>` — and build
+/// the result out of the tensors it is handed rather than out of tensors captured from
+/// the enclosing scope (a captured tensor is tied to one specific graph lifetime and
+/// will not satisfy the bound).
+///
+/// # Example
+///
+/// ```rust
+/// use scirs2_autograd as ag;
+/// use ag::tensor_ops as T;
+/// use scirs2_core::ndarray::{array, ArrayViewD};
+///
+/// ag::run(|ctx: &mut ag::Context<f64>| {
+///     let x = T::variable(array![0.5_f64, -1.5, 2.0], ctx);
+///     // Forward: x^3.  Backward: 3 x^2 * gy.
+///     let y = ag::custom_unary_op(
+///         "cube",
+///         |v: &ArrayViewD<f64>| v.mapv(|e| e * e * e),
+///         |gy: &ag::Tensor<'_, f64>, x: &ag::Tensor<'_, f64>, _y: &ag::Tensor<'_, f64>| {
+///             Some(T::mul(*gy, T::scalar_mul(T::square(*x), 3.0)))
+///         },
+///         x,
+///         ctx,
+///     );
+///     let gx = T::grad(&[T::sum_all(y)], &[x])[0];
+///     let g = gx.eval(ctx).expect("gradient");
+///     // 3 * 0.5^2 = 0.75
+///     assert!((g[[0]] - 0.75).abs() < 1e-10);
+/// });
+/// ```
 pub fn custom_unary_op<'g, F, FwdFn, BwdFn>(
     name: &'static str,
     forward_fn: FwdFn,
@@ -265,12 +307,27 @@ pub fn custom_unary_op<'g, F, FwdFn, BwdFn>(
 where
     F: Float,
     FwdFn: Fn(&ArrayViewD<F>) -> ArrayD<F> + Send + Sync + 'static,
-    BwdFn: Fn(&Tensor<'g, F>, &Tensor<'g, F>, &Tensor<'g, F>) -> Option<Tensor<'g, F>>
+    // The backward closure is **higher-ranked** over the graph lifetime.  An `Op` must be
+    // `'static`, so it cannot store a closure tied to one particular `'g`; binding the
+    // closure to the caller's `'g` is exactly what forced the previous implementation to
+    // give up and pass the cotangent through unchanged, silently ignoring the backward
+    // function the caller supplied.  Quantifying over the lifetime instead lets the op
+    // hold the closure and call it with whatever graph lifetime the backward pass has.
+    BwdFn: for<'graph> Fn(
+            &Tensor<'graph, F>,
+            &Tensor<'graph, F>,
+            &Tensor<'graph, F>,
+        ) -> Option<Tensor<'graph, F>>
         + Send
         + Sync
         + 'static,
 {
-    // We use a wrapper struct to hold the closures
+    // We use a wrapper struct to hold the closures.
+    //
+    // `Send`/`Sync` are derived automatically from the `Fwd`/`Bwd` bounds below plus
+    // `PhantomData<F>` (`F: Float` is itself `Send + Sync`), so the two hand-written
+    // `unsafe impl`s that used to live here — which promised `Send` without requiring
+    // `F: Send` — are gone.
     struct ClosureOp<F: Float, Fwd, Bwd> {
         name: &'static str,
         forward: Fwd,
@@ -278,14 +335,17 @@ where
         _phantom: std::marker::PhantomData<F>,
     }
 
-    // Safety: We require Send + Sync on the closures
-    unsafe impl<F: Float, Fwd: Send, Bwd: Send> Send for ClosureOp<F, Fwd, Bwd> {}
-    unsafe impl<F: Float, Fwd: Sync, Bwd: Sync> Sync for ClosureOp<F, Fwd, Bwd> {}
-
     impl<F: Float, Fwd, Bwd> op::Op<F> for ClosureOp<F, Fwd, Bwd>
     where
-        Fwd: Fn(&ArrayViewD<F>) -> ArrayD<F> + Send + Sync,
-        Bwd: Send + Sync,
+        Fwd: Fn(&ArrayViewD<F>) -> ArrayD<F> + Send + Sync + 'static,
+        Bwd: for<'graph> Fn(
+                &Tensor<'graph, F>,
+                &Tensor<'graph, F>,
+                &Tensor<'graph, F>,
+            ) -> Option<Tensor<'graph, F>>
+            + Send
+            + Sync
+            + 'static,
     {
         fn name(&self) -> &'static str {
             self.name
@@ -298,12 +358,14 @@ where
             Ok(())
         }
 
-        fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
-            // For closure-based ops, we pass None since we can't call the Bwd closure
-            // through the Op trait boundary (lifetime issues). Use custom_op for
-            // full backward control.
+        fn grad<'a, 'graph>(&self, ctx: &mut GradientContext<'a, 'graph, F>) {
+            // Apply the user-registered backward closure.  This is the entire point of
+            // `custom_unary_op`: without it the op reports `d f(x) / dx = 1`.
             let gy = ctx.output_grad();
-            ctx.append_input_grad(0, Some(*gy));
+            let x = ctx.input(0);
+            let y = ctx.output();
+            let gx = (self.backward)(gy, x, y);
+            ctx.append_input_grad(0, gx);
         }
     }
 
@@ -549,7 +611,7 @@ mod tests {
             &self,
             output_grad: &Tensor<'g, f64>,
             _saved: &[Tensor<'g, f64>],
-            _ctx: &'g Context<'g, f64>,
+            _ctx: &'g crate::graph::Graph<f64>,
         ) -> Vec<Option<Tensor<'g, f64>>> {
             vec![Some(*output_grad * 2.0)]
         }
@@ -601,15 +663,174 @@ mod tests {
 
             let grad_arr = result[0].as_ref().expect("Should evaluate gradient");
             let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
-            // The custom backward returns output_grad * 2.
-            // For sum(identity(x)), output_grad = [1,1,1], so result = [2,2,2].
-            // Note: The autograd passes output_grad as the upstream gradient,
-            // and our custom backward doubles it.
-            // The actual value may be 1.0 if the autograd bypass works differently.
-            // We verify the gradient is finite and correct direction.
-            for val in grad_vals {
-                assert!(val.is_finite(), "Gradient should be finite");
-                assert!(*val > 0.0, "Gradient should be positive");
+            // `sum_all`'s cotangent is uniformly 1 and the registered backward doubles
+            // it, so the gradient must be exactly 2 everywhere. A 1.0 here would mean
+            // the wrapper fell back to passing the cotangent straight through instead
+            // of calling `CustomGradientOp::backward`.
+            assert_eq!(grad_vals.len(), 3, "gradient must have the input's shape");
+            for &val in grad_vals {
+                assert!(
+                    (val - 2.0).abs() < 1e-12,
+                    "expected exactly 2.0 from the doubling backward rule, got {val}"
+                );
+            }
+        });
+    }
+
+    // --- CustomGradientOp: a backward rule that reads its saved tensors ---
+
+    /// Forward is `x^2` and the backward recovers `2x` from `saved_tensors[0]`, so this
+    /// verifies the *saved-tensor contract* (`saves_inputs`/`saves_output`), not just
+    /// that some backward ran.
+    struct SquareFromSavedOp;
+
+    impl CustomGradientOp<f64> for SquareFromSavedOp {
+        fn forward(&self, inputs: &[ArrayViewD<f64>]) -> Result<ArrayD<f64>, OpError> {
+            Ok(inputs[0].mapv(|v| v * v))
+        }
+
+        fn backward<'g>(
+            &self,
+            output_grad: &Tensor<'g, f64>,
+            saved: &[Tensor<'g, f64>],
+            _ctx: &'g crate::graph::Graph<f64>,
+        ) -> Vec<Option<Tensor<'g, f64>>> {
+            assert_eq!(
+                saved.len(),
+                2,
+                "saves_inputs() + saves_output() must deliver [x, y]"
+            );
+            let x = saved[0];
+            vec![Some(*output_grad * (x * 2.0))]
+        }
+
+        fn num_inputs(&self) -> usize {
+            1
+        }
+
+        fn name(&self) -> &'static str {
+            "SquareFromSaved"
+        }
+    }
+
+    #[test]
+    fn test_custom_op_backward_uses_saved_input_tensor() {
+        crate::run(|ctx: &mut Context<f64>| {
+            let x_arr = scirs2_core::ndarray::arr1(&[1.5, -2.0, 3.25]);
+            let x = tensor_ops::variable(x_arr.clone().into_dyn(), ctx);
+            let op = Arc::new(SquareFromSavedOp);
+            let y = custom_op(op, &[x], ctx);
+            let loss = crate::tensor_ops::reduction::sum_all(y);
+
+            let grads = crate::tensor_ops::grad(&[loss], &[x]);
+            let grad_arr = grads[0].eval(ctx).expect("Should evaluate gradient");
+            let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
+            assert_eq!(grad_vals.len(), 3);
+            for (i, &val) in grad_vals.iter().enumerate() {
+                let expected = 2.0 * x_arr[i];
+                assert!(
+                    (val - expected).abs() < 1e-12,
+                    "d(x^2)/dx[{i}] = {val}, expected {expected}"
+                );
+            }
+        });
+    }
+
+    // --- custom_unary_op: the closure-based convenience wrapper ---
+
+    /// The registered backward closure must be invoked verbatim.
+    ///
+    /// The forward is `x^2`, whose true derivative is `2x`, and the registered backward
+    /// is the deliberately unrelated `5 * gy`. Exactly 5 therefore proves the caller's
+    /// closure ran: 1 would mean it was ignored (the old pass-through), `2x` would mean
+    /// something else supplied the rule.
+    #[test]
+    fn test_custom_unary_op_applies_registered_backward() {
+        crate::run(|ctx: &mut Context<f64>| {
+            let x_arr = scirs2_core::ndarray::arr1(&[1.5, -2.0, 3.25]);
+            let x = tensor_ops::variable(x_arr.clone().into_dyn(), ctx);
+            let y = custom_unary_op(
+                "square_with_five_times_backward",
+                |v: &ArrayViewD<f64>| v.mapv(|e| e * e),
+                |gy: &Tensor<'_, f64>, _x: &Tensor<'_, f64>, _y: &Tensor<'_, f64>| Some(*gy * 5.0),
+                x,
+                ctx,
+            );
+
+            // Forward is the plain square.
+            let y_arr = y.eval(ctx).expect("forward should evaluate");
+            for (i, &v) in y_arr.iter().enumerate() {
+                assert!(
+                    (v - x_arr[i] * x_arr[i]).abs() < 1e-12,
+                    "forward[{i}] = {v}"
+                );
+            }
+
+            let loss = crate::tensor_ops::reduction::sum_all(y);
+            let grads = crate::tensor_ops::grad(&[loss], &[x]);
+            let grad_arr = grads[0].eval(ctx).expect("Should evaluate gradient");
+            assert_eq!(grad_arr.shape(), &[3]);
+            for (i, &val) in grad_arr.iter().enumerate() {
+                assert!(
+                    (val - 5.0).abs() < 1e-12,
+                    "custom_unary_op backward `5 * gy` must give exactly 5 at {i}, got {val}"
+                );
+            }
+        });
+    }
+
+    /// A closure that reads the forward *output* it was handed.
+    #[test]
+    fn test_custom_unary_op_backward_reads_output() {
+        crate::run(|ctx: &mut Context<f64>| {
+            let x_arr = scirs2_core::ndarray::arr1(&[0.3, -0.7, 1.1]);
+            let x = tensor_ops::variable(x_arr.clone().into_dyn(), ctx);
+            // Forward exp(x); backward y * gy, i.e. the derivative expressed through
+            // the output.
+            let y = custom_unary_op(
+                "exp_via_closure",
+                |v: &ArrayViewD<f64>| v.mapv(|e| e.exp()),
+                |gy: &Tensor<'_, f64>, _x: &Tensor<'_, f64>, y: &Tensor<'_, f64>| Some(*gy * *y),
+                x,
+                ctx,
+            );
+            let loss = crate::tensor_ops::reduction::sum_all(y);
+            let grads = crate::tensor_ops::grad(&[loss], &[x]);
+            let grad_arr = grads[0].eval(ctx).expect("Should evaluate gradient");
+            for (i, &val) in grad_arr.iter().enumerate() {
+                let expected = x_arr[i].exp();
+                assert!(
+                    (val - expected).abs() < 1e-10,
+                    "d(exp(x))/dx[{i}] = {val}, expected {expected}"
+                );
+            }
+        });
+    }
+
+    /// A closure returning `None` must block the gradient rather than fall back to the
+    /// pass-through.
+    #[test]
+    fn test_custom_unary_op_backward_none_blocks_gradient() {
+        crate::run(|ctx: &mut Context<f64>| {
+            let x = tensor_ops::variable(
+                scirs2_core::ndarray::arr1(&[1.5, -2.0, 3.25]).into_dyn(),
+                ctx,
+            );
+            let y = custom_unary_op(
+                "square_with_no_backward",
+                |v: &ArrayViewD<f64>| v.mapv(|e| e * e),
+                |_gy: &Tensor<'_, f64>, _x: &Tensor<'_, f64>, _y: &Tensor<'_, f64>| None,
+                x,
+                ctx,
+            );
+            let loss = crate::tensor_ops::reduction::sum_all(y);
+            let grads = crate::tensor_ops::grad(&[loss], &[x]);
+            let grad_arr = grads[0].eval(ctx).expect("Should evaluate gradient");
+            for (i, &val) in grad_arr.iter().enumerate() {
+                assert!(
+                    val.abs() < 1e-12,
+                    "a `None` backward must block the gradient, got {val} at {i}"
+                );
             }
         });
     }
@@ -626,7 +847,7 @@ mod tests {
             &self,
             output_grad: &Tensor<'g, f64>,
             _saved: &[Tensor<'g, f64>],
-            _ctx: &'g Context<'g, f64>,
+            _ctx: &'g crate::graph::Graph<f64>,
         ) -> Vec<Option<Tensor<'g, f64>>> {
             vec![Some(*output_grad)]
         }
@@ -656,8 +877,15 @@ mod tests {
                 .run();
             let fwd_arr = fwd_result[0].as_ref().expect("Forward should work");
             let fwd_vals = fwd_arr.as_slice().unwrap_or(&[]);
-            assert!((fwd_vals[0] - 0.0).abs() < 1e-10);
-            assert!((fwd_vals[1] - 2.0).abs() < 1e-10);
+            // f64::round is half-away-from-zero: 0.3 -> 0, 1.7 -> 2, -0.5 -> -1, 2.9 -> 3.
+            let expected_fwd = [0.0, 2.0, -1.0, 3.0];
+            assert_eq!(fwd_vals.len(), 4);
+            for (i, (&got, &want)) in fwd_vals.iter().zip(expected_fwd.iter()).enumerate() {
+                assert!(
+                    (got - want).abs() < 1e-10,
+                    "round[{i}] = {got}, want {want}"
+                );
+            }
 
             // Backward: STE passes gradient through unchanged
             let loss = crate::tensor_ops::reduction::sum_all(y);
@@ -669,9 +897,14 @@ mod tests {
                 .run();
             let grad_arr = grad_result[0].as_ref().expect("Gradient should work");
             let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
-            // STE: gradient should pass through (finite values)
-            for val in grad_vals {
-                assert!(val.is_finite(), "STE gradient should be finite");
+            // The true derivative of `round` is 0 almost everywhere; the whole point of
+            // the STE is to report exactly 1 instead, and `sum_all`'s cotangent is 1.
+            assert_eq!(grad_vals.len(), 4);
+            for &val in grad_vals {
+                assert!(
+                    (val - 1.0).abs() < 1e-12,
+                    "the STE must pass the cotangent through unchanged, got {val}"
+                );
             }
         });
     }
@@ -695,13 +928,16 @@ mod tests {
 
             let grad_arr = result[0].as_ref().expect("Should evaluate");
             let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
-            // Verify gradient is computed (at least finite values)
-            for val in grad_vals {
-                assert!(val.is_finite(), "Gradient should be finite");
+            // `sum_all`'s cotangent is uniformly 1, so the mask is reproduced verbatim:
+            // allowed entries keep the 1, blocked entries are exactly 0.
+            assert_eq!(grad_vals.len(), 4, "Should have 4 gradient elements");
+            let expected = [1.0, 0.0, 1.0, 0.0];
+            for (i, (&got, &want)) in grad_vals.iter().zip(expected.iter()).enumerate() {
+                assert!(
+                    (got - want).abs() < 1e-12,
+                    "selective_stop_gradient[{i}] = {got}, expected {want}"
+                );
             }
-            // Allowed indices should have larger magnitude than blocked ones
-            // (in absolute terms, unless the scalar-broadcast makes them equal)
-            assert!(grad_vals.len() == 4, "Should have 4 gradient elements");
         });
     }
 
@@ -722,10 +958,14 @@ mod tests {
 
             let grad_arr = result[0].as_ref().expect("Should evaluate");
             let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
-            // The ScaleGradient op multiplies the upstream gradient by 0.5.
-            // Verify gradients are scaled down from 1.0.
-            for val in grad_vals {
-                assert!(val.is_finite(), "Gradient should be finite");
+            // Forward is the identity, so the cotangent of `sum_all` is 1 and the op
+            // must scale it to exactly 0.5.
+            assert_eq!(grad_vals.len(), 3);
+            for &val in grad_vals {
+                assert!(
+                    (val - 0.5).abs() < 1e-12,
+                    "scale_gradient(0.5) must yield exactly 0.5, got {val}"
+                );
             }
         });
     }
@@ -747,13 +987,15 @@ mod tests {
 
             let grad_arr = result[0].as_ref().expect("Should evaluate");
             let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
-            // Gradient reversal should produce finite gradients
-            for val in grad_vals {
-                assert!(val.is_finite(), "Gradient should be finite");
+            // Forward is the identity, so the reversal must flip the cotangent 1 to
+            // exactly -1 -- the sign is the entire content of this op.
+            assert_eq!(grad_vals.len(), 2);
+            for &val in grad_vals {
+                assert!(
+                    (val + 1.0).abs() < 1e-12,
+                    "gradient_reversal must yield exactly -1, got {val}"
+                );
             }
-            // Verify the gradient is not all zeros (op is actually doing something)
-            let sum: f64 = grad_vals.iter().copied().sum();
-            assert!(sum.abs() > 1e-15, "Gradient sum should be nonzero");
         });
     }
 
@@ -763,11 +1005,10 @@ mod tests {
             let x = ctx.placeholder("x", &[3]);
             let y = x * 2.0;
             let z = super::detach(y, ctx);
-            // z has no gradient connection to x
-            // loss = sum(z) + sum(x)
-            // d(loss)/dx from the z path = 0 (detached)
-            // d(loss)/dx from the x path = 1
-            // But the graph structure may vary; just verify gradient is finite.
+            // z has no gradient connection to x:
+            //   d(loss)/dx through the z path = 0 (detached)
+            //   d(loss)/dx through the direct x path = 1
+            // so the total must be exactly 1, not the 3 it would be without `detach`.
             let loss = crate::tensor_ops::reduction::sum_all(z + x);
 
             let grads = crate::tensor_ops::grad(&[loss], &[x]);
@@ -780,9 +1021,12 @@ mod tests {
 
             let grad_arr = result[0].as_ref().expect("Should evaluate");
             let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
-            // Detach blocks gradient from z path; gradient from direct x path remains.
-            for val in grad_vals {
-                assert!(val.is_finite(), "Gradient should be finite");
+            assert_eq!(grad_vals.len(), 3);
+            for &val in grad_vals {
+                assert!(
+                    (val - 1.0).abs() < 1e-12,
+                    "detach must cut the 2*x path, leaving exactly 1, got {val}"
+                );
             }
         });
     }
@@ -814,5 +1058,140 @@ mod tests {
         assert!(op.saves_inputs());
         assert!(op.saves_output());
         assert_eq!(op.num_inputs(), 1);
+    }
+
+    // -----------------------------------------------------------------------
+    // Dispatch-safety regression tests.
+    //
+    // `CustomGradientWrapper::name()` forwards the *user's* string verbatim (see
+    // `impl op::Op<F> for CustomGradientWrapper` above). `gradient.rs`'s backward-pass
+    // override table used to be keyed on `Op::name()`; a custom op named after a
+    // built-in op (e.g. `"Cond"`, `"Rank"`) would then have been routed through that
+    // built-in op's override arm instead of this op's own `backward()`. The table is
+    // now keyed on `TypeId` (`Op::concrete_type_id`), which cannot be spoofed by
+    // `name()`, so these collisions must have no effect on the computed gradient.
+    // -----------------------------------------------------------------------
+
+    /// Reuses the exact `name()` string of the built-in `RankOp` override arm
+    /// (`"Rank"`). That arm returns `Some(vec![None; num_inputs])`
+    /// *unconditionally* (no downcast at all), so under the old string-keyed table
+    /// this collision would have forced the gradient to `None` (-> zero, via
+    /// `tensor_ops::grad`'s non-differentiable fallback) for every input, regardless
+    /// of what this op's own `backward` computes.
+    struct FakeRankNamedOp;
+
+    impl CustomGradientOp<f64> for FakeRankNamedOp {
+        fn forward(&self, inputs: &[ArrayViewD<f64>]) -> Result<ArrayD<f64>, OpError> {
+            Ok(inputs[0].to_owned())
+        }
+
+        fn backward<'g>(
+            &self,
+            output_grad: &Tensor<'g, f64>,
+            _saved: &[Tensor<'g, f64>],
+            _ctx: &'g crate::graph::Graph<f64>,
+        ) -> Vec<Option<Tensor<'g, f64>>> {
+            // A distinctive multiplier unrelated to any built-in op's gradient, so a
+            // hijacked dispatch (forced `None` -> zero) is trivially distinguishable
+            // from the correct answer.
+            vec![Some(*output_grad * 3.0)]
+        }
+
+        fn num_inputs(&self) -> usize {
+            1
+        }
+
+        fn name(&self) -> &'static str {
+            "Rank"
+        }
+    }
+
+    #[test]
+    fn test_custom_gradient_name_collision_with_rank_is_not_hijacked() {
+        crate::run(|ctx: &mut Context<f64>| {
+            let x = ctx.placeholder("x", &[3]);
+            let op = Arc::new(FakeRankNamedOp);
+            let y = custom_op(op, &[x], ctx);
+            let loss = crate::tensor_ops::reduction::sum_all(y);
+
+            let grads = crate::tensor_ops::grad(&[loss], &[x]);
+            let x_val = scirs2_core::ndarray::arr1(&[1.0, 2.0, 3.0]);
+            let result = ctx
+                .evaluator()
+                .push(&grads[0])
+                .feed(x, x_val.view().into_dyn())
+                .run();
+
+            let grad_arr = result[0].as_ref().expect("Should evaluate gradient");
+            let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
+            // `sum_all`'s cotangent is uniformly 1, so this op's own `backward`
+            // (tripling it) must yield uniformly 3.0. The pre-fix behaviour (hijacked
+            // by the built-in `Rank` arm) would instead yield 0.0 everywhere.
+            assert_eq!(grad_vals.len(), 3);
+            for &val in grad_vals {
+                assert!(
+                    (val - 3.0).abs() < 1e-10,
+                    "expected 3.0 from the custom op's own backward rule, got {val}"
+                );
+            }
+        });
+    }
+
+    /// Reuses the exact `name()` string of the built-in `CondOp` override arm
+    /// (`"Cond"`). That arm downcasts to `tensor_ops::CondOp` to recover the norm
+    /// variant; under the old string-keyed table the downcast would have failed
+    /// (this is not really a `CondOp`), sending the gradient down the "not the
+    /// 2-norm variant" path -> `None` for every input.
+    struct FakeCondNamedOp;
+
+    impl CustomGradientOp<f64> for FakeCondNamedOp {
+        fn forward(&self, inputs: &[ArrayViewD<f64>]) -> Result<ArrayD<f64>, OpError> {
+            Ok(inputs[0].to_owned())
+        }
+
+        fn backward<'g>(
+            &self,
+            output_grad: &Tensor<'g, f64>,
+            _saved: &[Tensor<'g, f64>],
+            _ctx: &'g crate::graph::Graph<f64>,
+        ) -> Vec<Option<Tensor<'g, f64>>> {
+            vec![Some(*output_grad * 5.0)]
+        }
+
+        fn num_inputs(&self) -> usize {
+            1
+        }
+
+        fn name(&self) -> &'static str {
+            "Cond"
+        }
+    }
+
+    #[test]
+    fn test_custom_gradient_name_collision_with_cond_is_not_hijacked() {
+        crate::run(|ctx: &mut Context<f64>| {
+            let x = ctx.placeholder("x", &[4]);
+            let op = Arc::new(FakeCondNamedOp);
+            let y = custom_op(op, &[x], ctx);
+            let loss = crate::tensor_ops::reduction::sum_all(y);
+
+            let grads = crate::tensor_ops::grad(&[loss], &[x]);
+            let x_val = scirs2_core::ndarray::arr1(&[1.0, -2.0, 3.0, -4.0]);
+            let result = ctx
+                .evaluator()
+                .push(&grads[0])
+                .feed(x, x_val.view().into_dyn())
+                .run();
+
+            let grad_arr = result[0].as_ref().expect("Should evaluate gradient");
+            let grad_vals = grad_arr.as_slice().unwrap_or(&[]);
+            assert_eq!(grad_vals.len(), 4);
+            for &val in grad_vals {
+                assert!(
+                    (val - 5.0).abs() < 1e-10,
+                    "expected 5.0 from the custom op's own backward rule, got {val}"
+                );
+            }
+        });
     }
 }

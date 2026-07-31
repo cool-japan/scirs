@@ -3,12 +3,9 @@ use scirs2_core::ndarray::s;
 //
 // This module contains unit tests for the utilities module.
 
-use super::super::spectral::*;
-use crate::utilities::spectral::spectral_centroid;
-use crate::utilities::spectral::spectral_flux;
-use crate::utilities::spectral::spectral_rolloff;
-use scirs2_core::ndarray::{Array1, Array2};
+use super::spectral::*;
 use approx::assert_relative_eq;
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[allow(unused_imports)]
 #[cfg(test)]
@@ -16,8 +13,6 @@ mod spectral_tests {
     use super::*;
     #[test]
     fn test_energy_spectral_density() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a simple PSD
         let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
         let fs = 100.0; // Sample rate in Hz
@@ -32,8 +27,6 @@ mod spectral_tests {
 
     #[test]
     fn test_normalized_psd() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a simple PSD
         let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
 
@@ -53,8 +46,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_centroid() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a symmetric PSD with peak in the middle
         let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -76,8 +67,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_spread() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a symmetric PSD with peak in the middle
         let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -99,8 +88,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_skewness() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a symmetric PSD
         let psd = vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -145,8 +132,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_kurtosis() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a flat PSD (uniform distribution)
         let psd = vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -168,8 +153,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_flatness() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a flat PSD (white noise-like)
         let psd = vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
 
@@ -222,8 +205,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_rolloff() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a PSD with energy concentrated in first half
         let psd = vec![1.0, 2.0, 3.0, 4.0, 0.1, 0.1, 0.1];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -250,8 +231,6 @@ mod spectral_tests {
     // Tests for new spectral functions
     #[test]
     fn test_spectral_crest() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a flat PSD (white noise-like)
         let psd = vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
 
@@ -272,8 +251,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_decrease() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a spectrum with decreasing amplitude
         let psd = vec![5.0, 4.0, 3.0, 2.0, 1.0, 0.5, 0.2];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -295,8 +272,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_slope() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a spectrum with negative slope
         let psd = vec![5.0, 4.0, 3.0, 2.0, 1.0, 0.5, 0.2];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -318,8 +293,6 @@ mod spectral_tests {
 
     #[test]
     fn test_spectral_contrast() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a spectrum with clear peaks and valleys
         let psd = vec![0.1, 1.0, 0.1, 1.0, 0.1, 1.0, 0.1];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -365,13 +338,12 @@ mod spectral_tests {
 
     #[test]
     fn test_dominant_frequency() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a spectrum with a clear peak
         let psd = vec![0.1, 0.2, 0.5, 5.0, 0.5, 0.2, 0.1];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
-        let (dominant_freq, magnitude) = dominant_frequency(&psd, &freqs).expect("Test: operation failed");
+        let (dominant_freq, magnitude) =
+            dominant_frequency(&psd, &freqs).expect("Test: operation failed");
 
         // Dominant frequency should be at the peak (index 3, frequency 3.0)
         assert_relative_eq!(dominant_freq, 3.0, epsilon = 1e-10);
@@ -380,8 +352,6 @@ mod spectral_tests {
 
     #[test]
     fn test_dominant_frequencies() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Create a spectrum with multiple peaks
         let psd = vec![0.1, 2.0, 0.1, 5.0, 0.1, 3.0, 0.1];
         let freqs = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
@@ -435,29 +405,30 @@ mod spectral_tests {
 
     #[test]
     fn test_with_ndarray() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
         // Test functions with ndarray types
         let psd = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0]);
         let freqs = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
-        let centroid = spectral_centroid(&psd.to_vec(), &freqs.to_vec()).expect("Test: operation failed");
+        let centroid =
+            spectral_centroid(&psd.to_vec(), &freqs.to_vec()).expect("Test: operation failed");
         assert_relative_eq!(centroid, 3.0, epsilon = 1e-10);
 
         // Create 2D array and take a slice
-        let psd_2d =
-            Array2::from_shape_vec((1, 7), vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0]).expect("Test: operation failed");
-        let psd_slice = psd_2d.slice(scirs2_core::ndarray::s![0, ..]);
+        let psd_2d = Array2::from_shape_vec((1, 7), vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0])
+            .expect("Test: operation failed");
+        let psd_slice = psd_2d.slice(s![0, ..]);
         let psd_slice_vec: Vec<f64> = psd_slice.iter().cloned().collect();
 
-        let spread = spectral_spread(&psd_slice_vec, &freqs.to_vec(), None).expect("Test: operation failed");
+        let spread =
+            spectral_spread(&psd_slice_vec, &freqs.to_vec(), None).expect("Test: operation failed");
         assert!(spread > 0.0);
 
         // Test new functions with ndarray
         let crest = spectral_crest(&psd.to_vec()).expect("Test: operation failed");
         assert!(crest >= 1.0);
 
-        let (dominant_freq_) = dominant_frequency(&psd.to_vec(), &freqs.to_vec()).expect("Test: operation failed");
+        let (dominant_freq, _magnitude) =
+            dominant_frequency(&psd.to_vec(), &freqs.to_vec()).expect("Test: operation failed");
         assert_relative_eq!(dominant_freq, 3.0, epsilon = 1e-10);
     }
 }

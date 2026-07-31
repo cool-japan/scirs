@@ -1101,12 +1101,66 @@ mod tests {
         assert!(report.contains("GPU Usage: 83.3%")); // 1000/(1000+200) * 100
     }
 
+    /// End-to-end distributed-GPU optimization smoke test using a `MockMPI`
+    /// single-rank handle (see `distributed_de_gpu_path_runs_or_skips` above
+    /// for the identical, already-proven run-or-skip pattern this mirrors).
+    /// Gracefully skips (rather than failing) when no wgpu adapter is present
+    /// on this host, and also verifies that `DistributedGpuStats` actually
+    /// gets populated by a real run (unlike `test_performance_stats` above,
+    /// which only exercises the struct with hand-set values).
+    #[cfg(feature = "wgpu")]
     #[test]
-    #[ignore = "Requires MPI and GPU"]
     fn test_distributed_gpu_optimization() {
-        // This would test the actual distributed GPU optimization
-        // Implementation depends on having both MPI and GPU available
+        use crate::distributed::MockMPI;
+
+        let config = DistributedGpuConfig::default();
+        let mut optimizer = match DistributedGpuOptimizer::new(MockMPI::new(0, 1), config) {
+            Ok(o) => o,
+            Err(e) => {
+                println!("Could not create distributed GPU optimizer — skipping ({e})");
+                return;
+            }
+        };
+
+        // A shifted 4-D sphere (minimum at x = 1) — distinct from the plain
+        // origin-centered sphere used by `distributed_de_gpu_path_runs_or_skips`
+        // so the two tests do not simply duplicate one another.
+        let shifted_sphere =
+            |x: &ArrayView1<f64>| -> f64 { x.iter().map(|&xi| (xi - 1.0).powi(2)).sum() };
+        let bounds = vec![(-5.0, 5.0); 4];
+
+        let result = match optimizer.differential_evolution(shifted_sphere, &bounds, 150, 15) {
+            Ok(r) => r,
+            Err(e) => {
+                println!("Distributed GPU DE returned an error — skipping ({e})");
+                return;
+            }
+        };
+
+        let fun = result.base_result.fun;
+        assert!(
+            fun.is_finite() && fun < 50.0,
+            "expected DE to make progress on the shifted 4-D sphere, got f={fun:.4e}"
+        );
+
+        // A real run must record at least one function evaluation somewhere
+        // (GPU or CPU fallback path) -- this would be 0/0 if the optimizer
+        // silently never evaluated anything.
+        let stats = optimizer.stats();
+        assert!(
+            stats.gpu_evaluations + stats.cpu_evaluations > 0,
+            "expected DistributedGpuStats to record evaluations from a real run, got {:?}",
+            stats
+        );
     }
+
+    /// On builds without the `wgpu` feature, `DistributedGpuOptimizer`'s GPU
+    /// dispatch paths are unreachable by construction; this crate has no
+    /// separate non-wgpu GPU backend to fall back to for this smoke test.
+    #[cfg(not(feature = "wgpu"))]
+    #[test]
+    #[ignore = "requires-env: distributed GPU dispatch is compiled out without the wgpu feature (build with --features wgpu, or --all-features, to exercise it)"]
+    fn test_distributed_gpu_optimization() {}
 
     // ───────────────────────── GPU-kernel smoke tests ─────────────────────────
     //

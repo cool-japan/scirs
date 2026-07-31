@@ -18,11 +18,10 @@
 //! * Burgers, G., van Leeuwen, P.J. & Evensen, G. (1998). "Analysis scheme in the ensemble
 //!   Kalman filter". *Monthly Weather Review*, 126(6), 1719–1724.
 
-use crate::error::{SignalError, SignalResult};
 use super::matrix_utils::{
-    mat_add, mat_eye, mat_inv, mat_mul, mat_scale, mat_transpose, mat_vec_mul,
-    outer_product,
+    mat_add, mat_eye, mat_inv, mat_mul, mat_scale, mat_transpose, mat_vec_mul, outer_product,
 };
+use crate::error::{SignalError, SignalResult};
 
 /// Ensemble Kalman Filter for data assimilation.
 ///
@@ -110,7 +109,9 @@ impl EnsembleKalmanFilter {
     #[allow(non_snake_case)]
     pub fn set_R(&mut self, r: Vec<Vec<f64>>) -> SignalResult<()> {
         if r.len() != self.dim_z || r.iter().any(|row| row.len() != self.dim_z) {
-            return Err(SignalError::ValueError("R must be dim_z × dim_z".to_string()));
+            return Err(SignalError::ValueError(
+                "R must be dim_z × dim_z".to_string(),
+            ));
         }
         self.r = r;
         Ok(())
@@ -270,7 +271,10 @@ impl EnsembleKalmanFilter {
                 let noise: Vec<f64> = (0..self.dim_z).map(|_| self.lcg_normal()).collect();
                 let perturbed_noise = mat_vec_mul(&r_chol, &noise)
                     .unwrap_or_else(|_| noise.iter().map(|&v| v * 0.01).collect());
-                z.iter().zip(perturbed_noise.iter()).map(|(zi, vi)| zi + vi).collect()
+                z.iter()
+                    .zip(perturbed_noise.iter())
+                    .map(|(zi, vi)| zi + vi)
+                    .collect()
             })
             .collect();
 
@@ -374,7 +378,7 @@ mod tests {
         let true_state = 5.0_f64;
         for step in 0..50 {
             enkf.predict(0.01).expect("predict");
-            let noise = ((step as f64 * 1.23456).sin() * 0.3);
+            let noise = (step as f64 * 1.23456).sin() * 0.3;
             enkf.update(&[true_state + noise]).expect("update");
         }
 
@@ -391,10 +395,12 @@ mod tests {
     #[test]
     fn test_enkf_covariance_shrinks() {
         let mut enkf = EnsembleKalmanFilter::new(2, 2, 50);
-        enkf.initialize_from_prior(&[0.0, 0.0], 5.0).expect("init prior");
+        enkf.initialize_from_prior(&[0.0, 0.0], 5.0)
+            .expect("init prior");
         enkf.set_model(Box::new(|x: &[f64]| x.to_vec()));
         enkf.set_observation(Box::new(|x: &[f64]| x.to_vec()));
-        enkf.set_R(vec![vec![0.01, 0.0], vec![0.0, 0.01]]).expect("set R");
+        enkf.set_R(vec![vec![0.01, 0.0], vec![0.0, 0.01]])
+            .expect("set R");
 
         let init_cov = enkf.ensemble_covariance();
         let init_trace = init_cov[0][0] + init_cov[1][1];
@@ -443,7 +449,8 @@ mod tests {
     #[test]
     fn test_ensemble_initialization() {
         let mut enkf = EnsembleKalmanFilter::new(3, 1, 50);
-        enkf.initialize_from_prior(&[1.0, 2.0, 3.0], 0.1).expect("init prior");
+        enkf.initialize_from_prior(&[1.0, 2.0, 3.0], 0.1)
+            .expect("init prior");
         let mean = enkf.mean_state();
         // Mean should be close to prior mean
         assert!((mean[0] - 1.0).abs() < 0.5, "Mean[0] ≈ 1.0");

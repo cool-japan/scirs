@@ -138,9 +138,12 @@ where
     false
 }
 
-/// Minimum weight bipartite matching using a simplified Hungarian algorithm
+/// Minimum weight bipartite matching using the exact O(n^3) Hungarian algorithm
 ///
-/// Finds the minimum weight perfect matching in a bipartite graph.
+/// Finds the minimum weight perfect matching in a bipartite graph, exactly,
+/// for graphs of any size (there is no approximate fallback: every left node
+/// must have an edge into a distinct right node, or this returns an error
+/// rather than a non-optimal or partial matching).
 /// Returns the total weight and the matching as a vector of (left_node, right_node) pairs.
 #[allow(dead_code)]
 pub fn minimum_weight_bipartite_matching<N, E, Ix>(
@@ -198,14 +201,120 @@ where
         }
     }
 
-    // Use a simplified version of Hungarian algorithm
-    // For small graphs, we can use a brute force approach
-    if n_left <= 6 {
-        minimum_weight_matching_bruteforce(&left_nodes, &right_nodes, &cost_matrix)
-    } else {
-        // For larger graphs, use a greedy approximation
-        minimum_weight_matching_greedy(&left_nodes, &right_nodes, &cost_matrix)
+    // Solve the assignment problem exactly with the O(n^3) Hungarian
+    // algorithm for every size (previously this silently switched to a
+    // non-optimal greedy heuristic for n_left > 6, with no indication in the
+    // return type that the answer was only approximate).
+    let assignment = hungarian_algorithm(&cost_matrix).map_err(|e| {
+        GraphError::InvalidGraph(format!(
+            "minimum_weight_bipartite_matching: {e} (graph may be missing edges needed for a perfect matching)"
+        ))
+    })?;
+
+    let mut total_cost = 0.0;
+    let mut matching = Vec::with_capacity(n_left);
+    for (j, &row_1indexed) in assignment.iter().enumerate().skip(1) {
+        let i = row_1indexed - 1;
+        let cost = cost_matrix[i][j - 1];
+        if !cost.is_finite() {
+            return Err(GraphError::InvalidGraph(
+                "minimum_weight_bipartite_matching: no perfect matching exists using only real edges".to_string(),
+            ));
+        }
+        total_cost += cost;
+        matching.push((left_nodes[i].clone(), right_nodes[j - 1].clone()));
     }
+
+    Ok((total_cost, matching))
+}
+
+/// Solves the square assignment problem (minimum weight perfect matching)
+/// via the O(n^3) Hungarian algorithm (Kuhn-Munkres, using row/column
+/// potentials and shortest augmenting paths). `cost[i][j]` is the cost of
+/// assigning row `i` to column `j`; use `f64::INFINITY` for a forbidden
+/// assignment (no edge).
+///
+/// Returns `p` where `p[j]` (for `j` in `1..=n`; `p[0]` is unused scratch
+/// space) is the 1-indexed row assigned to column `j`.
+///
+/// This closely follows the standard reference algorithm for the assignment
+/// problem (e.g. <https://cp-algorithms.com/graph/hungarian-algorithm.html>),
+/// adapted to Rust and to gracefully reject infeasible instances (rather
+/// than assuming a complete cost matrix with no forbidden assignments).
+#[allow(clippy::needless_range_loop)]
+fn hungarian_algorithm(cost: &[Vec<f64>]) -> std::result::Result<Vec<usize>, String> {
+    let n = cost.len();
+    if n == 0 {
+        return Ok(vec![0]);
+    }
+
+    // 1-indexed throughout (index 0 is the algorithm's sentinel/dummy row
+    // and column), matching the reference implementation closely to
+    // minimize transcription risk in this notoriously fiddly algorithm.
+    let mut u = vec![0.0_f64; n + 1];
+    let mut v = vec![0.0_f64; n + 1];
+    let mut p = vec![0usize; n + 1]; // p[j] = row assigned to column j, 0 = none yet
+    let mut way = vec![0usize; n + 1];
+
+    for i in 1..=n {
+        p[0] = i;
+        let mut j0 = 0usize;
+        let mut minv = vec![f64::INFINITY; n + 1];
+        let mut used = vec![false; n + 1];
+
+        loop {
+            used[j0] = true;
+            let i0 = p[j0];
+            let mut delta = f64::INFINITY;
+            let mut j1 = 0usize;
+
+            for j in 1..=n {
+                if !used[j] {
+                    let cur = cost[i0 - 1][j - 1] - u[i0] - v[j];
+                    if cur < minv[j] {
+                        minv[j] = cur;
+                        way[j] = j0;
+                    }
+                    if minv[j] < delta {
+                        delta = minv[j];
+                        j1 = j;
+                    }
+                }
+            }
+
+            if !delta.is_finite() {
+                // Every unused column is unreachable through a finite-cost
+                // edge from the rows visited so far: no perfect matching
+                // exists using only real edges.
+                return Err("no feasible perfect matching exists".to_string());
+            }
+
+            for j in 0..=n {
+                if used[j] {
+                    u[p[j]] += delta;
+                    v[j] -= delta;
+                } else {
+                    minv[j] -= delta;
+                }
+            }
+
+            j0 = j1;
+            if p[j0] == 0 {
+                break;
+            }
+        }
+
+        loop {
+            let j1 = way[j0];
+            p[j0] = p[j1];
+            j0 = j1;
+            if j0 == 0 {
+                break;
+            }
+        }
+    }
+
+    Ok(p)
 }
 
 #[allow(dead_code)]
@@ -245,42 +354,6 @@ where
     }
 
     Ok((best_cost, best_matching))
-}
-
-#[allow(dead_code)]
-fn minimum_weight_matching_greedy<N>(
-    left_nodes: &[N],
-    right_nodes: &[N],
-    cost_matrix: &[Vec<f64>],
-) -> Result<(f64, Vec<(N, N)>)>
-where
-    N: Node + Clone + std::fmt::Debug,
-{
-    let n = left_nodes.len();
-    let mut matching = Vec::new();
-    let mut used_right = vec![false; n];
-    let mut total_cost = 0.0;
-
-    // Greedily assign each left node to the cheapest available right node
-    for i in 0..n {
-        let mut best_j = None;
-        let mut best_cost = f64::INFINITY;
-
-        for (j, &used) in used_right.iter().enumerate().take(n) {
-            if !used && cost_matrix[i][j] < best_cost {
-                best_cost = cost_matrix[i][j];
-                best_j = Some(j);
-            }
-        }
-
-        if let Some(j) = best_j {
-            used_right[j] = true;
-            total_cost += best_cost;
-            matching.push((left_nodes[i].clone(), right_nodes[j].clone()));
-        }
-    }
-
-    Ok((total_cost, matching))
 }
 
 #[allow(dead_code)]
@@ -600,6 +673,106 @@ mod tests {
         assert_eq!(matching.len(), 2);
 
         Ok(())
+    }
+
+    #[test]
+    fn test_hungarian_matches_bruteforce_on_random_instances() {
+        // Cross-check the real Hungarian algorithm against the brute-force
+        // exact solver (feasible up to n=6) on many random, non-constant
+        // cost matrices. A deterministic LCG (no external RNG dependency)
+        // keeps this reproducible while still exercising genuine variety.
+        let mut state: u64 = 0x1234_5678_9abc_def0;
+
+        for n in 1..=6usize {
+            for trial in 0..20u32 {
+                let mut cost_matrix = vec![vec![0.0_f64; n]; n];
+                for row in cost_matrix.iter_mut() {
+                    for cell in row.iter_mut() {
+                        state = state
+                            .wrapping_mul(6364136223846793005)
+                            .wrapping_add(1442695040888963407);
+                        *cell = ((state >> 11) as f64 / (1u64 << 53) as f64) * 100.0;
+                    }
+                }
+
+                let left_nodes: Vec<usize> = (0..n).collect();
+                let right_nodes: Vec<usize> = (0..n).collect();
+
+                let (bruteforce_cost, _) =
+                    minimum_weight_matching_bruteforce(&left_nodes, &right_nodes, &cost_matrix)
+                        .expect("bruteforce failed");
+                let assignment = hungarian_algorithm(&cost_matrix).expect("hungarian failed");
+                let hungarian_cost: f64 =
+                    (1..=n).map(|j| cost_matrix[assignment[j] - 1][j - 1]).sum();
+
+                assert!(
+                    (bruteforce_cost - hungarian_cost).abs() < 1e-6,
+                    "n={n} trial={trial}: hungarian cost {hungarian_cost} should match bruteforce {bruteforce_cost}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_minimum_weight_bipartite_matching_large_finds_true_optimum() {
+        // n_left = 7 (> 6): the OLD implementation silently substituted a
+        // non-optimal greedy heuristic for any instance past this size.
+        // This is a classic "greedy fails" case: greedily grabbing each left
+        // node's locally-cheapest still-free right node gives (0,10)=1 +
+        // (1,11)=3 = 4 for the first pair, whereas the TRUE optimum swaps
+        // them: (0,11)=2 + (1,10)=1 = 3. The remaining five pairs are
+        // free (cost 0) padding that just keeps n_left > 6 while leaving the
+        // graph a clean disjoint union of small bipartite pieces.
+        let mut graph = create_graph::<i32, f64>();
+        graph.add_edge(0, 10, 1.0).expect("Operation failed");
+        graph.add_edge(0, 11, 2.0).expect("Operation failed");
+        graph.add_edge(1, 10, 1.0).expect("Operation failed");
+        graph.add_edge(1, 11, 3.0).expect("Operation failed");
+        graph.add_edge(2, 12, 0.0).expect("Operation failed");
+        graph.add_edge(3, 13, 0.0).expect("Operation failed");
+        graph.add_edge(4, 14, 0.0).expect("Operation failed");
+        graph.add_edge(5, 15, 0.0).expect("Operation failed");
+        graph.add_edge(6, 16, 0.0).expect("Operation failed");
+
+        let (total_weight, matching) =
+            minimum_weight_bipartite_matching(&graph).expect("matching failed");
+
+        assert_eq!(matching.len(), 7);
+        assert!(
+            (total_weight - 3.0).abs() < 1e-9,
+            "expected the true optimum 3.0 (not the greedy-suboptimal 4.0), got {total_weight}"
+        );
+    }
+
+    #[test]
+    fn test_minimum_weight_bipartite_matching_infeasible_returns_error() {
+        // Node 0 has no edge at all into the right partition, so no perfect
+        // matching can exist -- this must be reported as an error, never a
+        // silently wrong/partial matching.
+        let mut graph = create_graph::<i32, f64>();
+        graph.add_edge(0, 10, 1.0).expect("Operation failed");
+        graph.add_node(1);
+        graph.add_edge(2, 11, 1.0).expect("Operation failed");
+
+        assert!(minimum_weight_bipartite_matching(&graph).is_err());
+    }
+
+    #[test]
+    fn test_hungarian_algorithm_detects_infeasible_instance() {
+        // Rows 0 and 1 can BOTH only be assigned to column 0 (Hall's
+        // marriage condition is violated for the subset {0, 1}), so no
+        // perfect assignment exists even though every row has at least one
+        // finite-cost entry. The solver must reject this outright rather
+        // than corrupt its potentials or silently return a partial/invalid
+        // assignment.
+        let inf = f64::INFINITY;
+        let cost_matrix = vec![
+            vec![1.0, inf, inf],
+            vec![1.0, inf, inf],
+            vec![inf, 1.0, 1.0],
+        ];
+
+        assert!(hungarian_algorithm(&cost_matrix).is_err());
     }
 
     #[test]

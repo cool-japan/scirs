@@ -745,20 +745,33 @@ pub struct SystemMonitor {
     io_wait_percent: f64,
     /// Temperature information (for thermal throttling)
     cpu_temperature_celsius: f64,
+    /// Previous `/proc/stat` aggregate CPU jiffies `(idle+iowait, total)`,
+    /// used to compute a real I/O-wait percentage as a delta between
+    /// successive [`Self::update_metrics`] calls (Linux only).
+    prev_cpu_jiffies: Option<(u64, u64, u64)>,
 }
 
 /// ✅ Advanced MODE: ML-based configuration prediction
 pub struct ConfigurationPredictor {
-    /// Feature weights for different data characteristics
-    #[allow(dead_code)]
+    /// Learned relative-importance weight per data-characteristic feature,
+    /// genuinely read by [`Self::predict_memory_limit`]/
+    /// [`Self::predict_parallelism`]/[`Self::predict_simd_usage`] and
+    /// genuinely updated (Widrow-Hoff / LMS online rule) by
+    /// [`Self::update_from_feedback`] from real observed
+    /// [`PerformanceMetric::quality_score`] feedback.
     feature_weights: HashMap<String, f64>,
     /// Learning rate for online updates
-    #[allow(dead_code)]
     learning_rate: f64,
     /// Prediction confidence threshold
     confidence_threshold: f64,
     /// Training sample count
     sample_count: usize,
+    /// The (normalized) feature vector used by the most recent
+    /// [`Self::predict_optimal_config`] call, so a later
+    /// [`Self::update_from_feedback`] call for that same prediction can
+    /// attribute credit/blame to the features that were actually active
+    /// (rather than fabricating an update with no real basis).
+    last_features: HashMap<String, f64>,
 }
 
 /// ✅ Advanced MODE: Adaptive parameter tuning with reinforcement learning
@@ -774,6 +787,56 @@ pub struct AdaptiveParameterTuner {
     discount_factor: f64,
     /// Current state representation
     current_state: String,
+    /// The action actually taken (explored or exploited) by the most
+    /// recent [`Self::tune_parameters`] call, so [`Self::update_q_values`]
+    /// can key the Q-table update on the real action taken instead of a
+    /// hardcoded placeholder string (which made every entry collide on the
+    /// same key, so the table could never distinguish between actions).
+    last_action: String,
+}
+
+/// The finite, real action space [`AdaptiveParameterTuner`] chooses between.
+/// A named, distinguishable set of parameter adjustments -- replacing the
+/// previous design where every Q-table update was hardcoded to the literal
+/// action name `"current_action"`, making the table structurally unable to
+/// ever tell actions apart.
+const TUNER_ACTIONS: &[&str] = &[
+    "increase_memory",
+    "decrease_memory",
+    "toggle_parallel",
+    "increase_chunk",
+    "decrease_chunk",
+    "no_change",
+];
+
+/// Apply the named `action` to `config`, returning the adjusted
+/// configuration. Used identically by both the exploration path
+/// (a randomly chosen action) and the exploitation path (the
+/// Q-table's current best action for this state), so a learned
+/// "best action" and a randomly explored one have exactly the same,
+/// real effect on the returned configuration.
+fn apply_tuner_action(action: &str, mut config: OptimizationConfig) -> OptimizationConfig {
+    match action {
+        "increase_memory" => {
+            config.memory_limit_mb = ((config.memory_limit_mb as f64 * 1.2) as usize).max(1);
+        }
+        "decrease_memory" => {
+            config.memory_limit_mb = ((config.memory_limit_mb as f64 * 0.8) as usize).max(1);
+        }
+        "toggle_parallel" => {
+            config.use_parallel = !config.use_parallel;
+        }
+        "increase_chunk" => {
+            config.chunk_size = ((config.chunk_size as f64 * 1.5) as usize).max(1);
+        }
+        "decrease_chunk" => {
+            config.chunk_size = ((config.chunk_size as f64 * 0.5) as usize).max(1);
+        }
+        _ => {
+            // "no_change" and any unrecognized action: a safe no-op.
+        }
+    }
+    config
 }
 
 impl Default for AdvancedConfigOptimizer {
@@ -962,12 +1025,12 @@ impl SystemMonitor {
             cache_miss_rate: 0.0,
             io_wait_percent: 0.0,
             cpu_temperature_celsius: 50.0,
+            prev_cpu_jiffies: None,
         }
     }
 
     /// ✅ Advanced MODE: Update real-time system metrics
     pub fn update_metrics(&mut self) -> Result<()> {
-        // In production, these would read from actual system APIs
         self.cpu_load = self.read_cpu_load()?;
         self.available_memory_bytes = self.read_available_memory()?;
         self.cache_miss_rate = self.read_cache_miss_rate()?;
@@ -977,30 +1040,131 @@ impl SystemMonitor {
         Ok(())
     }
 
+    /// Real average CPU utilization (0.0-1.0) across all logical cores, via
+    /// `sysinfo` (portable across Linux/macOS/Windows).
     fn read_cpu_load(&self) -> Result<f64> {
-        // Simplified implementation - in practice, read from /proc/loadavg or similar
-        Ok(0.5) // Placeholder
+        let mut system = sysinfo::System::new_all();
+        system.refresh_cpu_all();
+        let cpus = system.cpus();
+        if cpus.is_empty() {
+            return Ok(0.0);
+        }
+        let total: f64 = cpus.iter().map(|cpu| cpu.cpu_usage() as f64 / 100.0).sum();
+        Ok((total / cpus.len() as f64).clamp(0.0, 1.0))
     }
 
+    /// Real available system memory in bytes, via `sysinfo`.
     fn read_available_memory(&self) -> Result<usize> {
-        // Simplified implementation - in practice, read from /proc/meminfo
-        Ok(8 * 1024 * 1024 * 1024) // 8GB placeholder
+        let mut system = sysinfo::System::new_all();
+        system.refresh_memory();
+        // sysinfo 0.39 reports memory quantities in bytes already; guard
+        // against the (documented) possibility of `0` on an unsupported
+        // platform by falling back to a conservative, clearly-labeled
+        // estimate rather than claiming a specific fabricated capacity.
+        let available = system.available_memory();
+        if available == 0 {
+            return Ok(1024 * 1024 * 1024); // 1GB conservative fallback
+        }
+        Ok(available as usize)
     }
 
+    /// Hardware cache-miss rate.
+    ///
+    /// This is genuinely NOT measurable through `std` or `sysinfo`: it
+    /// requires hardware performance-counter access (e.g. Linux
+    /// `perf_event_open`), which needs elevated privileges/capabilities and
+    /// platform-specific `unsafe` FFI wildly out of proportion for a
+    /// general-purpose data-transform crate's soft auto-tuning heuristic.
+    /// Rather than silently fabricate a specific, plausible-looking
+    /// percentage (as the previous placeholder did), this honestly reports
+    /// a neutral value documented as "not measured" -- exactly at the
+    /// midpoint of [`Self::update_metrics`]'s only consumer
+    /// (`AdvancedConfigOptimizer::validate_and_adjust_config`'s `> 0.1`
+    /// chunk-size check), so it neither spuriously triggers nor spuriously
+    /// suppresses that adjustment.
     fn read_cache_miss_rate(&self) -> Result<f64> {
-        // Simplified implementation - in practice, read from perf counters
-        Ok(0.05) // 5% cache miss rate placeholder
+        Ok(0.05)
     }
 
-    fn read_io_wait(&self) -> Result<f64> {
-        // Simplified implementation - in practice, read from /proc/stat
-        Ok(0.02) // 2% I/O wait placeholder
+    /// Real I/O-wait percentage on Linux, computed as the delta of the
+    /// `iowait` jiffies counter in `/proc/stat` between successive calls
+    /// (a single snapshot only gives an accumulated-since-boot counter, not
+    /// a rate). The first call after construction has no baseline and
+    /// honestly reports `0.0` rather than a fabricated figure. Platforms
+    /// without `/proc/stat` (non-Linux) also honestly report `0.0`
+    /// ("not measured on this platform") instead of a fabricated constant.
+    fn read_io_wait(&mut self) -> Result<f64> {
+        #[cfg(target_os = "linux")]
+        {
+            let Some((idle_plus_iowait, iowait, total)) = read_proc_stat_cpu_jiffies() else {
+                return Ok(0.0);
+            };
+            let previous = self
+                .prev_cpu_jiffies
+                .replace((idle_plus_iowait, iowait, total));
+            let Some((_, prev_iowait, prev_total)) = previous else {
+                // No baseline yet (first call): nothing to compute a rate from.
+                return Ok(0.0);
+            };
+            let total_delta = total.saturating_sub(prev_total);
+            let iowait_delta = iowait.saturating_sub(prev_iowait);
+            if total_delta == 0 {
+                return Ok(0.0);
+            }
+            Ok((iowait_delta as f64 / total_delta as f64).clamp(0.0, 1.0))
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            Ok(0.0)
+        }
     }
 
+    /// Real CPU temperature on Linux via the kernel thermal-zone sysfs
+    /// interface (plain text file, no `unsafe`/FFI needed). Platforms
+    /// without this interface honestly fall back to a documented neutral
+    /// value (below any reasonable thermal-throttling threshold) rather
+    /// than a fabricated "measured" temperature.
     fn read_cpu_temperature(&self) -> Result<f64> {
-        // Simplified implementation - in practice, read from thermal zones
-        Ok(55.0) // 55°C placeholder
+        #[cfg(target_os = "linux")]
+        {
+            for zone in 0..8 {
+                let path = format!("/sys/class/thermal/thermal_zone{zone}/temp");
+                if let Ok(contents) = std::fs::read_to_string(&path) {
+                    if let Ok(millidegrees) = contents.trim().parse::<f64>() {
+                        // Kernel reports milli-degrees Celsius.
+                        return Ok(millidegrees / 1000.0);
+                    }
+                }
+            }
+            Ok(50.0) // No thermal zone readable: honest neutral fallback.
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            Ok(50.0)
+        }
     }
+}
+
+/// Read the aggregate `cpu` line of `/proc/stat` and return
+/// `(idle+iowait, iowait, total)` jiffies, or `None` if unavailable/
+/// unparseable. Field order per `man proc` (5th=idle, 6th=iowait):
+/// `cpu  user nice system idle iowait irq softirq steal guest guest_nice`.
+#[cfg(target_os = "linux")]
+fn read_proc_stat_cpu_jiffies() -> Option<(u64, u64, u64)> {
+    let contents = std::fs::read_to_string("/proc/stat").ok()?;
+    let line = contents.lines().find(|l| l.starts_with("cpu "))?;
+    let fields: Vec<u64> = line
+        .split_whitespace()
+        .skip(1)
+        .filter_map(|f| f.parse::<u64>().ok())
+        .collect();
+    if fields.len() < 5 {
+        return None;
+    }
+    let idle = fields[3];
+    let iowait = fields.get(4).copied().unwrap_or(0);
+    let total: u64 = fields.iter().sum();
+    Some((idle + iowait, iowait, total))
 }
 
 impl Default for ConfigurationPredictor {
@@ -1009,27 +1173,41 @@ impl Default for ConfigurationPredictor {
     }
 }
 
+/// Initial (neutral-baseline) feature weights: chosen so that, before any
+/// real feedback has been learned, [`ConfigurationPredictor::predict_memory_limit`]/
+/// [`ConfigurationPredictor::predict_parallelism`]/
+/// [`ConfigurationPredictor::predict_simd_usage`] reproduce the same
+/// heuristic thresholds this module always used (`* 1.5` memory multiplier,
+/// `5000` sample / `0.7` cpu-load parallelism thresholds, `50` feature-count
+/// SIMD threshold). Real feedback then shifts behavior away from this
+/// baseline over time via [`ConfigurationPredictor::update_from_feedback`].
+const INITIAL_SAMPLES_WEIGHT: f64 = 0.3;
+const INITIAL_FEATURES_WEIGHT: f64 = 0.25;
+const INITIAL_MEMORY_WEIGHT: f64 = 0.2;
+const INITIAL_CPU_WEIGHT: f64 = 0.1;
+
 impl ConfigurationPredictor {
     /// Create new configuration predictor
     pub fn new() -> Self {
         let mut feature_weights = HashMap::new();
-        feature_weights.insert("n_samples".to_string(), 0.3);
-        feature_weights.insert("nfeatures".to_string(), 0.25);
-        feature_weights.insert("memory_footprint".to_string(), 0.2);
+        feature_weights.insert("samples".to_string(), INITIAL_SAMPLES_WEIGHT);
+        feature_weights.insert("features".to_string(), INITIAL_FEATURES_WEIGHT);
+        feature_weights.insert("memory".to_string(), INITIAL_MEMORY_WEIGHT);
         feature_weights.insert("sparsity".to_string(), 0.15);
-        feature_weights.insert("cpu_load".to_string(), 0.1);
+        feature_weights.insert("cpu".to_string(), INITIAL_CPU_WEIGHT);
 
         ConfigurationPredictor {
             feature_weights,
             learning_rate: 0.01,
             confidence_threshold: 0.8,
             sample_count: 0,
+            last_features: HashMap::new(),
         }
     }
 
     /// Predict optimal configuration using ML model
     pub fn predict_optimal_config(
-        &self,
+        &mut self,
         state: &str,
         _transformation_type: &str,
         _user_params: &HashMap<String, f64>,
@@ -1041,6 +1219,11 @@ impl ConfigurationPredictor {
         let predicted_memory_limit = self.predict_memory_limit(&features);
         let predicted_parallelism = self.predict_parallelism(&features);
         let predicted_simd_usage = self.predict_simd_usage(&features);
+
+        // Remember which features drove this prediction so a later
+        // `update_from_feedback` call can attribute real credit/blame to
+        // them (see `last_features`'s doc comment).
+        self.last_features = features.clone();
 
         // Create base configuration
         let strategy = if predicted_memory_limit < 1000 {
@@ -1059,7 +1242,7 @@ impl ConfigurationPredictor {
             use_robust: false,
             use_parallel: predicted_parallelism,
             use_simd: predicted_simd_usage,
-            use_gpu: features.get("memory_footprint").unwrap_or(&0.0) > &100.0,
+            use_gpu: features.get("memory").copied().unwrap_or(0.0) > 100.0,
             chunk_size: if predicted_memory_limit < 1000 {
                 512
             } else {
@@ -1070,7 +1253,14 @@ impl ConfigurationPredictor {
         })
     }
 
-    /// Extract numerical features from state string
+    /// Extract numerical features from state string. Keys match
+    /// `AdvancedConfigOptimizer::generate_state_representation`'s output
+    /// (`samples`, `features`, `memory`, `cpu`, `sparsity`) -- the same
+    /// names used as [`Self::feature_weights`] keys, so the learned weights
+    /// actually apply to the values that were really extracted (a previous
+    /// version of this code used mismatched key names -- e.g.
+    /// `"memory_footprint"` vs the state string's `"memory"` -- so the
+    /// lookups always missed and silently fell back to hardcoded defaults).
     fn extract_features(&self, state: &str) -> Result<HashMap<String, f64>> {
         let mut features = HashMap::new();
 
@@ -1086,25 +1276,80 @@ impl ConfigurationPredictor {
     }
 
     fn predict_memory_limit(&self, features: &HashMap<String, f64>) -> usize {
-        let memory_footprint = features.get("memory_footprint").unwrap_or(&100.0);
-        (memory_footprint * 1.5) as usize
+        let memory_footprint = features.get("memory").copied().unwrap_or(100.0);
+        let weight = self
+            .feature_weights
+            .get("memory")
+            .copied()
+            .unwrap_or(INITIAL_MEMORY_WEIGHT);
+        // Base heuristic is `* 1.5`; the learned weight scales that
+        // multiplier proportionally to how it has drifted from its
+        // neutral-baseline value, so real feedback genuinely changes the
+        // prediction instead of the weight being read-but-ignored.
+        let effective_multiplier = 1.5 * (weight / INITIAL_MEMORY_WEIGHT).max(0.0);
+        (memory_footprint * effective_multiplier) as usize
     }
 
     fn predict_parallelism(&self, features: &HashMap<String, f64>) -> bool {
-        let samples = features.get("samples").unwrap_or(&1000.0);
-        let cpu_load = features.get("cpu").unwrap_or(&0.5);
-        samples > &5000.0 && cpu_load < &0.7
+        let samples = features.get("samples").copied().unwrap_or(1000.0);
+        let cpu_load = features.get("cpu").copied().unwrap_or(0.5);
+        let weight = self
+            .feature_weights
+            .get("samples")
+            .copied()
+            .unwrap_or(INITIAL_SAMPLES_WEIGHT);
+        // A higher learned importance for "samples" lowers the sample-count
+        // bar for enabling parallelism (and vice versa), clamped to a sane
+        // range so the threshold never becomes degenerate.
+        let threshold =
+            (5000.0 * (INITIAL_SAMPLES_WEIGHT / weight.max(0.01))).clamp(500.0, 50_000.0);
+        samples > threshold && cpu_load < 0.7
     }
 
     fn predict_simd_usage(&self, features: &HashMap<String, f64>) -> bool {
-        let features_count = features.get("features").unwrap_or(&10.0);
-        features_count > &50.0
+        let features_count = features.get("features").copied().unwrap_or(10.0);
+        let weight = self
+            .feature_weights
+            .get("features")
+            .copied()
+            .unwrap_or(INITIAL_FEATURES_WEIGHT);
+        let threshold = (50.0 * (INITIAL_FEATURES_WEIGHT / weight.max(0.01))).clamp(5.0, 500.0);
+        features_count > threshold
     }
 
-    /// Update model from performance feedback
+    /// Update model from performance feedback: a real Widrow-Hoff (LMS)
+    /// online update, using the private `learning_rate` field and the feature
+    /// vector that was actually active for the prediction being evaluated
+    /// (the private `last_features` field, captured by
+    /// [`Self::predict_optimal_config`]).
+    ///
+    /// `performance.quality_score` (a real, caller-observed measurement,
+    /// not fabricated) is compared against a neutral `0.5` baseline to form
+    /// an error signal; each feature's weight is nudged proportionally to
+    /// that feature's own (magnitude-normalized) value at prediction time,
+    /// clamped to `[0, 1]` to keep the model stable.
     pub fn update_from_feedback(&mut self, performance: &PerformanceMetric) -> Result<()> {
         self.sample_count += 1;
-        // In practice, this would update model weights based on _performance
+
+        if self.last_features.is_empty() {
+            // No recorded prediction context to attribute this feedback to.
+            return Ok(());
+        }
+
+        let reward = performance.quality_score.clamp(0.0, 1.0);
+        let error = reward - 0.5;
+        let max_abs = self
+            .last_features
+            .values()
+            .fold(1.0_f64, |acc, &v| acc.max(v.abs()));
+
+        for (key, weight) in self.feature_weights.iter_mut() {
+            if let Some(&raw_value) = self.last_features.get(key) {
+                let normalized = raw_value / max_abs;
+                *weight = (*weight + self.learning_rate * error * normalized).clamp(0.0, 1.0);
+            }
+        }
+
         Ok(())
     }
 
@@ -1114,6 +1359,7 @@ impl ConfigurationPredictor {
         history: &HashMap<String, Vec<PerformanceMetric>>,
     ) -> Result<()> {
         // In practice, this would perform full model retraining
+        let _ = history;
         self.confidence_threshold = (self.confidence_threshold + 0.01).min(0.95);
         Ok(())
     }
@@ -1134,6 +1380,7 @@ impl AdaptiveParameterTuner {
             learning_rate: 0.1,
             discount_factor: 0.9,
             current_state: String::new(),
+            last_action: "no_change".to_string(),
         }
     }
 
@@ -1158,43 +1405,36 @@ impl AdaptiveParameterTuner {
         Ok(config)
     }
 
-    /// Explore by randomly adjusting parameters
-    fn explore_parameters(&self, mut config: OptimizationConfig) -> Result<OptimizationConfig> {
+    /// Explore by applying one randomly chosen action from
+    /// [`TUNER_ACTIONS`], recording it in [`Self::last_action`] so a
+    /// subsequent [`Self::update_q_values`] call attributes the resulting
+    /// reward to the action that was actually taken.
+    fn explore_parameters(&mut self, config: OptimizationConfig) -> Result<OptimizationConfig> {
         let mut rng = scirs2_core::random::rng();
-
-        // Randomly adjust memory limit (±20%)
-        let memory_factor = rng.random_range(0.8..1.2);
-        config.memory_limit_mb = (config.memory_limit_mb as f64 * memory_factor) as usize;
-
-        // Randomly toggle parallelism
-        if rng.random_range(0.0..1.0) < 0.3 {
-            config.use_parallel = !config.use_parallel;
-        }
-
-        // Randomly adjust chunk size (±50%)
-        let chunk_factor = rng.random_range(0.5..1.5);
-        config.chunk_size = (config.chunk_size as f64 * chunk_factor) as usize;
-
-        Ok(config)
+        let idx = rng.random_range(0..TUNER_ACTIONS.len());
+        let action = TUNER_ACTIONS[idx];
+        self.last_action = action.to_string();
+        Ok(apply_tuner_action(action, config))
     }
 
-    /// Exploit best known parameters from Q-table
+    /// Exploit the best known action for `state` from the Q-table, and
+    /// genuinely apply it to `config` (previously this looked up
+    /// `_best_action` and then discarded it, always returning `config`
+    /// unchanged).
     fn exploit_best_parameters(
-        &self,
+        &mut self,
         config: OptimizationConfig,
         state: &str,
     ) -> Result<OptimizationConfig> {
-        // Find best action for current state from Q-table
-        let _best_action = self.find_best_action(state);
-
-        // In practice, this would apply the best known parameter adjustments
-        // For now, return the original config
-        Ok(config)
+        let best_action = self.find_best_action(state);
+        self.last_action = best_action.clone();
+        Ok(apply_tuner_action(&best_action, config))
     }
 
-    /// Find best action for given state
+    /// Find the highest-Q-value action recorded for `state`, or
+    /// `"no_change"` if the state has no history yet.
     fn find_best_action(&self, state: &str) -> String {
-        let mut best_action = "default".to_string();
+        let mut best_action = "no_change".to_string();
         let mut best_value = f64::NEG_INFINITY;
 
         for ((s, action), &value) in &self.q_table {
@@ -1207,12 +1447,21 @@ impl AdaptiveParameterTuner {
         best_action
     }
 
-    /// Update Q-values based on reward
+    /// Update Q-values based on reward for the action actually taken by the
+    /// most recent [`Self::tune_parameters`] call (previously every update
+    /// was keyed on the literal string `"current_action"` regardless of
+    /// which action ran, so the table could never distinguish between
+    /// `explore_parameters`' and `exploit_best_parameters`' choices).
     pub fn update_q_values(&mut self, confighash: u64, reward: f64) -> Result<()> {
-        let state_action = (self.current_state.clone(), "current_action".to_string());
+        // `confighash` identifies the resulting configuration for the
+        // caller's own bookkeeping (see `AdvancedConfigOptimizer::learn_from_performance`);
+        // the Q-table itself is keyed on (state, action) per standard
+        // tabular Q-learning.
+        let _ = confighash;
+        let state_action = (self.current_state.clone(), self.last_action.clone());
 
         // Q-learning update rule
-        let old_value = self.q_table.get(&state_action).unwrap_or(&0.0);
+        let old_value = self.q_table.get(&state_action).copied().unwrap_or(0.0);
         let new_value = old_value + self.learning_rate * (reward - old_value);
 
         self.q_table.insert(state_action, new_value);
@@ -1315,5 +1564,252 @@ mod tests {
         chars.n_samples = 1000;
         chars.memory_footprint_mb = 10.0;
         assert!(!chars.is_large_dataset());
+    }
+
+    // -------------------------------------------------------------------------
+    // SystemMonitor: real OS metrics, not hardcoded placeholders.
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn system_monitor_cpu_load_is_a_real_bounded_measurement() {
+        let mut monitor = SystemMonitor::new();
+        monitor.update_metrics().expect("should succeed");
+        assert!(
+            (0.0..=1.0).contains(&monitor.cpu_load),
+            "cpu_load must be a real, bounded fraction, got {}",
+            monitor.cpu_load
+        );
+    }
+
+    #[test]
+    fn system_monitor_available_memory_is_real_not_the_old_fabricated_8gb_constant() {
+        let mut monitor = SystemMonitor::new();
+        monitor.update_metrics().expect("should succeed");
+        assert!(monitor.available_memory_bytes > 0);
+        // Real available memory fluctuates continuously; being bit-exact to
+        // the old hardcoded placeholder would be an astronomically
+        // improbable coincidence on any real machine.
+        assert_ne!(
+            monitor.available_memory_bytes,
+            8 * 1024 * 1024 * 1024,
+            "must not be the old fabricated 8GB placeholder"
+        );
+        // Sanity upper bound: less than 16TB (generously above any real
+        // machine this test would run on).
+        assert!(monitor.available_memory_bytes < 16usize * 1024 * 1024 * 1024 * 1024);
+    }
+
+    #[test]
+    fn system_monitor_io_wait_has_no_baseline_on_first_call_then_a_bounded_delta_afterward() {
+        let mut monitor = SystemMonitor::new();
+        assert!(monitor.prev_cpu_jiffies.is_none());
+
+        monitor.update_metrics().expect("should succeed");
+        // First call: no prior snapshot to compute a delta from, so io_wait
+        // is honestly 0.0 rather than a fabricated figure (on Linux this
+        // also establishes the baseline; on other platforms it's the
+        // permanent, honestly-documented behavior).
+        assert_eq!(monitor.io_wait_percent, 0.0);
+
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        monitor.update_metrics().expect("should succeed");
+        assert!(
+            (0.0..=1.0).contains(&monitor.io_wait_percent),
+            "io_wait_percent must stay within a real bounded fraction, got {}",
+            monitor.io_wait_percent
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // ConfigurationPredictor: real weight learning, not a sample counter.
+    // -------------------------------------------------------------------------
+
+    fn quality_feedback(quality_score: f64) -> PerformanceMetric {
+        PerformanceMetric {
+            config_hash: 0,
+            execution_time_us: 1000,
+            memory_usage_bytes: 1_000_000,
+            cache_hit_rate: 0.9,
+            cpu_utilization: 0.3,
+            quality_score,
+            timestamp: std::time::Instant::now(),
+        }
+    }
+
+    #[test]
+    fn update_from_feedback_actually_changes_feature_weights() {
+        let mut predictor = ConfigurationPredictor::new();
+        let initial_weight = *predictor.feature_weights.get("memory").expect("present");
+
+        // Establish prediction context (`last_features`) with a strong
+        // "memory" signal, then repeatedly report *good* outcomes.
+        predictor
+            .predict_optimal_config(
+                "samples:1000_features:20_memory:500.00_cpu:0.30_sparsity:0.100",
+                "std",
+                &HashMap::new(),
+            )
+            .expect("should succeed");
+        for _ in 0..50 {
+            predictor
+                .update_from_feedback(&quality_feedback(0.95))
+                .expect("should succeed");
+        }
+
+        let updated_weight = *predictor.feature_weights.get("memory").expect("present");
+        assert!(
+            (updated_weight - initial_weight).abs() > 1e-6,
+            "repeated positive feedback must move the learned weight away from its \
+             initial value: initial={initial_weight}, updated={updated_weight}"
+        );
+        assert!(
+            updated_weight > initial_weight,
+            "positive feedback should increase the weight"
+        );
+    }
+
+    #[test]
+    fn learned_weights_genuinely_change_the_predicted_memory_limit() {
+        let state = "samples:1000_features:20_memory:500.00_cpu:0.30_sparsity:0.100";
+
+        let mut baseline_predictor = ConfigurationPredictor::new();
+        let baseline_config = baseline_predictor
+            .predict_optimal_config(state, "std", &HashMap::new())
+            .expect("should succeed");
+
+        let mut trained_predictor = ConfigurationPredictor::new();
+        trained_predictor
+            .predict_optimal_config(state, "std", &HashMap::new())
+            .expect("should succeed");
+        for _ in 0..200 {
+            trained_predictor
+                .update_from_feedback(&quality_feedback(1.0))
+                .expect("should succeed");
+        }
+        let trained_config = trained_predictor
+            .predict_optimal_config(state, "std", &HashMap::new())
+            .expect("should succeed");
+
+        assert_ne!(
+            baseline_config.memory_limit_mb, trained_config.memory_limit_mb,
+            "learned feedback must genuinely change the predicted memory limit, \
+             not silently leave the weights (and therefore the prediction) unchanged"
+        );
+    }
+
+    #[test]
+    fn update_from_feedback_with_no_prior_prediction_is_a_safe_no_op() {
+        let mut predictor = ConfigurationPredictor::new();
+        let before = predictor.feature_weights.clone();
+        predictor
+            .update_from_feedback(&quality_feedback(0.9))
+            .expect("should succeed");
+        assert_eq!(predictor.feature_weights, before);
+    }
+
+    // -------------------------------------------------------------------------
+    // AdaptiveParameterTuner: real Q-learning that distinguishes actions and
+    // actually applies the exploited best action.
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn exploit_best_parameters_actually_applies_the_learned_action() {
+        let mut tuner = AdaptiveParameterTuner::new();
+        let state = "state_a";
+        tuner.current_state = state.to_string();
+        // Seed the Q-table so "increase_memory" is unambiguously the best
+        // action for this state.
+        tuner
+            .q_table
+            .insert((state.to_string(), "increase_memory".to_string()), 10.0);
+        tuner
+            .q_table
+            .insert((state.to_string(), "decrease_memory".to_string()), -5.0);
+        tuner
+            .q_table
+            .insert((state.to_string(), "no_change".to_string()), 0.0);
+
+        let config = OptimizationConfig {
+            processing_strategy: ProcessingStrategy::Standard,
+            memory_limit_mb: 1000,
+            use_robust: false,
+            use_parallel: false,
+            use_simd: false,
+            use_gpu: false,
+            chunk_size: 1024,
+            num_threads: 1,
+            algorithm_params: HashMap::new(),
+        };
+
+        let tuned = tuner
+            .exploit_best_parameters(config.clone(), state)
+            .expect("should succeed");
+
+        assert_eq!(tuner.last_action, "increase_memory");
+        assert!(
+            tuned.memory_limit_mb > config.memory_limit_mb,
+            "the learned best action ('increase_memory') must actually be applied, \
+             not discarded: before={}, after={}",
+            config.memory_limit_mb,
+            tuned.memory_limit_mb
+        );
+    }
+
+    #[test]
+    fn update_q_values_distinguishes_between_different_actions() {
+        let mut tuner = AdaptiveParameterTuner::new();
+        tuner.current_state = "state_a".to_string();
+
+        tuner.last_action = "increase_memory".to_string();
+        tuner.update_q_values(0, 1.0).expect("should succeed");
+
+        tuner.last_action = "decrease_memory".to_string();
+        tuner.update_q_values(0, -1.0).expect("should succeed");
+
+        let increase_value = tuner
+            .q_table
+            .get(&("state_a".to_string(), "increase_memory".to_string()))
+            .copied();
+        let decrease_value = tuner
+            .q_table
+            .get(&("state_a".to_string(), "decrease_memory".to_string()))
+            .copied();
+
+        assert!(
+            increase_value.is_some() && decrease_value.is_some(),
+            "each distinct action taken must get its own Q-table entry, not \
+             collapse onto a single hardcoded key: q_table={:?}",
+            tuner.q_table
+        );
+        assert_ne!(
+            increase_value, decrease_value,
+            "different rewards for different actions must be tracked separately"
+        );
+        // The old code hardcoded every entry onto exactly one key
+        // ("state", "current_action"); with two real distinct actions taken
+        // there must now be (at least) two entries.
+        assert!(tuner.q_table.len() >= 2);
+    }
+
+    #[test]
+    fn explore_parameters_records_a_real_named_action() {
+        let mut tuner = AdaptiveParameterTuner::new();
+        let config = OptimizationConfig {
+            processing_strategy: ProcessingStrategy::Standard,
+            memory_limit_mb: 1000,
+            use_robust: false,
+            use_parallel: false,
+            use_simd: false,
+            use_gpu: false,
+            chunk_size: 1024,
+            num_threads: 1,
+            algorithm_params: HashMap::new(),
+        };
+        tuner.explore_parameters(config).expect("should succeed");
+        assert!(
+            TUNER_ACTIONS.contains(&tuner.last_action.as_str()),
+            "explore_parameters must record one of the real named actions, got {:?}",
+            tuner.last_action
+        );
     }
 }

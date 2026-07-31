@@ -4,7 +4,7 @@
 //! making it easier to migrate existing Python code to Rust.
 
 use scirs2_core::ndarray::{
-    Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, ArrayViewMut, Data, DataMut,
+    Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, ArrayViewMut, Axis, Data, DataMut,
     Dimension, Ix1, Ix2, IxDyn,
 };
 use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
@@ -95,11 +95,19 @@ impl Mode {
 ///
 /// # Arguments
 /// * `input` - Input array
-/// * `sigma` - Standard deviation for Gaussian kernel. Can be a single float or a sequence
-/// * `order` - The order of the filter (0 for Gaussian, 1 for first derivative, etc.)
+/// * `sigma` - Standard deviation for Gaussian kernel. Either a single value
+///   (applied to every axis, isotropic) or one value per axis (anisotropic).
+/// * `order` - The order of the filter (0 for Gaussian, 1 for first derivative, etc.),
+///   applied along every axis.
 /// * `mode` - How to handle boundaries (default: 'reflect')
 /// * `cval` - Value to use for constant mode
 /// * `truncate` - Truncate the filter at this many standard deviations
+///
+/// Unlike a single isotropic sigma, per-axis sigmas let the blur strength
+/// differ from one axis to the next (e.g. heavy smoothing along rows, light
+/// smoothing along columns), and `order` selects derivative-of-Gaussian
+/// kernels (matching SciPy's `order` parameter) rather than only plain
+/// Gaussian smoothing.
 ///
 /// # Example
 /// ```no_run
@@ -107,7 +115,11 @@ impl Mode {
 /// use scirs2_ndimage::scipy_compat::gaussian_filter;
 ///
 /// let input = array![[1.0, 2.0], [3.0, 4.0]];
+/// // Isotropic: same blur on both axes.
 /// let filtered = gaussian_filter(&input, vec![1.0, 1.0], None, None, None, None).expect("Operation failed");
+///
+/// // Anisotropic: different blur strength per axis.
+/// let filtered = gaussian_filter(&input, vec![2.0, 0.5], None, None, None, None).expect("Operation failed");
 /// ```
 #[allow(dead_code)]
 pub fn gaussian_filter<T, D>(
@@ -129,18 +141,164 @@ where
         .unwrap_or(Mode::Reflect);
     let boundary_mode = mode.to_filter_boundary_mode();
 
-    // gaussian_filter only supports f64, need to convert
-    let input_f64 = input.map(|x| x.to_f64().expect("Operation failed"));
-    let sigma_f64 = if sigma.len() == 1 {
-        sigma[0].to_f64().expect("Operation failed")
+    let ndim = input.ndim();
+    let sigma_per_axis: Vec<T> = if sigma.len() == 1 {
+        vec![sigma[0]; ndim]
+    } else if sigma.len() == ndim {
+        sigma
     } else {
-        // Take the first sigma value for now, multi-dimensional sigma not supported
-        sigma[0].to_f64().expect("Operation failed")
+        return Err(NdimageError::InvalidInput(format!(
+            "sigma must be a single value or provide one value per axis (got {} values for a {}-D array)",
+            sigma.len(),
+            ndim
+        )));
     };
-    let truncate_f64 = truncate.map(|t| t.to_f64().expect("Operation failed"));
 
-    crate::filters::gaussian_filter(&input_f64, sigma_f64, Some(boundary_mode), truncate_f64)
-        .map(|arr| arr.map(|x| T::from_f64(*x).expect("Operation failed")))
+    for &s in &sigma_per_axis {
+        if s <= T::zero() {
+            return Err(NdimageError::InvalidInput("Sigma must be positive".into()));
+        }
+    }
+
+    let deriv_order = order.unwrap_or(0);
+    let truncate = truncate.unwrap_or_else(|| T::from_f64(4.0).expect("Operation failed"));
+
+    // Apply the (possibly derivative-of-)Gaussian kernel separably along
+    // each axis, each with its own sigma. Unlike a single isotropic scalar
+    // sigma, this correctly supports anisotropic blur requests and honors
+    // `order` instead of silently ignoring it.
+    let mut result = input.to_owned();
+    for axis in 0..ndim {
+        let kernel = gaussian_kernel1d_generic(sigma_per_axis[axis], deriv_order, truncate)?;
+        result = convolve1d_along_axis(&result, &kernel, axis, boundary_mode, cval)?;
+    }
+
+    Ok(result)
+}
+
+/// Build a 1D (derivative-of-)Gaussian convolution kernel for arbitrary
+/// float types, mirroring SciPy's `_gaussian_kernel1d`.
+///
+/// The `order`-th derivative of a Gaussian `phi(x) = exp(-x^2 / (2*sigma^2))`
+/// can always be written as `q(x) * phi(x)` for some degree-`order`
+/// polynomial `q`. Since `phi'(x) = p'(x) * phi(x)` with `p(x) = -x^2 /
+/// (2*sigma^2)`, differentiating `q(x) * phi(x)` once more (product rule)
+/// gives `(q'(x) + q(x) * p'(x)) * phi(x)` -- so repeatedly applying the
+/// linear map `q -> q' + q * p'(x)` to the coefficient vector of `q`,
+/// starting from `q(x) = 1` (the order-0 kernel), yields the coefficients
+/// of the order-th derivative kernel's polynomial factor exactly.
+fn gaussian_kernel1d_generic<T>(sigma: T, order: usize, truncate: T) -> NdimageResult<Vec<T>>
+where
+    T: Float + FromPrimitive + NumAssign,
+{
+    if sigma <= T::zero() {
+        return Err(NdimageError::InvalidInput("Sigma must be positive".into()));
+    }
+
+    let half = T::from_f64(0.5).expect("Operation failed");
+    let sigma2 = sigma * sigma;
+    let radius = (truncate * sigma + half).to_usize().ok_or_else(|| {
+        NdimageError::ComputationError("Failed to compute Gaussian kernel radius".into())
+    })?;
+    let size = 2 * radius + 1;
+
+    // phi[i] = exp(-0.5 * x_i^2 / sigma^2), x_i = i - radius, normalized to
+    // sum to 1 (this normalization is applied once, at order 0, exactly as
+    // SciPy does, then reused for every derivative order).
+    let mut phi = vec![T::zero(); size];
+    for (i, slot) in phi.iter_mut().enumerate() {
+        let x = T::from_isize(i as isize - radius as isize).ok_or_else(|| {
+            NdimageError::ComputationError("Failed to convert kernel index to float".into())
+        })?;
+        *slot = (-half * x * x / sigma2).exp();
+    }
+    let phi_sum = phi.iter().fold(T::zero(), |acc, &v| acc + v);
+    if phi_sum > T::zero() {
+        for v in phi.iter_mut() {
+            *v /= phi_sum;
+        }
+    }
+
+    if order == 0 {
+        return Ok(phi);
+    }
+
+    // Coefficients of q(x) in the monomial basis x^0..x^order, starting
+    // from q(x) = 1 (order-0 kernel).
+    let mut q = vec![T::zero(); order + 1];
+    q[0] = T::one();
+
+    for _ in 0..order {
+        let mut next_q = vec![T::zero(); order + 1];
+        for i in 0..order {
+            // Differentiation term: d/dx contributes (i+1)*q[i+1] to
+            // position i.
+            next_q[i] += T::from_usize(i + 1).expect("Operation failed") * q[i + 1];
+        }
+        for i in 0..order {
+            // Product-rule term: multiplying by p'(x) = -x/sigma^2 shifts
+            // coefficient i into position i+1, scaled by -1/sigma^2.
+            next_q[i + 1] += (-q[i]) / sigma2;
+        }
+        q = next_q;
+    }
+
+    // Evaluate q(x) at every kernel position and fold in phi(x).
+    let mut kernel = vec![T::zero(); size];
+    for (i, slot) in kernel.iter_mut().enumerate() {
+        let x = T::from_isize(i as isize - radius as isize).ok_or_else(|| {
+            NdimageError::ComputationError("Failed to convert kernel index to float".into())
+        })?;
+        let mut x_power = T::one();
+        let mut q_val = T::zero();
+        for &coeff in &q {
+            q_val += coeff * x_power;
+            x_power *= x;
+        }
+        *slot = q_val * phi[i];
+    }
+
+    Ok(kernel)
+}
+
+/// Apply a 1D kernel as a correlation along a specific axis of an
+/// n-dimensional array, honoring the requested `BorderMode` for the padding
+/// this introduces at that axis's boundaries.
+fn convolve1d_along_axis<T, D>(
+    input: &Array<T, D>,
+    kernel: &[T],
+    axis: usize,
+    mode: FilterBoundaryMode,
+    cval: Option<T>,
+) -> NdimageResult<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + Clone + NumAssign,
+    D: Dimension,
+{
+    let radius = kernel.len() / 2;
+    let mut pad_width = vec![(0usize, 0usize); input.ndim()];
+    pad_width[axis] = (radius, radius);
+
+    let padded = filters::pad_array(input, &pad_width, &mode, cval)?;
+
+    let mut output = input.to_owned();
+    let axis_len = input.shape()[axis];
+
+    for (mut out_lane, in_lane) in output
+        .lanes_mut(Axis(axis))
+        .into_iter()
+        .zip(padded.lanes(Axis(axis)))
+    {
+        for out_i in 0..axis_len {
+            let mut sum = T::zero();
+            for (k, &coeff) in kernel.iter().enumerate() {
+                sum += coeff * in_lane[out_i + k];
+            }
+            out_lane[out_i] = sum;
+        }
+    }
+
+    Ok(output)
 }
 
 /// Uniform filter with SciPy-compatible interface
@@ -1611,382 +1769,4 @@ pub mod verification {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use scirs2_core::ndarray::array;
-
-    #[test]
-    fn test_scipy_compat_gaussian() {
-        let input = array![[1.0, 2.0], [3.0, 4.0]];
-        let result =
-            gaussian_filter(&input, vec![1.0], None, None, None, None).expect("Operation failed");
-        assert_eq!(result.shape(), input.shape());
-    }
-
-    #[test]
-    fn test_scipy_compat_modes() {
-        assert!(matches!(Mode::from_str("reflect"), Ok(Mode::Reflect)));
-        assert!(matches!(Mode::from_str("constant"), Ok(Mode::Constant)));
-        assert!(matches!(Mode::from_str("nearest"), Ok(Mode::Nearest)));
-        assert!(matches!(Mode::from_str("edge"), Ok(Mode::Nearest)));
-        assert!(Mode::from_str("invalid").is_err());
-    }
-
-    #[test]
-    fn test_scipy_compat_binary_erosion() {
-        let input = array![[true, false], [false, true]];
-        let result = binary_erosion(
-            &input,
-            None::<&scirs2_core::ndarray::Array2<bool>>,
-            None::<usize>,
-            None::<&scirs2_core::ndarray::Array2<bool>>,
-            None::<bool>,
-        )
-        .expect("Test: operation failed");
-        assert_eq!(result.shape(), input.shape());
-    }
-
-    #[test]
-    fn test_scipy_compat_zoom() {
-        let input = array![[1.0, 2.0], [3.0, 4.0]];
-        let result =
-            zoom(&input, vec![2.0, 2.0], None, None, None, None).expect("Operation failed");
-        assert_eq!(result.shape(), &[4, 4]);
-    }
-
-    #[test]
-    fn test_scipy_compat_rotate() {
-        let input = array![[1.0, 2.0], [3.0, 4.0]];
-        let result =
-            rotate(&input.view(), 45.0, None, None, None, None, None).expect("Operation failed");
-        assert_eq!(result.ndim(), 2);
-    }
-
-    #[test]
-    fn test_scipy_compat_shift() {
-        let input = array![[1.0, 2.0], [3.0, 4.0]];
-        let result =
-            shift(&input, vec![0.5, 0.5], None, None, None, None).expect("Operation failed");
-        assert_eq!(result.shape(), input.shape());
-    }
-
-    #[test]
-    fn test_scipy_compat_laplace() {
-        let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
-        let result = laplace(&input, None, None).expect("Operation failed");
-        assert_eq!(result.shape(), input.shape());
-    }
-
-    #[test]
-    fn test_scipy_compat_maximum_filter() {
-        let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
-        let result = maximum_filter(
-            &input,
-            Some(vec![3, 3]),
-            None::<&scirs2_core::ndarray::Array2<bool>>,
-            None,
-            None,
-            None,
-        )
-        .expect("Test: operation failed");
-        assert_eq!(result.shape(), input.shape());
-    }
-
-    #[test]
-    fn test_scipy_compat_generic_filter() {
-        let input = array![[1.0f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
-        let mean_func =
-            |values: &[f64]| -> f64 { values.iter().sum::<f64>() / values.len() as f64 };
-        let result = generic_filter(
-            &input,
-            mean_func,
-            Some(vec![3, 3]),
-            None::<&scirs2_core::ndarray::Array2<bool>>,
-            None,
-            None,
-            None,
-        )
-        .expect("Test: operation failed");
-        assert_eq!(result.shape(), input.shape());
-    }
-
-    // ─── center_of_mass tests ──────────────────────────────────────────────
-
-    #[test]
-    fn test_center_of_mass_no_labels() {
-        // 2×2 array with mass concentrated at bottom-right
-        let input = array![[0.0_f64, 0.0], [0.0, 1.0]];
-        let com = center_of_mass(&input, None::<&scirs2_core::ndarray::Array2<i32>>, None)
-            .expect("center_of_mass failed");
-        assert_eq!(com.len(), 1);
-        // Only the bottom-right element has mass → COM = (1, 1)
-        assert!((com[0][0] - 1.0).abs() < 1e-12);
-        assert!((com[0][1] - 1.0).abs() < 1e-12);
-    }
-
-    #[test]
-    fn test_center_of_mass_with_labels() {
-        // 2×4 input: two regions separated by label
-        // Label 1 → left half, Label 2 → right half
-        let input = array![[1.0_f64, 1.0, 2.0, 2.0]];
-        let labels = array![[1_i32, 1, 2, 2]];
-        let com = center_of_mass(&input, Some(&labels), None).expect("center_of_mass failed");
-        // Two labels: 1 and 2
-        assert_eq!(com.len(), 2);
-        // Label 1: mass at cols 0,1 → COM col = (0*1 + 1*1)/(1+1) = 0.5
-        assert!((com[0][1] - 0.5).abs() < 1e-12);
-        // Label 2: mass at cols 2,3 → COM col = (2*2 + 3*2)/(2+2) = 2.5
-        assert!((com[1][1] - 2.5).abs() < 1e-12);
-    }
-
-    #[test]
-    fn test_center_of_mass_with_labels_and_index() {
-        // Same as above but request only label 2
-        let input = array![[1.0_f64, 1.0, 2.0, 2.0]];
-        let labels = array![[1_i32, 1, 2, 2]];
-        let com =
-            center_of_mass(&input, Some(&labels), Some(vec![2])).expect("center_of_mass failed");
-        assert_eq!(com.len(), 1);
-        // Label 2: mass at cols 2,3 → COM col = 2.5
-        assert!((com[0][1] - 2.5).abs() < 1e-12);
-    }
-
-    // ─── map_coordinates tests ────────────────────────────────────────────
-
-    #[test]
-    fn test_map_coordinates_exact_grid_2d() {
-        // Sample at exact integer grid points — should return the exact values
-        let input = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],];
-
-        // Coordinates to sample: (0,0), (1,1), (2,2) → values 1, 5, 9
-        let coords = scirs2_core::ndarray::Array2::from_shape_vec(
-            (2, 3),
-            vec![0.0, 1.0, 2.0, 0.0, 1.0, 2.0],
-        )
-        .expect("coords");
-
-        let result = map_coordinates(&input, &coords, Some(1), Some("constant"), None, None)
-            .expect("map_coordinates should succeed");
-
-        assert_eq!(result.len(), 3);
-        assert!(
-            (result[0] - 1.0).abs() < 1e-10,
-            "Expected 1.0, got {}",
-            result[0]
-        );
-        assert!(
-            (result[1] - 5.0).abs() < 1e-10,
-            "Expected 5.0, got {}",
-            result[1]
-        );
-        assert!(
-            (result[2] - 9.0).abs() < 1e-10,
-            "Expected 9.0, got {}",
-            result[2]
-        );
-    }
-
-    #[test]
-    fn test_map_coordinates_oob_constant_mode() {
-        // Out-of-bounds coordinates should return cval (0.0 by default) in constant mode
-        let input = array![[1.0_f64, 2.0], [3.0, 4.0]];
-
-        // Coordinate (-1, 0) is out of bounds
-        let coords = scirs2_core::ndarray::Array2::from_shape_vec((2, 1), vec![-1.0_f64, 0.0])
-            .expect("coords");
-
-        let result = map_coordinates(&input, &coords, Some(1), Some("constant"), Some(0.0), None)
-            .expect("map_coordinates OOB should succeed");
-
-        assert_eq!(result.len(), 1);
-        assert!(
-            (result[0] - 0.0).abs() < 1e-10,
-            "OOB should return cval=0.0, got {}",
-            result[0]
-        );
-    }
-
-    #[test]
-    fn test_map_coordinates_nearest_mode() {
-        // Nearest mode: clamp to border
-        let input = array![[10.0_f64, 20.0], [30.0, 40.0]];
-
-        // Sample at (-0.5, -0.5) → nearest is (0,0) = 10.0
-        let coords = scirs2_core::ndarray::Array2::from_shape_vec((2, 1), vec![-0.5_f64, -0.5])
-            .expect("coords");
-
-        let result = map_coordinates(&input, &coords, Some(1), Some("nearest"), None, None)
-            .expect("map_coordinates nearest should succeed");
-
-        assert_eq!(result.len(), 1);
-        assert!(
-            (result[0] - 10.0).abs() < 1e-9,
-            "Nearest clamped should be 10.0, got {}",
-            result[0]
-        );
-    }
-
-    #[test]
-    fn test_map_coordinates_interpolation_2d() {
-        // Linear interpolation at the centre of a 2×2 constant array should return the constant
-        let input = array![[5.0_f64, 5.0], [5.0, 5.0]];
-
-        // Centre of the 2×2 = (0.5, 0.5)
-        let coords = scirs2_core::ndarray::Array2::from_shape_vec((2, 1), vec![0.5_f64, 0.5])
-            .expect("coords");
-
-        let result = map_coordinates(&input, &coords, Some(1), Some("reflect"), None, None)
-            .expect("map_coordinates interpolation should succeed");
-
-        assert_eq!(result.len(), 1);
-        assert!(
-            (result[0] - 5.0).abs() < 1e-10,
-            "Interpolation of constant should be constant, got {}",
-            result[0]
-        );
-    }
-
-    // ─── grey_erosion tests ───────────────────────────────────────────────
-
-    #[test]
-    fn test_grey_erosion_all_ones_with_footprint() {
-        // Erosion of a 5×5 all-ones image with a 3×3 all-true footprint → still all ones.
-        let input = Array2::<f64>::ones((5, 5));
-        let footprint = Array2::<bool>::from_elem((3, 3), true);
-        let result = grey_erosion(&input, None, Some(&footprint), None, None::<f64>)
-            .expect("grey_erosion should succeed");
-        assert_eq!(result.dim(), (5, 5));
-        for &v in result.iter() {
-            assert!(
-                (v - 1.0).abs() < 1e-12,
-                "All-ones erosion should stay 1.0, got {v}"
-            );
-        }
-    }
-
-    #[test]
-    fn test_grey_erosion_default_size_no_footprint() {
-        // Erosion using size=None (defaults to 3×3 all-true SE) on a 5×5 all-ones image.
-        let input = Array2::<f64>::ones((5, 5));
-        let result = grey_erosion(
-            &input,
-            None,                                        // size → defaults to 3×3
-            None::<&scirs2_core::ndarray::Array2<bool>>, // no footprint
-            None,
-            None::<f64>,
-        )
-        .expect("grey_erosion without footprint should succeed");
-        assert_eq!(result.dim(), (5, 5));
-        for &v in result.iter() {
-            assert!(
-                (v - 1.0).abs() < 1e-12,
-                "All-ones erosion (default SE) should stay 1.0, got {v}"
-            );
-        }
-    }
-
-    #[test]
-    fn test_grey_erosion_shrinks_island() {
-        // A 5×5 image: zeros on border, ones inside the 3×3 centre.
-        // After 3×3 erosion the border zeros will invade the centre → fewer ones.
-        #[rustfmt::skip]
-        let data = vec![
-            0.0_f64, 0.0, 0.0, 0.0, 0.0,
-            0.0,     1.0, 1.0, 1.0, 0.0,
-            0.0,     1.0, 1.0, 1.0, 0.0,
-            0.0,     1.0, 1.0, 1.0, 0.0,
-            0.0,     0.0, 0.0, 0.0, 0.0,
-        ];
-        let input = Array2::from_shape_vec((5, 5), data).expect("shape");
-        let footprint = Array2::<bool>::from_elem((3, 3), true);
-        let result = grey_erosion(&input, None, Some(&footprint), None, None::<f64>)
-            .expect("grey_erosion should succeed");
-        // The centre should still be 1 (it survives), but border/near-border pixels → 0
-        assert_eq!(result[[2, 2]], 1.0, "Centre pixel should survive erosion");
-        assert_eq!(result[[0, 0]], 0.0, "Corner stays 0 after erosion");
-        assert_eq!(
-            result[[1, 1]],
-            0.0,
-            "Near-border pixel becomes 0 after erosion"
-        );
-    }
-
-    // ─── distance_transform_edt tests ────────────────────────────────────
-
-    #[test]
-    fn test_edt_single_foreground_pixel() {
-        // 5×5 image: only the centre (2,2) is foreground (non-zero).
-        // All other pixels have distance = Euclidean distance to (2,2).
-        let mut data = vec![0.0_f64; 25];
-        data[2 * 5 + 2] = 1.0; // centre pixel
-        let input = Array2::from_shape_vec((5, 5), data).expect("shape");
-        let (dist_opt, _) =
-            distance_transform_edt(&input, None, Some(true), None).expect("EDT should succeed");
-        let dist = dist_opt.expect("distances should be Some");
-
-        // Centre pixel itself is foreground → distance = distance to nearest background = 1
-        // (nearest background is immediately adjacent)
-        // All background pixels → distance 0
-        for i in 0..5_usize {
-            for j in 0..5_usize {
-                if i == 2 && j == 2 {
-                    // foreground: nearest bg is at distance 1 (up/down/left/right)
-                    assert!(
-                        (dist[[i, j]] - 1.0).abs() < 1e-10,
-                        "Centre pixel distance should be 1.0, got {}",
-                        dist[[i, j]]
-                    );
-                } else {
-                    // background: distance = 0
-                    assert!(
-                        dist[[i, j]].abs() < 1e-10,
-                        "Background pixel [{i},{j}] should have distance 0, got {}",
-                        dist[[i, j]]
-                    );
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn test_edt_all_background() {
-        // All-zero image → all distances = 0 (no foreground pixels)
-        let input = Array2::<f64>::zeros((5, 5));
-        let (dist_opt, _) =
-            distance_transform_edt(&input, None, Some(true), None).expect("EDT should succeed");
-        let dist = dist_opt.expect("distances should be Some");
-        for &v in dist.iter() {
-            assert!(v.abs() < 1e-12, "All-background → all zeros, got {v}");
-        }
-    }
-
-    #[test]
-    fn test_edt_column_of_background() {
-        // 3×3 image with a vertical column of zeros (col 1) and ones elsewhere.
-        // The horizontal distance from col 0/2 to col 1 is 1, so EDT[[i,0]] = EDT[[i,2]] = 1.
-        // Col 1 is bg → dist = 0.
-        #[rustfmt::skip]
-        let data = vec![
-            1.0_f64, 0.0, 1.0,
-            1.0,     0.0, 1.0,
-            1.0,     0.0, 1.0,
-        ];
-        let input = Array2::from_shape_vec((3, 3), data).expect("shape");
-        let (dist_opt, _) =
-            distance_transform_edt(&input, None, Some(true), None).expect("EDT should succeed");
-        let dist = dist_opt.expect("distances");
-        for i in 0..3 {
-            assert!((dist[[i, 1]]).abs() < 1e-12, "bg col has dist 0");
-            assert!(
-                (dist[[i, 0]] - 1.0).abs() < 1e-10,
-                "col 0 should have dist 1, got {}",
-                dist[[i, 0]]
-            );
-            assert!(
-                (dist[[i, 2]] - 1.0).abs() < 1e-10,
-                "col 2 should have dist 1, got {}",
-                dist[[i, 2]]
-            );
-        }
-    }
-}
+mod tests;

@@ -9,13 +9,25 @@
 //! This module provides neural network layers and models that work with
 //! any array type implementing the ArrayProtocol trait.
 
-use ::ndarray::{Array, Ix1};
+use ::ndarray::{Array, Array1, Array4, ArrayD, Axis, Ix1, Ix2, Ix4, IxDyn, Zip};
 
-use rand::{Rng, RngExt};
+use rand::{Rng, RngExt, SeedableRng};
 
 use crate::array_protocol::ml_ops::ActivationFunc;
 use crate::array_protocol::operations::OperationError;
 use crate::array_protocol::{ArrayProtocol, NdarrayWrapper};
+
+/// Gradients produced by a single layer's [`Layer::backward`] pass.
+pub struct LayerGrad {
+    /// Gradient of the loss with respect to this layer's input, to be
+    /// passed as `grad_output` to the previous layer's `backward`.
+    pub grad_input: Box<dyn ArrayProtocol>,
+
+    /// Gradients of the loss with respect to each of this layer's
+    /// parameters, in the same order as [`Layer::parameters`] /
+    /// [`Layer::parameter_names`].
+    pub grad_params: Vec<Box<dyn ArrayProtocol>>,
+}
 
 /// Trait for neural network layers.
 pub trait Layer: Send + Sync {
@@ -25,6 +37,32 @@ pub trait Layer: Send + Sync {
 
     fn forward(&self, inputs: &dyn ArrayProtocol)
         -> Result<Box<dyn ArrayProtocol>, OperationError>;
+
+    /// Backward pass through the layer: given the layer's original `input`
+    /// (as seen by the preceding `forward` call) and `grad_output` (the
+    /// gradient of the loss with respect to this layer's output), compute
+    /// the gradient with respect to the input and every parameter.
+    ///
+    /// `forward` does not cache any intermediate state, so implementations
+    /// that need it (e.g. a pre-activation value) recompute it from `input`
+    /// — cheap relative to the training pipeline's own forward pass, and it
+    /// keeps `Layer` object-safe and side-effect-free.
+    ///
+    /// The default returns [`OperationError::NotImplemented`] so that
+    /// existing third-party `Layer` implementations continue to compile;
+    /// every layer defined in this module overrides it with a real
+    /// implementation (or, where forward itself is already a documented
+    /// simplification, an explicit and equally honest error).
+    fn backward(
+        &self,
+        _input: &dyn ArrayProtocol,
+        _grad_output: &dyn ArrayProtocol,
+    ) -> Result<LayerGrad, OperationError> {
+        Err(OperationError::NotImplemented(format!(
+            "backward() is not implemented for layer type '{layertype}'",
+            layertype = self.layer_type()
+        )))
+    }
 
     /// Get the layer's parameters.
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>>;
@@ -53,6 +91,108 @@ pub trait Layer: Send + Sync {
 
     /// Get the layer's name.
     fn name(&self) -> &str;
+}
+
+/// Downcasts an `ArrayProtocol` object to an owned `f64` array, regardless
+/// of its concrete (static or dynamic) dimensionality. Used internally by
+/// `Layer::backward` implementations, which only need to do plain
+/// elementwise/linear-algebra math on the underlying data.
+fn as_f64_array(a: &dyn ArrayProtocol) -> Result<ArrayD<f64>, OperationError> {
+    if let Some(w) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
+        return Ok(w.as_array().clone());
+    }
+    if let Some(w) = a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix1>>() {
+        return Ok(w.as_array().clone().into_dyn());
+    }
+    if let Some(w) = a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
+        return Ok(w.as_array().clone().into_dyn());
+    }
+    if let Some(w) = a.as_any().downcast_ref::<NdarrayWrapper<f64, Ix4>>() {
+        return Ok(w.as_array().clone().into_dyn());
+    }
+    Err(OperationError::TypeMismatch(
+        "Layer::backward currently only supports f64 NdarrayWrapper arrays (Ix1/Ix2/Ix4/IxDyn)"
+            .to_string(),
+    ))
+}
+
+/// Wraps `data` to match the concrete dimensionality that `reference`'s own
+/// `NdarrayWrapper` uses, so the result stays dispatch-compatible with
+/// operations (like `subtract`/`multiply_by_scalar_f64` in a gradient-descent
+/// update) that require both operands to share the same concrete `D`.
+/// Falls back to `IxDyn` when `reference` isn't one of the recognized
+/// concrete dimensionalities.
+fn wrap_like(
+    reference: &dyn ArrayProtocol,
+    data: ArrayD<f64>,
+) -> Result<Box<dyn ArrayProtocol>, OperationError> {
+    if reference
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, Ix1>>()
+        .is_some()
+    {
+        let arr = data
+            .into_dimensionality::<Ix1>()
+            .map_err(|e| OperationError::ShapeMismatch(format!("wrap_like (Ix1): {e}")))?;
+        return Ok(Box::new(NdarrayWrapper::new(arr)));
+    }
+    if reference
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+        .is_some()
+    {
+        let arr = data
+            .into_dimensionality::<Ix2>()
+            .map_err(|e| OperationError::ShapeMismatch(format!("wrap_like (Ix2): {e}")))?;
+        return Ok(Box::new(NdarrayWrapper::new(arr)));
+    }
+    if reference
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, Ix4>>()
+        .is_some()
+    {
+        let arr = data
+            .into_dimensionality::<Ix4>()
+            .map_err(|e| OperationError::ShapeMismatch(format!("wrap_like (Ix4): {e}")))?;
+        return Ok(Box::new(NdarrayWrapper::new(arr)));
+    }
+    Ok(Box::new(NdarrayWrapper::new(data)))
+}
+
+/// Elementwise gradient of `ActivationFunc` (see `ml_ops::apply_activation`
+/// for the matching forward computation): given the pre-activation `z` and
+/// `grad_y` (`dL/dy` where `y = activation(z)`), returns `dL/dz`.
+fn activation_grad(
+    z: &ArrayD<f64>,
+    act: ActivationFunc,
+    grad_y: &ArrayD<f64>,
+) -> Result<ArrayD<f64>, OperationError> {
+    match act {
+        ActivationFunc::ReLU => {
+            Ok(Zip::from(z)
+                .and(grad_y)
+                .map_collect(|&zv, &gy| if zv > 0.0 { gy } else { 0.0 }))
+        }
+        ActivationFunc::Sigmoid => Ok(Zip::from(z).and(grad_y).map_collect(|&zv, &gy| {
+            let s = 1.0 / (1.0 + (-zv).exp());
+            gy * s * (1.0 - s)
+        })),
+        ActivationFunc::Tanh => Ok(Zip::from(z).and(grad_y).map_collect(|&zv, &gy| {
+            let t = zv.tanh();
+            gy * (1.0 - t * t)
+        })),
+        ActivationFunc::LeakyReLU(alpha) => Ok(Zip::from(z)
+            .and(grad_y)
+            .map_collect(|&zv, &gy| if zv > 0.0 { gy } else { gy * alpha })),
+        ActivationFunc::Softmax => Err(OperationError::NotImplemented(
+            "Softmax backward is not implemented: ml_ops::apply_activation's multi-dimensional \
+             Softmax normalizes along the array's last axis regardless of what that axis \
+             semantically represents for a given layer, so a generic gradient here would not \
+             reliably correspond to forward's behavior. Use an element-wise activation (ReLU, \
+             Sigmoid, Tanh, or LeakyReLU) on layers that need to be part of a differentiated model."
+                .to_string(),
+        )),
+    }
 }
 
 /// Linear (dense/fully-connected) layer.
@@ -150,6 +290,76 @@ impl Layer for Linear {
         }
 
         Ok(result)
+    }
+
+    fn backward(
+        &self,
+        input: &dyn ArrayProtocol,
+        grad_output: &dyn ArrayProtocol,
+    ) -> Result<LayerGrad, OperationError> {
+        let x = as_f64_array(input)?
+            .into_dimensionality::<Ix2>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!(
+                    "Linear::backward expects a 2D input (in_features, batch): {e}"
+                ))
+            })?;
+        let w = as_f64_array(self.weights.as_ref())?
+            .into_dimensionality::<Ix2>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!("Linear::backward expects 2D weights: {e}"))
+            })?;
+
+        // Recompute the pre-activation z = Wx [+ b], since `forward` doesn't
+        // cache it and it's needed to evaluate the activation's derivative.
+        let mut z = w.dot(&x);
+        if let Some(bias) = &self.bias {
+            let b = as_f64_array(bias.as_ref())?
+                .into_dimensionality::<Ix1>()
+                .map_err(|e| {
+                    OperationError::ShapeMismatch(format!(
+                        "Linear::backward expects a 1D bias: {e}"
+                    ))
+                })?;
+            for mut col in z.axis_iter_mut(Axis(1)) {
+                col += &b;
+            }
+        }
+
+        let grad_y = as_f64_array(grad_output)?
+            .into_dimensionality::<Ix2>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!(
+                    "Linear::backward expects a 2D grad_output: {e}"
+                ))
+            })?;
+
+        let grad_z = match self.activation {
+            Some(act) => activation_grad(&z.into_dyn(), act, &grad_y.into_dyn())?
+                .into_dimensionality::<Ix2>()
+                .map_err(|e| {
+                    OperationError::Other(format!(
+                        "internal shape error recovering activation_grad's result: {e}"
+                    ))
+                })?,
+            None => grad_y,
+        };
+
+        // dL/dW = dL/dz @ x^T ; dL/dx = W^T @ dL/dz
+        let grad_w = grad_z.dot(&x.t());
+        let grad_input = w.t().dot(&grad_z);
+
+        let mut grad_params = vec![wrap_like(self.weights.as_ref(), grad_w.into_dyn())?];
+        if let Some(bias) = &self.bias {
+            // dL/db = sum over the batch axis of dL/dz
+            let grad_b = grad_z.sum_axis(Axis(1));
+            grad_params.push(wrap_like(bias.as_ref(), grad_b.into_dyn())?);
+        }
+
+        Ok(LayerGrad {
+            grad_input: wrap_like(input, grad_input.into_dyn())?,
+            grad_params,
+        })
     }
 
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {
@@ -326,6 +536,159 @@ impl Layer for Conv2D {
         }
 
         Ok(result)
+    }
+
+    #[allow(clippy::needless_range_loop)]
+    fn backward(
+        &self,
+        input: &dyn ArrayProtocol,
+        grad_output: &dyn ArrayProtocol,
+    ) -> Result<LayerGrad, OperationError> {
+        let inputarr = as_f64_array(input)?
+            .into_dimensionality::<Ix4>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!("Conv2D::backward expects a 4D input: {e}"))
+            })?;
+        let filters = as_f64_array(self.filters.as_ref())?
+            .into_dimensionality::<Ix4>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!("Conv2D::backward expects 4D filters: {e}"))
+            })?;
+
+        let (stride_h, stride_w) = self.stride;
+        let (pad_h, pad_w) = self.padding;
+        let batch_size = inputarr.shape()[0];
+        let input_height = inputarr.shape()[1];
+        let input_width = inputarr.shape()[2];
+        let input_channels = inputarr.shape()[3];
+        let filter_height = filters.shape()[0];
+        let filter_width = filters.shape()[1];
+        let filter_out_channels = filters.shape()[3];
+        let out_height = (input_height - filter_height + 2 * pad_h) / stride_h + 1;
+        let out_width = (input_width - filter_width + 2 * pad_w) / stride_w + 1;
+
+        // Recompute the pre-activation convolution output (forward doesn't
+        // cache it), needed to evaluate the activation's derivative.
+        let mut conv_out =
+            Array4::<f64>::zeros((batch_size, out_height, out_width, filter_out_channels));
+        for b in 0..batch_size {
+            for oc in 0..filter_out_channels {
+                for oh in 0..out_height {
+                    for ow in 0..out_width {
+                        let mut sum = 0.0;
+                        for fh in 0..filter_height {
+                            for fw in 0..filter_width {
+                                let in_h = (oh * stride_h) as i32 + fh as i32 - pad_h as i32;
+                                let in_w = (ow * stride_w) as i32 + fw as i32 - pad_w as i32;
+                                if in_h >= 0
+                                    && in_h < input_height as i32
+                                    && in_w >= 0
+                                    && in_w < input_width as i32
+                                {
+                                    for ic in 0..input_channels {
+                                        sum += inputarr[[b, in_h as usize, in_w as usize, ic]]
+                                            * filters[[fh, fw, ic, oc]];
+                                    }
+                                }
+                            }
+                        }
+                        conv_out[[b, oh, ow, oc]] = sum;
+                    }
+                }
+            }
+        }
+        if let Some(bias) = &self.bias {
+            let bias_arr = as_f64_array(bias.as_ref())?;
+            for b in 0..batch_size {
+                for oh in 0..out_height {
+                    for ow in 0..out_width {
+                        for oc in 0..filter_out_channels {
+                            conv_out[[b, oh, ow, oc]] += bias_arr[[oc]];
+                        }
+                    }
+                }
+            }
+        }
+
+        let grad_y = as_f64_array(grad_output)?
+            .into_dimensionality::<Ix4>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!(
+                    "Conv2D::backward expects a 4D grad_output: {e}"
+                ))
+            })?;
+
+        let grad_preact = match self.activation {
+            Some(act) => activation_grad(&conv_out.into_dyn(), act, &grad_y.into_dyn())?
+                .into_dimensionality::<Ix4>()
+                .map_err(|e| {
+                    OperationError::Other(format!(
+                        "internal shape error recovering activation_grad's result: {e}"
+                    ))
+                })?,
+            None => grad_y,
+        };
+
+        // Backward via loop transposition of the exact forward computation:
+        // every (b, oc, oh, ow, fh, fw, ic) contribution to `conv_out` above
+        // contributes symmetrically to `grad_filters` and `grad_input`.
+        let mut grad_input =
+            Array4::<f64>::zeros((batch_size, input_height, input_width, input_channels));
+        let mut grad_filters = Array4::<f64>::zeros((
+            filter_height,
+            filter_width,
+            input_channels,
+            filter_out_channels,
+        ));
+
+        for b in 0..batch_size {
+            for oc in 0..filter_out_channels {
+                for oh in 0..out_height {
+                    for ow in 0..out_width {
+                        let g = grad_preact[[b, oh, ow, oc]];
+                        for fh in 0..filter_height {
+                            for fw in 0..filter_width {
+                                let in_h = (oh * stride_h) as i32 + fh as i32 - pad_h as i32;
+                                let in_w = (ow * stride_w) as i32 + fw as i32 - pad_w as i32;
+                                if in_h >= 0
+                                    && in_h < input_height as i32
+                                    && in_w >= 0
+                                    && in_w < input_width as i32
+                                {
+                                    let (in_h, in_w) = (in_h as usize, in_w as usize);
+                                    for ic in 0..input_channels {
+                                        grad_filters[[fh, fw, ic, oc]] +=
+                                            g * inputarr[[b, in_h, in_w, ic]];
+                                        grad_input[[b, in_h, in_w, ic]] +=
+                                            g * filters[[fh, fw, ic, oc]];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut grad_params = vec![wrap_like(self.filters.as_ref(), grad_filters.into_dyn())?];
+        if let Some(bias) = &self.bias {
+            let mut grad_bias = Array1::<f64>::zeros(filter_out_channels);
+            for b in 0..batch_size {
+                for oh in 0..out_height {
+                    for ow in 0..out_width {
+                        for oc in 0..filter_out_channels {
+                            grad_bias[oc] += grad_preact[[b, oh, ow, oc]];
+                        }
+                    }
+                }
+            }
+            grad_params.push(wrap_like(bias.as_ref(), grad_bias.into_dyn())?);
+        }
+
+        Ok(LayerGrad {
+            grad_input: wrap_like(input, grad_input.into_dyn())?,
+            grad_params,
+        })
     }
 
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {
@@ -527,6 +890,80 @@ impl Layer for MaxPool2D {
         )
     }
 
+    fn backward(
+        &self,
+        input: &dyn ArrayProtocol,
+        grad_output: &dyn ArrayProtocol,
+    ) -> Result<LayerGrad, OperationError> {
+        let inputarr = as_f64_array(input)?
+            .into_dimensionality::<Ix4>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!(
+                    "MaxPool2D::backward expects a 4D input: {e}"
+                ))
+            })?;
+        let grad_y = as_f64_array(grad_output)?
+            .into_dimensionality::<Ix4>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!(
+                    "MaxPool2D::backward expects a 4D grad_output: {e}"
+                ))
+            })?;
+
+        let (kernel_h, kernel_w) = self.kernel_size;
+        let (stride_h, stride_w) = self.stride;
+        let (pad_h, pad_w) = self.padding;
+
+        let batch_size = inputarr.shape()[0];
+        let input_height = inputarr.shape()[1];
+        let input_width = inputarr.shape()[2];
+        let channels = inputarr.shape()[3];
+        let out_height = grad_y.shape()[1];
+        let out_width = grad_y.shape()[2];
+
+        let mut grad_input =
+            Array4::<f64>::zeros((batch_size, input_height, input_width, channels));
+
+        // Route each output cell's gradient to whichever input cell was the
+        // max in its pooling window (accumulating, since overlapping
+        // windows can route to the same input cell more than once).
+        for b in 0..batch_size {
+            for c in 0..channels {
+                for out_h in 0..out_height {
+                    for out_w in 0..out_width {
+                        let mut max_val = f64::NEG_INFINITY;
+                        let mut argmax: Option<(usize, usize)> = None;
+                        for k_h in 0..kernel_h {
+                            for k_w in 0..kernel_w {
+                                let in_h = (out_h * stride_h) as i32 + k_h as i32 - pad_h as i32;
+                                let in_w = (out_w * stride_w) as i32 + k_w as i32 - pad_w as i32;
+                                if in_h >= 0
+                                    && in_h < input_height as i32
+                                    && in_w >= 0
+                                    && in_w < input_width as i32
+                                {
+                                    let val = inputarr[[b, in_h as usize, in_w as usize, c]];
+                                    if val > max_val {
+                                        max_val = val;
+                                        argmax = Some((in_h as usize, in_w as usize));
+                                    }
+                                }
+                            }
+                        }
+                        if let Some((in_h, in_w)) = argmax {
+                            grad_input[[b, in_h, in_w, c]] += grad_y[[b, out_h, out_w, c]];
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(LayerGrad {
+            grad_input: wrap_like(input, grad_input.into_dyn())?,
+            grad_params: Vec::new(),
+        })
+    }
+
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {
         // Pooling layers have no parameters
         Vec::new()
@@ -658,6 +1095,69 @@ impl Layer for BatchNorm {
         )
     }
 
+    fn backward(
+        &self,
+        input: &dyn ArrayProtocol,
+        grad_output: &dyn ArrayProtocol,
+    ) -> Result<LayerGrad, OperationError> {
+        // `ml_ops::batch_norm`'s forward always normalizes with the given
+        // `mean`/`variance` directly (it does not compute batch statistics
+        // even in training mode), so — matching that — they're treated here
+        // as constants rather than differentiated through: only `scale` and
+        // `offset` are learnable parameters (see `parameters()` below).
+        let x = as_f64_array(input)?
+            .into_dimensionality::<Ix4>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!(
+                    "BatchNorm::backward expects a 4D input: {e}"
+                ))
+            })?;
+        let grad_y = as_f64_array(grad_output)?
+            .into_dimensionality::<Ix4>()
+            .map_err(|e| {
+                OperationError::ShapeMismatch(format!(
+                    "BatchNorm::backward expects a 4D grad_output: {e}"
+                ))
+            })?;
+        let scale = as_f64_array(self.scale.as_ref())?;
+        let mean = as_f64_array(self.running_mean.as_ref())?;
+        let variance = as_f64_array(self.running_var.as_ref())?;
+
+        let (batch_size, height, width, channels) = x.dim();
+        let mut grad_input = Array4::<f64>::zeros((batch_size, height, width, channels));
+        let mut grad_scale = Array1::<f64>::zeros(channels);
+        let mut grad_offset = Array1::<f64>::zeros(channels);
+
+        for c in 0..channels {
+            let inv_std = 1.0 / (variance[[c]] + self.epsilon).sqrt();
+            let m = mean[[c]];
+            let s = scale[[c]];
+            let mut grad_scale_c = 0.0;
+            let mut grad_offset_c = 0.0;
+            for b in 0..batch_size {
+                for h in 0..height {
+                    for w in 0..width {
+                        let gy = grad_y[[b, h, w, c]];
+                        let normalized = (x[[b, h, w, c]] - m) * inv_std;
+                        grad_scale_c += gy * normalized;
+                        grad_offset_c += gy;
+                        grad_input[[b, h, w, c]] = gy * s * inv_std;
+                    }
+                }
+            }
+            grad_scale[c] = grad_scale_c;
+            grad_offset[c] = grad_offset_c;
+        }
+
+        Ok(LayerGrad {
+            grad_input: wrap_like(input, grad_input.into_dyn())?,
+            grad_params: vec![
+                wrap_like(self.scale.as_ref(), grad_scale.into_dyn())?,
+                wrap_like(self.offset.as_ref(), grad_offset.into_dyn())?,
+            ],
+        })
+    }
+
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {
         vec![self.scale.clone(), self.offset.clone()]
     }
@@ -742,6 +1242,62 @@ impl Layer for Dropout {
         inputs: &dyn ArrayProtocol,
     ) -> Result<Box<dyn ArrayProtocol>, OperationError> {
         crate::array_protocol::ml_ops::dropout(inputs, self.rate, self.training, self.seed)
+    }
+
+    fn backward(
+        &self,
+        input: &dyn ArrayProtocol,
+        grad_output: &dyn ArrayProtocol,
+    ) -> Result<LayerGrad, OperationError> {
+        if !self.training {
+            // Inference-mode dropout is the identity function.
+            return Ok(LayerGrad {
+                grad_input: grad_output.box_clone(),
+                grad_params: Vec::new(),
+            });
+        }
+
+        // `ml_ops::dropout`'s forward doesn't cache the mask it drew, so it
+        // can only be reproduced deterministically (and thus differentiated
+        // through) when the layer was constructed with a fixed seed.
+        let seed = self.seed.ok_or_else(|| {
+            OperationError::NotImplemented(
+                "Dropout::backward requires a fixed `seed` to deterministically reproduce the \
+                 forward mask (forward() does not cache it); construct the layer via \
+                 `Dropout::new(name, rate, Some(seed))` to backpropagate through training-mode \
+                 dropout"
+                    .to_string(),
+            )
+        })?;
+
+        let grad_y = as_f64_array(grad_output)?;
+        let inputarr = as_f64_array(input)?;
+        if inputarr.shape() != grad_y.shape() {
+            return Err(OperationError::ShapeMismatch(format!(
+                "Dropout::backward: input shape {inputshape:?} != grad_output shape {gradshape:?}",
+                inputshape = inputarr.shape(),
+                gradshape = grad_y.shape()
+            )));
+        }
+
+        // Reproduce the exact mask `forward()` would have drawn for this
+        // input shape, using the same seeded RNG sequence.
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        let rate = self.rate;
+        let mask = Array::from_shape_fn(inputarr.raw_dim(), |_| {
+            if rng.random::<f64>() >= rate {
+                1.0
+            } else {
+                0.0
+            }
+        });
+        let scale = 1.0 / (1.0 - self.rate);
+        let grad_input = grad_y * &mask * scale;
+
+        Ok(LayerGrad {
+            grad_input: wrap_like(input, grad_input)?,
+            grad_params: Vec::new(),
+        })
     }
 
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {
@@ -912,6 +1468,24 @@ impl Layer for MultiHeadAttention {
         Ok(output)
     }
 
+    fn backward(
+        &self,
+        _input: &dyn ArrayProtocol,
+        _grad_output: &dyn ArrayProtocol,
+    ) -> Result<LayerGrad, OperationError> {
+        // `forward()` above is already documented as "a simplified
+        // placeholder implementation" that doesn't perform real per-head
+        // reshape/splitting — differentiating it exactly wouldn't give a
+        // gradient for the multi-head attention operation this layer is
+        // meant to represent. Fixing `forward()` for real is a prerequisite
+        // for a meaningful `backward()` here.
+        Err(OperationError::NotImplemented(
+            "MultiHeadAttention::backward is not implemented (forward() is itself a documented \
+             simplified placeholder, not real multi-head attention)"
+                .to_string(),
+        ))
+    }
+
     fn parameters(&self) -> Vec<Box<dyn ArrayProtocol>> {
         vec![
             self.wq.clone(),
@@ -1061,15 +1635,93 @@ impl Sequential {
         &self.layers
     }
 
-    /// Backward pass through the model to compute gradients
+    /// Get mutable access to the layers in the model — e.g. so a
+    /// deserializer can restore saved parameter values in place.
+    pub fn layers_mut(&mut self) -> &mut [Box<dyn Layer>] {
+        &mut self.layers
+    }
+
+    /// Backward pass through the model: given the original `input` fed to
+    /// `forward` and `grad_output` (the gradient of the loss with respect
+    /// to the model's final output — e.g. `Loss::backward`'s result),
+    /// computes the gradient for every parameter in every layer via
+    /// backpropagation. The returned dictionary is keyed
+    /// `"{layer_index}.{param_name}"`, matching [`Self::all_parameter_names`]
+    /// and [`Self::update_parameter`]'s expected format.
+    ///
+    /// `Layer::forward` doesn't cache intermediate activations, so this
+    /// first recomputes the forward pass (retaining each layer's input) and
+    /// then walks the layers in reverse, threading each layer's
+    /// `grad_input` to the previous layer as its `grad_output`.
     pub fn backward(
         &self,
-        _output: &dyn ArrayProtocol,
-        _target: &dyn ArrayProtocol,
+        input: &dyn ArrayProtocol,
+        grad_output: &dyn ArrayProtocol,
     ) -> Result<crate::array_protocol::grad::GradientDict, crate::error::CoreError> {
-        // For now, return an empty gradient dictionary
-        // In a full implementation, this would compute gradients via backpropagation
-        Ok(crate::array_protocol::grad::GradientDict::new())
+        let mut gradients = crate::array_protocol::grad::GradientDict::new();
+        if self.layers.is_empty() {
+            return Ok(gradients);
+        }
+
+        // Recompute the forward pass, caching each layer's input so that
+        // `activations[i]` is the input seen by `self.layers[i]`.
+        let mut activations: Vec<Box<dyn ArrayProtocol>> =
+            Vec::with_capacity(self.layers.len() + 1);
+        activations.push(input.box_clone());
+        for layer in &self.layers {
+            let layer_input: &dyn ArrayProtocol = activations
+                .last()
+                .ok_or_else(|| {
+                    crate::error::CoreError::ComputationError(crate::error::ErrorContext::new(
+                        "internal error: activation cache unexpectedly empty".to_string(),
+                    ))
+                })?
+                .as_ref();
+            let out = layer.forward(layer_input).map_err(|e| {
+                crate::error::CoreError::ComputationError(crate::error::ErrorContext::new(format!(
+                    "backward(): forward recompute failed in layer '{name}': {e}",
+                    name = layer.name()
+                )))
+            })?;
+            activations.push(out);
+        }
+
+        // Walk the layers in reverse, propagating the gradient and
+        // collecting each layer's parameter gradients.
+        let mut grad_current: Box<dyn ArrayProtocol> = grad_output.box_clone();
+        for (layer_idx, layer) in self.layers.iter().enumerate().rev() {
+            let layer_input: &dyn ArrayProtocol = activations[layer_idx].as_ref();
+            let layer_grad = layer
+                .backward(layer_input, grad_current.as_ref())
+                .map_err(|e| {
+                    crate::error::CoreError::ComputationError(crate::error::ErrorContext::new(
+                        format!(
+                            "backward() failed in layer '{name}' (index {layer_idx}): {e}",
+                            name = layer.name()
+                        ),
+                    ))
+                })?;
+
+            let param_names = layer.parameter_names();
+            for (param_idx, grad_param) in layer_grad.grad_params.into_iter().enumerate() {
+                let param_name = param_names.get(param_idx).ok_or_else(|| {
+                    crate::error::CoreError::ComputationError(crate::error::ErrorContext::new(
+                        format!(
+                            "layer '{name}' (index {layer_idx}) returned {ngrads} parameter \
+                             gradient(s) but parameter_names() only has {nnames}",
+                            name = layer.name(),
+                            ngrads = param_idx + 1,
+                            nnames = param_names.len()
+                        ),
+                    ))
+                })?;
+                gradients.insert(format!("{layer_idx}.{param_name}"), grad_param);
+            }
+
+            grad_current = layer_grad.grad_input;
+        }
+
+        Ok(gradients)
     }
 
     /// Update a parameter in the model
@@ -1337,3 +1989,9 @@ mod tests {
         assert!(!params.is_empty());
     }
 }
+
+// Split out to keep neural.rs under the workspace's 2000-line-per-file limit
+// (see grad.rs/grad_tests.rs for the same pattern).
+#[cfg(test)]
+#[path = "neural_backward_tests.rs"]
+mod backward_tests;

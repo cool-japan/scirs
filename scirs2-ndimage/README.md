@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-ndimage.svg)](https://crates.io/crates/scirs2-ndimage)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-ndimage)](https://docs.rs/scirs2-ndimage)
-[![Version](https://img.shields.io/badge/version-0.6.3-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.5-green)]()
 [![Status](https://img.shields.io/badge/status-partial-yellow)]()
 [![Tests](https://img.shields.io/badge/tests-1199%20passing-brightgreen)]()
 
@@ -24,7 +24,7 @@ Use scirs2-ndimage when you need to:
 - Detect features (corners, edges, SIFT descriptors, HOG)
 - Perform atlas-based segmentation
 
-## Features (v0.6.3)
+## Features (v0.6.5)
 
 ### Image Filtering
 - **Gaussian Filters**: `gaussian_filter`, `gaussian_filter1d`, `gaussian_gradient_magnitude`, `gaussian_laplace`
@@ -122,14 +122,14 @@ Use scirs2-ndimage when you need to:
 
 ```toml
 [dependencies]
-scirs2-ndimage = "0.6.4"
+scirs2-ndimage = "0.6.5"
 ```
 
 For parallel processing and SIMD:
 
 ```toml
 [dependencies]
-scirs2-ndimage = { version = "0.6.4", features = ["parallel", "simd"] }
+scirs2-ndimage = { version = "0.6.5", features = ["parallel", "simd"] }
 ```
 
 ## Feature Flags

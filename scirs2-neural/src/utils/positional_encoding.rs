@@ -82,6 +82,41 @@ pub trait PositionalEncoding<F: Float + Debug + NumAssign> {
         Ok(output_3d.into_dyn())
     }
 
+    /// Backward pass: gradient of the loss with respect to the encoding input
+    ///
+    /// # Arguments
+    /// * `grad_output` - Gradient with respect to the encoded tensor,
+    ///   shape `[batch_size, seq_len, d_model]`
+    ///
+    /// # Returns
+    /// Gradient with respect to the tensor passed to [`PositionalEncoding::forward`]
+    ///
+    /// # Errors
+    /// The default implementation reports [`NeuralError::NotImplementedError`]
+    /// rather than guessing: the Jacobian depends on how the encoding combines
+    /// with the input (additive encodings pass the gradient through unchanged,
+    /// rotary encodings apply the transposed rotation). Every encoding shipped
+    /// with this crate overrides it.
+    fn backward(&self, grad_output: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        let _ = grad_output;
+        Err(NeuralError::NotImplementedError(
+            "this positional encoding does not implement a backward pass".to_string(),
+        ))
+    }
+
+    /// Accumulate the gradient of any trainable encoding parameters
+    ///
+    /// # Arguments
+    /// * `grad_output` - Gradient with respect to the encoded tensor
+    ///
+    /// # Returns
+    /// Result indicating success or failure. Parameter-free encodings ignore
+    /// the gradient, which is why the default implementation is a no-op.
+    fn accumulate_gradients(&mut self, grad_output: &Array<F, IxDyn>) -> Result<()> {
+        let _ = grad_output;
+        Ok(())
+    }
+
     /// Update trainable parameters (for learned encodings)
     ///
     /// # Arguments
@@ -204,6 +239,12 @@ impl<F: Float + Debug + NumAssign> SinusoidalPositionalEncoding<F> {
 }
 
 impl<F: Float + Debug + NumAssign> PositionalEncoding<F> for SinusoidalPositionalEncoding<F> {
+    /// The encoding is added to the input, so the gradient passes through
+    /// unchanged.
+    fn backward(&self, grad_output: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        Ok(grad_output.clone())
+    }
+
     fn encode(&self, seq_len: usize) -> Array2<F> {
         assert!(
             seq_len <= self.max_len,
@@ -263,6 +304,8 @@ pub struct LearnedPositionalEncoding<F: Float + Debug + NumAssign> {
     max_len: usize,
     /// Learnable position embeddings
     embeddings: Array2<F>,
+    /// Gradient of `embeddings`, accumulated by `accumulate_gradients`
+    dembeddings: Array2<F>,
 }
 
 impl<F: Float + Debug + NumAssign> LearnedPositionalEncoding<F> {
@@ -288,6 +331,7 @@ impl<F: Float + Debug + NumAssign> LearnedPositionalEncoding<F> {
         Self {
             d_model,
             max_len,
+            dembeddings: Array2::zeros((max_len, d_model)),
             embeddings,
         }
     }
@@ -295,10 +339,12 @@ impl<F: Float + Debug + NumAssign> LearnedPositionalEncoding<F> {
     /// Create from existing embeddings
     pub fn from_embeddings(embeddings: Array2<F>) -> Self {
         let shape = embeddings.shape();
+        let (max_len, d_model) = (shape[0], shape[1]);
         Self {
-            d_model: shape[1],
-            max_len: shape[0],
+            d_model,
+            max_len,
             embeddings,
+            dembeddings: Array2::zeros((max_len, d_model)),
         }
     }
 
@@ -314,6 +360,55 @@ impl<F: Float + Debug + NumAssign> LearnedPositionalEncoding<F> {
 }
 
 impl<F: Float + Debug + NumAssign> PositionalEncoding<F> for LearnedPositionalEncoding<F> {
+    /// The embeddings are added to the input, so the gradient with respect to
+    /// the input passes through unchanged.
+    fn backward(&self, grad_output: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        Ok(grad_output.clone())
+    }
+
+    /// Accumulate `d(loss)/d(embeddings)`: the output gradient summed over the
+    /// batch for every position that was used.
+    fn accumulate_gradients(&mut self, grad_output: &Array<F, IxDyn>) -> Result<()> {
+        if grad_output.ndim() != 3 {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Expected a 3D gradient [batch, seq_len, d_model], got {}D",
+                grad_output.ndim()
+            )));
+        }
+        let shape = grad_output.shape();
+        let (batch_size, seq_len, d_model) = (shape[0], shape[1], shape[2]);
+        if d_model != self.d_model {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Gradient feature dimension {} does not match d_model {}",
+                d_model, self.d_model
+            )));
+        }
+        if seq_len > self.max_len {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "Sequence length {} exceeds max_len {}",
+                seq_len, self.max_len
+            )));
+        }
+        self.dembeddings = Array2::zeros((self.max_len, self.d_model));
+        for b in 0..batch_size {
+            for pos in 0..seq_len {
+                for k in 0..d_model {
+                    self.dembeddings[[pos, k]] += grad_output[[b, pos, k]];
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Apply the gradients accumulated by
+    /// [`PositionalEncoding::accumulate_gradients`].
+    fn update(&mut self, learning_rate: F) -> Result<()> {
+        Zip::from(&mut self.embeddings)
+            .and(&self.dembeddings)
+            .for_each(|w, &g| *w -= learning_rate * g);
+        Ok(())
+    }
+
     fn encode(&self, seq_len: usize) -> Array2<F> {
         assert!(
             seq_len <= self.max_len,
@@ -482,6 +577,48 @@ impl<F: Float + Debug + NumAssign> RotaryPositionalEncoding<F> {
 }
 
 impl<F: Float + Debug + NumAssign> PositionalEncoding<F> for RotaryPositionalEncoding<F> {
+    /// RoPE multiplies each `(x_{2i}, x_{2i+1})` pair by the rotation matrix
+    /// `[[cos, -sin], [sin, cos]]`. Rotations are orthogonal, so the Jacobian
+    /// transpose is the rotation by the negated angle.
+    fn backward(&self, grad_output: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        if grad_output.ndim() != 3 {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Expected a 3D gradient [batch, seq_len, d_model], got {}D",
+                grad_output.ndim()
+            )));
+        }
+        let shape = grad_output.shape();
+        let (batch_size, seq_len, d_model) = (shape[0], shape[1], shape[2]);
+        if d_model != self.d_model {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Gradient feature dimension {} does not match d_model {}",
+                d_model, self.d_model
+            )));
+        }
+        if seq_len > self.max_len {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "Position {} exceeds max_len {}",
+                seq_len, self.max_len
+            )));
+        }
+
+        let half_dim = self.d_model / 2;
+        let mut grad_input = Array::<F, IxDyn>::zeros(grad_output.raw_dim());
+        for b in 0..batch_size {
+            for pos in 0..seq_len {
+                for i in 0..half_dim {
+                    let g1 = grad_output[[b, pos, 2 * i]];
+                    let g2 = grad_output[[b, pos, 2 * i + 1]];
+                    let cos = self.cos_cached[[pos, i]];
+                    let sin = self.sin_cached[[pos, i]];
+                    grad_input[[b, pos, 2 * i]] = g1 * cos + g2 * sin;
+                    grad_input[[b, pos, 2 * i + 1]] = -g1 * sin + g2 * cos;
+                }
+            }
+        }
+        Ok(grad_input)
+    }
+
     fn encode(&self, seq_len: usize) -> Array2<F> {
         // Return combined sin/cos for compatibility
         // In practice, use rotate() method directly
@@ -613,6 +750,12 @@ impl<F: Float + Debug + NumAssign> RelativePositionalEncoding<F> {
 }
 
 impl<F: Float + Debug + NumAssign> PositionalEncoding<F> for RelativePositionalEncoding<F> {
+    /// `apply` adds the centre embeddings to the input, so the gradient with
+    /// respect to the input passes through unchanged.
+    fn backward(&self, grad_output: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        Ok(grad_output.clone())
+    }
+
     fn encode(&self, seq_len: usize) -> Array2<F> {
         // For relative PE, return the central positions (around 0 relative position)
         let start = self.max_len - 1;

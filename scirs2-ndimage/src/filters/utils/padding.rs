@@ -4,7 +4,7 @@
 //! various border handling modes including constant, reflect, mirror, wrap, and nearest.
 //! Supports 1D, 2D, and n-dimensional arrays with efficient padding algorithms.
 
-use scirs2_core::ndarray::{Array, ArrayBase, Dimension};
+use scirs2_core::ndarray::{Array, ArrayBase, Dimension, Slice};
 use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::Debug;
 
@@ -618,7 +618,7 @@ pub fn get_window<T, D>(
     input: &Array<T, D>,
     center: &[usize],
     window_size: &[usize],
-    _mode: &BorderMode,
+    mode: &BorderMode,
     value: Option<T>,
 ) -> NdimageResult<Array<T, D>>
 where
@@ -665,26 +665,40 @@ where
         pad_width.push((before, after));
     }
 
-    // No padding needed - we can extract directly
+    // No padding needed - extract the window directly from `input` via
+    // slicing.
     if pad_width.iter().all(|&(a, b)| a == 0 && b == 0) {
-        // Calculate window bounds
-        let mut start = Vec::with_capacity(input.ndim());
-        let mut end = Vec::with_capacity(input.ndim());
+        let mut start = vec![0usize; input.ndim()];
+        let mut end = vec![0usize; input.ndim()];
 
         for dim in 0..input.ndim() {
             let radius = window_size[dim] / 2;
-            start.push(center[dim].saturating_sub(radius));
-            end.push(std::cmp::min(center[dim] + radius + 1, input.shape()[dim]));
+            start[dim] = center[dim].saturating_sub(radius);
+            end[dim] = std::cmp::min(center[dim] + radius + 1, input.shape()[dim]);
         }
 
-        // Extract window directly
-        // Placeholder - would use proper indexing in full implementation
-        return Ok(input.to_owned());
+        let view =
+            input.slice_each_axis(|ax| Slice::from(start[ax.axis.index()]..end[ax.axis.index()]));
+        return Ok(view.to_owned());
     }
 
-    // Need padding - implement proper window extraction with border handling
-    // Placeholder implementation
-    Ok(input.to_owned())
+    // Need padding: pad the whole array using the requested border mode
+    // (honoring `mode`/`value`, unlike before), then extract the requested
+    // window from the padded array at the shifted center location.
+    let padded = pad_array(input, &pad_width, mode, value)?;
+
+    let mut start = vec![0usize; input.ndim()];
+    let mut end = vec![0usize; input.ndim()];
+    for dim in 0..input.ndim() {
+        let radius = window_size[dim] / 2;
+        let padded_center = center[dim] + pad_width[dim].0;
+        start[dim] = padded_center.saturating_sub(radius);
+        end[dim] = padded_center + radius + 1;
+    }
+
+    let view =
+        padded.slice_each_axis(|ax| Slice::from(start[ax.axis.index()]..end[ax.axis.index()]));
+    Ok(view.to_owned())
 }
 
 /// Copy an n-dimensional array to a specified position in another array
@@ -1608,5 +1622,70 @@ mod tests {
         // Check that other values are still zero
         assert_eq!(dest[[0, 0, 0]], 0.0);
         assert_eq!(dest[[3, 3, 3]], 0.0);
+    }
+
+    #[test]
+    fn test_get_window_no_padding_extracts_real_subwindow() {
+        // Distinct, non-constant values so a stub returning the whole input
+        // array (the pre-fix behavior) is clearly distinguishable from a
+        // real 3x3 sub-window.
+        let input = Array2::from_shape_fn((4, 4), |(i, j)| (i * 4 + j) as f64);
+
+        let window = get_window(&input, &[2, 2], &[3, 3], &BorderMode::Constant, Some(-1.0))
+            .expect("Operation failed");
+
+        assert_eq!(window.shape(), &[3, 3]);
+        // Expected: input[1..4, 1..4]
+        let expected = Array2::from_shape_vec(
+            (3, 3),
+            vec![5.0, 6.0, 7.0, 9.0, 10.0, 11.0, 13.0, 14.0, 15.0],
+        )
+        .expect("Operation failed");
+        assert_eq!(window, expected);
+    }
+
+    #[test]
+    fn test_get_window_constant_mode_pads_with_value() {
+        let input = Array2::from_shape_fn((4, 4), |(i, j)| (i * 4 + j) as f64);
+
+        // Centered at the top-left corner: the window extends 1 cell past
+        // the array boundary on both the row and column axes, which must
+        // be filled with the requested constant value (-1.0) rather than
+        // silently returning the whole (differently-shaped/valued) input.
+        let window = get_window(&input, &[0, 0], &[3, 3], &BorderMode::Constant, Some(-1.0))
+            .expect("Operation failed");
+
+        assert_eq!(window.shape(), &[3, 3]);
+        assert_eq!(window[[0, 0]], -1.0);
+        assert_eq!(window[[0, 1]], -1.0);
+        assert_eq!(window[[1, 0]], -1.0);
+        // In-bounds region matches the original input exactly.
+        assert_eq!(window[[1, 1]], input[[0, 0]]);
+        assert_eq!(window[[1, 2]], input[[0, 1]]);
+        assert_eq!(window[[2, 1]], input[[1, 0]]);
+        assert_eq!(window[[2, 2]], input[[1, 1]]);
+    }
+
+    #[test]
+    fn test_get_window_nearest_mode_replicates_edge() {
+        let input = Array2::from_shape_fn((4, 4), |(i, j)| (i * 4 + j) as f64);
+
+        let window = get_window(&input, &[0, 0], &[3, 3], &BorderMode::Nearest, None)
+            .expect("Operation failed");
+
+        assert_eq!(window.shape(), &[3, 3]);
+        // Reference values independently computed from BorderMode::Nearest's
+        // edge-replication semantics (see the padding.rs module docs).
+        let expected =
+            Array2::from_shape_vec((3, 3), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 4.0, 4.0, 5.0])
+                .expect("Operation failed");
+        assert_eq!(window, expected);
+    }
+
+    #[test]
+    fn test_get_window_rejects_mismatched_dimensions() {
+        let input = Array2::from_shape_fn((4, 4), |(i, j)| (i * 4 + j) as f64);
+        assert!(get_window(&input, &[0], &[3, 3], &BorderMode::Constant, None).is_err());
+        assert!(get_window(&input, &[0, 0], &[3], &BorderMode::Constant, None).is_err());
     }
 }

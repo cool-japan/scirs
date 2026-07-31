@@ -24,6 +24,23 @@ use crate::workspace::WorkspaceInfo;
 use std::path::Path;
 
 // ---------------------------------------------------------------------------
+// Self-exclusion
+// ---------------------------------------------------------------------------
+
+/// Crates excluded from this check entirely.
+///
+/// `cargo-scirs2-policy`'s own source embeds the literal string
+/// `".unwrap()"` as the search needle in [`contains_unwrap`] below — a plain
+/// substring scan cannot distinguish "this text is string *data*" from "this
+/// is a real `.unwrap()` call", so scanning this crate's own source
+/// self-matches that needle and reports a false positive on its own
+/// production code. The same class of self-referential noise (fixture text
+/// matching the very pattern a checker searches for) is already documented
+/// and excluded in [`crate::checks::ignore_audit`]; this mirrors that
+/// precedent rather than introducing a new exception style.
+const EXCLUDED_CRATES: &[&str] = &["cargo-scirs2-policy"];
+
+// ---------------------------------------------------------------------------
 // Check struct
 // ---------------------------------------------------------------------------
 
@@ -36,6 +53,9 @@ impl UnwrapCheck {
         let mut violations = Vec::new();
 
         for crate_info in &workspace.crates {
+            if EXCLUDED_CRATES.contains(&crate_info.name.as_str()) {
+                continue;
+            }
             let rs_files = crate::workspace::walk_rust_files(&crate_info.path);
             for file in &rs_files {
                 if is_excluded_path(file) {

@@ -122,8 +122,10 @@ pub use spectral::polynomial::{
 /// assert_eq!(result[1], 2.0); // Linear interpolation between 1.0 and 3.0
 /// ```
 #[allow(dead_code)]
-pub fn linear(signal: &scirs2_core::ndarray::Array1<f64>) -> crate::error::SignalResult<scirs2_core::ndarray::Array1<f64>> {
-    linear_interpolate(_signal)
+pub fn linear(
+    signal: &scirs2_core::ndarray::Array1<f64>,
+) -> crate::error::SignalResult<scirs2_core::ndarray::Array1<f64>> {
+    linear_interpolate(signal)
 }
 
 /// Convenience function for cubic spline interpolation
@@ -226,7 +228,7 @@ impl InterpolationBuilder {
     }
 
     /// Sets the maximum number of iterations for iterative methods
-    pub fn max_iterations(mut self, maxiterations: usize) -> Self {
+    pub fn max_iterations(mut self, max_iterations: usize) -> Self {
         self.config.max_iterations = max_iterations;
         self
     }
@@ -244,7 +246,7 @@ impl InterpolationBuilder {
     }
 
     /// Sets the window size for local methods
-    pub fn window_size(mut self, windowsize: usize) -> Self {
+    pub fn window_size(mut self, window_size: usize) -> Self {
         self.config.window_size = window_size;
         self
     }
@@ -374,7 +376,7 @@ mod tests {
         let result2 = cubic_spline(&signal).expect("Operation failed");
         assert!(!result2[1].is_nan());
 
-        let (result3_method) = auto(&signal).expect("Operation failed");
+        let (result3, _method) = auto(&signal).expect("Operation failed");
         assert!(!result3[1].is_nan());
     }
 
@@ -428,11 +430,13 @@ mod tests {
         let config = InterpolationConfig::default();
 
         // Test that all main API functions work
-        let result1 = interpolate(&signal, InterpolationMethod::Linear, &config).expect("Operation failed");
+        let result1 =
+            interpolate(&signal, InterpolationMethod::Linear, &config).expect("Operation failed");
         let result2 = linear_interpolate(&signal).expect("Operation failed");
         let result3 = cubic_spline_interpolate(&signal, &config).expect("Operation failed");
         let result4 = sinc_interpolate(&signal, 0.4).expect("Operation failed");
-        let (result5_) = auto_interpolate(&signal, &config, false).expect("Operation failed");
+        let (result5, _method5) =
+            auto_interpolate(&signal, &config, false).expect("Operation failed");
 
         // All results should have no NaN values
         assert!(result1.iter().all(|&x| !x.is_nan()));

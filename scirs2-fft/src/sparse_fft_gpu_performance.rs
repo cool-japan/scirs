@@ -3,11 +3,35 @@
 //! This module provides tools for optimizing the performance of
 //! GPU-accelerated sparse FFT operations, including auto-tuning,
 //! performance analysis, and runtime configuration.
+//!
+//! # Provenance note
+//!
+//! This module previously existed in the source tree but was never declared
+//! in `lib.rs` (`mod sparse_fft_gpu_performance;` was missing), so it never
+//! compiled into any target and its tests never ran. On top of that, the
+//! file itself did not compile even in isolation: several apparent
+//! find/replace passes had left mismatched identifiers behind (e.g. a
+//! `run_tuning` parameter named `referencesignals` whose body referred to
+//! `reference_signals`; `self._config` where the field is `config`; a
+//! malformed `&self..signal_size` in a trait signature), plus a couple of
+//! genuine API drifts (`KernelFactory`'s GPU-capability fields had since
+//! become private; it never derived `Clone`). All of that has been fixed
+//! here (with two small `pub(crate)` accessors added to `KernelFactory` in
+//! `sparse_fft_gpu_kernels.rs` to restore read access), and the module is
+//! now wired into `lib.rs`.
+//!
+//! Its three tests were marked `#[ignore = "... GPU-dependent test"]`, but
+//! that label was already inaccurate before any of the above: none of the
+//! three actually touch a GPU/CUDA/device API -- `get_optimal_algorithm`
+//! and `get_optimal_window_function` are pure host-side heuristics over
+//! signal statistics, and `KernelFactoryExt` is a plain data calculator over
+//! caller-supplied hardware-spec numbers. The `#[ignore]` attributes have
+//! been removed accordingly so these now run as ordinary fast unit tests.
 
 use crate::error::{FFTError, FFTResult};
 use crate::sparse_fft::{SparseFFTAlgorithm, WindowFunction};
 use crate::sparse_fft_gpu_kernels::{
-    KernelConfig, KernelFactory, KernelImplementation, KernelLauncher, KernelStats
+    GPUKernel, KernelConfig, KernelFactory, KernelImplementation, KernelLauncher, KernelStats,
 };
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::NumCast;
@@ -101,6 +125,12 @@ pub struct PerformanceCollector {
     start_time: Instant,
 }
 
+impl Default for PerformanceCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceCollector {
     /// Create a new performance collector
     pub fn new() -> Self {
@@ -109,43 +139,50 @@ impl PerformanceCollector {
             start_time: Instant::now(),
         }
     }
-    
+
     /// Add a profile
     pub fn add_profile(&mut self, profile: PerformanceProfile) {
         self.profiles.push(profile);
     }
-    
+
     /// Get all profiles
     pub fn get_profiles(&self) -> &[PerformanceProfile] {
         &self.profiles
     }
-    
+
     /// Get elapsed time
     pub fn elapsed(&self) -> Duration {
         self.start_time.elapsed()
     }
-    
+
     /// Get best profile for a given signal size
-    pub fn get_best_profile(&self, signalsize: usize) -> Option<&PerformanceProfile> {
+    pub fn get_best_profile(&self, signal_size: usize) -> Option<&PerformanceProfile> {
         self.profiles
             .iter()
             .filter(|p| p.signal_size == signal_size)
-            .min_by(|a, b| a.stats.execution_time_ms.partial_cmp(&b.stats.execution_time_ms).expect("Operation failed"))
+            .min_by(|a, b| {
+                a.stats
+                    .execution_time_ms
+                    .partial_cmp(&b.stats.execution_time_ms)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
     }
-    
+
     /// Get best algorithm for a given signal size
-    pub fn get_best_algorithm(&self, signalsize: usize) -> Option<SparseFFTAlgorithm> {
+    pub fn get_best_algorithm(&self, signal_size: usize) -> Option<SparseFFTAlgorithm> {
         self.get_best_profile(signal_size).map(|p| p.algorithm)
     }
-    
+
     /// Get best window function for a given signal size
-    pub fn get_best_window_function(&self, signalsize: usize) -> Option<WindowFunction> {
-        self.get_best_profile(signal_size).map(|p| p.window_function)
+    pub fn get_best_window_function(&self, signal_size: usize) -> Option<WindowFunction> {
+        self.get_best_profile(signal_size)
+            .map(|p| p.window_function)
     }
-    
+
     /// Get best kernel configuration for a given signal size
-    pub fn get_best_kernel_config(&self, signalsize: usize) -> Option<KernelConfig> {
-        self.get_best_profile(signal_size).map(|p| p.kernel_config.clone())
+    pub fn get_best_kernel_config(&self, signal_size: usize) -> Option<KernelConfig> {
+        self.get_best_profile(signal_size)
+            .map(|p| p.kernel_config.clone())
     }
 }
 
@@ -168,45 +205,55 @@ impl SparseFftAutoTuner {
             factory,
         }
     }
-    
+
     /// Run auto-tuning
-    pub fn run_tuning<T>(&mut self, referencesignals: &[Vec<T>]) -> FFTResult<AutoTuneResult>
+    pub fn run_tuning<T>(&mut self, reference_signals: &[Vec<T>]) -> FFTResult<AutoTuneResult>
     where
         T: NumCast + Copy + Debug + 'static,
     {
         // Create launcher
         let mut launcher = KernelLauncher::new(self.factory.clone());
-        
+
         // Store start time
         let start_time = Instant::now();
-        
+
         // Run tests for each signal size
         for (i, signal) in reference_signals.iter().enumerate() {
             let signal_size = signal.len();
-            
+
             // Check if we're out of time
             if start_time.elapsed().as_secs() > self.config.max_tuning_time_seconds {
                 break;
             }
-            
-            println!("Auto-tuning for signal size {}: {} of {}", 
-                signal_size, i + 1, reference_signals.len());
-            
+
+            println!(
+                "Auto-tuning for signal size {}: {} of {}",
+                signal_size,
+                i + 1,
+                reference_signals.len()
+            );
+
             // Allocate memory for this signal size
-            let (input_address, output_values_address, output_indices_address) = 
+            let (input_address, output_values_address, output_indices_address) =
                 launcher.allocate_sparse_fft_memory(signal_size, 10)?;
-            
-            // Test different algorithms
-            for &algorithm in &self.config.algorithms {
+
+            // Test different algorithms.
+            //
+            // Labeled so the time-budget check below can break out of all
+            // three nested loops at once: a plain `break` would only exit
+            // the innermost (block-size) loop, letting the sweep continue
+            // into further window-function/algorithm combinations even
+            // after `max_tuning_time_seconds` had already elapsed.
+            'algorithms: for &algorithm in &self.config.algorithms {
                 // Test different window functions
                 for &window_function in &self.config.window_functions {
                     // Test different block sizes
                     for &block_size in &self.config.block_sizes {
                         // Check if we're out of time
                         if start_time.elapsed().as_secs() > self.config.max_tuning_time_seconds {
-                            break;
+                            break 'algorithms;
                         }
-                        
+
                         // Create kernel
                         let mut kernel = self.factory.create_sparse_fft_kernel(
                             signal_size,
@@ -217,45 +264,47 @@ impl SparseFftAutoTuner {
                             algorithm,
                             window_function,
                         )?;
-                        
+
                         // Create custom configuration
-                        let mut config = KernelConfig::default();
-                        config.block_size = block_size;
-                        config.grid_size = signal_size.div_ceil(block_size);
-                        
+                        let mut config = KernelConfig {
+                            block_size,
+                            grid_size: signal_size.div_ceil(block_size),
+                            ..KernelConfig::default()
+                        };
+
                         // Test mixed precision if enabled
                         let mixed_precision_options = if self.config.test_mixed_precision {
                             vec![false, true]
                         } else {
                             vec![false]
                         };
-                        
+
                         for use_mixed_precision in mixed_precision_options {
                             // Set mixed precision
                             config.use_mixed_precision = use_mixed_precision;
-                            
+
                             // Test tensor cores if enabled
-                            let tensor_core_options = if self.config.test_tensor_cores && 
-                                self.factory.can_use_tensor_cores() {
+                            let tensor_core_options = if self.config.test_tensor_cores
+                                && self.factory.can_use_tensor_cores()
+                            {
                                 vec![false, true]
                             } else {
                                 vec![false]
                             };
-                            
+
                             for use_tensor_cores in tensor_core_options {
                                 // Set tensor cores
                                 config.use_tensor_cores = use_tensor_cores;
-                                
+
                                 // Set configuration
                                 kernel.set_config(config.clone());
-                                
+
                                 // Execute kernel and measure performance
                                 let stats = kernel.execute()?;
-                                
+
                                 // Calculate accuracy (using exact FFT as reference)
-                                let accuracy = self.calculate_accuracy(signal, 
-                                    &kernel, input_address, output_values_address, output_indices_address)?;
-                                
+                                let accuracy = self.calculate_accuracy(signal, &kernel)?;
+
                                 // Create profile
                                 let profile = PerformanceProfile {
                                     signal_size,
@@ -265,7 +314,7 @@ impl SparseFftAutoTuner {
                                     stats,
                                     accuracy,
                                 };
-                                
+
                                 // Add to collector
                                 self.collector.add_profile(profile);
                             }
@@ -273,21 +322,21 @@ impl SparseFftAutoTuner {
                     }
                 }
             }
-            
+
             // Free memory for this signal size
             launcher.free_all_memory();
         }
-        
+
         // Get tuning time
         let tuning_time = start_time.elapsed();
-        
+
         // Get best configurations
         let mut best_configs = Vec::new();
-        
+
         for &signal_size in &self.config.signal_sizes {
             if let Some(profile) = self.collector.get_best_profile(signal_size) {
                 // Only include configurations that meet the accuracy threshold
-                if profile.accuracy >= self._config.min_accuracy {
+                if profile.accuracy >= self.config.min_accuracy {
                     best_configs.push((
                         signal_size,
                         profile.kernel_config.clone(),
@@ -297,17 +346,17 @@ impl SparseFftAutoTuner {
                 }
             }
         }
-        
+
         // Create result
         let result = AutoTuneResult {
             best_configs,
             profiles: self.collector.profiles.clone(),
             tuning_time,
         };
-        
+
         Ok(result)
     }
-    
+
     /// Calculate the accuracy of a kernel configuration on a signal.
     ///
     /// This computes a *real* accuracy metric: it runs the crate's sparse FFT
@@ -317,16 +366,10 @@ impl SparseFftAutoTuner {
     /// signal. It no longer fabricates a value from fixed factors plus random
     /// noise.
     ///
-    /// The kernel handle and device addresses are not needed for this host-side
-    /// reference computation; they are accepted for call-site compatibility.
-    fn calculate_accuracy<T>(
-        &self,
-        signal: &[T],
-        kernel: &dyn crate::sparse_fft_gpu_kernels::GPUKernel,
-        _input_address: usize,
-        _output_values_address: usize,
-        _output_indices_address: usize,
-    ) -> FFTResult<f64>
+    /// The kernel handle is only used to look up which sparse-FFT algorithm it
+    /// represents; no device addresses are needed for this host-side reference
+    /// computation.
+    fn calculate_accuracy<T>(&self, signal: &[T], kernel: &dyn GPUKernel) -> FFTResult<f64>
     where
         T: NumCast + Copy + Debug + 'static,
     {
@@ -344,7 +387,7 @@ impl SparseFftAutoTuner {
             .iter()
             .map(|&val| {
                 let v = NumCast::from(val).ok_or_else(|| {
-                    FFTError::ValueError(format!("Could not convert {:?} to f64", val))
+                    FFTError::ValueError(format!("Could not convert {val:?} to f64"))
                 })?;
                 Ok(Complex64::new(v, 0.0))
             })
@@ -388,16 +431,13 @@ impl SparseFftAutoTuner {
     }
 
     /// Map a kernel handle to the sparse-FFT algorithm it represents.
-    fn algorithm_for_kernel(
-        &self,
-        kernel: &dyn crate::sparse_fft_gpu_kernels::GPUKernel,
-    ) -> SparseFFTAlgorithm {
+    fn algorithm_for_kernel(&self, kernel: &dyn GPUKernel) -> SparseFFTAlgorithm {
         match kernel.name() {
             "SparseFFT_Kernel" => SparseFFTAlgorithm::Sublinear,
             _ => SparseFFTAlgorithm::Sublinear,
         }
     }
-    
+
     /// Get performance collector
     pub fn get_collector(&self) -> &PerformanceCollector {
         &self.collector
@@ -408,21 +448,23 @@ impl SparseFftAutoTuner {
 pub trait KernelFactoryExt {
     /// Check if the GPU can use tensor cores
     fn can_use_tensor_cores(&self) -> bool;
-    
+
     /// Get optimal configuration for a specific algorithm and signal size
     fn get_optimal_config(
-        &self..signal_size: usize,
+        &self,
+        signal_size: usize,
         algorithm: SparseFFTAlgorithm,
-        window_function: WindowFunction,) -> KernelConfig;
+        window_function: WindowFunction,
+    ) -> KernelConfig;
 }
 
 impl KernelFactoryExt for KernelFactory {
     fn can_use_tensor_cores(&self) -> bool {
         // Tensor cores are available on NVIDIA compute capability 7.0+ (Volta and
         // later). This is a real check against the factory's reported capabilities.
-        !self.compute_capabilities.is_empty() && self.compute_capabilities[0].0 >= 7
+        !self.compute_capabilities().is_empty() && self.compute_capabilities()[0].0 >= 7
     }
-    
+
     fn get_optimal_config(
         &self,
         signal_size: usize,
@@ -431,11 +473,11 @@ impl KernelFactoryExt for KernelFactory {
     ) -> KernelConfig {
         // In a real implementation, this would look up the optimal configuration
         // in a database or compute it based on the GPU's capabilities
-        
-        // For now, just return a sensible default based on algorithm and signal _size
+
+        // For now, just return a sensible default based on algorithm and signal size
         let mut config = KernelConfig::default();
-        
-        // Set block _size based on algorithm and signal _size
+
+        // Set block size based on signal size
         if signal_size < 4096 {
             config.block_size = 256;
         } else if signal_size < 16384 {
@@ -443,73 +485,75 @@ impl KernelFactoryExt for KernelFactory {
         } else {
             config.block_size = 1024;
         }
-        
-        // Adjust block _size based on algorithm
+
+        // Adjust block size based on algorithm
         match algorithm {
-            SparseFFTAlgorithm::Sublinear => { /* Default is fine */ },
+            SparseFFTAlgorithm::Sublinear => { /* Default is fine */ }
             SparseFFTAlgorithm::CompressedSensing => {
-                // Higher block _size for better memory access patterns
+                // Higher block size for better memory access patterns
                 config.block_size = config.block_size.max(512);
-            },
+            }
             SparseFFTAlgorithm::Iterative => {
-                // Lower block _size for better occupancy
+                // Lower block size for better occupancy
                 config.block_size = config.block_size.min(256);
-            },
-            SparseFFTAlgorithm::Deterministic => { /* Default is fine */ },
-            SparseFFTAlgorithm::FrequencyPruning => { /* Default is fine */ },
+            }
+            SparseFFTAlgorithm::Deterministic => { /* Default is fine */ }
+            SparseFFTAlgorithm::FrequencyPruning => { /* Default is fine */ }
             SparseFFTAlgorithm::SpectralFlatness => {
-                // Higher block _size for better memory access patterns
+                // Higher block size for better memory access patterns
                 config.block_size = config.block_size.max(512);
-            },
+            }
         }
-        
-        // Ensure block _size is within limits
-        config.block_size = config.block_size.min(self.max_threads_per_block);
-        
-        // Calculate grid _size
+
+        // Ensure block size is within limits
+        config.block_size = config.block_size.min(self.max_threads_per_block());
+
+        // Calculate grid size
         config.grid_size = signal_size.div_ceil(config.block_size);
-        
-        // Determine shared memory _size based on algorithm and window _function
+
+        // Determine shared memory size based on algorithm and window function
         if window_function != WindowFunction::None {
             // Windowing requires more shared memory
             config.shared_memory_size = 32 * 1024; // 32 KB
         } else {
             config.shared_memory_size = 16 * 1024; // 16 KB
         }
-        
+
         // Ensure shared memory is within limits
-        config.shared_memory_size = std::cmp::min(config.shared_memory_size, self.shared_memory_per_block);
-        
+        config.shared_memory_size =
+            std::cmp::min(config.shared_memory_size, self.shared_memory_per_block());
+
         // Enable mixed precision for newer GPUs
-        if !self.compute_capabilities.is_empty() && 
-           (self.compute_capabilities[0].0 >= 7 || 
-            (self.compute_capabilities[0].0 == 6 && self.compute_capabilities[0].1 >= 1)) {
-            
+        if !self.compute_capabilities().is_empty()
+            && (self.compute_capabilities()[0].0 >= 7
+                || (self.compute_capabilities()[0].0 == 6 && self.compute_capabilities()[0].1 >= 1))
+        {
             // Only enable for algorithms that can benefit without significant accuracy loss
             match algorithm {
-                SparseFFTAlgorithm::Sublinear | 
-                SparseFFTAlgorithm::Deterministic | 
-                SparseFFTAlgorithm::FrequencyPruning => {
+                SparseFFTAlgorithm::Sublinear
+                | SparseFFTAlgorithm::Deterministic
+                | SparseFFTAlgorithm::FrequencyPruning => {
                     config.use_mixed_precision = true;
-                }_ => {
+                }
+                _ => {
                     config.use_mixed_precision = false;
                 }
             }
         }
-        
+
         // Enable tensor cores for supported architectures and algorithms
-        if !self.compute_capabilities.is_empty() && self.compute_capabilities[0].0 >= 7 {
+        if !self.compute_capabilities().is_empty() && self.compute_capabilities()[0].0 >= 7 {
             // Only enable for algorithms that can benefit from tensor cores
             match algorithm {
-                SparseFFTAlgorithm::CompressedSensing | 
-                SparseFFTAlgorithm::SpectralFlatness => {
+                SparseFFTAlgorithm::CompressedSensing | SparseFFTAlgorithm::SpectralFlatness => {
                     config.use_tensor_cores = true;
-                }_ => {
+                }
+                _ => {
                     config.use_tensor_cores = false;
                 }
             }
         }
-        
+
         config
     }
 }
@@ -524,7 +568,7 @@ where
     // sublinear path, medium signals the pruning path, and large signals the
     // more robust spectral-flatness path. This is a real (size-driven) choice.
     let n = signal.len();
-    
+
     if n < 4096 {
         SparseFFTAlgorithm::Sublinear // Fast for small signals
     } else if n < 16384 {
@@ -544,26 +588,30 @@ where
     // higher SNR favours frequency-resolution windows, lower SNR favours windows
     // with stronger sidelobe suppression.
 
-    // Convert _signal to a vector of f64 for analysis
-    let _signal_f64: FFTResult<Vec<f64>> = _signal
+    // Convert signal to a vector of f64 for analysis
+    let signal_f64: FFTResult<Vec<f64>> = signal
         .iter()
         .map(|&val| {
-            NumCast::from(val).ok_or_else(|| {
-                FFTError::ValueError(format!("Could not convert {:?} to f64", val))
-            })
+            NumCast::from(val)
+                .ok_or_else(|| FFTError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect();
-    
+
     if let Ok(signal_f64) = signal_f64 {
-        // Compute _signal statistics
+        // Compute signal statistics
         let mean = signal_f64.iter().sum::<f64>() / signal_f64.len() as f64;
-        let variance = signal_f64.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / signal_f64.len() as f64;
+        let variance =
+            signal_f64.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / signal_f64.len() as f64;
         let std_dev = variance.sqrt();
-        
-        // Calculate _signal-to-noise ratio (SNR) estimate
-        let peak = signal_f64.iter().map(|&x| x.abs()).fold(0.0, |a, b| a.max(b));
-        let snr_estimate = if std_dev > 0.0 { peak / std_dev } else { f64::INFINITY };
-        
+
+        // Calculate signal-to-noise ratio (SNR) estimate
+        let peak = signal_f64.iter().map(|&x| x.abs()).fold(0.0, f64::max);
+        let snr_estimate = if std_dev > 0.0 {
+            peak / std_dev
+        } else {
+            f64::INFINITY
+        };
+
         // Choose window based on SNR
         if snr_estimate > 100.0 {
             // High SNR - use a window with good frequency resolution
@@ -591,6 +639,12 @@ pub struct PerformanceManager {
     auto_tuned: bool,
 }
 
+impl Default for PerformanceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceManager {
     /// Create a new performance manager
     pub fn new() -> Self {
@@ -600,14 +654,14 @@ impl PerformanceManager {
             auto_tuned: false,
         }
     }
-    
+
     /// Initialize auto-tuner
     pub fn init_auto_tuner(&mut self, config: AutoTuneConfig, factory: KernelFactory) {
         self.auto_tuner = Some(SparseFftAutoTuner::new(config, factory));
     }
-    
+
     /// Run auto-tuning
-    pub fn run_auto_tuning<T>(&mut self, referencesignals: &[Vec<T>]) -> FFTResult<()>
+    pub fn run_auto_tuning<T>(&mut self, reference_signals: &[Vec<T>]) -> FFTResult<()>
     where
         T: NumCast + Copy + Debug + 'static,
     {
@@ -617,24 +671,31 @@ impl PerformanceManager {
             self.auto_tuned = true;
             Ok(())
         } else {
-            Err(FFTError::ValueError("Auto-tuner not initialized".to_string()))
+            Err(FFTError::ValueError(
+                "Auto-tuner not initialized".to_string(),
+            ))
         }
     }
-    
+
     /// Get best configuration for a signal size
-    pub fn get_best_config(&self, signalsize: usize) -> Option<(KernelConfig, SparseFFTAlgorithm, WindowFunction)> {
-        // Find closest signal _size
+    pub fn get_best_config(
+        &self,
+        signal_size: usize,
+    ) -> Option<(KernelConfig, SparseFFTAlgorithm, WindowFunction)> {
+        // Find closest signal size
         self.best_configs
             .iter()
-            .min_by_key(|&(size)| (size as isize - signalsize as isize).abs())
-            .map(|&(_, ref config, algorithm, window_function)| (config.clone(), algorithm, window_function))
+            .min_by_key(|(size, _, _, _)| (*size as isize - signal_size as isize).abs())
+            .map(|(_, config, algorithm, window_function)| {
+                (config.clone(), *algorithm, *window_function)
+            })
     }
-    
+
     /// Get auto-tuner
     pub fn get_auto_tuner(&self) -> Option<&SparseFftAutoTuner> {
         self.auto_tuner.as_ref()
     }
-    
+
     /// Check if auto-tuning has been run
     pub fn is_auto_tuned(&self) -> bool {
         self.auto_tuned
@@ -671,13 +732,13 @@ where
         gpu_arch.to_string(),
         vec![compute_capability],
         available_memory,
-        48 * 1024, // 48 KB shared _memory
+        48 * 1024, // 48 KB shared memory
         1024,      // 1024 threads per block
     );
-    
+
     // Create auto-tuner
     let mut auto_tuner = SparseFftAutoTuner::new(AutoTuneConfig::default(), factory);
-    
+
     // Run tuning
     auto_tuner.run_tuning(reference_signals)
 }
@@ -713,29 +774,15 @@ where
 {
     // Find the best configuration for this signal size
     let signal_size = signal.len();
-    let (config, algorithm, window_function) = auto_tune_result.best_configs
+    let (algorithm, window_function) = auto_tune_result
+        .best_configs
         .iter()
-        .min_by_key(|&(size)| (size as isize - signal_size as isize).abs())
-        .map(|&(_, ref config, alg, win)| (config.clone(), alg, win))
-        .unwrap_or_else(|| {
-            // Default configuration if not found
-            let factory = KernelFactory::new(
-                gpu_arch.to_string(),
-                vec![compute_capability],
-                available_memory,
-                48 * 1024, // 48 KB shared memory
-                1024,      // 1024 threads per block
-            );
-            
-            (
-                factory.get_optimal_config(signal_size, SparseFFTAlgorithm::Sublinear, WindowFunction::Hann),
-                SparseFFTAlgorithm::Sublinear,
-                WindowFunction::Hann,
-            )
-        });
-    
+        .min_by_key(|(size, _, _, _)| (*size as isize - signal_size as isize).abs())
+        .map(|(_, _config, alg, win)| (*alg, *win))
+        .unwrap_or((SparseFFTAlgorithm::Sublinear, WindowFunction::Hann));
+
     // Execute sparse FFT with optimized configuration
-    let (values, indices_) = crate::sparse_fft_gpu_kernels::execute_sparse_fft_kernel(
+    let (values, indices, _stats) = crate::sparse_fft_gpu_kernels::execute_sparse_fft_kernel(
         signal,
         sparsity,
         algorithm,
@@ -744,14 +791,15 @@ where
         compute_capability,
         available_memory,
     )?;
-    
+
     Ok((values, indices))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+    use std::f64::consts::PI;
+
     // Helper function to create a sparse signal
     fn create_sparse_signal(n: usize, frequencies: &[(usize, f64)]) -> Vec<f64> {
         let mut signal = vec![0.0; n];
@@ -765,82 +813,95 @@ mod tests {
 
         signal
     }
-    
+
     #[test]
-    #[ignore = "Ignored - GPU-dependent test"]
     fn test_optimal_algorithm_selection() {
         // Test small signal
         let small_signal = create_sparse_signal(2048, &[(3, 1.0), (7, 0.5)]);
         let small_algorithm = get_optimal_algorithm(&small_signal);
         assert_eq!(small_algorithm, SparseFFTAlgorithm::Sublinear);
-        
+
         // Test medium signal
         let medium_signal = create_sparse_signal(8192, &[(3, 1.0), (7, 0.5)]);
         let medium_algorithm = get_optimal_algorithm(&medium_signal);
         assert_eq!(medium_algorithm, SparseFFTAlgorithm::FrequencyPruning);
-        
+
         // Test large signal
         let large_signal = create_sparse_signal(32768, &[(3, 1.0), (7, 0.5)]);
         let large_algorithm = get_optimal_algorithm(&large_signal);
         assert_eq!(large_algorithm, SparseFFTAlgorithm::SpectralFlatness);
     }
-    
+
+    /// `get_optimal_window_function` picks a window from the signal's
+    /// peak/std-dev ratio (SNR estimate): > 100 -> Hamming, > 20 -> Hann,
+    /// else -> Blackman.
+    ///
+    /// # Design note
+    ///
+    /// The original version of this test added a small linear ramp
+    /// (amplitude 0.05, then 0.2) on top of the same two-tone base signal
+    /// and asserted the three cases would pick three different windows.
+    /// They do not: for a clean sum of two sinusoids the peak/std-dev ratio
+    /// is inherently small (~1.9 here), and a ramp two orders of magnitude
+    /// smaller than the tones barely perturbs it (~1.9 -> ~1.92 -> ~2.0,
+    /// confirmed numerically) -- all three land in the same "Blackman"
+    /// bucket, so the original assertions would have failed immediately had
+    /// the module ever actually been compiled and un-ignored. This uses
+    /// signals engineered to land unambiguously in each of the three
+    /// buckets instead (verified analytically and numerically below), so
+    /// the test now exercises what it claims to.
     #[test]
-    #[ignore = "Ignored - GPU-dependent test"]
     fn test_optimal_window_selection() {
-        // Create signals with different SNRs
-        
-        // High SNR signal
-        let high_snr = create_sparse_signal(1024, &[(3, 1.0), (7, 0.5)]);
+        // A single unit impulse in an otherwise-silent signal of length n
+        // has peak = 1 and std-dev ~= 1/sqrt(n) (for n >> 1: mean ~= 1/n,
+        // variance ~= 1/n), so its SNR estimate is ~= sqrt(n) independent of
+        // the impulse height. Choosing n lets us land precisely in each
+        // bucket:
+        //   n = 50_000  => SNR ~= 223.6  (> 100  => Hamming)
+        //   n =  2_500  => SNR ~=  50.0  (20..100 => Hann)
+        let mut high_snr = vec![0.0_f64; 50_000];
+        high_snr[0] = 1.0;
         let high_snr_window = get_optimal_window_function(&high_snr);
-        
-        // Medium SNR signal (add some noise)
-        let mut medium_snr = create_sparse_signal(1024, &[(3, 1.0), (7, 0.5)]);
-        for i in 0..medium_snr.len() {
-            medium_snr[i] += 0.05 * (i as f64 / 1024.0 - 0.5);
-        }
+        assert_eq!(high_snr_window, WindowFunction::Hamming);
+
+        let mut medium_snr = vec![0.0_f64; 2_500];
+        medium_snr[0] = 1.0;
         let medium_snr_window = get_optimal_window_function(&medium_snr);
-        
-        // Low SNR signal (add more noise)
-        let mut low_snr = create_sparse_signal(1024, &[(3, 1.0), (7, 0.5)]);
-        for i in 0..low_snr.len() {
-            low_snr[i] += 0.2 * (i as f64 / 1024.0 - 0.5);
-        }
+        assert_eq!(medium_snr_window, WindowFunction::Hann);
+
+        // The plain two-tone signal (no impulse) has SNR ~= 1.9 (well below
+        // 20), landing in the low-SNR bucket.
+        let low_snr = create_sparse_signal(1024, &[(3, 1.0), (7, 0.5)]);
         let low_snr_window = get_optimal_window_function(&low_snr);
-        
-        // Different SNRs should result in different window functions
+        assert_eq!(low_snr_window, WindowFunction::Blackman);
+
+        // Different SNRs must result in different window functions.
         assert_ne!(high_snr_window, medium_snr_window);
         assert_ne!(medium_snr_window, low_snr_window);
+        assert_ne!(high_snr_window, low_snr_window);
     }
-    
+
     #[test]
-    #[ignore = "Ignored release - GPU-dependent test"]
     fn test_kernel_factory_extension() {
         // Create factory
         let factory = KernelFactory::new(
             "NVIDIA GeForce RTX 3080".to_string(),
             vec![(8, 6)],
             10 * 1024 * 1024 * 1024, // 10 GB
-            48 * 1024,                // 48 KB
+            48 * 1024,               // 48 KB
             1024,                    // 1024 threads per block
         );
-        
+
         // Test can_use_tensor_cores
         assert!(factory.can_use_tensor_cores());
-        
+
         // Test get_optimal_config
-        let config_small = factory.get_optimal_config(
-            2048,
-            SparseFFTAlgorithm::Sublinear,
-            WindowFunction::Hann,
-        );
-        
-        let config_large = factory.get_optimal_config(
-            32768,
-            SparseFFTAlgorithm::Sublinear,
-            WindowFunction::Hann,
-        );
-        
+        let config_small =
+            factory.get_optimal_config(2048, SparseFFTAlgorithm::Sublinear, WindowFunction::Hann);
+
+        let config_large =
+            factory.get_optimal_config(32768, SparseFFTAlgorithm::Sublinear, WindowFunction::Hann);
+
         // Larger signals should use larger block sizes
         assert!(config_large.block_size >= config_small.block_size);
     }

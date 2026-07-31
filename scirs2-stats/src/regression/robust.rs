@@ -1,6 +1,7 @@
 //! Robust regression implementations
 
 use crate::error::{StatsError, StatsResult};
+use crate::regression::stat_tests::{f_test_p_value, t_test_p_value};
 use crate::regression::utils::*;
 use crate::regression::{linregress, RegressionResults};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
@@ -783,13 +784,9 @@ where
     // Calculate t-values
     let t_values = calculate_t_values(&coefficients, &std_errors);
 
-    // Calculate p-values (simplified)
-    let p_values = t_values.mapv(|t| {
-        let t_abs = scirs2_core::numeric::Float::abs(t);
-        let df_f = F::from(df_residuals).expect("Failed to convert to float");
-        F::from(2.0).expect("Failed to convert constant to float")
-            * (F::one() - t_abs / scirs2_core::numeric::Float::sqrt(df_f + t_abs * t_abs))
-    });
+    // Calculate real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
     // Calculate confidence intervals
     let mut conf_intervals = Array2::<F>::zeros((p, 2));
@@ -807,8 +804,9 @@ where
         F::infinity()
     };
 
-    // Calculate p-value for F-statistic (simplified)
-    let f_p_value = F::zero(); // In a real implementation, use F-distribution
+    // Calculate p-value for F-statistic using the real F(df_model, df_residuals)
+    // survival function (see `stat_tests::f_test_p_value`).
+    let f_p_value = f_test_p_value(f_statistic, df_model, df_residuals);
 
     // Create and return the results structure
     Ok(RegressionResults {
@@ -1124,13 +1122,9 @@ where
     // Calculate t-values
     let t_values = calculate_t_values(&coefficients, &std_errors);
 
-    // Calculate p-values (simplified)
-    let p_values = t_values.mapv(|t| {
-        let t_abs = scirs2_core::numeric::Float::abs(t);
-        let df_f = F::from(df_residuals).expect("Failed to convert to float");
-        F::from(2.0).expect("Failed to convert constant to float")
-            * (F::one() - t_abs / scirs2_core::numeric::Float::sqrt(df_f + t_abs * t_abs))
-    });
+    // Calculate real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
     // Calculate confidence intervals
     let mut conf_intervals = Array2::<F>::zeros((p, 2));
@@ -1152,8 +1146,9 @@ where
         F::infinity()
     };
 
-    // Calculate p-value for F-statistic (simplified)
-    let f_p_value = F::zero(); // In a real implementation, use F-distribution
+    // Calculate p-value for F-statistic using the real F(df_model, df_residuals)
+    // survival function (see `stat_tests::f_test_p_value`).
+    let f_p_value = f_test_p_value(f_statistic, df_model, df_residuals);
 
     // Create and return the results structure
     Ok(RegressionResults {
@@ -1726,12 +1721,9 @@ where
         Err(_) => Array1::<F>::zeros(p),
     };
     let t_values = calculate_t_values(&coefficients, &std_errors);
-    let p_values = t_values.mapv(|t| {
-        let t_abs = scirs2_core::numeric::Float::abs(t);
-        let df_f = F::from(df_residuals).expect("const");
-        F::from(2.0).expect("const")
-            * (F::one() - t_abs / scirs2_core::numeric::Float::sqrt(df_f + t_abs * t_abs))
-    });
+    // Real two-sided per-coefficient p-values from the Student's
+    // t-distribution (see `stat_tests::t_test_p_value`).
+    let p_values = t_values.mapv(|t| t_test_p_value(t, df_residuals));
 
     let df_model = p - if fit_intercept { 1 } else { 0 };
     let f_statistic = if df_model > 0 && df_residuals > 0 {
@@ -1757,7 +1749,7 @@ where
         r_squared,
         adj_r_squared,
         f_statistic,
-        f_p_value: F::zero(),
+        f_p_value: f_test_p_value(f_statistic, df_model, df_residuals),
         residual_std_error,
         df_residuals,
         residuals,
@@ -1766,158 +1758,8 @@ where
     })
 }
 
+// Tests live in `robust_tests.rs` (split out to keep this implementation
+// file under the workspace's 2000-line guideline).
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use scirs2_core::ndarray::{array, Array2};
-
-    // -------------------------------------------------------------------
-    // LTS regression tests
-    // -------------------------------------------------------------------
-
-    #[test]
-    fn test_lts_basic() {
-        let x = Array2::from_shape_vec(
-            (10, 1),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-        )
-        .expect("shape");
-        let y = array![2.1, 4.0, 5.9, 8.1, 10.0, 12.0, 14.0, 16.1, 18.0, 20.1];
-        let result = lts_regression(&x.view(), &y.view(), None, None, None, Some(42))
-            .expect("LTS should succeed");
-        // Slope near 2.0
-        assert!((result.coefficients[1] - 2.0).abs() < 0.3);
-    }
-
-    #[test]
-    fn test_lts_with_outlier() {
-        let x = Array2::from_shape_vec(
-            (10, 1),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-        )
-        .expect("shape");
-        let y = array![2.1, 4.0, 5.9, 8.1, 10.0, 12.0, 14.0, 16.1, 18.0, 50.0];
-        let result = lts_regression(&x.view(), &y.view(), None, None, None, Some(42))
-            .expect("LTS should succeed");
-        // Slope should be close to 2 despite the outlier
-        assert!((result.coefficients[1] - 2.0).abs() < 0.5);
-        // Outlier should be excluded
-        assert!(!result.inlier_mask[9]);
-    }
-
-    #[test]
-    fn test_lts_multiple_outliers() {
-        let x = Array2::from_shape_vec(
-            (12, 1),
-            vec![
-                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
-            ],
-        )
-        .expect("shape");
-        let y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 50.0, 60.0, 22.0, 24.0];
-        let result = lts_regression(&x.view(), &y.view(), Some(0.2), Some(200), None, Some(42))
-            .expect("LTS should succeed");
-        assert!((result.coefficients[1] - 2.0).abs() < 0.5);
-    }
-
-    #[test]
-    fn test_lts_r_squared() {
-        let x = Array2::from_shape_vec(
-            (10, 1),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-        )
-        .expect("shape");
-        let y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0];
-        let result = lts_regression(&x.view(), &y.view(), None, None, None, Some(42))
-            .expect("LTS should succeed");
-        let r2: f64 = scirs2_core::numeric::NumCast::from(result.r_squared).expect("cast");
-        assert!(r2 > 0.95);
-    }
-
-    #[test]
-    fn test_lts_dimension_mismatch() {
-        let x = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0]).expect("shape");
-        let y = array![1.0, 2.0, 3.0];
-        assert!(lts_regression(&x.view(), &y.view(), None, None, None, None).is_err());
-    }
-
-    #[test]
-    fn test_lts_too_few_observations() {
-        let x = Array2::from_shape_vec((2, 1), vec![1.0, 2.0]).expect("shape");
-        let y = array![1.0, 2.0];
-        assert!(lts_regression(&x.view(), &y.view(), None, None, None, None).is_err());
-    }
-
-    // -------------------------------------------------------------------
-    // Bisquare regression tests
-    // -------------------------------------------------------------------
-
-    #[test]
-    fn test_bisquare_basic() {
-        let x = Array2::from_shape_vec(
-            (10, 1),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-        )
-        .expect("shape");
-        let y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0];
-        let result = bisquare_regression(&x.view(), &y.view(), None, None, None, None)
-            .expect("bisquare should succeed");
-        assert!((result.coefficients[1] - 2.0).abs() < 0.3);
-    }
-
-    #[test]
-    fn test_bisquare_with_outlier() {
-        let x = Array2::from_shape_vec(
-            (10, 1),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-        )
-        .expect("shape");
-        let y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 50.0];
-        let result = bisquare_regression(&x.view(), &y.view(), None, None, None, None)
-            .expect("bisquare should succeed");
-        // Slope should be closer to 2.0 than OLS would give
-        assert!((result.coefficients[1] - 2.0).abs() < 1.0);
-    }
-
-    #[test]
-    fn test_bisquare_r_squared() {
-        let x = Array2::from_shape_vec(
-            (10, 1),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-        )
-        .expect("shape");
-        let y = array![2.1, 4.0, 5.9, 8.1, 10.0, 12.0, 14.1, 16.0, 18.0, 20.1];
-        let result = bisquare_regression(&x.view(), &y.view(), None, None, None, None)
-            .expect("bisquare should succeed");
-        let r2: f64 = scirs2_core::numeric::NumCast::from(result.r_squared).expect("cast");
-        assert!(r2 > 0.95);
-    }
-
-    #[test]
-    fn test_bisquare_custom_c() {
-        let x = Array2::from_shape_vec(
-            (10, 1),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-        )
-        .expect("shape");
-        let y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 50.0];
-        // Very small c means more aggressive down-weighting
-        let result = bisquare_regression(&x.view(), &y.view(), Some(2.0), None, None, None)
-            .expect("bisquare should succeed");
-        assert!((result.coefficients[1] - 2.0).abs() < 1.0);
-    }
-
-    #[test]
-    fn test_bisquare_dimension_mismatch() {
-        let x = Array2::from_shape_vec((5, 1), vec![1.0, 2.0, 3.0, 4.0, 5.0]).expect("shape");
-        let y = array![1.0, 2.0, 3.0];
-        assert!(bisquare_regression(&x.view(), &y.view(), None, None, None, None).is_err());
-    }
-
-    #[test]
-    fn test_bisquare_too_few() {
-        let x = Array2::from_shape_vec((1, 1), vec![1.0]).expect("shape");
-        let y = array![1.0];
-        assert!(bisquare_regression(&x.view(), &y.view(), None, None, None, None).is_err());
-    }
-}
+#[path = "robust_tests.rs"]
+mod tests;

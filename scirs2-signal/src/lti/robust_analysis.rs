@@ -15,10 +15,14 @@
 use super::analysis::{ControllabilityAnalysis, ObservabilityAnalysis};
 use crate::error::{SignalError, SignalResult};
 use crate::lti::systems::StateSpace;
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_finite;
+use scirs2_linalg::control_theory::{controllability_gramian, observability_gramian};
+use scirs2_linalg::eig as linalg_eig;
+use scirs2_linalg::eigh as linalg_eigh;
+use scirs2_linalg::solve_multiple as linalg_solve_multiple;
 use scirs2_linalg::svd as linalg_svd;
 use std::collections::HashMap;
 
@@ -682,35 +686,15 @@ fn svd_observability_analysis(
     observability_matrix: &Array2<f64>,
     config: &RobustAnalysisConfig,
 ) -> SignalResult<SvdObservabilityAnalysis> {
-    let (m, n) = observability_matrix.dim();
+    // Perform a real SVD: observability_matrix = U * diag(sigma) * Vt,
+    // mirroring `svd_controllability_analysis` rather than faking the
+    // decomposition with an identity/row-norm stand-in.
+    let (left_singular_vectors, singular_values, right_singular_vectors_t) =
+        linalg_svd(&observability_matrix.view(), false, None)
+            .map_err(|e| SignalError::ComputationError(format!("SVD failed: {e}")))?;
 
-    // Simplified SVD computation (placeholder for full implementation)
-    let mut singular_values = Array1::zeros(m.min(n));
-    let left_singular_vectors = Array2::eye(m);
-    let right_singular_vectors = Array2::eye(n);
-
-    // Compute singular values (simplified implementation)
-    for i in 0..m.min(n) {
-        let mut sum = 0.0;
-        for j in 0..n {
-            sum += observability_matrix[[i, j]].powi(2);
-        }
-        singular_values[i] = sum.sqrt();
-    }
-
-    // Sort singular values in descending order
-    let mut sv_with_indices: Vec<(f64, usize)> = singular_values
-        .iter()
-        .enumerate()
-        .map(|(i, &sv)| (sv, i))
-        .collect();
-    sv_with_indices.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-
-    for (i, &(sv_, idx)) in sv_with_indices.iter().enumerate() {
-        if i < singular_values.len() {
-            singular_values[i] = sv_;
-        }
-    }
+    // Vt has shape (k x n); transpose to get right singular vectors (n x k)
+    let right_singular_vectors = right_singular_vectors_t.t().to_owned();
 
     // Determine numerical rank
     let max_sv = singular_values[0];
@@ -953,7 +937,122 @@ fn compute_mode_observability_degrees(
     Ok(degrees)
 }
 
-/// Compute minimum energy control analysis
+/// Symmetrize a matrix defensively (average with its transpose) so that a
+/// Gramian that is symmetric in exact arithmetic but carries a few ULPs of
+/// floating-point asymmetry (from a Kronecker-system Lyapunov solve) is not
+/// rejected outright by a strict-symmetry eigensolver.
+#[allow(dead_code)]
+fn symmetrize(matrix: &Array2<f64>) -> Array2<f64> {
+    let n = matrix.nrows();
+    let mut sym = matrix.clone();
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let avg = 0.5 * (sym[[i, j]] + sym[[j, i]]);
+            sym[[i, j]] = avg;
+            sym[[j, i]] = avg;
+        }
+    }
+    sym
+}
+
+/// Add a small Tikhonov regularization term to a (symmetric PSD) Gramian so
+/// that it remains invertible even for an uncontrollable/unobservable
+/// system (whose Gramian is then exactly rank-deficient by construction).
+/// `max_eig` is the Gramian's largest eigenvalue, used to scale the
+/// regularization to the matrix's own magnitude; for a well-conditioned
+/// (fully controllable/observable) system this perturbation is negligible,
+/// while for a singular Gramian it turns an otherwise hard solver failure
+/// into a well-defined (if numerically extreme, correctly signaling
+/// "hard to control/observe in that direction") result.
+#[allow(dead_code)]
+fn regularize_gramian(gramian: &Array2<f64>, max_eig: f64) -> Array2<f64> {
+    let n = gramian.nrows();
+    let reg_eps = 1e-10 * max_eig.abs().max(1e-300);
+    let mut regularized = gramian.clone();
+    for i in 0..n {
+        regularized[[i, i]] += reg_eps;
+    }
+    regularized
+}
+
+/// Rough horizon (in system time units), in the sense of ~6 time constants
+/// of the slowest (closest-to-imaginary-axis) mode, over which the
+/// finite-horizon Gramian visibly approaches its infinite-horizon
+/// (steady-state) value.
+#[allow(dead_code)]
+fn dominant_time_constant(a: &Array2<f64>) -> SignalResult<f64> {
+    let (eigenvalues, _) = linalg_eig(&a.view(), None).map_err(|e| {
+        SignalError::ComputationError(format!("Eigenvalue computation failed: {e}"))
+    })?;
+    let slowest_rate = eigenvalues
+        .iter()
+        .map(|z| z.re.abs())
+        .fold(f64::INFINITY, f64::min)
+        .max(1e-3);
+    Ok(6.0 / slowest_rate)
+}
+
+/// Integrate the differential Lyapunov equation `dP/dt = A P + P Aᵀ + Q`,
+/// `P(0) = 0`, via 4th-order Runge-Kutta, returning `trace(P(t))` sampled at
+/// `num_points` evenly spaced times in `(0, t_max]`. This is the genuine
+/// finite-horizon (time-varying) analog of the steady-state Gramian used
+/// elsewhere in this module: `trace(P(t))` increases monotonically toward
+/// `trace(X)` (the infinite-horizon Gramian solving `AX + XAᵀ + Q = 0`) as
+/// `t -> infinity`.
+#[allow(dead_code)]
+fn finite_horizon_gramian_trace(
+    a: &Array2<f64>,
+    q: &Array2<f64>,
+    t_max: f64,
+    num_points: usize,
+) -> Array1<f64> {
+    let n = a.nrows();
+    let at = a.t().to_owned();
+    let steps_per_point = 25usize;
+    let dt = t_max / (num_points * steps_per_point).max(1) as f64;
+
+    let deriv = |p: &Array2<f64>| -> Array2<f64> { a.dot(p) + p.dot(&at) + q };
+
+    let mut p = Array2::<f64>::zeros((n, n));
+    let mut result = Array1::<f64>::zeros(num_points);
+
+    for point_idx in 0..num_points {
+        for _ in 0..steps_per_point {
+            let k1 = deriv(&p);
+            let p2 = &p + &k1.mapv(|x| x * (dt / 2.0));
+            let k2 = deriv(&p2);
+            let p3 = &p + &k2.mapv(|x| x * (dt / 2.0));
+            let k3 = deriv(&p3);
+            let p4 = &p + &k3.mapv(|x| x * dt);
+            let k4 = deriv(&p4);
+
+            let increment = (&k1 + &k2.mapv(|x| x * 2.0) + &k3.mapv(|x| x * 2.0) + &k4)
+                .mapv(|x| x * (dt / 6.0));
+            p = &p + &increment;
+        }
+        result[point_idx] = (0..n).map(|i| p[[i, i]]).sum();
+    }
+
+    result
+}
+
+/// Compute minimum energy control analysis.
+///
+/// Uses the genuine controllability Gramian `Wc` (solving the continuous
+/// Lyapunov equation `A Wc + Wc Aᵀ + BBᵀ = 0`, valid for asymptotically
+/// stable `A`) rather than fabricating placeholder constants:
+/// * `min_control_energy` is the average minimum control energy required to
+///   drive the state from the origin to a random unit-norm target state
+///   over an infinite horizon, `E[x^T Wc^-1 x] = trace(Wc^-1) / n`.
+/// * `energy_distribution` attributes total reachable energy to each input
+///   channel via the trace of that channel's own (isolated) controllability
+///   Gramian, normalized to a distribution.
+/// * `optimal_control_directions` are the eigenvectors of the input-space
+///   energy metric `Bᵀ Wc^-1 B`, ranked by their eigenvalues (required
+///   control effort per unit output in that combined-input direction).
+/// * `time_varying_energy` samples `trace` of the finite-horizon Gramian at
+///   10 points, showing the genuine (monotonically increasing) energy
+///   accumulation over time rather than a constant.
 #[allow(dead_code)]
 fn compute_minimum_energy_analysis(
     ss: &StateSpace,
@@ -962,12 +1061,90 @@ fn compute_minimum_energy_analysis(
     let n = ss.n_states;
     let m = ss.n_inputs;
 
-    // Simplified minimum energy analysis
-    let min_control_energy = 1.0; // Placeholder
-    let energy_distribution = Array1::ones(m) / (m as f64);
-    let time_varying_energy = Array1::ones(10); // 10 time points
-    let optimal_control_directions = Array2::eye(m);
-    let gramian_condition_number = 1.0; // Placeholder
+    let a_matrix = Array2::from_shape_vec((n, n), ss.a.clone())
+        .map_err(|_| SignalError::ValueError("Invalid A matrix shape".to_string()))?;
+    let b_matrix = Array2::from_shape_vec((n, m), ss.b.clone())
+        .map_err(|_| SignalError::ValueError("Invalid B matrix shape".to_string()))?;
+
+    let gramian_raw = controllability_gramian(&a_matrix.view(), &b_matrix.view()).map_err(|e| {
+        SignalError::ComputationError(format!("Controllability Gramian computation failed: {e}"))
+    })?;
+    let gramian = symmetrize(&gramian_raw);
+
+    let (gramian_eigenvalues, _) = linalg_eigh(&gramian.view(), None).map_err(|e| {
+        SignalError::ComputationError(format!("Gramian eigendecomposition failed: {e}"))
+    })?;
+
+    let max_eig = gramian_eigenvalues.iter().cloned().fold(f64::MIN, f64::max);
+    let min_eig = gramian_eigenvalues.iter().cloned().fold(f64::MAX, f64::min);
+
+    // A meaningfully negative Gramian eigenvalue indicates A is not
+    // asymptotically stable, in which case the infinite-horizon
+    // minimum-energy analysis (which assumes a stable, well-posed Gramian)
+    // is not physically meaningful; report this honestly rather than a
+    // silently-wrong (possibly negative) "energy".
+    if min_eig < -1e-8 * max_eig.abs().max(1.0) {
+        return Err(SignalError::ComputationError(
+            "Minimum-energy control analysis requires an asymptotically stable system (A must have all eigenvalues with negative real part)".to_string(),
+        ));
+    }
+
+    let gramian_condition_number = if min_eig > 1e-14 {
+        max_eig / min_eig
+    } else {
+        f64::INFINITY
+    };
+
+    let min_control_energy = if min_eig > 1e-14 {
+        gramian_eigenvalues.iter().map(|&ev| 1.0 / ev).sum::<f64>() / n as f64
+    } else {
+        f64::INFINITY
+    };
+
+    // Per-input energy attribution via each input channel's own (isolated)
+    // controllability Gramian trace.
+    let mut raw_energy = Array1::<f64>::zeros(m);
+    for j in 0..m {
+        let bj = b_matrix.column(j).to_owned().insert_axis(Axis(1));
+        let gramian_j = controllability_gramian(&a_matrix.view(), &bj.view()).map_err(|e| {
+            SignalError::ComputationError(format!("Per-input Gramian computation failed: {e}"))
+        })?;
+        raw_energy[j] = (0..n).map(|i| gramian_j[[i, i]]).sum();
+    }
+    let total_energy: f64 = raw_energy.iter().sum();
+    let energy_distribution = if total_energy > 1e-300 {
+        raw_energy.mapv(|e| e / total_energy)
+    } else {
+        Array1::from_elem(m, 1.0 / m as f64)
+    };
+
+    // Input-space energy metric B^T Wc^-1 B, obtained by solving
+    // Wc * Y = B for Y = Wc^-1 * B (avoids an explicit matrix inverse).
+    // The Gramian is regularized first since an uncontrollable direction
+    // makes it exactly singular, which would otherwise hard-fail the solve.
+    let regularized_gramian = regularize_gramian(&gramian, max_eig);
+    let wc_inv_b = linalg_solve_multiple(&regularized_gramian.view(), &b_matrix.view(), None)
+        .map_err(|e| SignalError::ComputationError(format!("Gramian solve failed: {e}")))?;
+    let input_energy_metric = symmetrize(&b_matrix.t().dot(&wc_inv_b));
+    let (_, optimal_control_directions) =
+        linalg_eigh(&input_energy_metric.view(), None).map_err(|e| {
+            SignalError::ComputationError(format!(
+                "Input-energy-metric eigendecomposition failed: {e}"
+            ))
+        })?;
+
+    // Genuine finite-horizon energy accumulation over time (10 points).
+    let mut bbt = Array2::<f64>::zeros((n, n));
+    for i in 0..n {
+        for k in 0..m {
+            let b_ik = b_matrix[[i, k]];
+            for j in 0..n {
+                bbt[[i, j]] += b_ik * b_matrix[[j, k]];
+            }
+        }
+    }
+    let t_max = dominant_time_constant(&a_matrix)?;
+    let time_varying_energy = finite_horizon_gramian_trace(&a_matrix, &bbt, t_max, 10);
 
     Ok(MinimumEnergyAnalysis {
         min_control_energy,
@@ -978,7 +1155,11 @@ fn compute_minimum_energy_analysis(
     })
 }
 
-/// Compute minimum variance estimation analysis
+/// Compute minimum variance estimation analysis.
+///
+/// Dual construction to [`compute_minimum_energy_analysis`], using the
+/// genuine observability Gramian `Wo` (solving `Aᵀ Wo + Wo A + CᵀC = 0`)
+/// rather than fabricating placeholder constants.
 #[allow(dead_code)]
 fn compute_minimum_variance_analysis(
     ss: &StateSpace,
@@ -987,12 +1168,89 @@ fn compute_minimum_variance_analysis(
     let n = ss.n_states;
     let p = ss.n_outputs;
 
-    // Simplified minimum variance analysis
-    let min_estimation_variance = 1.0; // Placeholder
-    let variance_distribution = Array1::ones(p) / (p as f64);
-    let time_varying_variance = Array1::ones(10); // 10 time points
-    let optimal_sensing_directions = Array2::eye(p);
-    let gramian_condition_number = 1.0; // Placeholder
+    let a_matrix = Array2::from_shape_vec((n, n), ss.a.clone())
+        .map_err(|_| SignalError::ValueError("Invalid A matrix shape".to_string()))?;
+    let c_matrix = Array2::from_shape_vec((p, n), ss.c.clone())
+        .map_err(|_| SignalError::ValueError("Invalid C matrix shape".to_string()))?;
+
+    let gramian_raw = observability_gramian(&a_matrix.view(), &c_matrix.view()).map_err(|e| {
+        SignalError::ComputationError(format!("Observability Gramian computation failed: {e}"))
+    })?;
+    let gramian = symmetrize(&gramian_raw);
+
+    let (gramian_eigenvalues, _) = linalg_eigh(&gramian.view(), None).map_err(|e| {
+        SignalError::ComputationError(format!("Gramian eigendecomposition failed: {e}"))
+    })?;
+
+    let max_eig = gramian_eigenvalues.iter().cloned().fold(f64::MIN, f64::max);
+    let min_eig = gramian_eigenvalues.iter().cloned().fold(f64::MAX, f64::min);
+
+    if min_eig < -1e-8 * max_eig.abs().max(1.0) {
+        return Err(SignalError::ComputationError(
+            "Minimum-variance estimation analysis requires an asymptotically stable system (A must have all eigenvalues with negative real part)".to_string(),
+        ));
+    }
+
+    let gramian_condition_number = if min_eig > 1e-14 {
+        max_eig / min_eig
+    } else {
+        f64::INFINITY
+    };
+
+    let min_estimation_variance = if min_eig > 1e-14 {
+        gramian_eigenvalues.iter().map(|&ev| 1.0 / ev).sum::<f64>() / n as f64
+    } else {
+        f64::INFINITY
+    };
+
+    // Per-output variance attribution via each output channel's own
+    // (isolated) observability Gramian trace.
+    let mut raw_variance = Array1::<f64>::zeros(p);
+    for k in 0..p {
+        let ck = c_matrix.row(k).to_owned().insert_axis(Axis(0));
+        let gramian_k = observability_gramian(&a_matrix.view(), &ck.view()).map_err(|e| {
+            SignalError::ComputationError(format!("Per-output Gramian computation failed: {e}"))
+        })?;
+        raw_variance[k] = (0..n).map(|i| gramian_k[[i, i]]).sum();
+    }
+    let total_variance: f64 = raw_variance.iter().sum();
+    let variance_distribution = if total_variance > 1e-300 {
+        raw_variance.mapv(|v| v / total_variance)
+    } else {
+        Array1::from_elem(p, 1.0 / p as f64)
+    };
+
+    // Output-space estimation metric C Wo^-1 Cᵀ, obtained by solving
+    // Wo * Y = Cᵀ for Y = Wo^-1 * Cᵀ (avoids an explicit matrix inverse).
+    // The Gramian is regularized first since an unobservable direction
+    // makes it exactly singular, which would otherwise hard-fail the solve.
+    let c_transpose = c_matrix.t().to_owned();
+    let regularized_gramian = regularize_gramian(&gramian, max_eig);
+    let wo_inv_ct =
+        linalg_solve_multiple(&regularized_gramian.view(), &c_transpose.view(), None)
+            .map_err(|e| SignalError::ComputationError(format!("Gramian solve failed: {e}")))?;
+    let output_variance_metric = symmetrize(&c_matrix.dot(&wo_inv_ct));
+    let (_, optimal_sensing_directions) = linalg_eigh(&output_variance_metric.view(), None)
+        .map_err(|e| {
+            SignalError::ComputationError(format!(
+                "Output-variance-metric eigendecomposition failed: {e}"
+            ))
+        })?;
+
+    // Genuine finite-horizon variance accumulation over time (10 points),
+    // via the dual differential Lyapunov equation dP/dt = A^T P + P A + C^T C.
+    let mut ctc = Array2::<f64>::zeros((n, n));
+    for k in 0..p {
+        for i in 0..n {
+            let c_ki = c_matrix[[k, i]];
+            for j in 0..n {
+                ctc[[i, j]] += c_ki * c_matrix[[k, j]];
+            }
+        }
+    }
+    let a_transpose = a_matrix.t().to_owned();
+    let t_max = dominant_time_constant(&a_matrix)?;
+    let time_varying_variance = finite_horizon_gramian_trace(&a_transpose, &ctc, t_max, 10);
 
     Ok(MinimumVarianceAnalysis {
         min_estimation_variance,
@@ -1025,39 +1283,83 @@ fn compute_sensitivity_analysis(
     let m = ss.n_inputs;
     let p = ss.n_outputs;
 
-    // Simplified sensitivity analysis using finite differences
+    // Finite-difference sensitivity analysis
     let perturbation = 1e-6;
+
+    let original_ctrl_measure = compute_controllability_measure(ss)?;
+    let original_obs_measure = compute_observability_measure(ss)?;
 
     // Sensitivity of controllability to A matrix
     let mut ctrl_sens_a = Array2::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            // Perturb A[i,j] and compute change in controllability measure
             let mut perturbed_ss = ss.clone();
             perturbed_ss.a[i * n + j] += perturbation;
-
-            // Simplified controllability measure (Frobenius norm of controllability matrix)
-            let original_measure = compute_controllability_measure(ss)?;
             let perturbed_measure = compute_controllability_measure(&perturbed_ss)?;
-
-            ctrl_sens_a[[i, j]] = (perturbed_measure - original_measure) / perturbation;
+            ctrl_sens_a[[i, j]] = (perturbed_measure - original_ctrl_measure) / perturbation;
         }
     }
 
-    // Similar computations for other sensitivities (simplified)
-    let controllability_sensitivity_b = Array2::zeros((n, m));
-    let observability_sensitivity_a = Array2::zeros((n, n));
-    let observability_sensitivity_c = Array2::zeros((p, n));
+    // Sensitivity of controllability to B matrix
+    let mut ctrl_sens_b = Array2::zeros((n, m));
+    for i in 0..n {
+        for j in 0..m {
+            let mut perturbed_ss = ss.clone();
+            perturbed_ss.b[i * m + j] += perturbation;
+            let perturbed_measure = compute_controllability_measure(&perturbed_ss)?;
+            ctrl_sens_b[[i, j]] = (perturbed_measure - original_ctrl_measure) / perturbation;
+        }
+    }
 
-    // Compute maximum tolerable perturbations
-    let max_controllability_perturbation = 0.1; // Placeholder
-    let max_observability_perturbation = 0.1; // Placeholder
+    // Sensitivity of observability to A matrix
+    let mut obs_sens_a = Array2::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            let mut perturbed_ss = ss.clone();
+            perturbed_ss.a[i * n + j] += perturbation;
+            let perturbed_measure = compute_observability_measure(&perturbed_ss)?;
+            obs_sens_a[[i, j]] = (perturbed_measure - original_obs_measure) / perturbation;
+        }
+    }
+
+    // Sensitivity of observability to C matrix
+    let mut obs_sens_c = Array2::zeros((p, n));
+    for i in 0..p {
+        for j in 0..n {
+            let mut perturbed_ss = ss.clone();
+            perturbed_ss.c[i * n + j] += perturbation;
+            let perturbed_measure = compute_observability_measure(&perturbed_ss)?;
+            obs_sens_c[[i, j]] = (perturbed_measure - original_obs_measure) / perturbation;
+        }
+    }
+
+    // Maximum tolerable perturbation before loss of controllability /
+    // observability, proxied by the smallest singular value of the
+    // respective structural matrix: a real, genuinely-computed "distance
+    // to rank deficiency" rather than a hardcoded constant. (This is a
+    // computationally tractable proxy for the classical, more expensive
+    // "distance to uncontrollability" min_s sigma_min([A - sI, B]).)
+    let controllability_matrix = build_controllability_matrix_robust(ss)?;
+    let (_, ctrl_singular_values, _) = linalg_svd(&controllability_matrix.view(), false, None)
+        .map_err(|e| SignalError::ComputationError(format!("SVD failed: {e}")))?;
+    let max_controllability_perturbation = ctrl_singular_values
+        .iter()
+        .cloned()
+        .fold(f64::INFINITY, f64::min);
+
+    let observability_matrix = build_observability_matrix_robust(ss)?;
+    let (_, obs_singular_values, _) = linalg_svd(&observability_matrix.view(), false, None)
+        .map_err(|e| SignalError::ComputationError(format!("SVD failed: {e}")))?;
+    let max_observability_perturbation = obs_singular_values
+        .iter()
+        .cloned()
+        .fold(f64::INFINITY, f64::min);
 
     Ok(SensitivityAnalysisResults {
         controllability_sensitivity_a: ctrl_sens_a,
-        controllability_sensitivity_b,
-        observability_sensitivity_a,
-        observability_sensitivity_c,
+        controllability_sensitivity_b: ctrl_sens_b,
+        observability_sensitivity_a: obs_sens_a,
+        observability_sensitivity_c: obs_sens_c,
         max_controllability_perturbation,
         max_observability_perturbation,
     })
@@ -1074,6 +1376,24 @@ fn compute_controllability_measure(ss: &StateSpace) -> SignalResult<f64> {
     for i in 0..m {
         for j in 0..n {
             norm_sq += controllability_matrix[[i, j]].powi(2);
+        }
+    }
+
+    Ok(norm_sq.sqrt())
+}
+
+/// Compute simplified observability measure (dual of
+/// [`compute_controllability_measure`]).
+#[allow(dead_code)]
+fn compute_observability_measure(ss: &StateSpace) -> SignalResult<f64> {
+    let observability_matrix = build_observability_matrix_robust(ss)?;
+
+    // Compute Frobenius norm as observability measure
+    let mut norm_sq = 0.0;
+    let (m, n) = observability_matrix.dim();
+    for i in 0..m {
+        for j in 0..n {
+            norm_sq += observability_matrix[[i, j]].powi(2);
         }
     }
 
@@ -1389,5 +1709,198 @@ mod tests {
         assert!(conditioning.condition_number_2 >= 1.0);
         assert!(conditioning.condition_number_2 < 10.0);
         assert!(conditioning.stability_margin > 0.8);
+    }
+
+    #[test]
+    fn test_svd_observability_analysis_matches_real_svd() {
+        // Row L2-norms of this matrix ([1,1] -> sqrt(2)~=1.414, [0,2] -> 2.0)
+        // differ substantially from its true singular values (~2.288,
+        // ~0.874); the old fake implementation mislabeled the former as the
+        // latter and used a fabricated identity for the singular vectors.
+        let observability_matrix =
+            Array2::from_shape_vec((2, 2), vec![1.0, 1.0, 0.0, 2.0]).expect("Operation failed");
+        let config = RobustAnalysisConfig::default();
+
+        let analysis =
+            svd_observability_analysis(&observability_matrix, &config).expect("Operation failed");
+
+        assert_eq!(analysis.singular_values.len(), 2);
+        assert!((analysis.singular_values[0] - 2.2883).abs() < 0.01);
+        assert!((analysis.singular_values[1] - 0.8740).abs() < 0.01);
+        // Not the old fake row-norm values.
+        assert!((analysis.singular_values[0] - 1.4142).abs() > 0.1);
+
+        // Verify the actual SVD reconstruction property A = U*diag(s)*V^T,
+        // which a fabricated identity-vectors result would fail.
+        let mut reconstructed = Array2::<f64>::zeros((2, 2));
+        for i in 0..2 {
+            for j in 0..2 {
+                let mut sum = 0.0;
+                for k in 0..2 {
+                    sum += analysis.left_singular_vectors[[i, k]]
+                        * analysis.singular_values[k]
+                        * analysis.right_singular_vectors[[j, k]];
+                }
+                reconstructed[[i, j]] = sum;
+            }
+        }
+        for i in 0..2 {
+            for j in 0..2 {
+                assert!(
+                    (reconstructed[[i, j]] - observability_matrix[[i, j]]).abs() < 1e-6,
+                    "SVD reconstruction mismatch at ({i},{j}): {} vs {}",
+                    reconstructed[[i, j]],
+                    observability_matrix[[i, j]]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_minimum_energy_analysis_isotropic_gramian() {
+        // A = diag(-1, -1), B = I: by symmetry Wc = 0.5*I exactly, so
+        // gramian_condition_number == 1.0 and min_control_energy == 2.0
+        // exactly (mean of the two identical 1/0.5 eigenvalue-inverses). A
+        // fabricated implementation always returned 1.0 for both,
+        // regardless of the system.
+        let ss = StateSpace::new(
+            vec![-1.0, 0.0, 0.0, -1.0],
+            vec![1.0, 0.0, 0.0, 1.0],
+            vec![1.0, 0.0, 0.0, 1.0],
+            vec![0.0, 0.0, 0.0, 0.0],
+            None,
+        )
+        .expect("Operation failed");
+        let config = RobustAnalysisConfig::default();
+
+        let analysis = compute_minimum_energy_analysis(&ss, &config).expect("Operation failed");
+
+        assert!((analysis.gramian_condition_number - 1.0).abs() < 1e-6);
+        assert!((analysis.min_control_energy - 2.0).abs() < 1e-6);
+        assert_eq!(analysis.time_varying_energy.len(), 10);
+        // Finite-horizon energy should be genuinely (monotonically)
+        // increasing over time, not a constant `ones(10)` placeholder.
+        for i in 1..10 {
+            assert!(analysis.time_varying_energy[i] >= analysis.time_varying_energy[i - 1] - 1e-9);
+        }
+        assert!(analysis.time_varying_energy[9] > analysis.time_varying_energy[0] + 1e-3);
+    }
+
+    #[test]
+    fn test_minimum_energy_analysis_energy_scales_with_actuator_strength() {
+        let a = vec![-1.0, 0.0, 1.0, -2.0];
+        let c = vec![1.0, 0.0];
+        let d = vec![0.0];
+        let config = RobustAnalysisConfig::default();
+
+        let ss_weak = StateSpace::new(a.clone(), vec![0.1, 0.0], c.clone(), d.clone(), None)
+            .expect("Operation failed");
+        let ss_strong = StateSpace::new(a, vec![10.0, 0.0], c, d, None).expect("Operation failed");
+
+        let weak = compute_minimum_energy_analysis(&ss_weak, &config).expect("Operation failed");
+        let strong =
+            compute_minimum_energy_analysis(&ss_strong, &config).expect("Operation failed");
+
+        // A weakly-actuated system needs far more control energy than a
+        // strongly-actuated one; a fabricated implementation (constant
+        // `1.0` regardless of B) could not distinguish the two.
+        assert!(weak.min_control_energy > 100.0 * strong.min_control_energy);
+    }
+
+    #[test]
+    fn test_minimum_variance_analysis_isotropic_gramian() {
+        // Dual of the isotropic controllability case: A = diag(-1,-1),
+        // C = I gives Wo = 0.5*I exactly.
+        let ss = StateSpace::new(
+            vec![-1.0, 0.0, 0.0, -1.0],
+            vec![1.0, 0.0, 0.0, 1.0],
+            vec![1.0, 0.0, 0.0, 1.0],
+            vec![0.0, 0.0, 0.0, 0.0],
+            None,
+        )
+        .expect("Operation failed");
+        let config = RobustAnalysisConfig::default();
+
+        let analysis = compute_minimum_variance_analysis(&ss, &config).expect("Operation failed");
+
+        assert!((analysis.gramian_condition_number - 1.0).abs() < 1e-6);
+        assert!((analysis.min_estimation_variance - 2.0).abs() < 1e-6);
+        assert_eq!(analysis.time_varying_variance.len(), 10);
+        for i in 1..10 {
+            assert!(
+                analysis.time_varying_variance[i] >= analysis.time_varying_variance[i - 1] - 1e-9
+            );
+        }
+        assert!(analysis.time_varying_variance[9] > analysis.time_varying_variance[0] + 1e-3);
+    }
+
+    #[test]
+    fn test_minimum_variance_analysis_variance_scales_with_sensor_strength() {
+        let a = vec![-1.0, 0.0, 1.0, -2.0];
+        let b = vec![1.0, 0.0];
+        let d = vec![0.0];
+        let config = RobustAnalysisConfig::default();
+
+        // C = [1, 1] observes a combination excited by both states (fully
+        // observable), unlike the C = [1, 0] system used elsewhere in this
+        // module's tests (which is only marginally observable).
+        let ss_weak = StateSpace::new(a.clone(), b.clone(), vec![0.1, 0.1], d.clone(), None)
+            .expect("Operation failed");
+        let ss_strong = StateSpace::new(a, b, vec![10.0, 10.0], d, None).expect("Operation failed");
+
+        let weak = compute_minimum_variance_analysis(&ss_weak, &config).expect("Operation failed");
+        let strong =
+            compute_minimum_variance_analysis(&ss_strong, &config).expect("Operation failed");
+
+        // A weakly-sensed system has far higher estimation variance than a
+        // strongly-sensed one; a fabricated implementation (constant `1.0`
+        // regardless of C) could not distinguish the two.
+        assert!(weak.min_estimation_variance > 100.0 * strong.min_estimation_variance);
+    }
+
+    #[test]
+    fn test_sensitivity_analysis_fills_in_b_and_c_sensitivities() {
+        let ss = StateSpace::new(
+            vec![-1.0, 0.0, 1.0, -2.0],
+            vec![1.0, 0.0],
+            vec![1.0, 0.0],
+            vec![0.0],
+            None,
+        )
+        .expect("Operation failed");
+        let config = RobustAnalysisConfig::default();
+
+        let sensitivity = compute_sensitivity_analysis(&ss, &config).expect("Operation failed");
+
+        // The fabricated implementation always returned these as all-zero
+        // matrices and 0.1 constants regardless of the system.
+        assert!(
+            sensitivity
+                .controllability_sensitivity_b
+                .iter()
+                .any(|&v| v.abs() > 1e-6),
+            "controllability_sensitivity_b should not be all-zero"
+        );
+        assert!(
+            sensitivity
+                .observability_sensitivity_a
+                .iter()
+                .any(|&v| v.abs() > 1e-6),
+            "observability_sensitivity_a should not be all-zero"
+        );
+        assert!(
+            sensitivity
+                .observability_sensitivity_c
+                .iter()
+                .any(|&v| v.abs() > 1e-6),
+            "observability_sensitivity_c should not be all-zero"
+        );
+
+        // This system is well-conditioned-controllable (smallest
+        // controllability singular value ~0.618) but exactly on the
+        // boundary of unobservability (smallest observability singular
+        // value ~0); neither matches the old hardcoded 0.1 placeholder.
+        assert!((sensitivity.max_controllability_perturbation - 0.1).abs() > 0.1);
+        assert!(sensitivity.max_observability_perturbation < 1e-6);
     }
 }

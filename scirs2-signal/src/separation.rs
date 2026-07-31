@@ -228,13 +228,10 @@ pub fn harmonic_percussive_separation(
         .map(|&x| x * config.separation_power.sqrt())
         .collect();
 
+    let percussive_scale = (2.0 - config.separation_power).sqrt().max(0.1);
     let percussive_adjusted: Vec<f64> = percussive_vec
         .iter()
-        .map(
-            (|&x| x * (2.0 - config.separation_power) as f64)
-                .sqrt()
-                .max(0.1),
-        )
+        .map(|&x| x * percussive_scale)
         .collect();
 
     Ok((
@@ -243,7 +240,11 @@ pub fn harmonic_percussive_separation(
     ))
 }
 
+#[cfg(test)]
 mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array1;
+    use std::f64::consts::PI;
 
     #[test]
     fn test_multiband_separation() {
@@ -271,7 +272,8 @@ mod tests {
         // Define cutoff frequencies (normalized to Nyquist = 500 Hz)
         let cutoffs = vec![0.2, 0.6]; // 100 Hz, 300 Hz
 
-        let bands = multiband_separation(&signal_array, &cutoffs, sample_rate, None).expect("Operation failed");
+        let bands = multiband_separation(&signal_array, &cutoffs, sample_rate, None)
+            .expect("Operation failed");
 
         // Should create 3 bands
         assert_eq!(bands.len(), 3);
@@ -321,7 +323,8 @@ mod tests {
         let signal_array = Array1::from(signal);
 
         let (harmonic, percussive) =
-            harmonic_percussive_separation(&signal_array, sample_rate, None).expect("Operation failed");
+            harmonic_percussive_separation(&signal_array, sample_rate, None)
+                .expect("Operation failed");
 
         // Output signals should have same length as input
         assert_eq!(harmonic.len(), signal_array.len());

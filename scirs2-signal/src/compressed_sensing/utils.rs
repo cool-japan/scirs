@@ -18,7 +18,7 @@
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::Array1;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
@@ -145,8 +145,7 @@ pub fn hard_threshold(x: &Array1<f64>, k: usize) -> SignalResult<Array1<f64>> {
     // Sort indices by descending absolute value
     let mut indices: Vec<usize> = (0..n).collect();
     indices.sort_by(|&a, &b| {
-        x[b]
-            .abs()
+        x[b].abs()
             .partial_cmp(&x[a].abs())
             .unwrap_or(std::cmp::Ordering::Equal)
     });
@@ -245,7 +244,7 @@ pub fn generate_sparse_signal(n: usize, k: usize, seed: u64) -> SignalResult<Arr
 /// # Arguments
 ///
 /// * `x`   – Input vector.
-/// * `tol` – Entries with |x[i]| ≤ tol are treated as zero.
+/// * `tol` – Entries with `|x[i]|` ≤ tol are treated as zero.
 ///
 /// # Example
 ///

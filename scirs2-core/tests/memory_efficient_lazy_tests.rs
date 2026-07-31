@@ -68,10 +68,12 @@ mod tests {
         // Check that there is a source
         assert_eq!(lazy_map.sources.len(), 1);
 
-        // This would evaluate the operation, but our implementation is just a placeholder
-        // let result = evaluate(&lazy_map).expect("Test: operation failed");
-        // let expected = data.map(|&x| x * x);
-        // assert_eq!(result, expected);
+        // `map()` evaluates eagerly when concrete data is available (recording
+        // the op for introspection only), so `evaluate()` should return the
+        // already-computed result unchanged.
+        let result = evaluate(&lazy_map).expect("Test: operation failed");
+        let expected = data.map(|&x| x * x);
+        assert_eq!(result, expected);
     }
 
     #[test]

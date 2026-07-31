@@ -309,6 +309,29 @@ impl ScipyBenchmarkFramework {
         let scirs2_result = scirs2_impl(testdata)?;
         let scipy_result = scipy_reference(testdata);
 
+        // Edge-case datasets (see generate_1ddata) deliberately inject NaN/Inf,
+        // and the two implementations are expected to propagate them the same
+        // way. An arithmetic difference against a NaN operand is itself NaN,
+        // which fails every `<=` comparison below even when both sides agree
+        // exactly — so non-finite results must be compared structurally
+        // instead of arithmetically.
+        if !scirs2_result.is_finite() || !scipy_result.is_finite() {
+            let agree =
+                (scirs2_result.is_nan() && scipy_result.is_nan()) || scirs2_result == scipy_result; // handles matching +-inf
+            return Ok(AccuracyComparison {
+                max_abs_difference: if agree { 0.0 } else { f64::INFINITY },
+                mean_abs_difference: if agree { 0.0 } else { f64::INFINITY },
+                relativeerror: if agree { 0.0 } else { f64::INFINITY },
+                outlier_count: if agree { 0 } else { 1 },
+                accuracy_grade: if agree {
+                    AccuracyGrade::A
+                } else {
+                    AccuracyGrade::F
+                },
+                passes_tolerance: agree,
+            });
+        }
+
         let abs_difference = (scirs2_result - scipy_result).abs();
         let relativeerror = if scipy_result.abs() > 1e-15 {
             abs_difference / scipy_result.abs()
@@ -874,7 +897,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - needs investigation"]
     fn test_benchmark_integration() {
         let mut framework = ScipyBenchmarkFramework::new(BenchmarkConfig {
             testsizes: vec![100],

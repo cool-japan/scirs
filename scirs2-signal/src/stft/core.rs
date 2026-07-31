@@ -51,12 +51,7 @@ pub struct ShortTimeFft {
 
 impl ShortTimeFft {
     /// Create a new ShortTimeFft instance
-    pub fn new(
-        win: &[f64],
-        hop: usize,
-        fs: f64,
-        config: Option<StftConfig>,
-    ) -> SignalResult<Self> {
+    pub fn new(win: &[f64], hop: usize, fs: f64, config: Option<StftConfig>) -> SignalResult<Self> {
         // Use default config if none provided
         let config = config.unwrap_or_default();
 
@@ -229,14 +224,34 @@ impl ShortTimeFft {
         self.fs / self.mfft as f64
     }
 
-    /// Get minimum time index
+    /// Get the smallest possible time-slice index `p_min`.
+    ///
+    /// `p_min` is the index of the left-most slice for which the analysis
+    /// window (spanning signal samples `[p*hop - m_num_mid, p*hop -
+    /// m_num_mid + m_num)`) still overlaps a sample index `>= 0`. Per
+    /// convention the zeroth slice is centered at sample 0, so `p_min <= 0`
+    /// always holds. This mirrors `scipy.signal.ShortTimeFFT.p_min` (for
+    /// windows without exact-zero edge samples, this closed-form matches
+    /// SciPy's more elaborate zero-trimming search exactly; windows that do
+    /// have exact zeros at their edges may get at most one extra all-zero
+    /// boundary slice here, which does not affect correctness).
     pub fn p_min(&self) -> isize {
-        -((self.m_num_mid) as isize)
+        let m_num_mid = self.m_num_mid as isize;
+        let m_num = self.m_num as isize;
+        let hop = self.hop as isize;
+        Self::ceil_div_isize(m_num_mid - m_num + 1, hop)
     }
 
-    /// Get maximum time index for given signal length
+    /// Get the time-slice index one past the last slice overlapping a
+    /// signal of `n` samples (`p_max`).
+    ///
+    /// `p_max` is the smallest slice index `p` whose window no longer
+    /// overlaps any sample `< n`, i.e. `p * hop - m_num_mid >= n`. Mirrors
+    /// `scipy.signal.ShortTimeFFT.p_max`.
     pub fn p_max(&self, n: usize) -> isize {
-        ((n + self.m_num_mid - 1) / self.hop) as isize
+        let m_num_mid = self.m_num_mid as isize;
+        let hop = self.hop as isize;
+        Self::ceil_div_isize(n as isize + m_num_mid, hop)
     }
 
     /// Get number of time frames for given signal length
@@ -246,20 +261,37 @@ impl ShortTimeFft {
         (p_max - p_min) as usize
     }
 
-    /// Get minimum frequency index
+    /// Get the smallest possible **signal (sample) index** touched by any
+    /// time slice (`k_min`).
+    ///
+    /// This is the left edge (in original-signal sample coordinates) of the
+    /// window belonging to slice `p_min`: `k_min = p_min * hop - m_num_mid`.
+    /// Since `p_min <= 0`, `k_min` is never positive. Mirrors
+    /// `scipy.signal.ShortTimeFFT.k_min`. Note this is a *signal-sample*
+    /// index, not a frequency-bin index -- it is used to size and offset
+    /// the zero-padded buffer that [`Self::stft`](super::algorithms) builds
+    /// before framing/windowing.
     pub fn k_min(&self) -> isize {
-        match self.fft_mode {
-            FftMode::Centered => -((self.mfft / 2) as isize),
-            _ => 0,
-        }
+        self.p_min() * self.hop as isize - self.m_num_mid as isize
     }
 
-    /// Get maximum frequency index
+    /// Get the first signal (sample) index after the signal end that is no
+    /// longer touched by any time slice, for a signal of `n` samples
+    /// (`k_max`).
+    ///
+    /// `k_max - 1` is the largest sample index covered by slice `p_max - 1`.
+    /// Mirrors `scipy.signal.ShortTimeFFT.k_max`.
     pub fn k_max(&self, n: usize) -> isize {
-        match self.fft_mode {
-            FftMode::OneSided | FftMode::OneSided2X => (self.mfft / 2) as isize,
-            _ => (self.mfft - 1) as isize,
-        }
+        let p_max = self.p_max(n);
+        (p_max - 1) * self.hop as isize - self.m_num_mid as isize + self.m_num as isize
+    }
+
+    /// Ceiling division of a possibly-negative numerator by a strictly
+    /// positive denominator (`b > 0`), i.e. `ceil(a / b)` using real-number
+    /// semantics regardless of sign of `a`.
+    fn ceil_div_isize(a: isize, b: isize) -> isize {
+        debug_assert!(b > 0, "ceil_div_isize requires a positive divisor");
+        -((-a).div_euclid(b))
     }
 
     /// Check if using one-sided FFT
@@ -336,10 +368,23 @@ impl ShortTimeFft {
         let f_end = f_vec[f_vec.len() - 1];
 
         if center_bins {
-            let dt = if t_vec.len() > 1 { (t_end - t_start) / (t_vec.len() - 1) as f64 } else { 0.0 };
-            let df = if f_vec.len() > 1 { (f_end - f_start) / (f_vec.len() - 1) as f64 } else { 0.0 };
+            let dt = if t_vec.len() > 1 {
+                (t_end - t_start) / (t_vec.len() - 1) as f64
+            } else {
+                0.0
+            };
+            let df = if f_vec.len() > 1 {
+                (f_end - f_start) / (f_vec.len() - 1) as f64
+            } else {
+                0.0
+            };
 
-            (t_start - dt/2.0, t_end + dt/2.0, f_start - df/2.0, f_end + df/2.0)
+            (
+                t_start - dt / 2.0,
+                t_end + dt / 2.0,
+                f_start - df / 2.0,
+                f_end + df / 2.0,
+            )
         } else {
             (t_start, t_end, f_start, f_end)
         }

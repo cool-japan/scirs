@@ -243,6 +243,13 @@ pub struct NodeHealthStatus {
     pub status: NodeStatus,
     pub health_score: f64,
     pub failing_checks: Vec<HealthCheck>,
+    /// Checks that could not be evaluated with confidence (e.g. a resource
+    /// metric that is unavailable on this platform/build, or a remote node
+    /// for which no metrics-collection transport exists). These are
+    /// deliberately *not* folded into `failing_checks`: an inconclusive
+    /// check is not evidence of a problem, but it also must not be silently
+    /// treated as a confirmed pass. See [`NodeStatus::Unknown`].
+    pub unknown_checks: Vec<HealthCheck>,
     pub last_checked: Instant,
 }
 
@@ -255,9 +262,35 @@ pub enum HealthCheck {
     NetworkConnectivity,
 }
 
+/// Outcome of a single [`HealthCheck`] execution.
+///
+/// `Unknown` is distinct from `Healthy`: it means the check could not be
+/// evaluated at all (unsupported platform, no measurement transport for a
+/// remote node, etc.), as opposed to being evaluated and found healthy.
+/// Callers must never conflate the two.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HealthCheckStatus {
+    /// The check ran and the measured condition is within acceptable bounds.
+    Healthy,
+    /// The check ran and the measured condition is outside acceptable bounds.
+    Unhealthy,
+    /// The check could not be performed (unsupported platform/build, or no
+    /// way to reach the target to measure it). This is *not* evidence of
+    /// either health or ill health.
+    Unknown,
+}
+
+impl HealthCheckStatus {
+    /// Returns `true` only for a confirmed-healthy result. `Unknown` and
+    /// `Unhealthy` both return `false`.
+    pub fn is_healthy(&self) -> bool {
+        matches!(self, HealthCheckStatus::Healthy)
+    }
+}
+
 #[derive(Debug)]
 pub struct HealthCheckResult {
-    pub is_healthy: bool,
+    pub status: HealthCheckStatus,
     pub impact_score: f64,
     pub details: String,
 }

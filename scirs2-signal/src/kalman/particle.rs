@@ -70,7 +70,9 @@ impl GaussianLikelihood {
     /// standard deviation is non-positive, or when `h` has wrong dimensions.
     pub fn new(h: Vec<Vec<f64>>, std_devs: Vec<f64>) -> SignalResult<Self> {
         if std_devs.is_empty() {
-            return Err(SignalError::ValueError("std_devs must not be empty".to_string()));
+            return Err(SignalError::ValueError(
+                "std_devs must not be empty".to_string(),
+            ));
         }
         for &s in &std_devs {
             if s <= 0.0 {
@@ -176,9 +178,7 @@ impl Likelihood for StudentTLikelihood {
             .iter()
             .zip(hx.iter())
             .zip(self.scales.iter())
-            .map(|((zi, hxi), si)| {
-                Self::log_student_t_density(zi - hxi, *si, self.nu)
-            })
+            .map(|((zi, hxi), si)| Self::log_student_t_density(zi - hxi, *si, self.nu))
             .sum();
         log_l.exp()
     }
@@ -210,7 +210,11 @@ pub enum ResamplingStrategy {
 /// a value close to 1 means the distribution has collapsed to a single particle.
 pub fn effective_sample_size(weights: &[f64]) -> f64 {
     let sum_sq: f64 = weights.iter().map(|&w| w * w).sum();
-    if sum_sq <= 0.0 { 0.0 } else { 1.0 / sum_sq }
+    if sum_sq <= 0.0 {
+        0.0
+    } else {
+        1.0 / sum_sq
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -318,10 +322,7 @@ impl ParticleFilter {
     /// The closure takes the current particle state `x: &[f64]` and a normal
     /// random sample generator `rng: &mut dyn FnMut() -> f64`, and returns the
     /// propagated state.
-    pub fn set_transition(
-        &mut self,
-        f: Box<dyn Fn(&[f64], &mut dyn FnMut() -> f64) -> Vec<f64>>,
-    ) {
+    pub fn set_transition(&mut self, f: Box<dyn Fn(&[f64], &mut dyn FnMut() -> f64) -> Vec<f64>>) {
         self.transition = Some(f);
     }
 
@@ -412,7 +413,7 @@ impl ParticleFilter {
     /// # Errors
     ///
     /// Returns [`SignalError::ComputationError`] when no transition function has been set
-    /// via [`set_transition`], or [`SignalError::ValueError`] if weights collapse to zero.
+    /// via [`Self::set_transition`], or [`SignalError::ValueError`] if weights collapse to zero.
     pub fn step(&mut self, measurement: &[f64]) -> SignalResult<()> {
         self.predict()?;
         self.update(measurement)?;
@@ -477,15 +478,12 @@ impl ParticleFilter {
         if max_lw.is_infinite() {
             return Err(SignalError::ValueError(
                 "all particle weights collapsed to zero; try increasing particle count \
-                 or widening the prior".to_string(),
+                 or widening the prior"
+                    .to_string(),
             ));
         }
 
-        let sum_exp: f64 = self
-            .log_weights
-            .iter()
-            .map(|&lw| (lw - max_lw).exp())
-            .sum();
+        let sum_exp: f64 = self.log_weights.iter().map(|&lw| (lw - max_lw).exp()).sum();
 
         let log_sum = max_lw + sum_exp.ln();
         for lw in self.log_weights.iter_mut() {
@@ -508,10 +506,8 @@ impl ParticleFilter {
             ResamplingStrategy::Systematic => self.systematic_resample(&weights),
             ResamplingStrategy::Stratified => self.stratified_resample(&weights),
         };
-        let new_particles: Vec<Vec<f64>> = indices
-            .iter()
-            .map(|&i| self.particles[i].clone())
-            .collect();
+        let new_particles: Vec<Vec<f64>> =
+            indices.iter().map(|&i| self.particles[i].clone()).collect();
         self.particles = new_particles;
         let uniform_log = -(self.n_particles as f64).ln();
         self.log_weights.fill(uniform_log);
@@ -682,10 +678,7 @@ mod tests {
     fn cv_model(x: &[f64], rng: &mut dyn FnMut() -> f64) -> Vec<f64> {
         let dt = 1.0_f64;
         let proc_noise = 0.1;
-        vec![
-            x[0] + x[1] * dt + proc_noise * rng(),
-            x[1] + 0.05 * rng(),
-        ]
+        vec![x[0] + x[1] * dt + proc_noise * rng(), x[1] + 0.05 * rng()]
     }
 
     fn make_gaussian_likelihood() -> Box<dyn Likelihood> {
@@ -701,7 +694,8 @@ mod tests {
             make_gaussian_likelihood(),
             ResamplingStrategy::Systematic,
         );
-        pf.initialize_uniform(&[-5.0, -1.0], &[5.0, 1.0]).expect("should succeed in test");
+        pf.initialize_uniform(&[-5.0, -1.0], &[5.0, 1.0])
+            .expect("should succeed in test");
         assert_eq!(pf.particles.len(), 100);
         assert!(pf.particles.iter().all(|p| p.len() == 2));
     }
@@ -715,7 +709,8 @@ mod tests {
             ResamplingStrategy::Systematic,
         );
         pf.seed(42);
-        pf.initialize_uniform(&[0.0, 0.0], &[1.0, 1.0]).expect("should succeed in test");
+        pf.initialize_uniform(&[0.0, 0.0], &[1.0, 1.0])
+            .expect("should succeed in test");
         for p in &pf.particles {
             assert!(p[0] >= 0.0 && p[0] <= 1.0, "p[0]={}", p[0]);
             assert!(p[1] >= 0.0 && p[1] <= 1.0, "p[1]={}", p[1]);
@@ -731,7 +726,8 @@ mod tests {
             ResamplingStrategy::Systematic,
         );
         pf.seed(0xdeadbeef);
-        pf.initialize_gaussian(&[0.0, 1.0], &[0.5, 0.2]).expect("should succeed in test");
+        pf.initialize_gaussian(&[0.0, 1.0], &[0.5, 0.2])
+            .expect("should succeed in test");
         assert_eq!(pf.particles.len(), 500);
     }
 
@@ -744,7 +740,8 @@ mod tests {
             ResamplingStrategy::Systematic,
         );
         pf.seed(0x1234);
-        pf.initialize_gaussian(&[0.0, 0.0], &[3.0, 0.5]).expect("should succeed in test");
+        pf.initialize_gaussian(&[0.0, 0.0], &[3.0, 0.5])
+            .expect("should succeed in test");
         pf.set_transition(Box::new(cv_model));
 
         // Feed measurement z = 5.0 repeatedly to drive the estimate up
@@ -775,7 +772,8 @@ mod tests {
             Box::new(ZeroLikelihood),
             ResamplingStrategy::Systematic,
         );
-        pf.initialize_uniform(&[-1.0], &[1.0]).expect("should succeed in test");
+        pf.initialize_uniform(&[-1.0], &[1.0])
+            .expect("should succeed in test");
         pf.set_transition(Box::new(|x: &[f64], _rng: &mut dyn FnMut() -> f64| {
             x.to_vec()
         }));
@@ -811,7 +809,8 @@ mod tests {
             ResamplingStrategy::Systematic,
         );
         pf.seed(99);
-        pf.initialize_uniform(&[-10.0], &[10.0]).expect("should succeed in test");
+        pf.initialize_uniform(&[-10.0], &[10.0])
+            .expect("should succeed in test");
 
         // Manually set weights so that particles near 0 get almost all weight
         let gaussian_like = |x: f64| (-(x * x) / 0.5).exp();
@@ -866,7 +865,8 @@ mod tests {
             ResamplingStrategy::Multinomial,
         );
         pf.seed(77);
-        pf.initialize_uniform(&[0.0], &[1.0]).expect("should succeed in test");
+        pf.initialize_uniform(&[0.0], &[1.0])
+            .expect("should succeed in test");
         // Just check it runs and produces correct particle count
         pf.resample().expect("should succeed in test");
         assert_eq!(pf.particles.len(), 100);
@@ -881,7 +881,8 @@ mod tests {
             ResamplingStrategy::Stratified,
         );
         pf.seed(55);
-        pf.initialize_uniform(&[0.0], &[1.0]).expect("should succeed in test");
+        pf.initialize_uniform(&[0.0], &[1.0])
+            .expect("should succeed in test");
         pf.resample().expect("should succeed in test");
         assert_eq!(pf.particles.len(), 100);
     }

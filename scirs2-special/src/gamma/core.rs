@@ -240,11 +240,35 @@ pub fn gamma<F: Float + FromPrimitive + Debug + std::ops::AddAssign>(x: F) -> F 
         return result;
     }
 
-    // Handle half-integer values efficiently
-    if (x_f64 * 2.0).fract() == 0.0 && x_f64 > 0.0 {
+    // Handle half-integer values efficiently.
+    //
+    // NOTE: `(x_f64 * 2.0).fract() == 0.0` alone is satisfied by BOTH
+    // half-integers (n + 0.5) *and* plain integers (2*n is an integer for
+    // any integer n), so it must be paired with `x_f64.fract() != 0.0` to
+    // exclude whole integers -- otherwise every whole integer x > 21 (which
+    // the exact-factorial branch above only handles up to 21.0) would fall
+    // into this branch and silently be evaluated as if it were `x - 0.5`
+    // instead (e.g. gamma(51.0) would silently return gamma(50.5) ~=
+    // 4.29e63 instead of the true gamma(51.0) = 50! ~= 3.04e64, a ~7x
+    // error), rather than falling through to the general Lanczos/Stirling
+    // path below that correctly handles arbitrary large integers.
+    if (x_f64 * 2.0).fract() == 0.0 && x_f64 > 0.0 && x_f64.fract() != 0.0 {
         let n = (x_f64 - 0.5) as i32;
         if n >= 0 {
             // Γ(n + 0.5) = (2n-1)!!/(2^n) * sqrt(π)
+            //
+            // The direct product (2n-1)!! overflows f64 at n = 151 (it grows
+            // much faster than the final result, which is later rescaled
+            // down by 2^n) -- e.g. gamma(170.5) has n = 170 and a true value
+            // of ~5.56e305 (well within f64 range), but computing the raw
+            // double factorial first produced `inf` before the division by
+            // 2^n could bring it back down. For large n, delegate to the
+            // overflow-safe log-space Stirling approximation instead, which
+            // is accurate to <1e-15 relative error for x > 20.
+            if n > 140 {
+                return stirling_approximation(x);
+            }
+
             let mut double_factorial = F::one();
             for i in 1..=n {
                 let double_iminus_1 = match 2_i32.checked_mul(i).and_then(|x| x.checked_sub(1)) {
@@ -406,8 +430,20 @@ pub fn gammaln<F: Float + FromPrimitive + Debug + std::ops::AddAssign>(x: F) -> 
         return stirling_approximation_ln(x);
     }
 
-    // For half-integer values, use the specialized implementation
-    if (x_f64 * 2.0).fract() == 0.0 && x_f64 > 0.0 {
+    // For half-integer values, use the specialized implementation.
+    //
+    // NOTE: `(x_f64 * 2.0).fract() == 0.0` alone is satisfied by BOTH
+    // half-integers (n + 0.5) *and* plain integers (2*n is an integer for
+    // any integer n), so it must be paired with `x_f64.fract() != 0.0` to
+    // exclude whole integers -- otherwise every whole integer x in (21, 50]
+    // (the exact-factorial-sum branch above only handles up to 21.0; the
+    // `x_f64 > 50.0` Stirling branch above catches everything past 50)
+    // would silently be evaluated as if it were `x - 0.5` instead (e.g.
+    // `gammaln(26.0)` would silently return `gammaln(25.5) ~= 56.389`
+    // instead of the true `gammaln(26.0) ~= 58.004`, i.e. `gamma(26.0)` off
+    // by a factor of ~5). Mirrors the identical fix already applied to
+    // `gamma()`'s analogous branch above.
+    if (x_f64 * 2.0).fract() == 0.0 && x_f64 > 0.0 && x_f64.fract() != 0.0 {
         let n = (x_f64 - 0.5) as i32;
         if n >= 0 {
             // ln(Γ(n + 0.5)) = ln((2n-1)!!) - n*ln(2) + ln(sqrt(π))
@@ -497,4 +533,113 @@ pub fn betaln<F: Float + FromPrimitive + Debug + std::ops::AddAssign>(a: F, b: F
     let ln_gamma_ab = stirling_approximation_ln(a + b);
 
     ln_gamma_a + ln_gamma_b - ln_gamma_ab
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    /// Regression test for a silent-wrong-result bug: the "handle
+    /// half-integer values efficiently" fast path's guard,
+    /// `(x*2).fract() == 0.0`, is also satisfied by any WHOLE integer
+    /// (doubling an integer is still an integer), so every plain integer
+    /// x in (21, 141] used to be silently misidentified as the
+    /// half-integer `x - 0.5` and evaluated with the wrong formula (e.g.
+    /// `gamma(51.0)` returned `gamma(50.5)` ~= 4.29e63 instead of the true
+    /// `50! ~= 3.04e64`, off by a factor of ~7). Uses non-constant,
+    /// widely-spaced integers so a stub/constant fallback could not
+    /// coincidentally pass.
+    #[test]
+    fn test_gamma_large_integers_not_misrouted_to_half_integer_path() {
+        // Reference factorials: gamma(n) = (n-1)!
+        assert_relative_eq!(gamma(22.0_f64), 51090942171709440000.0, max_relative = 1e-9);
+        assert_relative_eq!(gamma(25.0_f64), 6.204484017332394e23, max_relative = 1e-9);
+        assert_relative_eq!(gamma(51.0_f64), 3.0414093201713376e64, max_relative = 1e-9);
+        assert_relative_eq!(gamma(100.0_f64), 9.33262154439441e155, max_relative = 1e-6);
+        assert_relative_eq!(gamma(101.0_f64), 9.332621544394415e157, max_relative = 1e-6);
+        assert_relative_eq!(gamma(140.0_f64), 9.61572319694109e238, max_relative = 1e-6);
+
+        // Direct check on the exact reported failure mode: gamma(51.0)
+        // must NOT equal gamma(50.5).
+        let g51 = gamma(51.0_f64);
+        let g50_5 = gamma(50.5_f64);
+        assert!(
+            (g51 - g50_5).abs() / g51 > 0.1,
+            "gamma(51.0)={g51} must differ substantially from gamma(50.5)={g50_5}"
+        );
+    }
+
+    /// True half-integers must still take the fast double-factorial path
+    /// and remain correct (this is a non-regression check for the guard
+    /// added above).
+    #[test]
+    fn test_gamma_half_integers_still_correct() {
+        let sqrt_pi = std::f64::consts::PI.sqrt();
+        assert_relative_eq!(gamma(0.5_f64), sqrt_pi, epsilon = 1e-10);
+        assert_relative_eq!(gamma(1.5_f64), 0.5 * sqrt_pi, epsilon = 1e-10);
+        assert_relative_eq!(gamma(2.5_f64), 0.75 * sqrt_pi, epsilon = 1e-10);
+        // Gamma(50.5) reference value (scipy.special.gamma(50.5)).
+        assert_relative_eq!(gamma(50.5_f64), 4.29046291235196e63, max_relative = 1e-9);
+    }
+
+    #[test]
+    fn test_gamma_small_integers_exact() {
+        assert_relative_eq!(gamma(1.0_f64), 1.0, epsilon = 1e-10);
+        assert_relative_eq!(gamma(5.0_f64), 24.0, epsilon = 1e-10);
+        assert_relative_eq!(gamma(10.0_f64), 362880.0, epsilon = 1e-6);
+        assert_relative_eq!(gamma(21.0_f64), 2432902008176640000.0, max_relative = 1e-9);
+    }
+
+    /// Regression test for the exact same silent-wrong-result bug as
+    /// `test_gamma_large_integers_not_misrouted_to_half_integer_path`
+    /// above, but in `gammaln`: its "half-integer" branch guard was missing
+    /// the `x_f64.fract() != 0.0` exclusion that `gamma()`'s analogous
+    /// branch already carries, so whole integers x in (21, 50] (the
+    /// exact-factorial-sum branch only covers up to 21.0; the `x > 50.0`
+    /// Stirling branch covers everything past 50) were silently evaluated
+    /// as `gammaln(x - 0.5)` instead -- e.g. the old code returned
+    /// `gammaln(26.0) ~= 56.389` (i.e. `gammaln(25.5)`) against the true
+    /// `~= 58.004`, off by a factor of ~5 in `gamma(26.0)` terms. This bug
+    /// was newly surfaced by `gammaincinv`'s large-a fix (its Newton
+    /// derivative now calls `gammaln` directly for every `a`, including
+    /// plain integers in this range), which is what caused
+    /// `pdtri`/`gammainccinv` round-trip tests to start failing to
+    /// converge until this was fixed too.
+    #[test]
+    fn test_gammaln_large_integers_not_misrouted_to_half_integer_path() {
+        // Reference values from `scipy.special.gammaln`.
+        assert_relative_eq!(gammaln(22.0_f64), 45.380138898476915, epsilon = 1e-9);
+        assert_relative_eq!(gammaln(25.0_f64), 54.78472939811232, epsilon = 1e-9);
+        assert_relative_eq!(gammaln(26.0_f64), 58.003605222980525, epsilon = 1e-9);
+        assert_relative_eq!(gammaln(30.0_f64), 71.257038967168, epsilon = 1e-9);
+        assert_relative_eq!(gammaln(45.0_f64), 125.31727114935688, epsilon = 1e-8);
+        assert_relative_eq!(gammaln(50.0_f64), 144.56574394634487, epsilon = 1e-8);
+
+        // Direct check on the exact reported failure mode: gammaln(26.0)
+        // must NOT equal gammaln(25.5).
+        let ln_g26 = gammaln(26.0_f64);
+        let ln_g25_5 = gammaln(25.5_f64);
+        assert!(
+            (ln_g26 - ln_g25_5).abs() > 1.0,
+            "gammaln(26.0)={ln_g26} must differ substantially from gammaln(25.5)={ln_g25_5}"
+        );
+
+        // Must also stay self-consistent with `gamma()` across the whole
+        // previously-affected range (both were derived from the same
+        // Lanczos machinery once routed correctly).
+        for n in 22..=50 {
+            let x = n as f64;
+            assert_relative_eq!(gammaln(x), gamma(x).ln(), max_relative = 1e-9);
+        }
+    }
+
+    /// True half-integers must still take the fast double-factorial path
+    /// and remain correct (non-regression check for the guard above).
+    #[test]
+    fn test_gammaln_half_integers_still_correct() {
+        let ln_sqrt_pi = 0.5 * std::f64::consts::PI.ln();
+        assert_relative_eq!(gammaln(0.5_f64), ln_sqrt_pi, epsilon = 1e-10);
+        assert_relative_eq!(gammaln(25.5_f64), 56.389167643719944, epsilon = 1e-9);
+    }
 }

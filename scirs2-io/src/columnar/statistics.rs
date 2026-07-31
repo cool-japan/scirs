@@ -18,44 +18,53 @@ use super::types::{Column, ColumnData, ColumnarTable};
 pub struct ColumnStats {
     /// Column name
     pub name: String,
-    /// Number of values
+    /// Number of values (including any nulls)
     pub count: usize,
-    /// Number of null/missing values (always 0 for now, extensible)
+    /// Number of null/missing values, from the column's `null_mask` (0 for
+    /// columns with no null tracking).
     pub null_count: usize,
-    /// Minimum value (as f64, NaN for non-numeric)
+    /// Minimum value among the non-null entries (as f64, `None` if there are
+    /// no non-null numeric entries)
     pub min: Option<f64>,
-    /// Maximum value (as f64, NaN for non-numeric)
+    /// Maximum value among the non-null entries (as f64, `None` if there are
+    /// no non-null numeric entries)
     pub max: Option<f64>,
-    /// Sum of values (for numeric columns)
+    /// Sum of the non-null values (for numeric columns)
     pub sum: Option<f64>,
-    /// Number of distinct values
+    /// Number of distinct non-null values
     pub distinct_count: Option<usize>,
 }
 
 impl ColumnStats {
-    /// Compute statistics for a column
+    /// Compute statistics for a column.
+    ///
+    /// Null rows (per `col.null_mask`) are excluded from `min`/`max`/`sum`/
+    /// `distinct_count` -- only counted in `null_count` -- since the
+    /// placeholder value stored at a null position in `col.data` is not a
+    /// real value.
     pub fn from_column(col: &Column) -> Self {
         let count = col.len();
-        let null_count = 0; // extensible for future Option<T> columns
+        let null_count = col.null_count();
 
         match &col.data {
             ColumnData::Float64(v) => {
-                let (min, max, sum) = if v.is_empty() {
-                    (None, None, None)
-                } else {
-                    let mut mn = f64::INFINITY;
-                    let mut mx = f64::NEG_INFINITY;
-                    let mut s = 0.0;
-                    for &val in v {
-                        if val < mn {
-                            mn = val;
-                        }
-                        if val > mx {
-                            mx = val;
-                        }
-                        s += val;
+                let mut mn = f64::INFINITY;
+                let mut mx = f64::NEG_INFINITY;
+                let mut s = 0.0;
+                let mut any = false;
+                for (i, &val) in v.iter().enumerate() {
+                    if col.is_null(i) {
+                        continue;
                     }
+                    any = true;
+                    mn = mn.min(val);
+                    mx = mx.max(val);
+                    s += val;
+                }
+                let (min, max, sum) = if any {
                     (Some(mn), Some(mx), Some(s))
+                } else {
+                    (None, None, None)
                 };
                 ColumnStats {
                     name: col.name.clone(),
@@ -68,22 +77,23 @@ impl ColumnStats {
                 }
             }
             ColumnData::Int64(v) => {
-                let (min, max, sum) = if v.is_empty() {
-                    (None, None, None)
-                } else {
-                    let mut mn = i64::MAX;
-                    let mut mx = i64::MIN;
-                    let mut s: i64 = 0;
-                    for &val in v {
-                        if val < mn {
-                            mn = val;
-                        }
-                        if val > mx {
-                            mx = val;
-                        }
-                        s = s.wrapping_add(val);
+                let mut mn = i64::MAX;
+                let mut mx = i64::MIN;
+                let mut s: i64 = 0;
+                let mut any = false;
+                for (i, &val) in v.iter().enumerate() {
+                    if col.is_null(i) {
+                        continue;
                     }
+                    any = true;
+                    mn = mn.min(val);
+                    mx = mx.max(val);
+                    s = s.wrapping_add(val);
+                }
+                let (min, max, sum) = if any {
                     (Some(mn as f64), Some(mx as f64), Some(s as f64))
+                } else {
+                    (None, None, None)
                 };
                 ColumnStats {
                     name: col.name.clone(),
@@ -98,7 +108,10 @@ impl ColumnStats {
             ColumnData::Str(v) => {
                 let distinct = {
                     let mut set = std::collections::HashSet::new();
-                    for s in v {
+                    for (i, s) in v.iter().enumerate() {
+                        if col.is_null(i) {
+                            continue;
+                        }
                         set.insert(s.as_str());
                     }
                     set.len()
@@ -114,17 +127,27 @@ impl ColumnStats {
                 }
             }
             ColumnData::Bool(v) => {
-                let true_count = v.iter().filter(|&&b| b).count();
+                let mut true_count = 0usize;
+                let mut valid_count = 0usize;
+                for (i, &b) in v.iter().enumerate() {
+                    if col.is_null(i) {
+                        continue;
+                    }
+                    valid_count += 1;
+                    if b {
+                        true_count += 1;
+                    }
+                }
                 ColumnStats {
                     name: col.name.clone(),
                     count,
                     null_count,
-                    min: Some(0.0),
-                    max: Some(1.0),
-                    sum: Some(true_count as f64),
-                    distinct_count: Some(if v.is_empty() {
+                    min: (valid_count > 0).then_some(0.0),
+                    max: (valid_count > 0).then_some(1.0),
+                    sum: (valid_count > 0).then_some(true_count as f64),
+                    distinct_count: Some(if valid_count == 0 {
                         0
-                    } else if true_count == 0 || true_count == count {
+                    } else if true_count == 0 || true_count == valid_count {
                         1
                     } else {
                         2
@@ -250,9 +273,11 @@ fn slice_column(col: &Column, start: usize, end: usize) -> Column {
         ColumnData::Str(v) => ColumnData::Str(v[start..end].to_vec()),
         ColumnData::Bool(v) => ColumnData::Bool(v[start..end].to_vec()),
     };
+    let null_mask = col.null_mask.as_ref().map(|mask| mask[start..end].to_vec());
     Column {
         name: col.name.clone(),
         data,
+        null_mask,
     }
 }
 
@@ -345,7 +370,10 @@ impl Predicate {
                         if *val {
                             sum > 0.0 // at least one true
                         } else {
-                            sum < stats.count as f64 // at least one false
+                            // At least one non-null false: compare against the number of
+                            // non-null values, not the raw row count (which may include nulls).
+                            let valid_count = (stats.count - stats.null_count) as f64;
+                            sum < valid_count
                         }
                     } else {
                         true
@@ -478,9 +506,18 @@ pub fn filter_table(table: &ColumnarTable, predicate: &Predicate) -> Result<Colu
                 ColumnData::Bool(filtered)
             }
         };
+        let filtered_null_mask = col.null_mask.as_ref().map(|null_mask| {
+            null_mask
+                .iter()
+                .zip(mask.iter())
+                .filter(|(_, &m)| m)
+                .map(|(&is_null, _)| is_null)
+                .collect()
+        });
         columns.push(Column {
             name: col.name.clone(),
             data: filtered_data,
+            null_mask: filtered_null_mask,
         });
     }
 
@@ -766,5 +803,142 @@ mod tests {
         let groups =
             split_into_row_groups(&table, &RowGroupConfig::default()).expect("split failed");
         assert!(groups.is_empty());
+    }
+
+    #[test]
+    fn test_column_stats_null_count_float64() {
+        // Non-constant data with two nulls whose placeholder values (999.0) would
+        // badly skew min/max/sum if they were mistakenly counted as real values.
+        let col = Column::float64_with_nulls(
+            "temp",
+            vec![20.0, 999.0, 18.0, 999.0, 19.5],
+            vec![false, true, false, true, false],
+        )
+        .expect("Operation failed");
+        let stats = ColumnStats::from_column(&col);
+
+        assert_eq!(stats.count, 5);
+        assert_eq!(stats.null_count, 2);
+        assert!((stats.min.expect("no min") - 18.0).abs() < 1e-10);
+        assert!((stats.max.expect("no max") - 20.0).abs() < 1e-10);
+        assert!((stats.sum.expect("no sum") - (20.0 + 18.0 + 19.5)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_column_stats_null_count_int64() {
+        let col = Column::int64_with_nulls(
+            "id",
+            vec![10, -999, 30, -999],
+            vec![false, true, false, true],
+        )
+        .expect("Operation failed");
+        let stats = ColumnStats::from_column(&col);
+
+        assert_eq!(stats.null_count, 2);
+        assert!((stats.min.expect("no min") - 10.0).abs() < 1e-10);
+        assert!((stats.max.expect("no max") - 30.0).abs() < 1e-10);
+        assert!((stats.sum.expect("no sum") - 40.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_column_stats_null_count_string() {
+        let col = Column::string_with_nulls(
+            "city",
+            vec![
+                "Tokyo".into(),
+                "PLACEHOLDER".into(),
+                "Osaka".into(),
+                "Tokyo".into(),
+            ],
+            vec![false, true, false, false],
+        )
+        .expect("Operation failed");
+        let stats = ColumnStats::from_column(&col);
+
+        assert_eq!(stats.null_count, 1);
+        // Distinct among the 3 non-null entries: Tokyo, Osaka => 2 (the
+        // placeholder string at the null position must not be counted).
+        assert_eq!(stats.distinct_count, Some(2));
+    }
+
+    #[test]
+    fn test_column_stats_null_count_bool() {
+        let col = Column::boolean_with_nulls(
+            "active",
+            vec![true, true, false, true],
+            vec![false, true, false, false],
+        )
+        .expect("Operation failed");
+        let stats = ColumnStats::from_column(&col);
+
+        assert_eq!(stats.count, 4);
+        assert_eq!(stats.null_count, 1);
+        // Non-null values: [true, false, true] => sum = 2, out of 3 valid rows.
+        assert!((stats.sum.expect("no sum") - 2.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_null_mask_length_mismatch_errors() {
+        let result = Column::float64_with_nulls("x", vec![1.0, 2.0, 3.0], vec![false, true]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_slice_column_preserves_null_mask() {
+        let col = Column::float64_with_nulls(
+            "x",
+            vec![1.0, 999.0, 3.0, 999.0, 5.0],
+            vec![false, true, false, true, false],
+        )
+        .expect("Operation failed");
+        let table = ColumnarTable::from_columns(vec![col]).expect("Operation failed");
+        let config = RowGroupConfig {
+            max_rows_per_group: 2,
+        };
+        let groups = split_into_row_groups(&table, &config).expect("split failed");
+
+        // Group 1 covers rows 2..4 => values [3.0, 999.0(null)]; the null must
+        // still be excluded from that group's own stats.
+        let g1_stats = groups[1]
+            .stats
+            .iter()
+            .find(|s| s.name == "x")
+            .expect("stats missing");
+        assert_eq!(g1_stats.null_count, 1);
+        assert!((g1_stats.min.expect("no min") - 3.0).abs() < 1e-10);
+        assert!((g1_stats.max.expect("no max") - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_filter_table_preserves_null_mask() {
+        let col = Column::float64_with_nulls(
+            "x",
+            vec![1.0, 999.0, 3.0, 999.0, 5.0],
+            vec![false, true, false, true, false],
+        )
+        .expect("Operation failed");
+        let id_col = Column::int64("id", vec![1, 2, 3, 4, 5]);
+        let table = ColumnarTable::from_columns(vec![col, id_col]).expect("Operation failed");
+
+        // Keep only odd ids (rows 0, 2, 4): values [1.0, 3.0, 5.0], no nulls kept.
+        let pred = Predicate::Or(vec![
+            Predicate::IntEquals("id".to_string(), 1),
+            Predicate::Or(vec![
+                Predicate::IntEquals("id".to_string(), 3),
+                Predicate::IntEquals("id".to_string(), 5),
+            ]),
+        ]);
+        let filtered = filter_table(&table, &pred).expect("filter failed");
+        let filtered_x = filtered.column("x").expect("Operation failed");
+        assert_eq!(filtered_x.null_count(), 0);
+
+        // Keep only even ids (rows 1, 3): both nulls.
+        let pred2 = Predicate::Or(vec![
+            Predicate::IntEquals("id".to_string(), 2),
+            Predicate::IntEquals("id".to_string(), 4),
+        ]);
+        let filtered2 = filter_table(&table, &pred2).expect("filter failed");
+        let filtered2_x = filtered2.column("x").expect("Operation failed");
+        assert_eq!(filtered2_x.null_count(), 2);
     }
 }

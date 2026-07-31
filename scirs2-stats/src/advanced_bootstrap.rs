@@ -204,11 +204,22 @@ pub struct BootstrapDiagnostics<F> {
 pub struct BootstrapDistributionStats<F> {
     /// Skewness of bootstrap distribution
     pub skewness: F,
-    /// Kurtosis of bootstrap distribution
+    /// Kurtosis of bootstrap distribution (excess kurtosis: 0 for a
+    /// normal distribution)
     pub kurtosis: F,
-    /// Jarque-Bera test statistic for normality
+    /// Jarque-Bera test statistic for normality: `(n/6) * (skewness^2 +
+    /// kurtosis^2/4)`, asymptotically chi-square(2)-distributed under the
+    /// null hypothesis that the distribution is normal. Larger values
+    /// indicate greater departure from normality.
     pub jarque_bera: F,
-    /// Anderson-Darling test statistic
+    /// Two-sided p-value for `jarque_bera`, computed as the chi-square(2)
+    /// survival function `P(X >= jarque_bera)`. Small values (e.g.
+    /// `< 0.05`) reject normality; values near 1 are consistent with a
+    /// normal bootstrap distribution.
+    pub jarque_bera_p_value: F,
+    /// Anderson-Darling test statistic for normality (classical,
+    /// small-sample-uncorrected form). Larger values indicate greater
+    /// departure from normality.
     pub anderson_darling: F,
     /// Minimum bootstrap value
     pub min_value: F,
@@ -260,7 +271,8 @@ where
         + Copy
         + Send
         + Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
 {
     /// Create new advanced bootstrap processor
     pub fn new(config: AdvancedBootstrapConfig) -> Self {
@@ -1087,38 +1099,109 @@ where
         Ok(sample)
     }
 
-    /// Generate gamma distribution sample (simplified)
+    /// Generate gamma distribution sample
+    ///
+    /// Uses [`Self::sample_standard_gamma`] (Marsaglia & Tsang's method,
+    /// exact rather than a normal approximation) and applies the `scale`
+    /// parameter via `Gamma(shape, scale) = scale * Gamma(shape, 1)`.
     fn generate_gamma_sample(
         &mut self,
         n: usize,
         shape: f64,
         scale: f64,
     ) -> StatsResult<Array1<F>> {
-        // Simplified implementation - would use proper gamma generation in full version
-        let mut sample = Array1::zeros(n);
+        if shape <= 0.0 || !shape.is_finite() {
+            return Err(StatsError::InvalidArgument(format!(
+                "Gamma shape parameter must be positive and finite, got {shape}"
+            )));
+        }
+        if scale <= 0.0 || !scale.is_finite() {
+            return Err(StatsError::InvalidArgument(format!(
+                "Gamma scale parameter must be positive and finite, got {scale}"
+            )));
+        }
 
+        let mut sample = Array1::zeros(n);
         for i in 0..n {
-            // Using normal approximation for simplicity
-            let mean = shape * scale;
-            let std = (shape * scale * scale).sqrt();
-            let u1 = self.rng.random::<f64>();
-            let u2 = self.rng.random::<f64>();
-            let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
-            sample[i] = F::from((mean + std * z).max(0.0)).expect("Operation failed");
+            let g = self.sample_standard_gamma(shape);
+            sample[i] = F::from(g * scale).expect("Failed to convert to float");
         }
 
         Ok(sample)
     }
 
-    /// Generate beta distribution sample (simplified)
-    fn generate_beta_sample(&mut self, n: usize, alpha: f64, beta: f64) -> StatsResult<Array1<F>> {
-        // Simplified implementation using gamma ratio method
-        let mut sample = Array1::zeros(n);
+    /// Generate a single `Gamma(shape, 1)` variate.
+    ///
+    /// Uses Marsaglia & Tsang's squeeze method ("A Simple Method for
+    /// Generating Gamma Variables", ACM TOMS 2000), which is exact (not an
+    /// approximation) for `shape >= 1`. For `0 < shape < 1` this applies
+    /// the standard boosting transform
+    /// `Gamma(shape) = Gamma(shape + 1) * U^(1/shape)` for `U ~ Uniform(0, 1)`
+    /// (a direct consequence of the Gamma distribution's density; see e.g.
+    /// Marsaglia & Tsang section 1, or Devroye's *Non-Uniform Random
+    /// Variate Generation*, Ch. IX.3.3).
+    fn sample_standard_gamma(&mut self, shape: f64) -> f64 {
+        if shape < 1.0 {
+            let u: f64 = self.rng.random::<f64>().max(f64::MIN_POSITIVE);
+            return self.sample_standard_gamma(shape + 1.0) * u.powf(1.0 / shape);
+        }
 
+        let d = shape - 1.0 / 3.0;
+        let c = 1.0 / (9.0 * d).sqrt();
+
+        loop {
+            let (x, v) = loop {
+                // Standard normal deviate via Box-Muller.
+                let u1 = self.rng.random::<f64>().max(f64::MIN_POSITIVE);
+                let u2 = self.rng.random::<f64>();
+                let x = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+                let v = (1.0 + c * x).powi(3);
+                if v > 0.0 {
+                    break (x, v);
+                }
+            };
+
+            let u: f64 = self.rng.random::<f64>();
+
+            // Squeeze test (cheap, avoids the log() below on most draws).
+            if u < 1.0 - 0.0331 * x.powi(4) {
+                return d * v;
+            }
+            // Full acceptance test.
+            if u.ln() < 0.5 * x * x + d * (1.0 - v + v.ln()) {
+                return d * v;
+            }
+        }
+    }
+
+    /// Generate beta distribution sample
+    ///
+    /// Uses the Gamma-ratio construction: if `X ~ Gamma(alpha, 1)` and
+    /// `Y ~ Gamma(beta, 1)` are independent, then `X / (X + Y) ~
+    /// Beta(alpha, beta)` exactly (a standard result, see e.g. Devroye
+    /// Ch. IX.4.1). The previous implementation instead formed
+    /// `U1^(1/alpha) / (U1^(1/alpha) + U2^(1/beta))` from two independent
+    /// `Uniform(0,1)` draws -- `U^(1/alpha)` is a `Beta(alpha, 1)` variate,
+    /// not a `Gamma(alpha, 1)` variate, so that ratio does not follow
+    /// `Beta(alpha, beta)` in general (only degenerate/coincidental cases
+    /// match).
+    fn generate_beta_sample(&mut self, n: usize, alpha: f64, beta: f64) -> StatsResult<Array1<F>> {
+        if alpha <= 0.0 || !alpha.is_finite() {
+            return Err(StatsError::InvalidArgument(format!(
+                "Beta alpha parameter must be positive and finite, got {alpha}"
+            )));
+        }
+        if beta <= 0.0 || !beta.is_finite() {
+            return Err(StatsError::InvalidArgument(format!(
+                "Beta beta parameter must be positive and finite, got {beta}"
+            )));
+        }
+
+        let mut sample = Array1::zeros(n);
         for i in 0..n {
-            let x = self.rng.random::<f64>().powf(1.0 / alpha);
-            let y = self.rng.random::<f64>().powf(1.0 / beta);
-            let value = x / (x + y);
+            let x = self.sample_standard_gamma(alpha);
+            let y = self.sample_standard_gamma(beta);
+            let value = if x + y > 0.0 { x / (x + y) } else { 0.5 };
             sample[i] = F::from(value).expect("Failed to convert to float");
         }
 
@@ -1240,13 +1323,23 @@ where
         })
     }
 
-    /// Compute distribution statistics
+    /// Compute distribution statistics.
+    ///
+    /// `jarque_bera`/`jarque_bera_p_value` and `anderson_darling` were
+    /// previously hardcoded to `F::zero()` ("Simplified") regardless of
+    /// the bootstrap distribution's actual shape -- i.e. every bootstrap
+    /// run, however skewed or heavy-tailed, silently reported perfectly
+    /// normal-looking diagnostics. Both are now real, computed normality
+    /// diagnostics; see their doc comments on `BootstrapDistributionStats`
+    /// for the exact formulas.
     fn compute_distribution_stats(
         &self,
         samples: &Array1<F>,
     ) -> StatsResult<BootstrapDistributionStats<F>> {
         let mean = self.compute_mean(samples);
         let std = self.compute_std(samples);
+        let n = samples.len();
+        let n_f = F::from(n).expect("Operation failed");
 
         // Skewness
         let skewness = if std > F::zero() {
@@ -1257,12 +1350,13 @@ where
                     z * z * z
                 })
                 .fold(F::zero(), |acc, x| acc + x);
-            skew_sum / F::from(samples.len()).expect("Operation failed")
+            skew_sum / n_f
         } else {
             F::zero()
         };
 
-        // Kurtosis
+        // Kurtosis (excess kurtosis: 4th standardized moment minus 3, so
+        // a normal distribution has `kurtosis == 0`).
         let kurtosis = if std > F::zero() {
             let kurt_sum = samples
                 .iter()
@@ -1271,8 +1365,85 @@ where
                     z * z * z * z
                 })
                 .fold(F::zero(), |acc, x| acc + x);
-            kurt_sum / F::from(samples.len()).expect("Operation failed")
-                - F::from(3.0).expect("Failed to convert constant to float")
+            kurt_sum / n_f - F::from(3.0).expect("Failed to convert constant to float")
+        } else {
+            F::zero()
+        };
+
+        // Jarque-Bera test statistic: JB = (n/6) * (S^2 + K^2/4), where S
+        // is the skewness and K the excess kurtosis computed above.
+        // Asymptotically chi-square(2)-distributed under the null
+        // hypothesis that the bootstrap distribution is normal, so the
+        // p-value is the chi-square(2) survival function `1 - cdf(JB)`
+        // (same "real CDF, not a closed-form-looking but invalid
+        // substitute" pattern as `regression::stat_tests::f_test_p_value`).
+        // A degenerate (zero-variance) bootstrap distribution has no
+        // meaningful shape to test, so its statistic/p-value are the
+        // "no evidence against normality" values 0 / 1.
+        let jarque_bera = if std > F::zero() {
+            (n_f / F::from(6.0).expect("Operation failed"))
+                * (skewness * skewness
+                    + (kurtosis * kurtosis) / F::from(4.0).expect("Operation failed"))
+        } else {
+            F::zero()
+        };
+        let jarque_bera_p_value = if std > F::zero() {
+            let two = F::from(2.0).expect("Operation failed");
+            match crate::distributions::chi_square::ChiSquare::new(two, F::zero(), F::one()) {
+                Ok(dist) => {
+                    let p = F::one() - dist.cdf(jarque_bera);
+                    if p < F::zero() {
+                        F::zero()
+                    } else if p > F::one() {
+                        F::one()
+                    } else {
+                        p
+                    }
+                }
+                Err(_) => F::one(),
+            }
+        } else {
+            F::one()
+        };
+
+        // Anderson-Darling statistic (goodness-of-fit test for
+        // normality):
+        //   A^2 = -n - (1/n) * sum_{i=1}^n (2i - 1) *
+        //           [ln(Phi(z_(i))) + ln(1 - Phi(z_(n+1-i)))]
+        // where `z_(i)` are the standardized (via the sample mean/std)
+        // values sorted ascending and `Phi` is the standard normal CDF.
+        // Larger values indicate greater departure from normality. This
+        // is the classical (small-sample-uncorrected) statistic; unlike
+        // `jarque_bera` above, no p-value is computed here, since
+        // accurate Anderson-Darling tail probabilities require an
+        // asymptotic-distribution table beyond a simple closed-form CDF.
+        let anderson_darling = if std > F::zero() && n >= 2 {
+            let mut sorted: Vec<F> = samples.iter().copied().collect();
+            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+            match crate::distributions::normal::Normal::new(F::zero(), F::one()) {
+                Ok(standard_normal) => {
+                    // Clamp CDF values away from the {0, 1} boundary so
+                    // `ln` never sees exactly 0 (which would produce
+                    // -inf/NaN for a sample's most extreme order
+                    // statistics).
+                    let eps = F::from(1e-300).expect("Operation failed");
+                    let one_minus_eps = F::one() - eps;
+                    let clamp = |p: F| p.max(eps).min(one_minus_eps);
+
+                    let mut sum = F::zero();
+                    for i in 0..n {
+                        let z_i = (sorted[i] - mean) / std;
+                        let z_rev = (sorted[n - 1 - i] - mean) / std;
+                        let phi_i = clamp(standard_normal.cdf(z_i));
+                        let phi_rev = clamp(standard_normal.cdf(z_rev));
+                        let weight = F::from(2 * (i + 1) - 1).expect("Operation failed");
+                        sum = sum + weight * (phi_i.ln() + (F::one() - phi_rev).ln());
+                    }
+                    -n_f - sum / n_f
+                }
+                Err(_) => F::zero(),
+            }
         } else {
             F::zero()
         };
@@ -1284,8 +1455,9 @@ where
         Ok(BootstrapDistributionStats {
             skewness,
             kurtosis,
-            jarque_bera: F::zero(),      // Simplified
-            anderson_darling: F::zero(), // Simplified
+            jarque_bera,
+            jarque_bera_p_value,
+            anderson_darling,
             min_value,
             max_value,
         })
@@ -1367,7 +1539,8 @@ where
         + Copy
         + Send
         + Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
     T: Into<F> + Copy + Send + Sync,
 {
     let mut config = config.unwrap_or_default();
@@ -1397,7 +1570,8 @@ where
         + Copy
         + Send
         + Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
     T: Into<F> + Copy + Send + Sync,
 {
     let mut config = config.unwrap_or_default();
@@ -1425,7 +1599,8 @@ where
         + Copy
         + Send
         + Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
     T: Into<F> + Copy + Send + Sync,
 {
     let mut config = AdvancedBootstrapConfig::default();
@@ -1457,7 +1632,8 @@ where
         + Copy
         + Send
         + Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
     T: Into<F> + Copy + Send + Sync,
 {
     let mut config = AdvancedBootstrapConfig::default();
@@ -1489,7 +1665,8 @@ where
         + Copy
         + Send
         + Sync
-        + std::fmt::Display,
+        + std::fmt::Display
+        + 'static,
     T: Into<F> + Copy + Send + Sync,
 {
     let mut config = AdvancedBootstrapConfig::default();
@@ -1504,128 +1681,6 @@ where
     processor.bootstrap(data, statistic_fn)
 }
 
+#[path = "advanced_bootstrap_tests.rs"]
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use scirs2_core::ndarray::array;
-
-    #[test]
-    fn test_basicbootstrap() {
-        let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let mean_fn = |x: &ArrayView1<f64>| -> StatsResult<f64> { Ok(x.sum() / x.len() as f64) };
-
-        let config = AdvancedBootstrapConfig {
-            n_bootstrap: 100,
-            seed: Some(42),
-            ..Default::default()
-        };
-
-        let mut processor = AdvancedBootstrapProcessor::new(config);
-        let result = processor
-            .bootstrap(&data.view(), mean_fn)
-            .expect("Operation failed");
-
-        assert_eq!(result.n_successful, 100);
-        assert!(result.bootstrap_samples.len() == 100);
-        assert!((result.original_statistic - 3.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_stratifiedbootstrap() {
-        let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let strata = vec![0, 0, 1, 1, 2, 2]; // Three strata
-        let mean_fn = |x: &ArrayView1<f64>| -> StatsResult<f64> { Ok(x.sum() / x.len() as f64) };
-
-        let result = stratified_bootstrap(
-            &data.view(),
-            &strata,
-            mean_fn,
-            Some(AdvancedBootstrapConfig {
-                n_bootstrap: 50,
-                seed: Some(123),
-                ..Default::default()
-            }),
-        )
-        .expect("Operation failed");
-
-        assert_eq!(result.n_successful, 50);
-        assert!(matches!(result.method, BootstrapType::Stratified { .. }));
-    }
-
-    #[test]
-    fn test_moving_blockbootstrap() {
-        let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        let mean_fn = |x: &ArrayView1<f64>| -> StatsResult<f64> { Ok(x.sum() / x.len() as f64) };
-
-        let result = moving_block_bootstrap(
-            &data.view(),
-            mean_fn,
-            Some(3),  // block length
-            Some(50), // n_bootstrap
-        )
-        .expect("Operation failed");
-
-        assert_eq!(result.n_successful, 50);
-        assert!(result.effective_samplesize.is_some());
-    }
-
-    #[test]
-    fn test_circular_blockbootstrap() {
-        let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let mean_fn = |x: &ArrayView1<f64>| -> StatsResult<f64> { Ok(x.sum() / x.len() as f64) };
-
-        let result = circular_block_bootstrap(&data.view(), mean_fn, Some(2), Some(30))
-            .expect("Operation failed");
-
-        assert_eq!(result.n_successful, 30);
-    }
-
-    #[test]
-    fn test_confidence_intervals() {
-        let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
-        let mean_fn = |x: &ArrayView1<f64>| -> StatsResult<f64> { Ok(x.sum() / x.len() as f64) };
-
-        let config = AdvancedBootstrapConfig {
-            n_bootstrap: 200,
-            confidence_level: 0.95,
-            seed: Some(42),
-            ..Default::default()
-        };
-
-        let mut processor = AdvancedBootstrapProcessor::new(config);
-        let result = processor
-            .bootstrap(&data.view(), mean_fn)
-            .expect("Operation failed");
-
-        let ci = &result.confidence_intervals;
-        assert!(ci.percentile.0 <= ci.percentile.1);
-        assert!(ci.basic.0 <= ci.basic.1);
-    }
-
-    #[test]
-    fn test_bootstrap_diagnostics() {
-        let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
-        let var_fn = |x: &ArrayView1<f64>| -> StatsResult<f64> {
-            let mean = x.sum() / x.len() as f64;
-            let var = x.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / (x.len() - 1) as f64;
-            Ok(var)
-        };
-
-        let config = AdvancedBootstrapConfig {
-            n_bootstrap: 100,
-            seed: Some(456),
-            ..Default::default()
-        };
-
-        let mut processor = AdvancedBootstrapProcessor::new(config);
-        let result = processor
-            .bootstrap(&data.view(), var_fn)
-            .expect("Operation failed");
-
-        assert!(result.diagnostics.convergence_info.converged);
-        assert!(
-            result.diagnostics.distribution_stats.min_value
-                <= result.diagnostics.distribution_stats.max_value
-        );
-    }
-}
+mod tests;

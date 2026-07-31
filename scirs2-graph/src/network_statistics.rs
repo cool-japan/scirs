@@ -811,7 +811,6 @@ mod tests {
     // ── Small-world coefficient ───────────────────────────────────────────────
 
     #[test]
-    #[ignore]
     fn test_small_world_coefficient_runs() {
         let mut rng = StdRng::seed_from_u64(42);
         // Watts-Strogatz β=0.1 is a canonical small-world network

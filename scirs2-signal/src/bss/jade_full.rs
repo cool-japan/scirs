@@ -33,7 +33,7 @@ impl FourthOrderCumulant {
     /// Compute the fourth-order cumulant matrices for whitened data.
     ///
     /// For whitened data z, returns a set of cumulant matrices Q_{ij}
-    /// where Q_{ij}[k,l] = cum(z_i, z_j, z_k, z_l) after subtracting
+    /// where `Q_{ij}[k,l] = cum(z_i, z_j, z_k, z_l)` after subtracting
     /// Gaussian terms.
     ///
     /// # Arguments
@@ -399,7 +399,9 @@ pub fn jade(
     })?;
 
     // Keep the n_components^2 columns of U corresponding to largest singular values
-    let n_keep = (n_components * n_components).min(s_svd.len()).min(u_svd.ncols());
+    let n_keep = (n_components * n_components)
+        .min(s_svd.len())
+        .min(u_svd.ncols());
     // Project each cumulant matrix onto the subspace spanned by these U columns
     // Equivalent to: M_k' = U[:,0:n_keep]^T * M_k * U[:,0:n_keep]
     // But to stay O(n^3), we project differently. Use the original matrices directly.
@@ -454,9 +456,9 @@ fn whiten(
     let t_f = n_samples as f64;
 
     // Center
-    let mean = x.mean_axis(Axis(1)).ok_or_else(|| {
-        SignalError::ComputationError("Failed to compute mean".to_string())
-    })?;
+    let mean = x
+        .mean_axis(Axis(1))
+        .ok_or_else(|| SignalError::ComputationError("Failed to compute mean".to_string()))?;
 
     let mut centered = x.clone();
     for ch in 0..n_channels {
@@ -470,9 +472,8 @@ fn whiten(
     let cov = centered.dot(&centered.t()) / t_f;
 
     // Eigendecomposition
-    let (eigvals, eigvecs) = eigh(&cov.view(), None).map_err(|e| {
-        SignalError::ComputationError(format!("Eigendecomposition failed: {e}"))
-    })?;
+    let (eigvals, eigvecs) = eigh(&cov.view(), None)
+        .map_err(|e| SignalError::ComputationError(format!("Eigendecomposition failed: {e}")))?;
     // eigvals are in ascending order; we want descending for PCA
     // eigvecs columns correspond to eigvals
 
@@ -566,7 +567,9 @@ mod tests {
     fn test_joint_diagonalization_identity() {
         let mut matrices = vec![Array2::<f64>::eye(3)];
         let jd = JointDiagonalization::default();
-        let (v, _n_iters, converged) = jd.diagonalize(&mut matrices).expect("unexpected None or Err");
+        let (v, _n_iters, converged) = jd
+            .diagonalize(&mut matrices)
+            .expect("unexpected None or Err");
         // Identity is already diagonal; should converge immediately
         assert!(converged);
         // V should be close to a permutation matrix (or identity)

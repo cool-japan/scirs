@@ -231,7 +231,7 @@ where
     }
 
     fn dtype(&self) -> &str {
-        "float" // This is a placeholder; ideally, we'd return the actual type
+        std::any::type_name::<T>()
     }
 
     fn to_array(&self) -> Array2<T> {
@@ -526,6 +526,24 @@ where
 mod tests {
     use super::*;
     use scirs2_core::ndarray::Array;
+
+    #[test]
+    fn test_sparse_array_base_dtype_reflects_actual_element_type() {
+        let data_f64 =
+            Array::from_shape_vec((2, 2), vec![1.0f64, 0.0, 0.0, 2.0]).expect("Operation failed");
+        let data_i32 =
+            Array::from_shape_vec((2, 2), vec![1i32, 0, 0, 2]).expect("Operation failed");
+
+        let sparse_f64 = SparseArrayBase::new(data_f64);
+        let sparse_i32 = SparseArrayBase::new(data_i32);
+
+        // Previously `dtype()` always returned the literal string "float"
+        // regardless of the actual generic element type.
+        assert_eq!(sparse_f64.dtype(), "f64");
+        assert_eq!(sparse_i32.dtype(), "i32");
+        assert_ne!(sparse_f64.dtype(), "float");
+        assert_ne!(sparse_i32.dtype(), sparse_f64.dtype());
+    }
 
     #[test]
     fn test_sparse_array_base() {

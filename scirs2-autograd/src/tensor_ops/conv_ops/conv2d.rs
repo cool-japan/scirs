@@ -18,6 +18,32 @@ pub struct Conv2DFilterGrad {
     pub dilation: usize,
 }
 
+/// Exact VJP of [`Conv2D`] with respect to its input `x`.
+///
+/// Inputs: `(gy, w)`; output has `x`'s shape.
+///
+/// The previous route for this gradient went through `Conv2DTranspose` and the im2col
+/// GEMM path, which disagreed with the forward pass about the layout of the column
+/// matrix (the fused forward kernel writes `[batch, xch, kw, kh, yh, yw]` while the
+/// backward reads `[batch, xch, kh, kw, yh, yw]`) and produced a gradient that matched
+/// neither finite differences nor the reference VJP. This op scatters directly with the
+/// same index arithmetic as the forward convolution, so it cannot drift out of sync.
+pub struct Conv2DInputGrad {
+    pub pad: usize,
+    pub stride: usize,
+    pub dilation: usize,
+}
+
+/// Exact VJP of [`Conv2D`] with respect to its filter `w`.
+///
+/// Inputs: `(x, gy, w)`; output has `w`'s shape. See [`Conv2DInputGrad`] for why this
+/// does not reuse the im2col GEMM path.
+pub struct Conv2DFilterGradFromX {
+    pub pad: usize,
+    pub stride: usize,
+    pub dilation: usize,
+}
+
 pub struct Conv2DWithCols {
     pub pad: usize,
     pub stride: usize,
@@ -566,27 +592,23 @@ impl<T: Float> crate::op::Op<T> for Conv2D {
 
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
-        let y = ctx.output();
         let x = ctx.input(0);
         let w = ctx.input(1);
 
         let gx = Tensor::builder(ctx.graph())
             .append_input(gy, false)
             .append_input(w, false)
-            .build(super::conv2d_transpose::Conv2DTranspose {
+            .build(Conv2DInputGrad {
                 pad: self.pad,
                 stride: self.stride,
                 dilation: self.dilation,
             });
 
-        let cols = nth_tensor(y, 1);
         let gw = Tensor::builder(ctx.graph())
-            .append_input(cols, false)
+            .append_input(x, false)
             .append_input(gy, false)
             .append_input(w, false)
-            .append_backprop_input(x)
-            .append_backprop_input(gy)
-            .build(Conv2DFilterGrad {
+            .build(Conv2DFilterGradFromX {
                 pad: self.pad,
                 stride: self.stride,
                 dilation: self.dilation,
@@ -594,6 +616,147 @@ impl<T: Float> crate::op::Op<T> for Conv2D {
 
         ctx.append_input_grad(0, Some(gx));
         ctx.append_input_grad(1, Some(gw));
+    }
+}
+
+/// Shared index arithmetic: the output extent of a convolution along one axis.
+#[inline]
+fn conv_out_dim(x: usize, k: usize, pad: usize, stride: usize, dilation: usize) -> usize {
+    (x + 2 * pad).saturating_sub(dilation * (k - 1) + 1) / stride + 1
+}
+
+impl<T: Float> crate::op::Op<T> for Conv2DInputGrad {
+    fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
+        let gy = ctx.input(0);
+        let w = ctx.input(1);
+        let gyshape = gy.shape().to_vec();
+        let wshape = w.shape().to_vec();
+        if gyshape.len() != 4 || wshape.len() != 4 {
+            return Err(op::OpError::IncompatibleShape(
+                "Conv2DInputGrad: gy and w must be 4-D".to_string(),
+            ));
+        }
+        let (batch, ych, yh, yw) = (gyshape[0], gyshape[1], gyshape[2], gyshape[3]);
+        let (wo, xch, kh, kw) = (wshape[0], wshape[1], wshape[2], wshape[3]);
+        if wo != ych {
+            return Err(op::OpError::IncompatibleShape(format!(
+                "Conv2DInputGrad: filter out-channels ({wo}) must match gy channels ({ych})"
+            )));
+        }
+        let (pad, stride, dil) = (self.pad, self.stride, self.dilation);
+        let xh = stride * (yh - 1) + dil * (kh - 1) + 1 - 2 * pad;
+        let xw = stride * (yw - 1) + dil * (kw - 1) + 1 - 2 * pad;
+
+        let mut gx = NdArray::<T>::zeros(scirs2_core::ndarray::IxDyn(&[batch, xch, xh, xw]));
+        for n in 0..batch {
+            for oc in 0..ych {
+                for i in 0..yh {
+                    for j in 0..yw {
+                        let g = gy[[n, oc, i, j]];
+                        if g == T::zero() {
+                            continue;
+                        }
+                        for ic in 0..xch {
+                            for a in 0..kh {
+                                let p = i * stride + a * dil;
+                                if p < pad || p - pad >= xh {
+                                    continue;
+                                }
+                                let p = p - pad;
+                                for b in 0..kw {
+                                    let q = j * stride + b * dil;
+                                    if q < pad || q - pad >= xw {
+                                        continue;
+                                    }
+                                    let q = q - pad;
+                                    gx[[n, ic, p, q]] += g * w[[oc, ic, a, b]];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ctx.append_output(gx);
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
+        // Second-order convolution gradients are not implemented; report an honest
+        // absence rather than an identity pass-through.
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+    }
+}
+
+impl<T: Float> crate::op::Op<T> for Conv2DFilterGradFromX {
+    fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+        let w = ctx.input(2);
+        let xshape = x.shape().to_vec();
+        let gyshape = gy.shape().to_vec();
+        let wshape = w.shape().to_vec();
+        if xshape.len() != 4 || gyshape.len() != 4 || wshape.len() != 4 {
+            return Err(op::OpError::IncompatibleShape(
+                "Conv2DFilterGradFromX: x, gy and w must be 4-D".to_string(),
+            ));
+        }
+        let (batch, xch, xh, xw) = (xshape[0], xshape[1], xshape[2], xshape[3]);
+        let (ych, wxch, kh, kw) = (wshape[0], wshape[1], wshape[2], wshape[3]);
+        if wxch != xch {
+            return Err(op::OpError::IncompatibleShape(format!(
+                "Conv2DFilterGradFromX: filter in-channels ({wxch}) must match x ({xch})"
+            )));
+        }
+        let (pad, stride, dil) = (self.pad, self.stride, self.dilation);
+        let yh = conv_out_dim(xh, kh, pad, stride, dil);
+        let yw = conv_out_dim(xw, kw, pad, stride, dil);
+        if gyshape[1] != ych || gyshape[2] != yh || gyshape[3] != yw {
+            return Err(op::OpError::IncompatibleShape(format!(
+                "Conv2DFilterGradFromX: gy shape {gyshape:?} does not match \
+                 the expected [{batch}, {ych}, {yh}, {yw}]"
+            )));
+        }
+
+        let mut gw = NdArray::<T>::zeros(scirs2_core::ndarray::IxDyn(&[ych, xch, kh, kw]));
+        for n in 0..batch {
+            for oc in 0..ych {
+                for i in 0..yh {
+                    for j in 0..yw {
+                        let g = gy[[n, oc, i, j]];
+                        if g == T::zero() {
+                            continue;
+                        }
+                        for ic in 0..xch {
+                            for a in 0..kh {
+                                let p = i * stride + a * dil;
+                                if p < pad || p - pad >= xh {
+                                    continue;
+                                }
+                                let p = p - pad;
+                                for b in 0..kw {
+                                    let q = j * stride + b * dil;
+                                    if q < pad || q - pad >= xw {
+                                        continue;
+                                    }
+                                    let q = q - pad;
+                                    gw[[oc, ic, a, b]] += g * x[[n, ic, p, q]];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ctx.append_output(gw);
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+        ctx.append_input_grad(2, None);
     }
 }
 

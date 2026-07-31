@@ -8,7 +8,6 @@
 pub mod advanced_analytics;
 pub mod balancing;
 pub mod dataset;
-pub mod enhanced_analytics;
 pub mod extensions;
 pub mod feature_engineering;
 pub mod sampling;

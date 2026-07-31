@@ -93,6 +93,7 @@ pub mod neuromorphic;
 pub mod nlp;
 pub mod quantum_ml;
 pub mod recommender;
+pub mod robotics;
 pub mod time_series;
 
 /// Common trait for domain-specific metric collections

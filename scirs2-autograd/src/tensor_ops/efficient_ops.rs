@@ -126,6 +126,66 @@ impl<F: Float> Op<F> for EfficientReshapeOp {
     }
 }
 
+/// Reshape whose target shape is supplied as a tensor (input 1) instead of a constant.
+///
+/// Used by the backward pass, which must restore the *runtime* shape of the forward
+/// input.  Input 1 is a shape vector, i.e. the output of `tensor_ops::shape`.
+pub struct EfficientReshapeDynamicOp {
+    pub allow_zero_copy: bool,
+}
+
+impl<F: Float> Op<F> for EfficientReshapeDynamicOp {
+    fn name(&self) -> &'static str {
+        "EfficientReshapeDynamic"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let input = ctx.input(0);
+        let target = ctx.input(1);
+
+        let newshape: Vec<usize> = target
+            .iter()
+            .map(|v| v.to_usize().unwrap_or(0))
+            .collect::<Vec<_>>();
+
+        let input_size: usize = input.shape().iter().product();
+        let new_size: usize = newshape.iter().product();
+        if input_size != new_size {
+            return Err(OpError::IncompatibleShape(format!(
+                "Cannot reshape array of size {input_size} into shape {newshape:?} (size {new_size})"
+            )));
+        }
+
+        let result = if self.allow_zero_copy {
+            match input.view().into_shape_with_order(IxDyn(&newshape)) {
+                Ok(reshaped_view) => reshaped_view.to_owned(),
+                Err(_) => {
+                    let vec: Vec<F> = input.iter().cloned().collect();
+                    Array::from_shape_vec(IxDyn(&newshape), vec).map_err(|e| {
+                        OpError::IncompatibleShape(format!("EfficientReshapeDynamic: {e}"))
+                    })?
+                }
+            }
+        } else {
+            let vec: Vec<F> = input.iter().cloned().collect();
+            Array::from_shape_vec(IxDyn(&newshape), vec)
+                .map_err(|e| OpError::IncompatibleShape(format!("EfficientReshapeDynamic: {e}")))?
+        };
+
+        ctx.append_output(result);
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        let gy = ctx.output_grad();
+        let input = ctx.input(0);
+        let inputshape = crate::tensor_ops::shape(input);
+        ctx.append_input_grad(0, Some(efficient_reshape(gy, &inputshape)));
+        // Input 1 is a shape vector: non-differentiable.
+        ctx.append_input_grad(1, None);
+    }
+}
+
 /// Efficient slice operation that optimizes memory access patterns
 ///
 /// This operation provides optimizations for:
@@ -165,6 +225,47 @@ impl SliceRange {
     }
 }
 
+/// Resolve `SliceRange`s (possibly-negative/omitted bounds) against a
+/// concrete input shape into ndarray's `SliceInfoElem`, padding any
+/// dimensions beyond `slices.len()` with a full slice. Shared between the
+/// forward slice and its backward scatter so both index the same elements.
+fn resolve_slice_info_elems(slices: &[SliceRange], inputshape: &[usize]) -> Vec<SliceInfoElem> {
+    let mut slice_elements = Vec::with_capacity(inputshape.len());
+
+    for (i, slice_range) in slices.iter().enumerate() {
+        let dim_size = inputshape[i] as isize;
+
+        let start = slice_range.start.unwrap_or(0);
+        let end = slice_range.end.unwrap_or(dim_size);
+        let step = slice_range.step.unwrap_or(1);
+
+        // Normalize negative indices
+        let norm_start = if start < 0 { dim_size + start } else { start };
+        let norm_end = if end < 0 { dim_size + end } else { end };
+
+        // Clamp to valid range
+        let clamped_start = norm_start.max(0).min(dim_size);
+        let clamped_end = norm_end.max(0).min(dim_size);
+
+        slice_elements.push(SliceInfoElem::Slice {
+            start: clamped_start,
+            end: Some(clamped_end),
+            step,
+        });
+    }
+
+    // Add full slices for remaining dimensions
+    for _ in slices.len()..inputshape.len() {
+        slice_elements.push(SliceInfoElem::Slice {
+            start: 0,
+            end: None,
+            step: 1,
+        });
+    }
+
+    slice_elements
+}
+
 impl<F: Float> Op<F> for EfficientSliceOp {
     fn name(&self) -> &'static str {
         "EfficientSlice"
@@ -180,39 +281,7 @@ impl<F: Float> Op<F> for EfficientSliceOp {
             ));
         }
 
-        // Convert SliceRange to ndarray slice info
-        let mut slice_elements = Vec::new();
-
-        for (i, slice_range) in self.slices.iter().enumerate() {
-            let dim_size = inputshape[i] as isize;
-
-            let start = slice_range.start.unwrap_or(0);
-            let end = slice_range.end.unwrap_or(dim_size);
-            let step = slice_range.step.unwrap_or(1);
-
-            // Normalize negative indices
-            let norm_start = if start < 0 { dim_size + start } else { start };
-            let norm_end = if end < 0 { dim_size + end } else { end };
-
-            // Clamp to valid range
-            let clamped_start = norm_start.max(0).min(dim_size);
-            let clamped_end = norm_end.max(0).min(dim_size);
-
-            slice_elements.push(SliceInfoElem::Slice {
-                start: clamped_start,
-                end: Some(clamped_end),
-                step,
-            });
-        }
-
-        // Add full slices for remaining dimensions
-        for _ in self.slices.len()..inputshape.len() {
-            slice_elements.push(SliceInfoElem::Slice {
-                start: 0,
-                end: None,
-                step: 1,
-            });
-        }
+        let slice_elements = resolve_slice_info_elems(&self.slices, inputshape);
 
         // Create slice info - using the raw slice info creation
         let slice_info = unsafe {
@@ -228,21 +297,73 @@ impl<F: Float> Op<F> for EfficientSliceOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let _gy = ctx.output_grad();
-        let input = ctx.input(0);
+        let gy = ctx.output_grad();
+        let x_tensor = ctx.input(0);
         let g = ctx.graph();
 
-        // Create a gradient tensor with the same shape as the input, filled with zeros
-        let inputshape = crate::tensor_ops::shape(input);
-        let grad_input = crate::tensor_ops::zeros(&inputshape, g);
+        let backward_op = EfficientSliceBackwardOp {
+            slices: self.slices.clone(),
+        };
+        let xshape = crate::tensor_ops::shape(x_tensor);
+        let gx = Tensor::builder(g)
+            .append_input(x_tensor, false)
+            .append_input(gy, false)
+            .setshape(&xshape)
+            .build(backward_op);
 
-        // In a full implementation, we would scatter the gradient values back
-        // to their original positions. For now, we use a simplified approach.
-        // The gradient should be "scattered" back to the original tensor locations
+        ctx.append_input_grad(0, Some(gx));
+    }
 
-        // This is a simplified gradient - in practice, we'd need to implement
-        // a scatter operation that places gy values back into the right locations
-        ctx.append_input_grad(0, Some(grad_input));
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        Some(self)
+    }
+}
+
+/// Backward op for [`EfficientSliceOp`]: scatters the incoming gradient back
+/// into a zero tensor at the same positions the forward slice read from.
+/// Mirrors `array_ops::SliceGrad`, but resolves its `SliceRange`s against the
+/// input's actual runtime shape at `compute()` time (via
+/// [`resolve_slice_info_elems`]) rather than requiring pre-resolved
+/// `SliceInfoElem`s, since `EfficientSliceOp`'s ranges may contain
+/// unresolved (negative/omitted) bounds.
+pub struct EfficientSliceBackwardOp {
+    pub slices: Vec<SliceRange>,
+}
+
+impl<F: Float> Op<F> for EfficientSliceBackwardOp {
+    fn name(&self) -> &'static str {
+        "EfficientSliceBackward"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let x = ctx.input(0);
+        let inputshape = x.shape().to_vec();
+        let gy = ctx.input(1);
+
+        let slice_elements = resolve_slice_info_elems(&self.slices, &inputshape);
+
+        let mut gx = Array::<F, IxDyn>::zeros(IxDyn(&inputshape));
+        unsafe {
+            gx.slice_mut(
+                SliceInfo::<Vec<SliceInfoElem>, IxDyn, IxDyn>::new(slice_elements)
+                    .expect("Operation failed")
+                    .as_ref(),
+            )
+            .zip_mut_with(&gy, |a, &g| *a = g);
+        }
+
+        ctx.append_output(gx);
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Second-order gradients through this scatter are not needed.
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+    }
+
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        Some(self)
     }
 }
 
@@ -380,18 +501,18 @@ fn copy_slice_data<F: Float>(
 #[allow(dead_code)]
 pub fn efficient_reshape<'g, F: Float>(
     tensor: &Tensor<'g, F>,
-    _newshape: &Tensor<'g, F>,
+    newshape: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = tensor.graph();
 
-    // Extract shape values - this is simplified
-    // In practice, we'd need to evaluate the shape tensor to get the actual values
-    let shape_values = vec![1]; // Placeholder - would extract from newshape tensor
-
+    // The target shape is only known at run time, so it is passed as a second *input*
+    // and read by `EfficientReshapeDynamicOp::compute`.  This function used to ignore
+    // `newshape` entirely and hard-code `vec![1]`, which silently reshaped every tensor
+    // to a single element (and failed outright for anything with more than one).
     Tensor::builder(g)
         .append_input(tensor, false)
-        .build(EfficientReshapeOp {
-            newshape: shape_values,
+        .append_input(newshape, false)
+        .build(EfficientReshapeDynamicOp {
             allow_zero_copy: true,
         })
 }
@@ -625,5 +746,71 @@ mod tests {
 
         // Just verify we can call these functions without error
         assert!(stats.reshape_cache_max > 0);
+    }
+
+    /// Regression test for `EfficientReshapeDynamicOp::compute` (driven by the
+    /// public `efficient_reshape` function): the forward pass used to hard-code
+    /// `shape_values = vec![1]` and ignore the requested target shape entirely,
+    /// so this either failed outright on a size mismatch or silently collapsed
+    /// every tensor to a single element. Non-constant, distinct values are used
+    /// so a collapsed/garbled result is caught, not just a shape or panic
+    /// check.
+    #[test]
+    fn efficient_reshape_forward_uses_the_real_requested_shape() {
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let original = vec![1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0];
+            let x = crate::tensor_ops::convert_to_tensor(
+                Array::from_shape_vec(IxDyn(&[2, 3]), original.clone()).expect("Operation failed"),
+                ctx,
+            );
+
+            let targetshape = crate::tensor_ops::convert_to_tensor(
+                Array::from_shape_vec(IxDyn(&[2]), vec![3.0f64, 2.0]).expect("Operation failed"),
+                ctx,
+            );
+            let reshaped = efficient_reshape(&x, &targetshape);
+            let reshaped_val = reshaped.eval(ctx).expect("Operation failed");
+            assert_eq!(reshaped_val.shape(), &[3, 2]);
+            // Row-major reinterpretation must preserve the flat element order.
+            assert_eq!(reshaped_val.iter().copied().collect::<Vec<_>>(), original);
+
+            // Reshape back to the original shape: a full round trip.
+            let backshape = crate::tensor_ops::convert_to_tensor(
+                Array::from_shape_vec(IxDyn(&[2]), vec![2.0f64, 3.0]).expect("Operation failed"),
+                ctx,
+            );
+            let back = efficient_reshape(&reshaped, &backshape);
+            let back_val = back.eval(ctx).expect("Operation failed");
+            assert_eq!(back_val.shape(), &[2, 3]);
+            assert_eq!(back_val.iter().copied().collect::<Vec<_>>(), original);
+        });
+    }
+
+    /// The gradient of `efficient_reshape` reshapes `gy` back to the input's
+    /// shape, so it silently depends on the same forward-shape bug: this
+    /// exercises the full round trip through the crate's public gradient API.
+    /// `x` is built with `variable` (not `convert_to_tensor`, which marks its
+    /// output non-differentiable and would make any gradient -- correct or
+    /// not -- silently collapse to zero; see `tests/gradient_fd_harness.rs`'s
+    /// header comment).
+    #[test]
+    fn efficient_reshape_backward_restores_inputshape_and_gradient() {
+        crate::run(|ctx: &mut crate::Context<f64>| {
+            let x = crate::tensor_ops::variable(
+                Array::from_shape_vec(IxDyn(&[2, 3]), vec![1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0])
+                    .expect("Operation failed"),
+                ctx,
+            );
+            let targetshape = crate::tensor_ops::convert_to_tensor(
+                Array::from_shape_vec(IxDyn(&[2]), vec![3.0f64, 2.0]).expect("Operation failed"),
+                ctx,
+            );
+            let y = efficient_reshape(&x, &targetshape);
+
+            let gx = crate::tensor_ops::grad(&[y], &[x])[0];
+            let gx_val = gx.eval(ctx).expect("Operation failed");
+            assert_eq!(gx_val.shape(), &[2, 3]);
+            assert_eq!(gx_val.iter().copied().collect::<Vec<_>>(), vec![1.0f64; 6]);
+        });
     }
 }

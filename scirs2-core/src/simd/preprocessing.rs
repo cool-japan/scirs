@@ -104,9 +104,15 @@ pub fn simd_standardize_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         return Array1::zeros(input.len());
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        let inv_std = 1.0 / std;
+        return input.mapv(|x| (x - mean) * inv_std);
+    }
+
     let len = input.len();
     let mut result = Array1::zeros(len);
-    let input_slice = input.as_slice().expect("Operation failed");
+    let input_slice = input.as_slice().expect("contiguity checked above");
     let result_slice: &mut [f32] = result.as_slice_mut().expect("Operation failed");
 
     #[cfg(target_arch = "x86_64")]
@@ -204,9 +210,15 @@ pub fn simd_standardize_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         return Array1::zeros(input.len());
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        let inv_std = 1.0 / std;
+        return input.mapv(|x| (x - mean) * inv_std);
+    }
+
     let len = input.len();
     let mut result = Array1::zeros(len);
-    let input_slice = input.as_slice().expect("Operation failed");
+    let input_slice = input.as_slice().expect("contiguity checked above");
     let result_slice: &mut [f64] = result.as_slice_mut().expect("Operation failed");
 
     #[cfg(target_arch = "x86_64")]

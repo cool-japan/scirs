@@ -31,6 +31,15 @@ use std::arch::aarch64::*;
 /// # Returns
 /// * Array of tanh(x) values
 pub fn simd_tanh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() {
+        return a.mapv(|x| {
+            let x_clamped = x.max(-3.0).min(3.0);
+            let x2 = x_clamped * x_clamped;
+            x_clamped * (27.0 + x2) / (27.0 + 9.0 * x2)
+        });
+    }
+
     let len = a.len();
     let mut result = Vec::with_capacity(len);
 
@@ -38,7 +47,7 @@ pub fn simd_tanh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     {
         if is_x86_feature_detected!("avx2") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 // Constants for Padé approximant
@@ -86,7 +95,7 @@ pub fn simd_tanh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     {
         if std::arch::is_aarch64_feature_detected!("neon") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let c27 = vdupq_n_f64(27.0);
@@ -126,7 +135,7 @@ pub fn simd_tanh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     }
 
     // Scalar fallback
-    let a_slice = a.as_slice().expect("Operation failed");
+    let a_slice = a.as_slice().expect("contiguity checked above");
     for &x in a_slice {
         let x_clamped = x.max(-3.0).min(3.0);
         let x2 = x_clamped * x_clamped;
@@ -137,6 +146,15 @@ pub fn simd_tanh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
 
 /// Fast tanh approximation for f32
 pub fn simd_tanh_f32_poly(a: &ArrayView1<f32>) -> Array1<f32> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() {
+        return a.mapv(|x| {
+            let x_clamped = x.max(-3.0).min(3.0);
+            let x2 = x_clamped * x_clamped;
+            x_clamped * (27.0 + x2) / (27.0 + 9.0 * x2)
+        });
+    }
+
     let len = a.len();
     let mut result = Vec::with_capacity(len);
 
@@ -144,7 +162,7 @@ pub fn simd_tanh_f32_poly(a: &ArrayView1<f32>) -> Array1<f32> {
     {
         if is_x86_feature_detected!("avx2") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let c27 = _mm256_set1_ps(27.0);
@@ -186,7 +204,7 @@ pub fn simd_tanh_f32_poly(a: &ArrayView1<f32>) -> Array1<f32> {
     {
         if std::arch::is_aarch64_feature_detected!("neon") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let c27 = vdupq_n_f32(27.0);
@@ -221,7 +239,7 @@ pub fn simd_tanh_f32_poly(a: &ArrayView1<f32>) -> Array1<f32> {
         }
     }
 
-    let a_slice = a.as_slice().expect("Operation failed");
+    let a_slice = a.as_slice().expect("contiguity checked above");
     for &x in a_slice {
         let x_clamped = x.max(-3.0).min(3.0);
         let x2 = x_clamped * x_clamped;
@@ -235,6 +253,16 @@ pub fn simd_tanh_f32_poly(a: &ArrayView1<f32>) -> Array1<f32> {
 /// Uses: sinh(x) ≈ x + x³/6 + x⁵/120 for |x| < 2
 /// For |x| >= 2, uses: sinh(x) = (e^x - e^(-x))/2 approximation
 pub fn simd_sinh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() {
+        return a.mapv(|x| {
+            let x2 = x * x;
+            let x3 = x2 * x;
+            let x5 = x3 * x2;
+            x + x3 / 6.0 + x5 / 120.0
+        });
+    }
+
     let len = a.len();
     let mut result = Vec::with_capacity(len);
 
@@ -242,7 +270,7 @@ pub fn simd_sinh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     {
         if is_x86_feature_detected!("avx2") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let c1_6 = _mm256_set1_pd(1.0 / 6.0);
@@ -283,7 +311,7 @@ pub fn simd_sinh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     {
         if std::arch::is_aarch64_feature_detected!("neon") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let c1_6 = vdupq_n_f64(1.0 / 6.0);
@@ -319,7 +347,7 @@ pub fn simd_sinh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
         }
     }
 
-    let a_slice = a.as_slice().expect("Operation failed");
+    let a_slice = a.as_slice().expect("contiguity checked above");
     for &x in a_slice {
         let x2 = x * x;
         let x3 = x2 * x;
@@ -333,6 +361,16 @@ pub fn simd_sinh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
 ///
 /// Uses: cosh(x) ≈ 1 + x²/2 + x⁴/24 + x⁶/720
 pub fn simd_cosh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() {
+        return a.mapv(|x| {
+            let x2 = x * x;
+            let x4 = x2 * x2;
+            let x6 = x4 * x2;
+            1.0 + x2 * 0.5 + x4 / 24.0 + x6 / 720.0
+        });
+    }
+
     let len = a.len();
     let mut result = Vec::with_capacity(len);
 
@@ -340,7 +378,7 @@ pub fn simd_cosh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     {
         if is_x86_feature_detected!("avx2") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let c1 = _mm256_set1_pd(1.0);
@@ -385,7 +423,7 @@ pub fn simd_cosh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     {
         if std::arch::is_aarch64_feature_detected!("neon") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let c1 = vdupq_n_f64(1.0);
@@ -424,7 +462,7 @@ pub fn simd_cosh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
         }
     }
 
-    let a_slice = a.as_slice().expect("Operation failed");
+    let a_slice = a.as_slice().expect("contiguity checked above");
     for &x in a_slice {
         let x2 = x * x;
         let x4 = x2 * x2;
@@ -439,6 +477,19 @@ pub fn simd_cosh_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
 /// Uses: sin(x) ≈ x - x³/6 + x⁵/120 - x⁷/5040
 /// Input is range-reduced to [-π, π]
 pub fn simd_sin_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() {
+        return a.mapv(|x_orig| {
+            let mut x = x_orig;
+            x = x - (2.0 * std::f64::consts::PI) * (x / (2.0 * std::f64::consts::PI)).round();
+            let x2 = x * x;
+            let x3 = x2 * x;
+            let x5 = x3 * x2;
+            let x7 = x5 * x2;
+            x - x3 / 6.0 + x5 / 120.0 - x7 / 5040.0
+        });
+    }
+
     let len = a.len();
     let mut result = Vec::with_capacity(len);
 
@@ -446,7 +497,7 @@ pub fn simd_sin_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     {
         if is_x86_feature_detected!("avx2") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let pi = _mm256_set1_pd(std::f64::consts::PI);
@@ -498,7 +549,7 @@ pub fn simd_sin_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
         }
     }
 
-    let a_slice = a.as_slice().expect("Operation failed");
+    let a_slice = a.as_slice().expect("contiguity checked above");
     for &x_orig in a_slice {
         let mut x = x_orig;
         x = x - (2.0 * std::f64::consts::PI) * (x / (2.0 * std::f64::consts::PI)).round();
@@ -516,6 +567,18 @@ pub fn simd_sin_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
 /// Uses: cos(x) ≈ 1 - x²/2 + x⁴/24 - x⁶/720
 /// Input is range-reduced to [-π, π]
 pub fn simd_cos_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if a.as_slice().is_none() {
+        return a.mapv(|x_orig| {
+            let mut x = x_orig;
+            x = x - (2.0 * std::f64::consts::PI) * (x / (2.0 * std::f64::consts::PI)).round();
+            let x2 = x * x;
+            let x4 = x2 * x2;
+            let x6 = x4 * x2;
+            1.0 - x2 * 0.5 + x4 / 24.0 - x6 / 720.0
+        });
+    }
+
     let len = a.len();
     let mut result = Vec::with_capacity(len);
 
@@ -523,7 +586,7 @@ pub fn simd_cos_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
     {
         if is_x86_feature_detected!("avx2") {
             unsafe {
-                let a_slice = a.as_slice().expect("Operation failed");
+                let a_slice = a.as_slice().expect("contiguity checked above");
                 let mut i = 0;
 
                 let two_pi = _mm256_set1_pd(2.0 * std::f64::consts::PI);
@@ -572,7 +635,7 @@ pub fn simd_cos_f64_poly(a: &ArrayView1<f64>) -> Array1<f64> {
         }
     }
 
-    let a_slice = a.as_slice().expect("Operation failed");
+    let a_slice = a.as_slice().expect("contiguity checked above");
     for &x_orig in a_slice {
         let mut x = x_orig;
         x = x - (2.0 * std::f64::consts::PI) * (x / (2.0 * std::f64::consts::PI)).round();

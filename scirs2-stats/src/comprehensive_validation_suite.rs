@@ -16,7 +16,7 @@ use crate::error::{StatsError, StatsResult};
 use crate::numerical_stability_analyzer::{
     NumericalStabilityAnalyzer, StabilityAnalysisResult, StabilityConfig,
 };
-use crate::propertybased_validation::{
+use crate::property_based_validation::{
     ComprehensivePropertyTestSuite, PropertyTestConfig, PropertyTestResult,
 };
 use crate::scipy_benchmark_framework::{BenchmarkConfig, BenchmarkResult, ScipyBenchmarkFramework};
@@ -321,7 +321,7 @@ impl ComprehensiveValidationSuite {
                 config.property_config.clone(),
             ),
             stability_analyzer: NumericalStabilityAnalyzer::new(config.stability_config.clone()),
-            config: config,
+            config,
             cached_results: HashMap::new(),
         }
     }
@@ -493,17 +493,28 @@ impl ComprehensiveValidationSuite {
     ) -> ValidationStatus {
         let mut validation_scores = Vec::new();
 
-        // Benchmark score
+        // Benchmark score. Uses the same partial-credit weighting as
+        // `perform_cross_validation`'s `benchmark_score` below (Pass=1.0,
+        // AccuracyPass/PerformancePass=0.7, Fail/Error=0.0) instead of a
+        // strict binary Pass-only filter. The binary version previously used
+        // here scored a numerically *exact* function (accuracy grade A,
+        // zero error) as a flat 0 whenever its performance ratio crossed the
+        // `PerformanceGrade::F` cutoff -- easy to hit on a microbenchmark of
+        // a small input against a bare-closure SciPy mock under system load,
+        // and inconsistent with how this same struct already treats
+        // `AccuracyPass` elsewhere.
         if !benchmark_results.is_empty() {
             let benchmark_pass_rate = benchmark_results
                 .iter()
-                .filter(|r| {
-                    matches!(
-                        r.status,
-                        crate::scipy_benchmark_framework::BenchmarkStatus::Pass
-                    )
+                .map(|r| {
+                    use crate::scipy_benchmark_framework::BenchmarkStatus;
+                    match r.status {
+                        BenchmarkStatus::Pass => 1.0,
+                        BenchmarkStatus::AccuracyPass | BenchmarkStatus::PerformancePass => 0.7,
+                        BenchmarkStatus::Fail | BenchmarkStatus::Error => 0.0,
+                    }
                 })
-                .count() as f64
+                .sum::<f64>()
                 / benchmark_results.len() as f64;
             validation_scores.push(benchmark_pass_rate);
         }
@@ -590,7 +601,7 @@ impl ComprehensiveValidationSuite {
         let property_ready = property_results.iter().all(|r| {
             matches!(
                 r.status,
-                crate::propertybased_validation::PropertyTestStatus::Pass
+                crate::property_based_validation::PropertyTestStatus::Pass
             )
         });
         if property_ready {
@@ -771,7 +782,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // This test is too slow for regular testing - use cargo test -- --ignored to run
     fn test_mean_comprehensive_validation() {
         let mut suite = ComprehensiveValidationSuite::new(ValidationSuiteConfig {
             benchmark_config: BenchmarkConfig {

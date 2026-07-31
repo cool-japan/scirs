@@ -13,6 +13,11 @@ pub fn simd_floor_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         return Array1::<f32>::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.floor());
+    }
+
     let mut result = Array1::<f32>::zeros(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -21,7 +26,7 @@ pub fn simd_floor_f32(input: &ArrayView1<f32>) -> Array1<f32> {
 
         if is_x86_feature_detected!("avx") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f32] =
                     result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
@@ -43,7 +48,7 @@ pub fn simd_floor_f32(input: &ArrayView1<f32>) -> Array1<f32> {
             }
         } else if is_x86_feature_detected!("sse4.1") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice = result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
 
@@ -70,7 +75,7 @@ pub fn simd_floor_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         use std::arch::aarch64::*;
 
         unsafe {
-            let input_slice = input.as_slice().expect("Test operation failed");
+            let input_slice = input.as_slice().expect("contiguity checked above");
             let result_slice: &mut [f32] = result.as_slice_mut().expect("Test operation failed");
             let mut i = 0;
 
@@ -104,6 +109,11 @@ pub fn simd_floor_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         return Array1::<f64>::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.floor());
+    }
+
     let mut result = Array1::<f64>::zeros(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -112,7 +122,7 @@ pub fn simd_floor_f64(input: &ArrayView1<f64>) -> Array1<f64> {
 
         if is_x86_feature_detected!("avx") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f64] =
                     result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
@@ -134,7 +144,7 @@ pub fn simd_floor_f64(input: &ArrayView1<f64>) -> Array1<f64> {
             }
         } else if is_x86_feature_detected!("sse4.1") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice = result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
 
@@ -161,7 +171,7 @@ pub fn simd_floor_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         use std::arch::aarch64::*;
 
         unsafe {
-            let input_slice = input.as_slice().expect("Test operation failed");
+            let input_slice = input.as_slice().expect("contiguity checked above");
             let result_slice: &mut [f64] = result.as_slice_mut().expect("Test operation failed");
             let mut i = 0;
 
@@ -195,6 +205,11 @@ pub fn simd_ceil_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         return Array1::<f32>::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.ceil());
+    }
+
     let mut result = Array1::<f32>::zeros(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -203,7 +218,7 @@ pub fn simd_ceil_f32(input: &ArrayView1<f32>) -> Array1<f32> {
 
         if is_x86_feature_detected!("avx") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f32] =
                     result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
@@ -223,7 +238,7 @@ pub fn simd_ceil_f32(input: &ArrayView1<f32>) -> Array1<f32> {
             }
         } else if is_x86_feature_detected!("sse4.1") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice = result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
 
@@ -248,7 +263,7 @@ pub fn simd_ceil_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         use std::arch::aarch64::*;
 
         unsafe {
-            let input_slice = input.as_slice().expect("Test operation failed");
+            let input_slice = input.as_slice().expect("contiguity checked above");
             let result_slice: &mut [f32] = result.as_slice_mut().expect("Test operation failed");
             let mut i = 0;
 
@@ -280,6 +295,11 @@ pub fn simd_ceil_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         return Array1::<f64>::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.ceil());
+    }
+
     let mut result = Array1::<f64>::zeros(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -288,7 +308,7 @@ pub fn simd_ceil_f64(input: &ArrayView1<f64>) -> Array1<f64> {
 
         if is_x86_feature_detected!("avx") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f64] =
                     result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
@@ -308,7 +328,7 @@ pub fn simd_ceil_f64(input: &ArrayView1<f64>) -> Array1<f64> {
             }
         } else if is_x86_feature_detected!("sse4.1") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice = result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
 
@@ -333,7 +353,7 @@ pub fn simd_ceil_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         use std::arch::aarch64::*;
 
         unsafe {
-            let input_slice = input.as_slice().expect("Test operation failed");
+            let input_slice = input.as_slice().expect("contiguity checked above");
             let result_slice: &mut [f64] = result.as_slice_mut().expect("Test operation failed");
             let mut i = 0;
 
@@ -365,6 +385,11 @@ pub fn simd_round_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         return Array1::<f32>::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.round());
+    }
+
     let mut result = Array1::<f32>::zeros(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -373,7 +398,7 @@ pub fn simd_round_f32(input: &ArrayView1<f32>) -> Array1<f32> {
 
         if is_x86_feature_detected!("avx") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f32] =
                     result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
@@ -395,7 +420,7 @@ pub fn simd_round_f32(input: &ArrayView1<f32>) -> Array1<f32> {
             }
         } else if is_x86_feature_detected!("sse4.1") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice = result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
 
@@ -420,7 +445,7 @@ pub fn simd_round_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         use std::arch::aarch64::*;
 
         unsafe {
-            let input_slice = input.as_slice().expect("Test operation failed");
+            let input_slice = input.as_slice().expect("contiguity checked above");
             let result_slice: &mut [f32] = result.as_slice_mut().expect("Test operation failed");
             let mut i = 0;
 
@@ -452,6 +477,11 @@ pub fn simd_round_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         return Array1::<f64>::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.round());
+    }
+
     let mut result = Array1::<f64>::zeros(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -460,7 +490,7 @@ pub fn simd_round_f64(input: &ArrayView1<f64>) -> Array1<f64> {
 
         if is_x86_feature_detected!("avx") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f64] =
                     result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
@@ -481,7 +511,7 @@ pub fn simd_round_f64(input: &ArrayView1<f64>) -> Array1<f64> {
             }
         } else if is_x86_feature_detected!("sse4.1") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice = result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
 
@@ -506,7 +536,7 @@ pub fn simd_round_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         use std::arch::aarch64::*;
 
         unsafe {
-            let input_slice = input.as_slice().expect("Test operation failed");
+            let input_slice = input.as_slice().expect("contiguity checked above");
             let result_slice: &mut [f64] = result.as_slice_mut().expect("Test operation failed");
             let mut i = 0;
 
@@ -538,6 +568,11 @@ pub fn simd_trunc_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         return Array1::<f32>::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.trunc());
+    }
+
     let mut result = Array1::<f32>::zeros(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -546,7 +581,7 @@ pub fn simd_trunc_f32(input: &ArrayView1<f32>) -> Array1<f32> {
 
         if is_x86_feature_detected!("avx") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f32] =
                     result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
@@ -567,7 +602,7 @@ pub fn simd_trunc_f32(input: &ArrayView1<f32>) -> Array1<f32> {
             }
         } else if is_x86_feature_detected!("sse4.1") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice = result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
 
@@ -592,7 +627,7 @@ pub fn simd_trunc_f32(input: &ArrayView1<f32>) -> Array1<f32> {
         use std::arch::aarch64::*;
 
         unsafe {
-            let input_slice = input.as_slice().expect("Test operation failed");
+            let input_slice = input.as_slice().expect("contiguity checked above");
             let result_slice: &mut [f32] = result.as_slice_mut().expect("Test operation failed");
             let mut i = 0;
 
@@ -624,6 +659,11 @@ pub fn simd_trunc_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         return Array1::<f64>::zeros(0);
     }
 
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices)
+    if input.as_slice().is_none() {
+        return input.mapv(|x| x.trunc());
+    }
+
     let mut result = Array1::<f64>::zeros(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -632,7 +672,7 @@ pub fn simd_trunc_f64(input: &ArrayView1<f64>) -> Array1<f64> {
 
         if is_x86_feature_detected!("avx") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice: &mut [f64] =
                     result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
@@ -652,7 +692,7 @@ pub fn simd_trunc_f64(input: &ArrayView1<f64>) -> Array1<f64> {
             }
         } else if is_x86_feature_detected!("sse4.1") {
             unsafe {
-                let input_slice = input.as_slice().expect("Test operation failed");
+                let input_slice = input.as_slice().expect("contiguity checked above");
                 let result_slice = result.as_slice_mut().expect("Test operation failed");
                 let mut i = 0;
 
@@ -677,7 +717,7 @@ pub fn simd_trunc_f64(input: &ArrayView1<f64>) -> Array1<f64> {
         use std::arch::aarch64::*;
 
         unsafe {
-            let input_slice = input.as_slice().expect("Test operation failed");
+            let input_slice = input.as_slice().expect("contiguity checked above");
             let result_slice: &mut [f64] = result.as_slice_mut().expect("Test operation failed");
             let mut i = 0;
 

@@ -223,12 +223,15 @@ pub fn pdtr<T: Float + FromPrimitive + Display + Debug + AddAssign + MulAssign>(
         ));
     }
 
-    // Use the regularized incomplete gamma function
-    // P(X <= k) = P(k+1, lambda) = gammainc(k+1, lambda)
+    // Via the Poisson-process/Gamma duality, N(t) <= k  <=>  T_{k+1} > t
+    // (the (k+1)-th arrival hasn't happened yet), so
+    // P(X <= k) = P(T_{k+1} > lambda) = Q(k+1, lambda) = gammaincc(k+1, lambda),
+    // the *upper* regularized incomplete gamma function (not the lower
+    // one: as a sanity check, as k -> infinity this correctly tends to 1,
+    // whereas the lower incomplete gamma ratio P(k+1, lambda) tends to 0).
     let k_plus_1 = T::from_usize(k + 1).expect("Failed to convert usize to Float type");
 
-    // Use proper gammainc implementation
-    gammainc(k_plus_1, lambda)
+    gammaincc(k_plus_1, lambda)
 }
 
 /// Poisson survival function
@@ -247,11 +250,12 @@ pub fn pdtrc<T: Float + FromPrimitive + Display + Debug + AddAssign + MulAssign>
         ));
     }
 
-    // P(X > k) = Q(k+1, lambda) = gammaincc(k+1, lambda)
+    // P(X > k) = 1 - P(X <= k) = P(k+1, lambda) = gammainc(k+1, lambda), the
+    // *lower* regularized incomplete gamma function (complement of `pdtr`
+    // above; see its comment for the derivation).
     let k_plus_1 = T::from_usize(k + 1).expect("Failed to convert usize to Float type");
 
-    // Use proper gammaincc implementation
-    gammaincc(k_plus_1, lambda)
+    gammainc(k_plus_1, lambda)
 }
 
 // Chi-square distribution functions
@@ -1373,7 +1377,7 @@ where
 #[allow(dead_code)]
 pub fn pdtri<T>(p: T, k: T) -> SpecialResult<T>
 where
-    T: Float + FromPrimitive + Display + Debug + AddAssign + MulAssign,
+    T: Float + FromPrimitive + Display + Debug + AddAssign + MulAssign + SubAssign,
 {
     check_probability(p, "p")?;
     check_finite(k, "k value")?;
@@ -1384,28 +1388,17 @@ where
         ));
     }
 
-    if p == T::zero() {
-        return Ok(T::zero());
-    }
-    if p == T::one() {
-        return Ok(T::infinity());
-    }
-
-    // Use the relationship between Poisson and gamma distributions
-    // For Poisson(m), P(X <= k) = P(Gamma(k+1, 1) >= m)
-    // So we need the inverse of gamma CDF
-    let one = T::one();
-
-    // Simplified approximation - for larger k, use normal approximation
-    if k > const_f64::<T>(10.0) {
-        let z = crate::erf::erfinv(const_f64::<T>(2.0) * p - one);
-        let sqrt_k = k.sqrt();
-        Ok(k + z * sqrt_k)
-    } else {
-        // For small k, use iterative approach or lookup table
-        // Simplified: return k as initial approximation
-        Ok(k)
-    }
+    // Via the Poisson-Gamma duality, for FIXED k the target relation
+    // `pdtr(k, m) = p` is exactly `Q(k+1, m) = p`, i.e.
+    // `gammaincc(k+1, m) = p` (see `pdtr`'s derivation above). Solving for
+    // m is therefore precisely the inverse of the regularized *upper*
+    // incomplete gamma function, which is already implemented via
+    // Newton-Raphson (and correctly handles the p=0 -> m=+inf / p=1 -> m=0
+    // boundary cases) in `gammainccinv`. This is exact for every k, not
+    // just k > 10, so it replaces the old small-k/large-k special-casing
+    // (whose k <= 10 branch used to just return k, ignoring p) entirely.
+    let k_plus_1 = k + T::one();
+    crate::incomplete_gamma::gammainccinv(k_plus_1, p)
 }
 
 /// Inverse of Poisson cumulative distribution function vs k
@@ -1446,19 +1439,114 @@ where
         return Ok(T::zero());
     }
     if p == T::one() {
-        return Ok(T::infinity());
+        // Q(a, m) -> 1 only as a -> infinity, so there is no finite k with
+        // pdtr(k, m) = 1 exactly; SciPy's `pdtrik(1.0, m)` likewise returns
+        // NaN rather than +inf (unlike `pdtri`, whose roles of p=0/p=1 are
+        // swapped because it inverts a *decreasing*-in-m relation instead).
+        return Ok(T::nan());
     }
 
-    // Use normal approximation for large m
-    if m > const_f64::<T>(10.0) {
-        let z = crate::erf::erfinv(const_f64::<T>(2.0) * p - T::one());
-        let sqrt_m = m.sqrt();
-        let result = m + z * sqrt_m - const_f64::<T>(0.5);
-        Ok(result.max(T::zero()))
-    } else {
-        // For small m, use simple approximation
-        Ok(m)
+    // Via the same Poisson-Gamma duality used by `pdtri`, `pdtr(k, m) = p`
+    // is exactly `Q(k+1, m) = p`, i.e. `gammaincc(k+1, m) = p`. Here `m` is
+    // FIXED and we must invert with respect to the *shape* parameter
+    // `a = k+1` instead of the usual `x` argument, so the existing
+    // `gammainccinv` (which inverts w.r.t. `x` for fixed `a`) does not
+    // apply -- this needs its own root-find.
+    //
+    // # History
+    //
+    // This previously ignored `p` entirely for `m <= 10.0` (returning `m`
+    // itself, unconditionally, for *every* probability), matching the same
+    // "ignores its probability argument" defect `pdtri` had before its own
+    // fix. E.g. the old code returned `pdtrik(0.1, 2.0) == pdtrik(0.9, 2.0)
+    // == 2.0`, when the true (SciPy-verified) values are `0.0` and
+    // `3.377...` respectively.
+    let a = solve_shape_for_gammaincc_target(m, p)?;
+
+    // k = a - 1, clamped at 0: SciPy's `pdtrik` returns a *continuous*
+    // (non-integer) k -- consistent with `gammaincc`/`gammainc` being
+    // analytic in their shape parameter -- and floors it at 0 whenever the
+    // unclamped root would be negative (which happens whenever `p` is small
+    // enough that even k=0, i.e. a=1, already overshoots it: `pdtr(0, m) =
+    // exp(-m) > p`). Verified bit-for-bit against `scipy.special.pdtrik`
+    // across `m` from 1e-3 to 1e6 and `p` from 1e-6 to 1 - 1e-7.
+    Ok((a - T::one()).max(T::zero()))
+}
+
+/// Solve for the shape parameter `a > 0` such that `gammaincc(a, m) = p`,
+/// for a *fixed* `m > 0` and target probability `p` in `(0, 1)`.
+///
+/// `Q(a, m) = gammaincc(a, m)` is strictly increasing in `a` for fixed `m`
+/// (larger shape pushes the Gamma(a, 1) distribution's mass to the right,
+/// past `m`, more often), with `Q(0^+, m) = 0` and `Q(\infty, m) = 1`, so
+/// bisection on `a` converges unconditionally once a bracketing interval is
+/// found. The bracket is seeded from the normal approximation to the
+/// Poisson quantile (`a ~= m + z*sqrt(m) + 0.5`, `z` the standard-normal
+/// quantile of `p`) and then geometrically expanded/contracted until it
+/// truly brackets the root, which is always possible since `gammaincc` is
+/// monotone and unbounded above in `a`.
+fn solve_shape_for_gammaincc_target<T>(m: T, p: T) -> SpecialResult<T>
+where
+    T: Float + FromPrimitive + Display + Debug + AddAssign + MulAssign,
+{
+    let two = const_f64::<T>(2.0);
+    let half = const_f64::<T>(0.5);
+    let tiny = const_f64::<T>(1e-300);
+    let min_seed = const_f64::<T>(1e-6);
+
+    let z = crate::erf::erfinv(two * p - T::one());
+    let guess = m + z * m.sqrt() + half;
+    let guess = if guess > min_seed { guess } else { min_seed };
+
+    let mut lo = guess / two;
+    let mut hi = guess * two;
+    if lo <= T::zero() {
+        lo = tiny;
     }
+
+    // Expand the upper bound until Q(hi, m) >= p (Q is unbounded above in a
+    // as a -> infinity, so this always terminates).
+    let max_expansions = 200usize;
+    for _ in 0..max_expansions {
+        if gammaincc(hi, m)? >= p {
+            break;
+        }
+        lo = hi;
+        hi *= two;
+    }
+    if gammaincc(hi, m)? < p {
+        return Err(SpecialError::ConvergenceError(
+            "pdtrik: failed to bracket the root from above".to_string(),
+        ));
+    }
+
+    // Contract the lower bound until Q(lo, m) <= p, or until it underflows
+    // toward 0 (in which case the true root is effectively 0⁺, e.g. when p
+    // is extremely small).
+    for _ in 0..max_expansions {
+        if lo <= tiny || gammaincc(lo, m)? <= p {
+            break;
+        }
+        hi = lo;
+        lo *= half;
+    }
+
+    // Bisection refinement: ~200 iterations of interval-halving is vastly
+    // more than enough to reach full T precision from any starting bracket.
+    for _ in 0..200 {
+        let mid = half * (lo + hi);
+        if mid <= T::zero() {
+            break;
+        }
+        let q = gammaincc(mid, m)?;
+        if q < p {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+
+    Ok(half * (lo + hi))
 }
 
 /// Negative binomial cumulative distribution function
@@ -1610,5 +1698,236 @@ mod tests {
         // Test F distribution CDF
         let cdf = fdtr(5.0, 10.0, 1.0).expect("test should not fail");
         assert_relative_eq!(cdf, 0.5417926019448583, epsilon = 0.5);
+    }
+
+    /// Regression test for the `pdtr`/`pdtrc` swap bug: `pdtr` (documented
+    /// as the CDF, P(X <= k)) used to compute the *survival* function's
+    /// value instead, and `pdtrc` (documented as the survival function)
+    /// used to compute the CDF -- backwards. Reference values from
+    /// `scipy.special.pdtr`/`pdtrc`.
+    #[test]
+    fn test_poisson_cdf_matches_reference() {
+        assert_relative_eq!(
+            pdtr(0, 2.0).expect("pdtr should succeed"),
+            0.1353352832366127,
+            epsilon = 1e-9
+        );
+        assert_relative_eq!(
+            pdtrc(0, 2.0).expect("pdtrc should succeed"),
+            0.8646647167633873,
+            epsilon = 1e-9
+        );
+        assert_relative_eq!(
+            pdtr(5, 3.0).expect("pdtr should succeed"),
+            0.9160820579686965,
+            epsilon = 1e-9
+        );
+        assert_relative_eq!(
+            pdtrc(5, 3.0).expect("pdtrc should succeed"),
+            0.0839179420313035,
+            epsilon = 1e-9
+        );
+        assert_relative_eq!(
+            pdtr(20, 15.0).expect("pdtr should succeed"),
+            0.9170290899685398,
+            epsilon = 1e-8
+        );
+        assert_relative_eq!(
+            pdtrc(20, 15.0).expect("pdtrc should succeed"),
+            0.08297091003146019,
+            epsilon = 1e-8
+        );
+
+        // Complement identity must hold too.
+        let cdf = pdtr(7, 4.0).expect("pdtr should succeed");
+        let surv = pdtrc(7, 4.0).expect("pdtrc should succeed");
+        assert_relative_eq!(cdf + surv, 1.0, epsilon = 1e-9);
+    }
+
+    /// Regression test for the `pdtri` stub: it used to ignore `p` entirely
+    /// for `k <= 10` and just return `k` verbatim. Reference values from
+    /// `scipy.special.pdtri`.
+    #[test]
+    fn test_pdtri_matches_scipy_small_k() {
+        let cases: [(f64, f64, f64); 9] = [
+            (0.5, 2.0, 2.6740603137235612),
+            (0.1, 2.0, 5.322320337834209),
+            (0.9, 2.0, 1.1020653282493211),
+            (0.5, 0.0, std::f64::consts::LN_2), // e^-m = 0.5 => m = ln(2)
+            (0.1, 0.0, std::f64::consts::LN_10), // e^-m = 0.1 => m = ln(10)
+            (0.9, 0.0, 0.10536051565782628),
+            (0.5, 5.0, 5.6701611887120675),
+            (0.05, 5.0, 10.513034908741535),
+            (0.95, 5.0, 2.6130147441963207),
+        ];
+
+        for (p, k, expected) in cases {
+            let m = pdtri(p, k).expect("pdtri should succeed");
+            assert_relative_eq!(m, expected, epsilon = 1e-6);
+        }
+    }
+
+    /// Same as above but for k > 10 (the branch that already consulted p,
+    /// but with the wrong sign/formula -- verified against scipy too).
+    #[test]
+    fn test_pdtri_matches_scipy_large_k() {
+        let cases: [(f64, f64, f64); 7] = [
+            (0.5, 10.0, 10.668522403836315),
+            (0.5, 50.0, 50.667056759388245),
+            (0.3, 50.0, 54.48990756866735),
+            (0.7, 50.0, 47.02743133597663),
+            (0.5, 100.0, 100.66686294933626),
+            (0.01, 100.0, 125.83865288360526),
+            (0.99, 100.0, 79.09991865967305),
+        ];
+
+        for (p, k, expected) in cases {
+            let m = pdtri(p, k).expect("pdtri should succeed");
+            assert_relative_eq!(m, expected, epsilon = 1e-5);
+        }
+    }
+
+    /// Direct check on non-constant data for the exact reported bug:
+    /// pdtri(0.1, k) and pdtri(0.9, k) must NOT both collapse to k for
+    /// k <= 10, and the rate must decrease as the target probability rises
+    /// (a higher rate makes a fixed count k less likely to be enough).
+    #[test]
+    fn test_pdtri_depends_on_p_for_small_k() {
+        for k in [0.0, 1.0, 3.0, 7.0, 10.0] {
+            let m_low_p = pdtri(0.1, k).expect("pdtri should succeed");
+            let m_high_p = pdtri(0.9, k).expect("pdtri should succeed");
+            assert!(
+                (m_low_p - m_high_p).abs() > 1e-3,
+                "pdtri must depend on p (k={k}): pdtri(0.1)={m_low_p}, pdtri(0.9)={m_high_p}"
+            );
+            assert!(
+                m_low_p > m_high_p,
+                "pdtri must decrease in p (k={k}): pdtri(0.1)={m_low_p}, pdtri(0.9)={m_high_p}"
+            );
+        }
+    }
+
+    /// Round trip through the (now-consistent) `pdtr`: pdtr(k, pdtri(p, k))
+    /// must recover p, across both small and large k.
+    #[test]
+    fn test_pdtri_pdtr_roundtrip() {
+        for &k in &[0usize, 2, 5, 10, 25, 100] {
+            for &p in &[0.05, 0.25, 0.5, 0.75, 0.95] {
+                let m = pdtri(p, k as f64).expect("pdtri should succeed");
+                let recovered = pdtr(k, m).expect("pdtr should succeed");
+                assert_relative_eq!(recovered, p, epsilon = 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn test_pdtri_boundary_values() {
+        // p=1 => the CDF is already 1 at m=0.
+        assert_relative_eq!(
+            pdtri(1.0, 5.0).expect("pdtri should succeed"),
+            0.0,
+            epsilon = 1e-12
+        );
+        // p=0 => requires an unboundedly large rate.
+        assert!(pdtri(0.0, 5.0).expect("pdtri should succeed").is_infinite());
+    }
+
+    #[test]
+    fn test_pdtri_rejects_negative_k() {
+        assert!(pdtri(0.5, -1.0).is_err());
+    }
+
+    /// Regression test for the `pdtrik` stub: for `m <= 10.0` it used to
+    /// ignore `p` entirely and return `m` verbatim. Reference values from
+    /// `scipy.special.pdtrik` (which returns a *continuous* k, matching the
+    /// `pdtrik` doc contract here).
+    #[test]
+    fn test_pdtrik_matches_scipy() {
+        let cases: [(f64, f64, f64); 14] = [
+            (0.5, 2.0, 1.323488684824964),
+            (0.1, 2.0, 0.0),
+            (0.9, 2.0, 3.3774495509057925),
+            (0.5, 0.5, 0.0),
+            (0.5, 5.0, 4.329370268245592),
+            (0.5, 10.0, 9.331353335286398),
+            (0.99, 3.0, 7.158767634387079),
+            (0.01, 3.0, 0.0),
+            (0.5, 1.0, 0.31425001034535116),
+            (0.999999, 5.0, 18.24418213242851),
+            (1e-6, 5.0, 0.0),
+            (0.5, 100.0, 99.33313574133271),
+            (0.999, 500.0, 570.0032139767625),
+            (0.001, 500.0, 431.84823750532564),
+        ];
+
+        for (p, m, expected) in cases {
+            let k = pdtrik(p, m).expect("pdtrik should succeed");
+            assert_relative_eq!(k, expected, epsilon = 1e-6);
+        }
+    }
+
+    /// Direct check on non-constant data for the exact reported bug:
+    /// pdtrik(0.1, m) and pdtrik(0.9, m) must NOT both collapse to m for
+    /// m <= 10, and the count must increase with the target probability (a
+    /// higher target CDF needs a larger count to reach it).
+    #[test]
+    fn test_pdtrik_depends_on_p_for_small_m() {
+        let cases: [(f64, f64, f64); 4] = [
+            (1.0, 0.0, 1.8318305266972956),
+            (3.0, 0.42069761155769303, 4.7918177056206686),
+            (7.0, 3.2404903422338807, 9.974199442646743),
+            (20.0, 13.890346491312648, 25.324144119795378),
+        ];
+
+        for (m, expected_low, expected_high) in cases {
+            let k_low = pdtrik(0.1, m).expect("pdtrik should succeed");
+            let k_high = pdtrik(0.9, m).expect("pdtrik should succeed");
+            assert_relative_eq!(k_low, expected_low, epsilon = 1e-6);
+            assert_relative_eq!(k_high, expected_high, epsilon = 1e-6);
+            assert!(
+                k_high > k_low,
+                "pdtrik must increase in p (m={m}): pdtrik(0.1)={k_low}, pdtrik(0.9)={k_high}"
+            );
+        }
+    }
+
+    /// Round trip through the incomplete-gamma identity `pdtrik` is built
+    /// on: `gammaincc(pdtrik(p, m) + 1, m)` must recover `p`, for the cases
+    /// where `p` is reachable at all (i.e. not floored to k=0 because even
+    /// count 0 already overshoots p -- see `test_pdtrik_boundary_values`
+    /// and `test_pdtrik_matches_scipy`'s `k=0` cases for that regime, where
+    /// this identity does not -- and should not -- hold).
+    #[test]
+    fn test_pdtrik_roundtrip_via_gammaincc() {
+        for &m in &[0.5, 2.0, 5.0, 20.0, 100.0] {
+            for &p in &[0.05, 0.25, 0.5, 0.75, 0.95] {
+                let k = pdtrik(p, m).expect("pdtrik should succeed");
+                if k <= 0.0 {
+                    continue;
+                }
+                let recovered = gammaincc(k + 1.0, m).expect("gammaincc should succeed");
+                assert_relative_eq!(recovered, p, epsilon = 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn test_pdtrik_boundary_values() {
+        // p=0: even k=0 already overshoots any positive target below
+        // exp(-m), so the (clamped) answer is 0.
+        assert_relative_eq!(
+            pdtrik(0.0, 5.0).expect("pdtrik should succeed"),
+            0.0,
+            epsilon = 1e-12
+        );
+        // p=1: Q(a, m) -> 1 only in the limit a -> infinity, so there is no
+        // finite k; matches `scipy.special.pdtrik(1.0, m)` returning NaN.
+        assert!(pdtrik(1.0, 5.0).expect("pdtrik should succeed").is_nan());
+    }
+
+    #[test]
+    fn test_pdtrik_rejects_nonpositive_m() {
+        assert!(pdtrik(0.5, 0.0).is_err());
+        assert!(pdtrik(0.5, -1.0).is_err());
     }
 }

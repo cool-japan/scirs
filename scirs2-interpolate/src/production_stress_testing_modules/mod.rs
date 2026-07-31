@@ -141,8 +141,9 @@ mod integration_tests {
 
     #[test]
     fn test_stress_tester_creation() {
-        let _tester = create_stress_tester::<f64>();
-        assert!(true); // Basic creation test
+        let tester = create_stress_tester::<f64>();
+        assert!(tester.results.is_empty());
+        assert!(tester.baseline_performance.is_none());
     }
 
     #[test]
@@ -156,8 +157,13 @@ mod integration_tests {
             max_performance_degradation: 3.0,
         };
 
-        let _tester = create_stress_tester_with_config::<f64>(config);
-        assert!(true); // Basic creation test with config
+        let tester = create_stress_tester_with_config::<f64>(config);
+        assert_eq!(tester.config.max_data_size, 10_000);
+        assert_eq!(tester.config.stress_iterations, 5);
+        assert_eq!(tester.config.test_timeout, 30);
+        assert_eq!(tester.config.memory_limit, Some(512 * 1024 * 1024));
+        assert!(!tester.config.test_extreme_cases);
+        assert_eq!(tester.config.max_performance_degradation, 3.0);
     }
 
     #[test]

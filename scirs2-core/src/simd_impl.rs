@@ -43,13 +43,17 @@ where
 pub fn simd_mul_f32_ultra(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return (a * b).to_owned();
+    }
+
     #[cfg(target_arch = "x86_64")]
     {
         let len = a.len();
         let mut result = vec![0.0f32; len];
 
-        let a_ptr = a.as_slice().expect("Operation failed").as_ptr();
-        let b_ptr = b.as_slice().expect("Operation failed").as_ptr();
+        let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+        let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
         let result_ptr = result.as_mut_ptr();
 
         let features = get_cpu_features();
@@ -172,6 +176,15 @@ pub fn simd_fused_multiply_add_f32(
     assert_eq!(a.len(), b.len(), "Arrays a and b must have the same length");
     assert_eq!(a.len(), c.len(), "Arrays a and c must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() || c.as_slice().is_none() {
+        return Array1::from_iter(
+            a.iter()
+                .zip(b.iter())
+                .zip(c.iter())
+                .map(|((&x, &y), &z)| x.mul_add(y, z)),
+        );
+    }
+
     let len = a.len();
     let mut result = Vec::with_capacity(len);
 
@@ -186,9 +199,9 @@ pub fn simd_fused_multiply_add_f32(
                 let mut i = 0;
                 // Process 8 f32s at a time with AVX2 + FMA
                 while i + 8 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 8];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 8];
-                    let c_slice = &c.as_slice().expect("Operation failed")[i..i + 8];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let c_slice = &c.as_slice().expect("contiguity checked above")[i..i + 8];
 
                     let a_vec = _mm256_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_ps(b_slice.as_ptr());
@@ -212,9 +225,9 @@ pub fn simd_fused_multiply_add_f32(
                 let mut i = 0;
                 // Process 8 f32s at a time with AVX2 (separate mul + add)
                 while i + 8 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 8];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 8];
-                    let c_slice = &c.as_slice().expect("Operation failed")[i..i + 8];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let c_slice = &c.as_slice().expect("contiguity checked above")[i..i + 8];
 
                     let a_vec = _mm256_loadu_ps(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_ps(b_slice.as_ptr());
@@ -250,9 +263,9 @@ pub fn simd_fused_multiply_add_f32(
                 let mut i = 0;
                 // Process 4 f32s at a time with NEON FMA
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 4];
-                    let c_slice = &c.as_slice().expect("Operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let c_slice = &c.as_slice().expect("contiguity checked above")[i..i + 4];
 
                     let a_vec = vld1q_f32(a_slice.as_ptr());
                     let b_vec = vld1q_f32(b_slice.as_ptr());
@@ -300,6 +313,15 @@ pub fn simd_fused_multiply_add_f64(
     assert_eq!(a.len(), b.len(), "Arrays a and b must have the same length");
     assert_eq!(a.len(), c.len(), "Arrays a and c must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() || c.as_slice().is_none() {
+        return Array1::from_iter(
+            a.iter()
+                .zip(b.iter())
+                .zip(c.iter())
+                .map(|((&x, &y), &z)| x.mul_add(y, z)),
+        );
+    }
+
     let len = a.len();
     let mut result = Vec::with_capacity(len);
 
@@ -314,9 +336,9 @@ pub fn simd_fused_multiply_add_f64(
                 let mut i = 0;
                 // Process 4 f64s at a time with AVX2 + FMA
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 4];
-                    let c_slice = &c.as_slice().expect("Operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let c_slice = &c.as_slice().expect("contiguity checked above")[i..i + 4];
 
                     let a_vec = _mm256_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_pd(b_slice.as_ptr());
@@ -340,9 +362,9 @@ pub fn simd_fused_multiply_add_f64(
                 let mut i = 0;
                 // Process 4 f64s at a time with AVX2 (separate mul + add)
                 while i + 4 <= len {
-                    let a_slice = &a.as_slice().expect("Operation failed")[i..i + 4];
-                    let b_slice = &b.as_slice().expect("Operation failed")[i..i + 4];
-                    let c_slice = &c.as_slice().expect("Operation failed")[i..i + 4];
+                    let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let c_slice = &c.as_slice().expect("contiguity checked above")[i..i + 4];
 
                     let a_vec = _mm256_loadu_pd(a_slice.as_ptr());
                     let b_vec = _mm256_loadu_pd(b_slice.as_ptr());
@@ -377,9 +399,9 @@ pub fn simd_fused_multiply_add_f64(
             let mut i = 0;
             // Process 2 f64s at a time with NEON
             while i + 2 <= len {
-                let a_slice = &a.as_slice().expect("Operation failed")[i..i + 2];
-                let b_slice = &b.as_slice().expect("Operation failed")[i..i + 2];
-                let c_slice = &c.as_slice().expect("Operation failed")[i..i + 2];
+                let a_slice = &a.as_slice().expect("contiguity checked above")[i..i + 2];
+                let b_slice = &b.as_slice().expect("contiguity checked above")[i..i + 2];
+                let c_slice = &c.as_slice().expect("contiguity checked above")[i..i + 2];
 
                 let a_vec = vld1q_f64(a_slice.as_ptr());
                 let b_vec = vld1q_f64(b_slice.as_ptr());
@@ -488,11 +510,15 @@ pub fn simd_adaptive_add_f64(a: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array1
 pub fn simd_mul_f32_blazing(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return simd_mul_f32_fast(a, b);
+    }
+
     let len = a.len();
     let mut result = vec![0.0f32; len];
 
-    let a_ptr = a.as_slice().expect("Operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
     let result_ptr = result.as_mut_ptr();
 
     let features = get_cpu_features();
@@ -605,11 +631,15 @@ pub fn simd_mul_f32_blazing(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<
 pub fn simd_mul_f32_cache_optimized(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return simd_mul_f32_fast(a, b);
+    }
+
     let len = a.len();
     let mut result = vec![0.0f32; len];
 
-    let a_ptr = a.as_slice().expect("Operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
     let result_ptr = result.as_mut_ptr();
 
     let features = get_cpu_features();
@@ -676,11 +706,15 @@ pub fn simd_mul_f32_cache_optimized(a: &ArrayView1<f32>, b: &ArrayView1<f32>) ->
 pub fn simd_mul_f32_lightweight(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return (a * b).to_owned();
+    }
+
     let len = a.len();
     let mut result = vec![0.0f32; len];
 
-    let a_ptr = a.as_slice().expect("Operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
     let result_ptr = result.as_mut_ptr();
 
     #[cfg(target_arch = "x86_64")]
@@ -727,11 +761,15 @@ pub fn simd_mul_f32_lightweight(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Arr
 pub fn simd_mul_f32_avx512(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return simd_mul_f32_lightweight(a, b);
+    }
+
     let len = a.len();
     let mut result = vec![0.0f32; len];
 
-    let a_ptr = a.as_slice().expect("Operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
     let result_ptr = result.as_mut_ptr();
 
     let features = get_cpu_features();
@@ -833,11 +871,15 @@ pub fn simd_mul_f32_avx512(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f
 pub fn simd_mul_f32_branchfree(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return (a * b).to_owned();
+    }
+
     let len = a.len();
     let mut result = vec![0.0f32; len];
 
-    let a_ptr = a.as_slice().expect("Operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
     let result_ptr = result.as_mut_ptr();
 
     #[cfg(target_arch = "x86_64")]
@@ -922,11 +964,15 @@ pub fn simd_mul_f32_branchfree(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Arra
 pub fn simd_mul_f32_bandwidth_saturated(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
     assert_eq!(a.len(), b.len(), "Arrays must have the same length");
 
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return simd_mul_f32_lightweight(a, b);
+    }
+
     let len = a.len();
     let mut result = vec![0.0f32; len];
 
-    let a_ptr = a.as_slice().expect("Operation failed").as_ptr();
-    let b_ptr = b.as_slice().expect("Operation failed").as_ptr();
+    let a_ptr = a.as_slice().expect("contiguity checked above").as_ptr();
+    let b_ptr = b.as_slice().expect("contiguity checked above").as_ptr();
     let result_ptr = result.as_mut_ptr();
 
     #[cfg(target_arch = "x86_64")]
@@ -1043,6 +1089,13 @@ pub fn simd_mul_f32_ultimate(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1
 /// Processes exactly 64 bytes (16 floats) at a time for optimal cache usage
 /// Uses non-temporal stores to bypass cache for streaming workloads
 pub fn simd_mul_f32_cacheline(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
+    // a.as_ptr()/b.as_ptr() below assume stride-1 contiguous memory; on a
+    // non-contiguous view (e.g. a column of a 2D array) this would silently
+    // read the wrong elements rather than panic, so fall back explicitly.
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return (a * b).to_owned();
+    }
+
     let len = a.len();
     let mut result = unsafe { Array1::uninit(len).assume_init() };
 
@@ -1113,6 +1166,13 @@ pub fn simd_mul_f32_cacheline(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array
 /// Overlaps memory loads with computation using multiple accumulators
 /// Utilizes all 16 YMM registers for maximum throughput
 pub fn simd_mul_f32_pipelined(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
+    // a.as_ptr()/b.as_ptr() below assume stride-1 contiguous memory; on a
+    // non-contiguous view (e.g. a column of a 2D array) this would silently
+    // read the wrong elements rather than panic, so fall back explicitly.
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return (a * b).to_owned();
+    }
+
     let len = a.len();
     let mut result = unsafe { Array1::uninit(len).assume_init() };
 
@@ -1208,6 +1268,13 @@ pub fn simd_mul_f32_pipelined(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array
 /// Processes data in 2MB chunks to minimize TLB misses
 /// Uses huge page-aware iteration for maximum efficiency
 pub fn simd_mul_f32_tlb_optimized(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> Array1<f32> {
+    // a.as_ptr()/b.as_ptr() below assume stride-1 contiguous memory; on a
+    // non-contiguous view (e.g. a column of a 2D array) this would silently
+    // read the wrong elements rather than panic, so fall back explicitly.
+    if a.as_slice().is_none() || b.as_slice().is_none() {
+        return (a * b).to_owned();
+    }
+
     let len = a.len();
     let mut result = unsafe { Array1::uninit(len).assume_init() };
 

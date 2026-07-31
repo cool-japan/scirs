@@ -940,8 +940,15 @@ mod tests {
 
     #[test]
     fn test_fluent_stats_creation() {
-        let _stats: FluentStats<f64> = stats();
-        assert!(true); // Just test compilation
+        let stats: FluentStats<f64> = stats();
+        // `stats()` should construct with `FluentStatsConfig::default()`,
+        // not merely "not panic" (checked below, not just implied by
+        // reaching this line).
+        assert!(stats.config.enable_fluent_api);
+        assert_eq!(
+            stats.config.auto_optimization_level,
+            AutoOptimizationLevel::Intelligent
+        );
     }
 
     #[test]
@@ -952,30 +959,57 @@ mod tests {
             ..Default::default()
         };
 
-        let _stats: FluentStats<f64> = stats_with(config);
-        assert!(true); // Just test compilation
+        let stats: FluentStats<f64> = stats_with(config);
+        // Verify `stats_with` actually stored the config passed in, rather
+        // than silently falling back to a default.
+        assert!(stats.config.enable_fluent_api);
+        assert_eq!(
+            stats.config.auto_optimization_level,
+            AutoOptimizationLevel::Intelligent
+        );
     }
 
     #[test]
     fn test_method_chaining() {
-        let _chain: FluentStats<f64> = stats()
+        let chain: FluentStats<f64> = stats()
             .parallel(true)
             .simd(true)
             .confidence(0.99)
             .optimization(AutoOptimizationLevel::Aggressive);
 
-        assert!(true); // Just test compilation
+        // Verify each chained builder method actually mutated the field it
+        // claims to, not just that the chain compiles.
+        assert!(chain.config.base_config.parallel);
+        assert!(chain.config.base_config.simd);
+        assert_eq!(chain.config.base_config.confidence_level, 0.99);
+        assert_eq!(
+            chain.config.auto_optimization_level,
+            AutoOptimizationLevel::Aggressive
+        );
     }
 
     #[test]
     fn test_descriptive_operations() {
-        let _desc = quick_descriptive::<f64>()
+        let desc = quick_descriptive::<f64>()
             .mean()
             .variance(1)
             .std_dev(1)
             .skewness()
             .kurtosis();
 
-        assert!(true); // Just test compilation
+        // Verify the operation chain actually recorded each call, in order,
+        // with the right parameters — not just that chaining compiles.
+        assert_eq!(desc.operations.len(), 5);
+        assert!(matches!(desc.operations[0], DescriptiveOperation::Mean));
+        assert!(matches!(
+            desc.operations[1],
+            DescriptiveOperation::Variance(1)
+        ));
+        assert!(matches!(
+            desc.operations[2],
+            DescriptiveOperation::StdDev(1)
+        ));
+        assert!(matches!(desc.operations[3], DescriptiveOperation::Skewness));
+        assert!(matches!(desc.operations[4], DescriptiveOperation::Kurtosis));
     }
 }

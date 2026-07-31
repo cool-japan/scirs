@@ -39,7 +39,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-metrics = "0.6.4"
+//! scirs2-metrics = "0.6.5"
 //! ```
 //!
 //! ```rust,no_run
@@ -58,7 +58,7 @@
 //! let mse = mean_squared_error(&y_true_reg, &y_pred_reg).expect("should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.6.4 (July 22, 2026)
+//! ## 🔒 Version: 0.6.5 (July 22, 2026)
 //!
 //! # Classification Metrics
 //!
@@ -707,6 +707,8 @@ pub mod optimization;
 pub mod ranking;
 pub mod recommendation;
 pub mod regression;
+// Advanced/probabilistic regression metrics (quantile loss, Winkler score, CRPS, Energy Score)
+pub mod regression_advanced;
 pub mod selection;
 pub mod serialization;
 pub mod sklearn_compat;

@@ -1,7 +1,7 @@
 //! Gated Recurrent Unit (GRU) implementation
 
 use crate::error::{NeuralError, Result};
-use crate::layers::recurrent::{GruForwardOutput, GruGateCache};
+use crate::layers::recurrent::{GruForwardOutput, GruGateSeqCache};
 use crate::layers::{Layer, ParamLayer};
 use scirs2_core::ndarray::{Array, ArrayView, ArrayView1, Ix2, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, NumAssign};
@@ -73,16 +73,45 @@ pub struct GRU<F: Float + Debug + NumAssign> {
     bias_in: Array<F, IxDyn>,
     /// Hidden-to-hidden bias for new gate
     bias_hn: Array<F, IxDyn>,
-    /// Gradients for all parameters (kept simple here)
-    #[allow(dead_code)]
+    /// Gradients for all 12 parameters, in the order reported by
+    /// [`ParamLayer::get_parameters`]; filled in by `backward`
     gradients: RwLock<Vec<Array<F, IxDyn>>>,
     /// Input cache for backward pass
     input_cache: RwLock<Option<Array<F, IxDyn>>>,
     /// Hidden states cache for backward pass
     hidden_states_cache: RwLock<Option<Array<F, IxDyn>>>,
-    /// Gate values cache for backward pass
-    #[allow(dead_code)]
-    gate_cache: GruGateCache<F>,
+    /// Per-time-step gate activations cached by `forward` for use by BPTT
+    gate_cache: GruGateSeqCache<F>,
+}
+
+/// Index of each GRU parameter inside the flat gradient/parameter vector
+mod param_index {
+    /// Input-to-hidden weights of the reset gate
+    pub const W_IR: usize = 0;
+    /// Hidden-to-hidden weights of the reset gate
+    pub const W_HR: usize = 1;
+    /// Input-to-hidden bias of the reset gate
+    pub const B_IR: usize = 2;
+    /// Hidden-to-hidden bias of the reset gate
+    pub const B_HR: usize = 3;
+    /// Input-to-hidden weights of the update gate
+    pub const W_IZ: usize = 4;
+    /// Hidden-to-hidden weights of the update gate
+    pub const W_HZ: usize = 5;
+    /// Input-to-hidden bias of the update gate
+    pub const B_IZ: usize = 6;
+    /// Hidden-to-hidden bias of the update gate
+    pub const B_HZ: usize = 7;
+    /// Input-to-hidden weights of the candidate ("new") gate
+    pub const W_IN: usize = 8;
+    /// Hidden-to-hidden weights of the candidate ("new") gate
+    pub const W_HN: usize = 9;
+    /// Input-to-hidden bias of the candidate ("new") gate
+    pub const B_IN: usize = 10;
+    /// Hidden-to-hidden bias of the candidate ("new") gate
+    pub const B_HN: usize = 11;
+    /// Total number of GRU parameter tensors
+    pub const COUNT: usize = 12;
 }
 
 impl<F: Float + Debug + ScalarOperand + SimdUnifiedOps + 'static + NumAssign> GRU<F> {
@@ -434,17 +463,31 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
                 }
             }
         }
-        // Cache hidden states for backward pass
-        *self.hidden_states_cache.write().expect("Operation failed") =
-            Some(all_hidden_states.clone().into_dyn());
+        // Cache hidden states and gate activations for backward pass
+        *self.hidden_states_cache.write().map_err(|_| {
+            NeuralError::InferenceError(
+                "Failed to acquire write lock on hidden states cache".to_string(),
+            )
+        })? = Some(all_hidden_states.clone().into_dyn());
+        *self.gate_cache.write().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire write lock on gate cache".to_string())
+        })? = Some(all_gates);
         // Return with correct dynamic dimension
         Ok(all_hidden_states.into_dyn())
     }
 
+    /// Backpropagation through time for the whole cached sequence.
+    ///
+    /// `grad_output` holds the gradient of the loss with respect to every
+    /// hidden state emitted by [`Layer::forward`] (shape
+    /// `[batch, seq_len, hidden]`). Gradients of all twelve parameters are
+    /// accumulated over the batch and the sequence and stored internally for
+    /// [`Layer::update`] / [`ParamLayer::get_gradients`]; the returned array is
+    /// the gradient with respect to the layer input.
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
         // Retrieve cached values
         let input_ref = self.input_cache.read().map_err(|_| {
@@ -455,43 +498,240 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
                 "Failed to acquire read lock on hidden states cache".to_string(),
             )
         })?;
-        if input_ref.is_none() || hidden_states_ref.is_none() {
-            return Err(NeuralError::InferenceError(
+        let gate_ref = self.gate_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on gate cache".to_string())
+        })?;
+
+        let missing = || {
+            NeuralError::InferenceError(
                 "No cached values for backward pass. Call forward() first.".to_string(),
-            ));
+            )
+        };
+        let cached_input = input_ref.as_ref().ok_or_else(missing)?;
+        let hidden_states = hidden_states_ref.as_ref().ok_or_else(missing)?;
+        let gates = gate_ref.as_ref().ok_or_else(missing)?;
+
+        if cached_input.shape() != input.shape() {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Backward input shape {:?} does not match the cached forward input shape {:?}",
+                input.shape(),
+                cached_input.shape()
+            )));
         }
-        // In a real implementation, we would compute gradients for all parameters
-        // and return the gradient with respect to the input
-        // Here we're providing a simplified version that returns a gradient of zeros
-        // with the correct shape
-        let grad_input = Array::zeros(input.dim());
+
+        let batch_size = cached_input.shape()[0];
+        let seq_len = cached_input.shape()[1];
+        let hidden_size = self.hidden_size;
+        let input_size = self.input_size;
+
+        if grad_output.shape() != [batch_size, seq_len, hidden_size] {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Expected output gradient of shape [{batch_size}, {seq_len}, {hidden_size}], got {:?}",
+                grad_output.shape()
+            )));
+        }
+        if gates.len() != seq_len {
+            return Err(NeuralError::InferenceError(format!(
+                "Cached gate activations cover {} steps but the sequence has {seq_len}",
+                gates.len()
+            )));
+        }
+
+        let mut grads: Vec<Array<F, IxDyn>> = vec![
+            Array::zeros(self.weight_ir.dim()),
+            Array::zeros(self.weight_hr.dim()),
+            Array::zeros(self.bias_ir.dim()),
+            Array::zeros(self.bias_hr.dim()),
+            Array::zeros(self.weight_iz.dim()),
+            Array::zeros(self.weight_hz.dim()),
+            Array::zeros(self.bias_iz.dim()),
+            Array::zeros(self.bias_hz.dim()),
+            Array::zeros(self.weight_in.dim()),
+            Array::zeros(self.weight_hn.dim()),
+            Array::zeros(self.bias_in.dim()),
+            Array::zeros(self.bias_hn.dim()),
+        ];
+
+        let mut grad_input: Array<F, IxDyn> = Array::zeros(cached_input.dim());
+        let mut dh_next: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+
+        // Pre-activation gradients of one sample, plus the gradient of the
+        // hidden-to-hidden candidate pre-sum `q = b_hn + W_hn h_{t-1}`.
+        let mut da_r = vec![F::zero(); hidden_size];
+        let mut da_z = vec![F::zero(); hidden_size];
+        let mut da_n = vec![F::zero(); hidden_size];
+        let mut d_q = vec![F::zero(); hidden_size];
+
+        for t in (0..seq_len).rev() {
+            let (r_gate, z_gate, n_gate) = &gates[t];
+            let mut dh_prev: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+
+            for b in 0..batch_size {
+                for i in 0..hidden_size {
+                    let r_t = r_gate[[b, i]];
+                    let z_t = z_gate[[b, i]];
+                    let n_t = n_gate[[b, i]];
+                    let h_prev_i = if t == 0 {
+                        F::zero()
+                    } else {
+                        hidden_states[[b, t - 1, i]]
+                    };
+
+                    // q_t = b_hn + W_hn h_{t-1}: recomputed from the cached
+                    // previous hidden state (it is not itself cached).
+                    let mut q_t = self.bias_hn[i];
+                    if t > 0 {
+                        for j in 0..hidden_size {
+                            q_t += self.weight_hn[[i, j]] * hidden_states[[b, t - 1, j]];
+                        }
+                    }
+
+                    // h_t = (1 - z_t) n_t + z_t h_{t-1}
+                    let dh = grad_output[[b, t, i]] + dh_next[[b, i]];
+                    let d_n = dh * (F::one() - z_t);
+                    let d_z = dh * (h_prev_i - n_t);
+                    // Direct path h_{t-1} -> h_t through the update gate.
+                    dh_prev[[b, i]] = dh * z_t;
+
+                    // n_t = tanh(W_in x + b_in + r_t * q_t)
+                    let a_n = d_n * (F::one() - n_t * n_t);
+                    da_n[i] = a_n;
+                    d_q[i] = a_n * r_t;
+                    let d_r = a_n * q_t;
+
+                    da_r[i] = d_r * r_t * (F::one() - r_t);
+                    da_z[i] = d_z * z_t * (F::one() - z_t);
+                }
+
+                for i in 0..hidden_size {
+                    let (ar, az, an, dq) = (da_r[i], da_z[i], da_n[i], d_q[i]);
+                    grads[param_index::B_IR][i] += ar;
+                    grads[param_index::B_HR][i] += ar;
+                    grads[param_index::B_IZ][i] += az;
+                    grads[param_index::B_HZ][i] += az;
+                    grads[param_index::B_IN][i] += an;
+                    grads[param_index::B_HN][i] += dq;
+
+                    for j in 0..input_size {
+                        let x = cached_input[[b, t, j]];
+                        grads[param_index::W_IR][[i, j]] += ar * x;
+                        grads[param_index::W_IZ][[i, j]] += az * x;
+                        grads[param_index::W_IN][[i, j]] += an * x;
+                    }
+                    for j in 0..hidden_size {
+                        let h_prev = if t == 0 {
+                            F::zero()
+                        } else {
+                            hidden_states[[b, t - 1, j]]
+                        };
+                        grads[param_index::W_HR][[i, j]] += ar * h_prev;
+                        grads[param_index::W_HZ][[i, j]] += az * h_prev;
+                        grads[param_index::W_HN][[i, j]] += dq * h_prev;
+                    }
+                }
+
+                // Gradient with respect to x_t.
+                for j in 0..input_size {
+                    let mut sum = F::zero();
+                    for i in 0..hidden_size {
+                        sum += da_r[i] * self.weight_ir[[i, j]]
+                            + da_z[i] * self.weight_iz[[i, j]]
+                            + da_n[i] * self.weight_in[[i, j]];
+                    }
+                    grad_input[[b, t, j]] = sum;
+                }
+
+                // Remaining gradient with respect to h_{t-1} (through the gates).
+                for j in 0..hidden_size {
+                    let mut sum = F::zero();
+                    for i in 0..hidden_size {
+                        sum += da_r[i] * self.weight_hr[[i, j]]
+                            + da_z[i] * self.weight_hz[[i, j]]
+                            + d_q[i] * self.weight_hn[[i, j]];
+                    }
+                    dh_prev[[b, j]] += sum;
+                }
+            }
+
+            dh_next = dh_prev;
+        }
+
+        *self.gradients.write().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire write lock on gradients".to_string())
+        })? = grads;
+
         Ok(grad_input)
     }
 
     fn update(&mut self, learningrate: F) -> Result<()> {
-        // Apply a small update to parameters (placeholder)
-        let small_change = F::from(0.001).expect("Failed to convert constant to float");
-        let lr = small_change * learningrate;
-        // Helper function to update a parameter
-        let update_param = |param: &mut Array<F, IxDyn>| {
-            for w in param.iter_mut() {
-                *w -= lr;
-            }
+        let grads = {
+            let guard = self.gradients.read().map_err(|_| {
+                NeuralError::InferenceError("Failed to acquire read lock on gradients".to_string())
+            })?;
+            guard.clone()
         };
-        // Update all parameters
-        update_param(&mut self.weight_ir);
-        update_param(&mut self.weight_hr);
-        update_param(&mut self.bias_ir);
-        update_param(&mut self.bias_hr);
-        update_param(&mut self.weight_iz);
-        update_param(&mut self.weight_hz);
-        update_param(&mut self.bias_iz);
-        update_param(&mut self.bias_hz);
-        update_param(&mut self.weight_in);
-        update_param(&mut self.weight_hn);
-        update_param(&mut self.bias_in);
-        update_param(&mut self.bias_hn);
+        if grads.len() != param_index::COUNT {
+            return Err(NeuralError::InferenceError(format!(
+                "Expected {} parameter gradients, found {}",
+                param_index::COUNT,
+                grads.len()
+            )));
+        }
+
+        let mut params: [&mut Array<F, IxDyn>; param_index::COUNT] = [
+            &mut self.weight_ir,
+            &mut self.weight_hr,
+            &mut self.bias_ir,
+            &mut self.bias_hr,
+            &mut self.weight_iz,
+            &mut self.weight_hz,
+            &mut self.bias_iz,
+            &mut self.bias_hz,
+            &mut self.weight_in,
+            &mut self.weight_hn,
+            &mut self.bias_in,
+            &mut self.bias_hn,
+        ];
+
+        for (param, grad) in params.iter_mut().zip(grads.iter()) {
+            if param.shape() != grad.shape() {
+                return Err(NeuralError::ShapeMismatch(format!(
+                    "Parameter shape {:?} does not match gradient shape {:?}",
+                    param.shape(),
+                    grad.shape()
+                )));
+            }
+            scirs2_core::ndarray::Zip::from(&mut **param)
+                .and(grad)
+                .for_each(|w, &g| *w -= learningrate * g);
+        }
+
         Ok(())
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        match self.gradients.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Vec::new(),
+        }
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        ParamLayer::get_parameters(self)
+    }
+
+    fn set_params(&mut self, params: &[Array<F, IxDyn>]) -> Result<()> {
+        ParamLayer::set_parameters(self, params.to_vec())
+    }
+
+    fn layer_type(&self) -> &str {
+        "GRU"
+    }
+
+    fn parameter_count(&self) -> usize {
+        3 * (self.hidden_size * self.input_size
+            + self.hidden_size * self.hidden_size
+            + 2 * self.hidden_size)
     }
 }
 
@@ -515,17 +755,22 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
         ]
     }
 
+    /// Gradients of all 12 parameters, in the same order as
+    /// [`ParamLayer::get_parameters`].
+    ///
+    /// They are zero until [`Layer::backward`] has run at least once.
     fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
-        // This is a placeholder implementation until proper gradient access is implemented
-        // Return an empty vector as we can't get references to the gradients inside the RwLock
-        // The actual gradient update logic is handled in the backward method
-        Vec::new()
+        match self.gradients.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Vec::new(),
+        }
     }
 
     fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
-        if params.len() != 12 {
+        if params.len() != param_index::COUNT {
             return Err(NeuralError::InvalidArchitecture(format!(
-                "Expected 12 parameters, got {}",
+                "Expected {} parameters, got {}",
+                param_index::COUNT,
                 params.len()
             )));
         }

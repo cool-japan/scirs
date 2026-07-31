@@ -90,7 +90,7 @@ where
 
 /// Calculate autocorrelation up to a given lag
 #[allow(dead_code)]
-fn calculate_autocorrelation(_signal: &[f64], maxlag: usize) -> Vec<f64> {
+fn calculate_autocorrelation(signal: &[f64], max_lag: usize) -> Vec<f64> {
     let n = signal.len();
     let mean = signal.iter().sum::<f64>() / n as f64;
 
@@ -100,20 +100,20 @@ fn calculate_autocorrelation(_signal: &[f64], maxlag: usize) -> Vec<f64> {
     // Calculate autocorrelation for lags from 0 to max_lag
     let mut autocorr = Vec::with_capacity(max_lag + 1);
 
-    // Autocorrelation at _lag 0 (variance)
+    // Autocorrelation at lag 0 (variance)
     let variance = signal_centered.iter().map(|&x| x * x).sum::<f64>() / n as f64;
-    autocorr.push(1.0); // Normalized autocorrelation at _lag 0 is always 1
+    autocorr.push(1.0); // Normalized autocorrelation at lag 0 is always 1
 
     // Autocorrelation for lags 1 to max_lag
-    for _lag in 1..=max_lag {
-        if _lag >= n {
+    for lag in 1..=max_lag {
+        if lag >= n {
             autocorr.push(0.0);
             continue;
         }
 
         let mut sum = 0.0;
-        for i in 0..n - _lag {
-            sum += signal_centered[i] * signal_centered[i + _lag];
+        for i in 0..n - lag {
+            sum += signal_centered[i] * signal_centered[i + lag];
         }
 
         // Normalize by variance
@@ -136,7 +136,7 @@ fn find_first_peak(signal: &[f64]) -> (usize, f64) {
     }
 
     // Skip first point as it's always 1.0 for autocorrelation
-    for i in 2.._signal.len() - 1 {
+    for i in 2..signal.len() - 1 {
         if signal[i] > signal[i - 1] && signal[i] > signal[i + 1] && signal[i] > 0.1 {
             return (i, signal[i]);
         }

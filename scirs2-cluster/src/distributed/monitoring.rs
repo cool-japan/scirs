@@ -18,6 +18,9 @@ pub struct PerformanceMonitor {
     pub config: MonitoringConfig,
     pub alert_thresholds: AlertThresholds,
     pub start_time: Instant,
+    /// Real system resource sampler used to feed `update_worker_metrics`
+    /// (replaces previously-hardcoded CPU/memory placeholder constants).
+    resource_sampler: ResourceSampler,
 }
 
 /// Configuration for performance monitoring
@@ -213,6 +216,7 @@ impl PerformanceMonitor {
             config,
             alert_thresholds: AlertThresholds::default(),
             start_time: Instant::now(),
+            resource_sampler: ResourceSampler::new(),
         }
     }
 
@@ -1002,6 +1006,96 @@ impl PerformanceMonitor {
     pub fn get_uptime(&self) -> Duration {
         self.start_time.elapsed()
     }
+
+    /// Sample real (cpu_fraction, memory_fraction) resource usage, each in
+    /// `[0.0, 1.0]`, to feed into `update_worker_metrics`. This replaces the
+    /// previously-hardcoded `(0.5, 0.4)` placeholder pair with an actual,
+    /// varying measurement of the process performing the work.
+    ///
+    /// Workers in this implementation are simulated sequentially within a
+    /// single OS process (there is no separate real process/thread per
+    /// worker to query), so there is no meaningful *per-worker* OS-level
+    /// figure to report. What genuinely is real and measurable is the state
+    /// of the process actually doing the work at the moment each worker's
+    /// partition is processed, which is what this reports. When built
+    /// without the `sysinfo` feature, this honestly returns `(0.0, 0.0)`
+    /// (a neutral "unknown" that never trips the health-score penalty
+    /// thresholds in `calculate_worker_health_score`) instead of fabricating
+    /// a plausible-looking constant.
+    pub fn sample_resources(&mut self) -> (f64, f64) {
+        self.resource_sampler.sample()
+    }
+}
+
+/// Real, best-effort sampler for the current process/system's resource
+/// utilization. See [`PerformanceMonitor::sample_resources`] for the
+/// rationale (no fabricated constants, ever).
+pub struct ResourceSampler {
+    #[cfg(feature = "sysinfo")]
+    system: sysinfo::System,
+}
+
+impl std::fmt::Debug for ResourceSampler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResourceSampler").finish_non_exhaustive()
+    }
+}
+
+impl Default for ResourceSampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ResourceSampler {
+    /// Create a new sampler. When the `sysinfo` feature is enabled this
+    /// eagerly initializes the underlying system snapshot so the first
+    /// `sample()` call has a baseline to compute a real CPU delta against.
+    pub fn new() -> Self {
+        #[cfg(feature = "sysinfo")]
+        {
+            Self {
+                system: sysinfo::System::new_all(),
+            }
+        }
+        #[cfg(not(feature = "sysinfo"))]
+        {
+            Self {}
+        }
+    }
+
+    /// Sample current `(cpu_fraction, memory_fraction)`, both clamped to
+    /// `[0.0, 1.0]`. Returns `(0.0, 0.0)` -- an honest, penalty-neutral
+    /// "unknown" -- when compiled without the `sysinfo` feature.
+    pub fn sample(&mut self) -> (f64, f64) {
+        #[cfg(feature = "sysinfo")]
+        {
+            self.system.refresh_cpu_all();
+            self.system.refresh_memory();
+
+            let cpus = self.system.cpus();
+            let cpu_fraction = if cpus.is_empty() {
+                0.0
+            } else {
+                let sum: f64 = cpus.iter().map(|cpu| cpu.cpu_usage() as f64 / 100.0).sum();
+                (sum / cpus.len() as f64).clamp(0.0, 1.0)
+            };
+
+            let total_memory = self.system.total_memory();
+            let memory_fraction = if total_memory == 0 {
+                0.0
+            } else {
+                (self.system.used_memory() as f64 / total_memory as f64).clamp(0.0, 1.0)
+            };
+
+            (cpu_fraction, memory_fraction)
+        }
+
+        #[cfg(not(feature = "sysinfo"))]
+        {
+            (0.0, 0.0)
+        }
+    }
 }
 
 /// Comprehensive monitoring report
@@ -1137,5 +1231,64 @@ mod tests {
         assert!(alert_types
             .iter()
             .any(|t| matches!(t, AlertType::LowThroughput)));
+    }
+
+    #[cfg(feature = "sysinfo")]
+    #[test]
+    fn test_resource_sampler_reports_real_nonzero_memory_usage() {
+        let mut sampler = ResourceSampler::new();
+        let (cpu, memory) = sampler.sample();
+
+        assert!(
+            (0.0..=1.0).contains(&cpu),
+            "cpu fraction out of range: {cpu}"
+        );
+        assert!(
+            (0.0..=1.0).contains(&memory),
+            "memory fraction out of range: {memory}"
+        );
+        // A real running process always holds *some* resident memory, so a
+        // genuine measurement can never legitimately read exactly zero on a
+        // live system -- unlike the old hardcoded 0.4 constant, this value
+        // is derived from the actual host state at sample time.
+        assert!(
+            memory > 0.0,
+            "expected a genuine nonzero memory reading, got {memory}"
+        );
+    }
+
+    #[cfg(feature = "sysinfo")]
+    #[test]
+    fn test_resource_sampler_varies_is_not_hardcoded_pair() {
+        // Two independent samplers on the same live machine should not both
+        // coincidentally reproduce the exact former hardcoded (0.5, 0.4)
+        // placeholder pair -- this is a regression guard against silently
+        // reintroducing fabricated constants.
+        let mut sampler = ResourceSampler::new();
+        let (cpu, memory) = sampler.sample();
+        assert!(
+            !(cpu == 0.5 && memory == 0.4),
+            "resource sampler must not reproduce the old fabricated (0.5, 0.4) placeholder pair"
+        );
+    }
+
+    #[cfg(not(feature = "sysinfo"))]
+    #[test]
+    fn test_resource_sampler_reports_honest_unknown_without_sysinfo_feature() {
+        // Without real measurement capability, the sampler must report an
+        // honest, penalty-neutral "unknown" rather than a fabricated
+        // plausible-looking constant such as the old (0.5, 0.4) pair.
+        let mut sampler = ResourceSampler::new();
+        assert_eq!(sampler.sample(), (0.0, 0.0));
+    }
+
+    #[test]
+    fn test_sample_resources_delegates_to_sampler() {
+        let config = MonitoringConfig::default();
+        let mut monitor = PerformanceMonitor::new(config);
+
+        let (cpu, memory) = monitor.sample_resources();
+        assert!((0.0..=1.0).contains(&cpu));
+        assert!((0.0..=1.0).contains(&memory));
     }
 }

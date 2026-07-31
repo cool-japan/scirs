@@ -86,8 +86,8 @@ pub use circuit::{
 };
 pub use error::{QuantumError, QuantumResult};
 pub use gates::{
-    apply_gate, check_unitary, matrix_product, tensor_product_matrices, CU, CZ, CNOT, Fredkin,
-    Hadamard, Identity, ISWAP, PauliX, PauliY, PauliZ, PhaseS, PhaseSdg, PhaseShift, PhaseT,
-    PhaseTdg, QuantumGate, RotX, RotY, RotZ, SWAP, Toffoli, Unitary1Q,
+    apply_gate, check_unitary, matrix_product, tensor_product_matrices, Fredkin, Hadamard,
+    Identity, PauliX, PauliY, PauliZ, PhaseS, PhaseSdg, PhaseShift, PhaseT, PhaseTdg, QuantumGate,
+    RotX, RotY, RotZ, Toffoli, Unitary1Q, CNOT, CU, CZ, ISWAP, SWAP,
 };
 pub use qubits::{Qubit, QubitRegister};

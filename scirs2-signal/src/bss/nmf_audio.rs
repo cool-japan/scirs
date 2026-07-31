@@ -13,7 +13,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{s, Array1, Array2};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
@@ -598,7 +598,7 @@ pub struct TemporalContinuityResult {
 /// NMF with temporal continuity and sparsity regularisation.
 ///
 /// Adds a temporal smoothness penalty to the NMF cost function:
-///   J = D_β(V || WH) + λ_t Σ_{k,t} (H[k,t] - H[k,t-1])^2 + λ_s Σ H[k,t]
+///   `J = D_β(V || WH) + λ_t Σ_{k,t} (H[k,t] - H[k,t-1])^2 + λ_s Σ H[k,t]`
 ///
 /// This encourages activations that change smoothly over time, which is
 /// particularly useful for separating sustained musical notes.
@@ -618,7 +618,9 @@ pub fn temporal_continuity_nmf(
     let (n_bins, n_frames) = v.dim();
 
     if n_bins == 0 || n_frames == 0 {
-        return Err(SignalError::ValueError("Input V must be non-empty".to_string()));
+        return Err(SignalError::ValueError(
+            "Input V must be non-empty".to_string(),
+        ));
     }
     if config.n_components == 0 {
         return Err(SignalError::ValueError(
@@ -914,7 +916,9 @@ pub fn harmonic_nmf(
     let n_components = n_harmonic + n_percussive;
 
     if n_bins == 0 || n_frames == 0 {
-        return Err(SignalError::ValueError("Input V must be non-empty".to_string()));
+        return Err(SignalError::ValueError(
+            "Input V must be non-empty".to_string(),
+        ));
     }
     if n_components == 0 {
         return Err(SignalError::ValueError(
@@ -1122,7 +1126,12 @@ mod tests {
         // Cost should not increase dramatically
         let first = result.cost_history[0];
         let last = *result.cost_history.last().expect("failed to create last");
-        assert!(last <= first * 1.1, "Cost should not increase: {} -> {}", first, last);
+        assert!(
+            last <= first * 1.1,
+            "Cost should not increase: {} -> {}",
+            first,
+            last
+        );
     }
 
     #[test]

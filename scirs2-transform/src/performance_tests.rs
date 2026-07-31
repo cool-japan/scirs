@@ -130,7 +130,7 @@ fn test_optimized_pca_small_data() {
 }
 
 #[test]
-#[ignore] // Large data test - takes too long in CI
+#[ignore = "slow: large data test - takes too long in CI"]
 fn test_optimized_pca_large_data() {
     // Test with larger data to trigger block-wise algorithm
     let data = Array2::from_shape_vec(
@@ -155,7 +155,9 @@ fn test_optimized_pca_large_data() {
 }
 
 #[test]
-#[ignore] // Very large data test - 72M elements, times out in CI
+#[ignore = "slow: measured 321.9s in a bounded 600s retry (0.6.5 ignore audit) -- randomized-SVD \
+            AdvancedPCA fit+transform on a 60000x1200 (72M-element) matrix; well past the workspace's \
+            120s default nextest hard-kill but completes and passes given enough time, so not a hang"]
 fn test_optimized_pca_very_large_data() {
     // Test with very large data to trigger randomized SVD
     let data = Array2::from_shape_vec(

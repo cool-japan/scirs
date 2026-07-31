@@ -145,13 +145,13 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> UNetC
 
         let bn1 = if use_bn {
             let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([60; 32]);
-            Some(BatchNorm::new(out_ch, 1e-5, 0.1, &mut rng)?)
+            Some(BatchNorm::new(out_ch, 0.1, 1e-5, &mut rng)?)
         } else {
             None
         };
         let bn2 = if use_bn {
             let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([61; 32]);
-            Some(BatchNorm::new(out_ch, 1e-5, 0.1, &mut rng)?)
+            Some(BatchNorm::new(out_ch, 0.1, 1e-5, &mut rng)?)
         } else {
             None
         };

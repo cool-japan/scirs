@@ -40,10 +40,15 @@ fn main() {
     let mut non_ckpt_memory_estimate = 0;
 
     ag::run(|ctx| {
-        // Convert weights to tensors
+        // Convert weights to tensors. Differentiated below via T::grad, so
+        // they must be `T::variable`: `T::convert_to_tensor` marks each node
+        // non-differentiable, so `on_backprop_path` would be false all the
+        // way up to the loss and the backward pass would never touch any of
+        // the `depth` simulated layers -- defeating the point of this
+        // benchmark.
         let weight_tensors: Vec<_> = weights
             .iter()
-            .map(|w| T::convert_to_tensor(w.clone(), ctx))
+            .map(|w| T::variable(w.clone(), ctx))
             .collect();
 
         // Create input
@@ -68,9 +73,17 @@ fn main() {
         // Backward pass
         let grads = T::grad(&[loss], &weight_tensors.iter().collect::<Vec<_>>());
 
-        // Evaluate gradients
+        // Evaluate gradients. With `depth` layers of relu(matmul(.., 0.01-scaled
+        // weight)), the activations legitimately underflow to exact zero well
+        // before layer `depth` (a real vanishing-gradient effect of this toy
+        // network's hyperparameters, not a footgun), so only finiteness is
+        // asserted here.
         for grad in grads {
-            let _ = grad.eval(ctx);
+            let grad_val = grad.eval(ctx).expect("gradient should be evaluable");
+            assert!(
+                grad_val.iter().all(|v: &f32| v.is_finite()),
+                "gradient must be finite even where it legitimately vanishes"
+            );
         }
     });
 
@@ -88,10 +101,11 @@ fn main() {
     let mut ckpt_memory_estimate = 0;
 
     ag::run(|ctx| {
-        // Convert weights to tensors
+        // Convert weights to tensors. Differentiated below via T::grad, so
+        // `T::variable` is required (see the non-checkpointed run above).
         let weight_tensors: Vec<_> = weights
             .iter()
-            .map(|w| T::convert_to_tensor(w.clone(), ctx))
+            .map(|w| T::variable(w.clone(), ctx))
             .collect();
 
         // Create input
@@ -127,9 +141,14 @@ fn main() {
         // Backward pass
         let grads = T::grad(&[loss], &weight_tensors.iter().collect::<Vec<_>>());
 
-        // Evaluate gradients
+        // Evaluate gradients (see the non-checkpointed run above for why only
+        // finiteness, not non-zero-ness, is asserted).
         for grad in grads {
-            let _ = grad.eval(ctx);
+            let grad_val = grad.eval(ctx).expect("gradient should be evaluable");
+            assert!(
+                grad_val.iter().all(|v: &f32| v.is_finite()),
+                "gradient must be finite even where it legitimately vanishes"
+            );
         }
     });
 
@@ -154,9 +173,12 @@ fn main() {
     println!("-------------------------");
 
     ag::run(|ctx| {
-        // Create two matrices for a segment computation
-        let a = T::convert_to_tensor(Array2::<f32>::eye(feature_size).into_dyn(), ctx);
-        let b = T::convert_to_tensor(
+        // Create two matrices for a segment computation. Both are
+        // differentiated below via T::grad, so they must be `T::variable`:
+        // `T::convert_to_tensor` would silently zero every gradient in this
+        // section regardless of whether checkpointing preserves it correctly.
+        let a = T::variable(Array2::<f32>::eye(feature_size).into_dyn(), ctx);
+        let b = T::variable(
             Array2::<f32>::ones((feature_size, feature_size)).into_dyn(),
             ctx,
         );
@@ -198,6 +220,22 @@ fn main() {
         println!("  Normal execution time: {:?}", normal_time);
         println!("  Checkpointed execution time: {:?}", checkpoint_time);
 
+        // Hand-derived: with a = I and b = ones(n,n), both relus are no-ops
+        // (every intermediate value stays positive), so
+        // result1 = sum(a @ (b@b)) = n^3 for n = feature_size.
+        let n = feature_size as f32;
+        let expected_result = n * n * n;
+        assert!(
+            (val1[[]] - expected_result).abs() < 1.0,
+            "forward result = {}, expected {}",
+            val1[[]],
+            expected_result
+        );
+        assert!(
+            (val1[[]] - val2[[]]).abs() < 1e-3,
+            "checkpointing must preserve the forward result exactly"
+        );
+
         // Test gradients
         let start = Instant::now();
         let grad1 = T::grad(&[result1], &[&a])[0];
@@ -232,5 +270,25 @@ fn main() {
             match_count,
             grad_val1.len()
         );
+
+        // This is the real, non-vacuous point of the comparison above: with
+        // `a`/`b` now genuinely differentiable, checkpointing must reproduce
+        // EVERY element of the gradient exactly, not just "some".
+        assert_eq!(
+            match_count,
+            grad_val1.len(),
+            "checkpointing must preserve every gradient element exactly"
+        );
+
+        // Hand-derived: d(result1)/da_{ij} = sum_k bb_{jk} where bb = b@b is
+        // uniformly n (feature_size), so the gradient is the constant
+        // n*n = feature_size^2 everywhere.
+        let expected = (feature_size * feature_size) as f32;
+        for &g in grad_val1.iter() {
+            assert!(
+                (g - expected).abs() < 1.0,
+                "gradient element = {g}, expected {expected}"
+            );
+        }
     });
 }

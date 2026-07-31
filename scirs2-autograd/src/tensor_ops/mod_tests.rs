@@ -148,16 +148,27 @@ fn test_linalg_aliases() {
             pinv_direct.eval(g).expect("Test: operation failed")
         );
 
-        // Test sqrtm alias - NOT YET IMPLEMENTED
-        // let pos_def = convert_to_tensor(array![[4.0_f32, 1.0], [1.0, 3.0]], g);
-        // let sqrtm_result = sqrtm(&pos_def);
-        // let sqrtm_direct = matrix_sqrt(&pos_def);
-        // assert_eq!(sqrtm_result.eval(g).expect("Test: operation failed"), sqrtm_direct.eval(g).expect("Test: operation failed"));
+        // Test sqrtm alias.
+        // `sqrtm` is a literal `pub use matrix_sqrt as sqrtm` re-export (see
+        // tensor_ops/matrix_functions.rs), not a separate implementation, so
+        // this is now implemented (the old "NOT YET IMPLEMENTED" comment was
+        // stale) -- both names resolve to the exact same function.
+        let pos_def = convert_to_tensor(array![[4.0_f32, 1.0], [1.0, 3.0]], g);
+        let sqrtm_result = sqrtm(&pos_def);
+        let sqrtm_direct = matrix_sqrt(&pos_def);
+        assert_eq!(
+            sqrtm_result.eval(g).expect("Test: operation failed"),
+            sqrtm_direct.eval(g).expect("Test: operation failed")
+        );
 
-        // Test logm alias - NOT YET IMPLEMENTED
-        // let small_mat = convert_to_tensor(array![[1.1_f32, 0.1], [0.1, 1.2]], g);
-        // let logm_result = logm(&small_mat);
-        // let logm_direct = matrix_log(&small_mat);
-        // assert_eq!(logm_result.eval(g).expect("Test: operation failed"), logm_direct.eval(g).expect("Test: operation failed"));
+        // Test logm alias.
+        // `logm` is likewise a literal `pub use matrix_log as logm` re-export.
+        let small_mat = convert_to_tensor(array![[1.1_f32, 0.1], [0.1, 1.2]], g);
+        let logm_result = logm(&small_mat);
+        let logm_direct = matrix_log(&small_mat);
+        assert_eq!(
+            logm_result.eval(g).expect("Test: operation failed"),
+            logm_direct.eval(g).expect("Test: operation failed")
+        );
     });
 }

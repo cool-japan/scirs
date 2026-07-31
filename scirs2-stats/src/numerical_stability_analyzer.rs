@@ -613,7 +613,17 @@ impl NumericalStabilityAnalyzer {
         // Penalize precision loss
         score -= (precision_analysis.precision_loss_bits / 64.0) * 30.0;
 
-        score.max(0.0)
+        // `score` starts at 100.0 and only ever has penalty terms subtracted
+        // from it -- except the error-amplification term above, which is
+        // `(log10(amplification) * 5.0).min(30.0)` with NO lower bound. When
+        // `error_amplification < 1.0` (a numerically well-behaved function
+        // whose error actually shrinks, e.g. a stable mean/variance
+        // computation), `log10(...)` goes negative, so the "penalty" being
+        // subtracted is negative -- i.e. it silently adds a bonus, letting
+        // `score` exceed 100. Clamp to the documented [0, 100] range so a
+        // perfectly-behaved function reads as 100 (not a nonsensical >100%),
+        // matching `grade_stability`'s implicit assumption of a 0-100 scale.
+        score.max(0.0).min(100.0)
     }
 
     /// Grade overall stability

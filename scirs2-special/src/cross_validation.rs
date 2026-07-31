@@ -183,7 +183,15 @@ impl CrossValidator {
             TestCase {
                 function: "gamma".to_string(),
                 inputs: vec![170.5],
-                expected: 4.269_068_009_016_085_7e304,
+                // Γ(170.5) ≈ 5.5620924145599996...e305 (verified against
+                // Python's math.gamma/mpmath at 50 decimal digits). The
+                // previous constant here, ~4.27e304, was simply wrong test
+                // data -- off by a factor of ~13, and coincidentally close to
+                // Γ(170.0) instead. It went unnoticed because the `gamma()`
+                // implementation independently overflowed to `inf` for this
+                // input (two separate bugs, both now fixed in gamma/core.rs
+                // and gamma/approximations.rs).
+                expected: 5.562_092_414_56e305,
                 source: "MPFR".to_string(),
                 tolerance: 1e-10,
             },
@@ -203,7 +211,7 @@ impl CrossValidator {
         F: Fn(&[f64]) -> f64,
     {
         let test_cases = self.test_cases.get(name).cloned().unwrap_or_default();
-        let mut results = Vec::new();
+        let mut all_results = Vec::new();
         let mut errors = Vec::new();
         let mut ulp_errors = Vec::new();
 
@@ -217,27 +225,39 @@ impl CrossValidator {
             };
 
             let ulp_error = compute_ulp_error(computed, test.expected);
+            // Authoritative per-case verdict: each test case's OWN
+            // (deliberately tuned) relative tolerance, not a hardcoded
+            // absolute threshold.
             let passed = relative_error <= test.tolerance;
 
-            let result = ValidationResult {
+            all_results.push(ValidationResult {
                 test_case: test.clone(),
                 computed,
                 error,
                 relative_error,
                 ulp_error,
                 passed,
-            };
-
-            if !passed {
-                results.push(result.clone());
-            }
+            });
 
             errors.push(error);
             ulp_errors.push(ulp_error);
         }
 
-        let total = errors.len();
-        let passed = errors.iter().filter(|&&e| e <= 1e-10).count();
+        // Persist the FULL result set (not just failures) so
+        // `generate_report` -- which reads `self.results` -- has real data
+        // to report on, instead of always iterating zero entries.
+        self.results.insert(name.to_string(), all_results.clone());
+
+        let total = all_results.len();
+        // Derive `passed`/`failed` from the SAME authoritative per-case
+        // `passed` flag used for `failed_cases` below, instead of a
+        // hardcoded absolute-error threshold that could (and did)
+        // disagree with it for large-magnitude expected values where a
+        // tiny, well-within-tolerance *relative* error is still an
+        // enormous *absolute* error.
+        let passed = all_results.iter().filter(|r| r.passed).count();
+        let failed_cases: Vec<ValidationResult> =
+            all_results.into_iter().filter(|r| !r.passed).collect();
 
         ValidationSummary {
             function: name.to_string(),
@@ -245,9 +265,13 @@ impl CrossValidator {
             passed,
             failed: total - passed,
             max_error: errors.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
-            mean_error: errors.iter().sum::<f64>() / total as f64,
+            mean_error: if total == 0 {
+                0.0
+            } else {
+                errors.iter().sum::<f64>() / total as f64
+            },
             max_ulp_error: ulp_errors.iter().cloned().max().unwrap_or(0),
-            failed_cases: results,
+            failed_cases,
         }
     }
 
@@ -442,7 +466,101 @@ mod tests {
 
         assert!(summary.total_tests > 0);
         assert!(summary.passed > 0);
-        // assert!(summary.mean_error < 1.0); // Commented out due to potential NaN/inf issues
+        // `mean_error` is a mean of *absolute* errors (see `validate_function`),
+        // and the loaded gamma test cases intentionally span ~1 to ~1e305 in
+        // magnitude (including MPFR edge cases near the overflow boundary).
+        // Even a tiny, fully-acceptable *relative* error (e.g. ~1e-14) on the
+        // ~1e305-magnitude case translates into an enormous *absolute* error
+        // that dominates the mean, so `mean_error < 1.0` is not a meaningful
+        // bound here and must not be asserted directly (this is what the
+        // original comment's "potential NaN/inf issues" was circling around --
+        // in investigating it, two real overflow bugs were found and fixed in
+        // `gamma()` itself, see gamma/core.rs and gamma/approximations.rs).
+        // `mean_error` should still never be NaN, and each individual case is
+        // checked against its own *relative*-error tolerance via `failed_cases`.
+        assert!(
+            summary.mean_error.is_finite(),
+            "mean_error should never be NaN/inf for valid gamma inputs, got {}",
+            summary.mean_error
+        );
+        assert!(
+            summary.failed_cases.is_empty(),
+            "some gamma test cases exceeded their tolerance: {:#?}",
+            summary.failed_cases
+        );
+
+        // Regression guards for the summary/failed_cases mismatch bug:
+        // `passed`/`failed` must be derived from the exact same per-case
+        // verdicts as `failed_cases`, not a separate hardcoded threshold
+        // that could disagree with it.
+        assert_eq!(
+            summary.failed,
+            summary.failed_cases.len(),
+            "summary.failed must equal the number of entries in failed_cases"
+        );
+        assert_eq!(
+            summary.passed + summary.failed,
+            summary.total_tests,
+            "passed + failed must equal total_tests"
+        );
+    }
+
+    /// Regression test for a specific, previously-real disagreement: the
+    /// MPFR gamma(170.5) case (expected magnitude ~5.56e305, tolerance
+    /// 1e-10 *relative*) can be comfortably within its relative tolerance
+    /// while its *absolute* error is unavoidably far larger than 1e-10 --
+    /// so a hardcoded `error <= 1e-10` absolute check would have counted
+    /// it as failed while it was correctly absent from `failed_cases`
+    /// (which uses the relative-tolerance-based `passed` flag). This test
+    /// uses a synthetic function to isolate exactly that scenario without
+    /// depending on the real `gamma()` implementation's current accuracy.
+    #[test]
+    fn test_validate_function_uses_relative_not_absolute_tolerance() {
+        let mut validator = CrossValidator::new();
+        validator.test_cases.insert(
+            "huge_magnitude".to_string(),
+            vec![TestCase {
+                function: "huge_magnitude".to_string(),
+                inputs: vec![1.0],
+                expected: 5.0e305,
+                source: "synthetic".to_string(),
+                tolerance: 1e-10, // relative
+            }],
+        );
+
+        // Computed value has relative error ~1e-12 (well within tolerance)
+        // but absolute error ~5e293 (astronomically larger than 1e-10).
+        let summary =
+            validator.validate_function("huge_magnitude", |_| 5.0e305 * 1.000_000_000_001);
+
+        assert_eq!(summary.total_tests, 1);
+        assert_eq!(
+            summary.passed, 1,
+            "a tiny relative error at huge magnitude must count as passed"
+        );
+        assert_eq!(summary.failed, 0);
+        assert!(
+            summary.failed_cases.is_empty(),
+            "must not be double-counted as failed via a hardcoded absolute threshold"
+        );
+    }
+
+    /// Regression test for the dead `self.results` map: `generate_report`
+    /// reads `self.results`, but `validate_function` used to never write
+    /// to it, so the report always came out as just the two-line header
+    /// regardless of how many functions were validated.
+    #[test]
+    fn test_generate_report_contains_validated_function() {
+        let mut validator = CrossValidator::new();
+        validator.load_test_cases().expect("Operation failed");
+        validator.validate_function("gamma", |args| gamma(args[0]));
+
+        let report = validator.generate_report();
+        assert!(
+            report.contains("## gamma"),
+            "report must contain a section for the validated function, got:\n{report}"
+        );
+        assert!(report.contains("Total tests:"));
     }
 
     #[test]

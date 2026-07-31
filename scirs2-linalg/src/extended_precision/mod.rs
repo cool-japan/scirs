@@ -111,6 +111,12 @@ impl DemotableTo<f32> for f32 {
     }
 }
 
+impl DemotableTo<f64> for f64 {
+    fn demote(self) -> f64 {
+        self // No demotion needed
+    }
+}
+
 /// Matrix-vector multiplication using higher precision arithmetic
 ///
 /// Computes y = A*x using higher precision intermediate calculations

@@ -128,7 +128,10 @@ fn test_4d_simplex_vertices_are_4d() {
 // ---------------------------------------------------------------------------
 
 #[test]
-#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points can exceed 60s under load"]
+#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points measured ~83-84s consistently \
+            across all 6 tests in this file under load (0.6.5 ignore audit); already has a \
+            dedicated 600s override in .config/nextest.toml, so left ignored by default \
+            rather than adding ~500s to the routine test-suite run"]
 fn test_4d_hypercube_voronoi_diagram_creates() {
     let sites = hypercube_sites_4d();
     let values = Array1::from_vec(vec![1.0_f64; 16]);
@@ -141,7 +144,10 @@ fn test_4d_hypercube_voronoi_diagram_creates() {
 }
 
 #[test]
-#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points can exceed 60s under load"]
+#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points measured ~83-84s consistently \
+            across all 6 tests in this file under load (0.6.5 ignore audit); already has a \
+            dedicated 600s override in .config/nextest.toml, so left ignored by default \
+            rather than adding ~500s to the routine test-suite run"]
 fn test_4d_hypercube_all_cells_have_vertices() {
     let sites = hypercube_sites_4d();
     let values = Array1::from_vec(vec![1.0_f64; 16]);
@@ -168,7 +174,10 @@ fn test_4d_hypercube_all_cells_have_vertices() {
 }
 
 #[test]
-#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points can exceed 60s under load"]
+#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points measured ~83-84s consistently \
+            across all 6 tests in this file under load (0.6.5 ignore audit); already has a \
+            dedicated 600s override in .config/nextest.toml, so left ignored by default \
+            rather than adding ~500s to the routine test-suite run"]
 fn test_4d_hypercube_all_cells_have_non_negative_volume() {
     // Note: For the unit hypercube {0,1}^4, all corners are equidistant from
     // the center (0.5, 0.5, 0.5, 0.5). This means all Delaunay circumcentres
@@ -199,7 +208,10 @@ fn test_4d_hypercube_all_cells_have_non_negative_volume() {
 }
 
 #[test]
-#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points can exceed 60s under load"]
+#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points measured ~83-84s consistently \
+            across all 6 tests in this file under load (0.6.5 ignore audit); already has a \
+            dedicated 600s override in .config/nextest.toml, so left ignored by default \
+            rather than adding ~500s to the routine test-suite run"]
 fn test_4d_hypercube_cell_volume_within_range() {
     let sites = hypercube_sites_4d();
     let values = Array1::from_vec(vec![1.0_f64; 16]);
@@ -225,7 +237,10 @@ fn test_4d_hypercube_cell_volume_within_range() {
 }
 
 #[test]
-#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points can exceed 60s under load"]
+#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points measured ~83-84s consistently \
+            across all 6 tests in this file under load (0.6.5 ignore audit); already has a \
+            dedicated 600s override in .config/nextest.toml, so left ignored by default \
+            rather than adding ~500s to the routine test-suite run"]
 fn test_4d_hypercube_cells_have_neighbours() {
     let sites = hypercube_sites_4d();
     let values = Array1::from_vec(vec![1.0_f64; 16]);
@@ -241,7 +256,10 @@ fn test_4d_hypercube_cells_have_neighbours() {
 }
 
 #[test]
-#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points can exceed 60s under load"]
+#[ignore = "slow: Bowyer-Watson 4D Delaunay for 16 points measured ~83-84s consistently \
+            across all 6 tests in this file under load (0.6.5 ignore audit); already has a \
+            dedicated 600s override in .config/nextest.toml, so left ignored by default \
+            rather than adding ~500s to the routine test-suite run"]
 fn test_4d_hypercube_individual_cell_volume_approx() {
     // Test that each cell's volume is approximately 1/16 = 0.0625.
     // This uses the circumcentre-based Voronoi vertex computation.

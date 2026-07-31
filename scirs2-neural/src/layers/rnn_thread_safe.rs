@@ -39,6 +39,24 @@ impl RecurrentActivation {
         }
     }
 
+    /// Derivative of the activation expressed in terms of its own output
+    ///
+    /// Lets backpropagation reuse the hidden states cached by the forward pass
+    /// instead of re-deriving the pre-activations.
+    fn derivative_from_output<F: Float + NumAssign>(&self, y: F) -> F {
+        match self {
+            RecurrentActivation::Tanh => F::one() - y * y,
+            RecurrentActivation::Sigmoid => y * (F::one() - y),
+            RecurrentActivation::ReLU => {
+                if y > F::zero() {
+                    F::one()
+                } else {
+                    F::zero()
+                }
+            }
+        }
+    }
+
     /// Apply the activation function to an array
     #[allow(dead_code)]
     fn apply_array<F: Float + NumAssign + ScalarOperand>(
@@ -71,18 +89,50 @@ pub struct ThreadSafeRNN<F: Float + Debug + Send + Sync + NumAssign> {
     bias_ih: Array<F, IxDyn>,
     /// Hidden-to-hidden bias
     bias_hh: Array<F, IxDyn>,
-    /// Gradient of input-to-hidden weights
-    dweight_ih: Array<F, IxDyn>,
-    /// Gradient of hidden-to-hidden weights
-    dweight_hh: Array<F, IxDyn>,
-    /// Gradient of input-to-hidden bias
-    dbias_ih: Array<F, IxDyn>,
-    /// Gradient of hidden-to-hidden bias
-    dbias_hh: Array<F, IxDyn>,
+    /// Gradient of input-to-hidden weights, written by `backward`
+    dweight_ih: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of hidden-to-hidden weights, written by `backward`
+    dweight_hh: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of input-to-hidden bias, written by `backward`
+    dbias_ih: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of hidden-to-hidden bias, written by `backward`
+    dbias_hh: Arc<RwLock<Array<F, IxDyn>>>,
     /// Input cache for backward pass
     input_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
     /// Hidden states cache for backward pass
     hidden_states_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+}
+
+impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Clone
+    for ThreadSafeRNN<F>
+{
+    /// Deep-copies the learned parameters, the accumulated gradients and the
+    /// forward-pass caches, producing a fully independent layer.
+    fn clone(&self) -> Self {
+        let clone_grad = |cell: &Arc<RwLock<Array<F, IxDyn>>>| match cell.read() {
+            Ok(guard) => Arc::new(RwLock::new(guard.clone())),
+            Err(poisoned) => Arc::new(RwLock::new(poisoned.into_inner().clone())),
+        };
+        let clone_cache = |cell: &Arc<RwLock<Option<Array<F, IxDyn>>>>| match cell.read() {
+            Ok(guard) => Arc::new(RwLock::new(guard.clone())),
+            Err(poisoned) => Arc::new(RwLock::new(poisoned.into_inner().clone())),
+        };
+        Self {
+            input_size: self.input_size,
+            hidden_size: self.hidden_size,
+            activation: self.activation,
+            weight_ih: self.weight_ih.clone(),
+            weight_hh: self.weight_hh.clone(),
+            bias_ih: self.bias_ih.clone(),
+            bias_hh: self.bias_hh.clone(),
+            dweight_ih: clone_grad(&self.dweight_ih),
+            dweight_hh: clone_grad(&self.dweight_hh),
+            dbias_ih: clone_grad(&self.dbias_ih),
+            dbias_hh: clone_grad(&self.dbias_hh),
+            input_cache: clone_cache(&self.input_cache),
+            hidden_states_cache: clone_cache(&self.hidden_states_cache),
+        }
+    }
 }
 
 impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> ThreadSafeRNN<F> {
@@ -141,10 +191,10 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Threa
         let bias_hh = Array::zeros(IxDyn(&[hidden_size]));
 
         // Initialize gradients
-        let dweight_ih = Array::zeros(weight_ih.dim());
-        let dweight_hh = Array::zeros(weight_hh.dim());
-        let dbias_ih = Array::zeros(bias_ih.dim());
-        let dbias_hh = Array::zeros(bias_hh.dim());
+        let dweight_ih = Arc::new(RwLock::new(Array::zeros(weight_ih.dim())));
+        let dweight_hh = Arc::new(RwLock::new(Array::zeros(weight_hh.dim())));
+        let dbias_ih = Arc::new(RwLock::new(Array::zeros(bias_ih.dim())));
+        let dbias_hh = Arc::new(RwLock::new(Array::zeros(bias_hh.dim())));
 
         Ok(Self {
             input_size,
@@ -291,62 +341,151 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
         Ok(all_hidden_states.into_dyn())
     }
 
+    /// Backpropagation through time for the whole cached sequence.
+    ///
+    /// `grad_output` holds the gradient of the loss with respect to every
+    /// hidden state emitted by [`Layer::forward`] (shape
+    /// `[batch, seq_len, hidden]`). Weight and bias gradients are accumulated
+    /// over the batch and the sequence and stored internally for
+    /// [`Layer::update`]; the returned array is the gradient with respect to
+    /// the layer input.
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
         // Retrieve cached values
-        let input_ref = match self.input_cache.read() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return Err(NeuralError::InferenceError(
-                    "Failed to acquire read lock on input cache".to_string(),
-                ))
-            }
-        };
+        let input_ref = self.input_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on input cache".to_string())
+        })?;
+        let hidden_states_ref = self.hidden_states_cache.read().map_err(|_| {
+            NeuralError::InferenceError(
+                "Failed to acquire read lock on hidden states cache".to_string(),
+            )
+        })?;
 
-        let hidden_states_ref = match self.hidden_states_cache.read() {
-            Ok(guard) => guard,
-            Err(_) => {
-                return Err(NeuralError::InferenceError(
-                    "Failed to acquire read lock on hidden states cache".to_string(),
-                ))
-            }
-        };
-
-        if input_ref.is_none() || hidden_states_ref.is_none() {
-            return Err(NeuralError::InferenceError(
+        let missing = || {
+            NeuralError::InferenceError(
                 "No cached values for backward pass. Call forward() first.".to_string(),
-            ));
+            )
+        };
+        let cached_input = input_ref.as_ref().ok_or_else(missing)?;
+        let hidden_states = hidden_states_ref.as_ref().ok_or_else(missing)?;
+
+        if cached_input.shape() != input.shape() {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Backward input shape {:?} does not match the cached forward input shape {:?}",
+                input.shape(),
+                cached_input.shape()
+            )));
         }
 
-        // In a real implementation, we would compute gradients for all parameters
-        // and return the gradient with respect to the input
-        // Here we're providing a simplified version that returns a gradient of zeros
-        // with the correct shape
-        let grad_input = Array::zeros(input.dim());
+        let batch_size = cached_input.shape()[0];
+        let seq_len = cached_input.shape()[1];
+        let hidden_size = self.hidden_size;
+        let input_size = self.input_size;
+
+        if grad_output.shape() != [batch_size, seq_len, hidden_size] {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Expected output gradient of shape [{}, {}, {}], got {:?}",
+                batch_size,
+                seq_len,
+                hidden_size,
+                grad_output.shape()
+            )));
+        }
+
+        let mut dweight_ih: Array<F, IxDyn> = Array::zeros(self.weight_ih.dim());
+        let mut dweight_hh: Array<F, IxDyn> = Array::zeros(self.weight_hh.dim());
+        let mut dbias_ih: Array<F, IxDyn> = Array::zeros(self.bias_ih.dim());
+        let mut dbias_hh: Array<F, IxDyn> = Array::zeros(self.bias_hh.dim());
+
+        let mut grad_input: Array<F, IxDyn> = Array::zeros(cached_input.dim());
+        let mut dh_next: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+        let mut dz = vec![F::zero(); hidden_size];
+
+        for t in (0..seq_len).rev() {
+            let mut dh_prev: Array<F, IxDyn> = Array::zeros(IxDyn(&[batch_size, hidden_size]));
+
+            for b in 0..batch_size {
+                for i in 0..hidden_size {
+                    let h_t = hidden_states[[b, t, i]];
+                    let dh = grad_output[[b, t, i]] + dh_next[[b, i]];
+                    dz[i] = dh * self.activation.derivative_from_output(h_t);
+                }
+
+                for i in 0..hidden_size {
+                    let g = dz[i];
+                    dbias_ih[i] += g;
+                    dbias_hh[i] += g;
+                    for j in 0..input_size {
+                        dweight_ih[[i, j]] += g * cached_input[[b, t, j]];
+                    }
+                    for j in 0..hidden_size {
+                        let h_prev = if t == 0 {
+                            F::zero()
+                        } else {
+                            hidden_states[[b, t - 1, j]]
+                        };
+                        dweight_hh[[i, j]] += g * h_prev;
+                    }
+                }
+
+                for j in 0..input_size {
+                    let mut sum = F::zero();
+                    for (i, &g) in dz.iter().enumerate() {
+                        sum += g * self.weight_ih[[i, j]];
+                    }
+                    grad_input[[b, t, j]] = sum;
+                }
+                for j in 0..hidden_size {
+                    let mut sum = F::zero();
+                    for (i, &g) in dz.iter().enumerate() {
+                        sum += g * self.weight_hh[[i, j]];
+                    }
+                    dh_prev[[b, j]] = sum;
+                }
+            }
+
+            dh_next = dh_prev;
+        }
+
+        let lock_err =
+            || NeuralError::InferenceError("Failed to acquire write lock on gradients".to_string());
+        *self.dweight_ih.write().map_err(|_| lock_err())? = dweight_ih;
+        *self.dweight_hh.write().map_err(|_| lock_err())? = dweight_hh;
+        *self.dbias_ih.write().map_err(|_| lock_err())? = dbias_ih;
+        *self.dbias_hh.write().map_err(|_| lock_err())? = dbias_hh;
+
         Ok(grad_input)
     }
 
     fn update(&mut self, learningrate: F) -> Result<()> {
-        // Apply a small update to parameters (placeholder)
-        let small_change = F::from(0.001).expect("Failed to convert constant to float");
-        let lr = small_change * learningrate;
+        let lock_err =
+            || NeuralError::InferenceError("Failed to acquire read lock on gradients".to_string());
+        let dweight_ih = self.dweight_ih.read().map_err(|_| lock_err())?.clone();
+        let dweight_hh = self.dweight_hh.read().map_err(|_| lock_err())?.clone();
+        let dbias_ih = self.dbias_ih.read().map_err(|_| lock_err())?.clone();
+        let dbias_hh = self.dbias_hh.read().map_err(|_| lock_err())?.clone();
 
-        // Update weights and biases
-        for w in self.weight_ih.iter_mut() {
-            *w -= lr * self.dweight_ih[[0, 0]];
+        for (param, grad) in [
+            (&mut self.weight_ih, &dweight_ih),
+            (&mut self.weight_hh, &dweight_hh),
+            (&mut self.bias_ih, &dbias_ih),
+            (&mut self.bias_hh, &dbias_hh),
+        ] {
+            if param.shape() != grad.shape() {
+                return Err(NeuralError::ShapeMismatch(format!(
+                    "Parameter shape {:?} does not match gradient shape {:?}",
+                    param.shape(),
+                    grad.shape()
+                )));
+            }
+            scirs2_core::ndarray::Zip::from(&mut *param)
+                .and(grad)
+                .for_each(|w, &g| *w -= learningrate * g);
         }
-        for w in self.weight_hh.iter_mut() {
-            *w -= lr * self.dweight_hh[[0, 0]];
-        }
-        for b in self.bias_ih.iter_mut() {
-            *b -= lr * self.dbias_ih[[0]];
-        }
-        for b in self.bias_hh.iter_mut() {
-            *b -= lr * self.dbias_hh[[0]];
-        }
+
         Ok(())
     }
 
@@ -357,16 +496,48 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        vec![
+            self.weight_ih.clone(),
+            self.weight_hh.clone(),
+            self.bias_ih.clone(),
+            self.bias_hh.clone(),
+        ]
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        let read = |cell: &Arc<RwLock<Array<F, IxDyn>>>| match cell.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Array::zeros(IxDyn(&[0])),
+        };
+        vec![
+            read(&self.dweight_ih),
+            read(&self.dweight_hh),
+            read(&self.dbias_ih),
+            read(&self.dbias_hh),
+        ]
+    }
+
+    fn layer_type(&self) -> &str {
+        "ThreadSafeRNN"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.hidden_size * self.input_size
+            + self.hidden_size * self.hidden_size
+            + 2 * self.hidden_size
+    }
 }
 
 /// Thread-safe version of Bidirectional RNN wrapper
 /// This layer wraps a recurrent layer to enable bidirectional processing
 /// while ensuring thread safety with Arc<RwLock<>> instead of RefCell.
 pub struct ThreadSafeBidirectional<F: Float + Debug + Send + Sync + NumAssign> {
-    /// Forward RNN layer
-    forward_layer: Box<dyn Layer<F> + Send + Sync>,
-    /// Backward RNN layer (optional)
-    backward_layer: Option<Box<dyn Layer<F> + Send + Sync>>,
+    /// RNN reading the sequence left to right
+    forward_layer: ThreadSafeRNN<F>,
+    /// RNN reading the sequence right to left (its own independent parameters)
+    backward_layer: ThreadSafeRNN<F>,
     /// Name of the layer (optional)
     name: Option<String>,
 }
@@ -376,31 +547,68 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static>
 {
     /// Create a new Bidirectional RNN wrapper
     ///
+    /// The wrapped layer becomes the forward direction; a second RNN with the
+    /// same architecture but its own freshly initialised parameters is created
+    /// for the backward direction, as a bidirectional RNN requires.
+    ///
     /// # Arguments
     /// * `layer` - The RNN layer to make bidirectional
     /// * `name` - Optional name for the layer
     ///
     /// # Returns
     /// * A new Bidirectional RNN wrapper
+    ///
+    /// # Errors
+    /// Returns [`NeuralError::InvalidArchitecture`] when `layer` is not a
+    /// [`ThreadSafeRNN`]: the backward direction has to be built from the
+    /// wrapped layer's architecture, which cannot be recovered from an opaque
+    /// `dyn Layer` trait object.
     pub fn new(layer: Box<dyn Layer<F> + Send + Sync>, name: Option<&str>) -> Result<Self> {
-        // For now, we'll create a dummy backward RNN with the same configuration
-        // In a real implementation, we would create a proper clone of the layer
-        let backward_layer = if let Some(rnn) = layer.as_any().downcast_ref::<ThreadSafeRNN<F>>() {
-            // If it's a ThreadSafeRNN, create a new one with the same parameters
-            let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
-            let backward_rnn =
-                ThreadSafeRNN::<F>::new(rnn.input_size, rnn.hidden_size, rnn.activation, &mut rng)?;
-            Some(Box::new(backward_rnn) as Box<dyn Layer<F> + Send + Sync>)
-        } else {
-            // If not, just set it to None for now
-            None
-        };
+        let mut rng = scirs2_core::random::rng();
+        Self::new_with_rng(layer, name, &mut rng)
+    }
+
+    /// Same as [`ThreadSafeBidirectional::new`] but with a caller-supplied RNG,
+    /// so the backward direction's initialisation is reproducible.
+    pub fn new_with_rng<R: Rng>(
+        layer: Box<dyn Layer<F> + Send + Sync>,
+        name: Option<&str>,
+        rng: &mut R,
+    ) -> Result<Self> {
+        let forward_layer = layer
+            .as_any()
+            .downcast_ref::<ThreadSafeRNN<F>>()
+            .ok_or_else(|| {
+                NeuralError::InvalidArchitecture(format!(
+                    "ThreadSafeBidirectional requires a ThreadSafeRNN inner layer so that the \
+                     backward direction can be built from the same architecture, got a '{}' layer",
+                    layer.layer_type()
+                ))
+            })?
+            .clone();
+
+        let backward_layer = ThreadSafeRNN::<F>::new(
+            forward_layer.input_size,
+            forward_layer.hidden_size,
+            forward_layer.activation,
+            rng,
+        )?;
 
         Ok(Self {
-            forward_layer: layer,
+            forward_layer,
             backward_layer,
             name: name.map(|s| s.to_string()),
         })
+    }
+
+    /// Reference to the forward-direction RNN
+    pub fn forward_layer(&self) -> &ThreadSafeRNN<F> {
+        &self.forward_layer
+    }
+
+    /// Reference to the backward-direction RNN
+    pub fn backward_layer(&self) -> &ThreadSafeRNN<F> {
+        &self.backward_layer
     }
 }
 
@@ -413,24 +621,15 @@ impl<F: Float + Debug + Send + Sync + NumAssign> std::fmt::Debug for ThreadSafeB
     }
 }
 
-// We can't implement Clone for ThreadSafeBidirectional because Box<dyn Layer> can't be cloned.
-// We'll just create a dummy clone implementation for debugging purposes only.
-// This won't actually clone the layers.
 impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Clone
     for ThreadSafeBidirectional<F>
 {
+    /// Deep-copies both directions, including their learned parameters, so the
+    /// clone reproduces the original's outputs exactly.
     fn clone(&self) -> Self {
-        // This is NOT a real clone and should not be used for actual computation.
-        // It's provided just to satisfy the Clone trait requirement for debugging.
-        // The cloned object will have empty layers.
-        // Create a dummy RNN for the forward layer
-        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
-        let dummy_rnn = ThreadSafeRNN::<F>::new(1, 1, RecurrentActivation::Tanh, &mut rng)
-            .expect("Failed to create dummy RNN");
-
         Self {
-            forward_layer: Box::new(dummy_rnn),
-            backward_layer: None,
+            forward_layer: self.forward_layer.clone(),
+            backward_layer: self.backward_layer.clone(),
             name: self.name.clone(),
         }
     }
@@ -443,33 +642,40 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
         // Run forward layer
         let forward_output = self.forward_layer.forward(input)?;
 
-        // If we have a backward layer, run it on reversed input and combine
-        if let Some(ref backward_layer) = self.backward_layer {
-            // Reverse input along sequence dimension (axis 1)
-            let mut reversed_input = input.to_owned();
-            reversed_input.invert_axis(Axis(1));
+        // Reverse input along sequence dimension (axis 1)
+        let mut reversed_input = input.to_owned();
+        reversed_input.invert_axis(Axis(1));
 
-            // Run backward layer
-            let mut backward_output = backward_layer.forward(&reversed_input)?;
+        // Run backward layer
+        let mut backward_output = self.backward_layer.forward(&reversed_input)?;
 
-            // Reverse backward output to align with forward output
-            backward_output.invert_axis(Axis(1));
+        // Reverse backward output to align with forward output
+        backward_output.invert_axis(Axis(1));
 
-            // Combine forward and backward outputs along last dimension
-            let combined = scirs2_core::ndarray::stack(
-                Axis(2),
-                &[forward_output.view(), backward_output.view()],
-            )?;
-
-            // Reshape to flatten the last dimension
-            let shape = combined.shape();
-            let newshape = (shape[0], shape[1], shape[2] * shape[3]);
-            let output = combined.into_shape_with_order(newshape)?.into_dyn();
-            Ok(output)
-        } else {
-            // If no backward layer, just return forward output
-            Ok(forward_output)
+        // Concatenate along the feature axis: the first half is the forward
+        // direction, the second half the backward direction. This is built
+        // element-wise rather than via `stack` + reshape because
+        // `invert_axis` leaves `backward_output` with a negative stride, which
+        // makes a flattening reshape layout-dependent.
+        let fshape = forward_output.shape().to_vec();
+        if fshape.len() != 3 || backward_output.shape() != fshape.as_slice() {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Bidirectional directions must produce matching 3D outputs, got {:?} and {:?}",
+                fshape,
+                backward_output.shape()
+            )));
         }
+        let (batch_size, seq_len, hidden) = (fshape[0], fshape[1], fshape[2]);
+        let mut output = Array::zeros(IxDyn(&[batch_size, seq_len, hidden * 2]));
+        for b in 0..batch_size {
+            for t in 0..seq_len {
+                for i in 0..hidden {
+                    output[[b, t, i]] = forward_output[[b, t, i]];
+                    output[[b, t, hidden + i]] = backward_output[[b, t, i]];
+                }
+            }
+        }
+        Ok(output)
     }
 
     fn backward(
@@ -477,12 +683,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
         input: &Array<F, IxDyn>,
         grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // Without a backward layer the forward output is returned verbatim, so
-        // the gradient flows straight through the forward layer.
-        let backward_layer = match &self.backward_layer {
-            Some(layer) => layer,
-            None => return self.forward_layer.backward(input, grad_output),
-        };
+        let backward_layer = &self.backward_layer;
 
         // The forward pass stacked [forward_out | backward_out] along the last
         // axis, so its length must be even: the first half is the forward
@@ -526,14 +727,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
     }
 
     fn update(&mut self, learningrate: F) -> Result<()> {
-        // Update forward layer
         self.forward_layer.update(learningrate)?;
-
-        // Update backward layer if present
-        if let Some(ref mut backward_layer) = self.backward_layer {
-            backward_layer.update(learningrate)?;
-        }
-
+        self.backward_layer.update(learningrate)?;
         Ok(())
     }
 
@@ -543,5 +738,29 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        let mut params = self.forward_layer.params();
+        params.extend(self.backward_layer.params());
+        params
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        let mut grads = self.forward_layer.gradients();
+        grads.extend(self.backward_layer.gradients());
+        grads
+    }
+
+    fn layer_type(&self) -> &str {
+        "ThreadSafeBidirectional"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.forward_layer.parameter_count() + self.backward_layer.parameter_count()
+    }
+
+    fn name(&self) -> Option<&str> {
+        self.name.as_deref()
     }
 }

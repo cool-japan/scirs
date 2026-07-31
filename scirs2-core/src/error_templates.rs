@@ -157,26 +157,31 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_invalid_parameter() {
-    //     let msg = invalid_parameter("alpha", constraints::positive(), -0.5);
-    //     assert_eq!(msg, "Parameter 'alpha': must be positive (> 0) (got: -0.5)");
-    // }
+    // Renamed since these tests were first written: invalid_parameter -> value,
+    // domainerror -> desc, with_suggestion -> msg, convergence_failed -> algorithm.
+    #[test]
+    fn test_invalid_parameter() {
+        let result = value("alpha", constraints::positive(), -0.5);
+        assert_eq!(
+            result,
+            "Parameter 'alpha': must be positive (> 0) (got: -0.5)"
+        );
+    }
 
-    // #[test]
-    // fn test_with_suggestion() {
-    //     let error = domainerror("input", constraints::positive(), -1.0);
-    //     let msg = with_suggestion(&error, "use absolute value or check input data");
-    //     assert!(msg.contains("input must be must be positive (> 0) (got: -1)"));
-    //     assert!(msg.contains("Suggestion: use absolute value or check input data"));
-    // }
+    #[test]
+    fn test_with_suggestion() {
+        let error = desc("input", constraints::positive(), -1.0);
+        let result = msg(&error, "use absolute value or check input data");
+        assert!(result.contains("input must be must be positive (> 0) (got: -1)"));
+        assert!(result.contains("Suggestion: use absolute value or check input data"));
+    }
 
-    // #[test]
-    // fn test_convergence_failed() {
-    //     let msg = convergence_failed("Newton-Raphson", 100, 1e-6);
-    //     assert_eq!(
-    //         msg,
-    //         "Newton-Raphson: failed to converge after 100 iterations (tolerance: 0.000001)"
-    //     );
-    // }
+    #[test]
+    fn test_convergence_failed() {
+        let result = algorithm("Newton-Raphson", 100, 1e-6);
+        assert_eq!(
+            result,
+            "Newton-Raphson: failed to converge after 100 iterations (tolerance: 0.000001)"
+        );
+    }
 }

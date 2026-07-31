@@ -23,10 +23,6 @@ fn test_gradient_tensor_creation() {
 
 #[test]
 fn test_gradient_computation_add() {
-    // Import will be used when the test is enabled
-    #[allow(unused_imports)]
-    use ::ndarray::array;
-
     // Create gradient tensors
     let a_array = Array2::<f64>::ones((2, 2));
     let b_array = Array2::<f64>::ones((2, 2)) * 2.0;
@@ -34,74 +30,46 @@ fn test_gradient_computation_add() {
     let a = GradientTensor::from_array(a_array, true);
     let b = GradientTensor::from_array(b_array, true);
 
-    // Perform addition - skip test if operation not implemented
-    let c = match grad_add(&a, &b) {
-        Ok(c) => c,
-        Err(e) => {
-            println!("Skipping test_gradient_computationadd: {e}");
-            return;
-        }
-    };
-
-    // Check result
+    // Forward: `a` and `b` are both `Ix2`, so `grad_add` takes the exact-D
+    // fast path in `NdarrayWrapper::array_function` and the result stays Ix2.
+    let c = grad_add(&a, &b).expect("grad_add should succeed for two Ix2 f64 tensors");
     let c_value = c.value();
-    let c_array = match c_value.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-        Some(array) => array,
-        None => {
-            println!("Skipping test_gradient_computationadd: result is not the expected type");
-            return;
-        }
-    };
+    let c_array = c_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+        .expect("grad_add result should be a NdarrayWrapper<f64, Ix2>");
     assert_eq!(c_array.as_array(), &array![[3.0, 3.0], [3.0, 3.0]]);
 
-    // Compute gradients
-    if let Err(e) = c.backward() {
-        println!("Skipping test_gradient_computationadd: {e}");
-        return;
-    }
+    // Backward: `backward()` seeds the gradient as `NdarrayWrapper<f64,
+    // IxDyn>` (matching the output's shape via `ArrayProtocol::shape()`, not
+    // its concrete dimension type), so the leaf gradients that flow straight
+    // through the "add" backward rule inherit that IxDyn typing rather than
+    // the forward value's Ix2.
+    c.backward().expect("backward should succeed");
 
-    // Check gradients
-    let a_grad = match a.grad_2() {
-        Some(grad) => grad,
-        None => {
-            println!("Skipping test_gradient_computationadd: no gradient for a");
-            return;
-        }
-    };
+    let a_grad = a.grad_2().expect("gradient for a should be set");
+    let a_grad_array = a_grad
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+        .expect("a_grad should be a NdarrayWrapper<f64, IxDyn>");
+    assert_eq!(
+        a_grad_array.as_array(),
+        &array![[1.0, 1.0], [1.0, 1.0]].into_dyn()
+    );
 
-    let a_grad_array = match a_grad.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-        Some(array) => array,
-        None => {
-            println!("Skipping test_gradient_computationadd: a_grad is not the expected type");
-            return;
-        }
-    };
-    assert_eq!(a_grad_array.as_array(), &array![[1.0, 1.0], [1.0, 1.0]]);
-
-    let b_grad = match b.grad_2() {
-        Some(grad) => grad,
-        None => {
-            println!("Skipping test_gradient_computationadd: no gradient for b");
-            return;
-        }
-    };
-
-    let b_grad_array = match b_grad.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-        Some(array) => array,
-        None => {
-            println!("Skipping test_gradient_computationadd: b_grad is not the expected type");
-            return;
-        }
-    };
-    assert_eq!(b_grad_array.as_array(), &array![[1.0, 1.0], [1.0, 1.0]]);
+    let b_grad = b.grad_2().expect("gradient for b should be set");
+    let b_grad_array = b_grad
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+        .expect("b_grad should be a NdarrayWrapper<f64, IxDyn>");
+    assert_eq!(
+        b_grad_array.as_array(),
+        &array![[1.0, 1.0], [1.0, 1.0]].into_dyn()
+    );
 }
 
 #[test]
 fn test_gradient_computation_multiply() {
-    // Import will be used when the test is enabled
-    #[allow(unused_imports)]
-    use ::ndarray::array;
-
     // Create gradient tensors
     let a_array = Array2::<f64>::ones((2, 2)) * 2.0;
     let b_array = Array2::<f64>::ones((2, 2)) * 3.0;
@@ -109,80 +77,45 @@ fn test_gradient_computation_multiply() {
     let a = GradientTensor::from_array(a_array, true);
     let b = GradientTensor::from_array(b_array, true);
 
-    // Perform multiplication - skip test if operation not implemented
-    let c = match grad_multiply(&a, &b) {
-        Ok(c) => c,
-        Err(e) => {
-            println!("Skipping test_gradient_computationmultiply: {e}");
-            return;
-        }
-    };
-
-    // Check result
+    // Forward: both operands are Ix2, so the exact-D fast path applies and
+    // the result stays Ix2 (same reasoning as test_gradient_computation_add).
+    let c = grad_multiply(&a, &b).expect("grad_multiply should succeed for two Ix2 f64 tensors");
     let c_value = c.value();
-    let c_array = match c_value.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-        Some(array) => array,
-        None => {
-            println!(
-                "Skipping test_gradient_computation_multiply: result is not the expected type"
-            );
-            return;
-        }
-    };
+    let c_array = c_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, Ix2>>()
+        .expect("grad_multiply result should be a NdarrayWrapper<f64, Ix2>");
     assert_eq!(c_array.as_array(), &array![[6.0, 6.0], [6.0, 6.0]]);
 
-    // Compute gradients
-    if let Err(e) = c.backward() {
-        println!("Skipping test_gradient_computationmultiply: {e}");
-        return;
-    }
+    // Backward: multiply's backward rule combines the (IxDyn-seeded) output
+    // gradient with the *other* operand's Ix2 value via the mixed-dimension
+    // fallback in `NdarrayWrapper::array_function`, which always normalizes
+    // its result to IxDyn.
+    c.backward().expect("backward should succeed");
 
-    // Check gradients
-    let a_grad = match a.grad_2() {
-        Some(grad) => grad,
-        None => {
-            println!("Skipping test_gradient_computationmultiply: no gradient for a");
-            return;
-        }
-    };
+    let a_grad = a.grad_2().expect("gradient for a should be set");
+    let a_grad_array = a_grad
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+        .expect("a_grad should be a NdarrayWrapper<f64, IxDyn>");
+    assert_eq!(
+        a_grad_array.as_array(),
+        &array![[3.0, 3.0], [3.0, 3.0]].into_dyn()
+    );
 
-    let a_grad_array = match a_grad.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-        Some(array) => array,
-        None => {
-            println!(
-                "Skipping test_gradient_computation_multiply: a_grad is not the expected type"
-            );
-            return;
-        }
-    };
-    assert_eq!(a_grad_array.as_array(), &array![[3.0, 3.0], [3.0, 3.0]]);
-
-    let b_grad = match b.grad_2() {
-        Some(grad) => grad,
-        None => {
-            println!("Skipping test_gradient_computationmultiply: no gradient for b");
-            return;
-        }
-    };
-
-    let b_grad_array = match b_grad.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-        Some(array) => array,
-        None => {
-            println!(
-                "Skipping test_gradient_computation_multiply: b_grad is not the expected type"
-            );
-            return;
-        }
-    };
-    assert_eq!(b_grad_array.as_array(), &array![[2.0, 2.0], [2.0, 2.0]]);
+    let b_grad = b.grad_2().expect("gradient for b should be set");
+    let b_grad_array = b_grad
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+        .expect("b_grad should be a NdarrayWrapper<f64, IxDyn>");
+    assert_eq!(
+        b_grad_array.as_array(),
+        &array![[2.0, 2.0], [2.0, 2.0]].into_dyn()
+    );
 }
 
 #[test]
 fn test_sgd_optimizer() {
-    // Import will be used when the test is enabled
-    #[allow(unused_imports)]
-    use ::ndarray::array;
-
     // Create variables
     let weight_array = Array2::<f64>::ones((2, 2));
     let weight = Variable::new("weight", weight_array);
@@ -204,20 +137,35 @@ fn test_sgd_optimizer() {
     let bias_grad = NdarrayWrapper::new(bias_grad_array);
     optimizer.variables()[1].tensor.node.borrow_mut().grad = Some(Rc::new(bias_grad));
 
-    // Take an optimization step
-    match optimizer.step() {
-        Ok(_) => {
-            // Zero gradients
-            optimizer.zero_grad();
+    // Take an optimization step. With no prior velocity, `SGD::step` uses
+    // `update = lr * grad`, so: weight = 1.0 - 0.1*1.0 = 0.9,
+    // bias = 0.0 - 0.1*2.0 = -0.2.
+    optimizer.step().expect("SGD step should succeed");
 
-            // Check that gradients are zeroed
-            assert!(optimizer.variables()[0].grad_2().is_none());
-            assert!(optimizer.variables()[1].grad_2().is_none());
-        }
-        Err(e) => {
-            println!("Skipping test_sgd_optimizer - step failed: {e}");
-        }
+    let weight_value = optimizer.variables()[0].value();
+    let weight_array = weight_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+        .expect("updated weight should be a NdarrayWrapper<f64, IxDyn>");
+    for &v in weight_array.as_array().iter() {
+        assert!((v - 0.9).abs() < 1e-12, "expected weight 0.9, got {v}");
     }
+
+    let bias_value = optimizer.variables()[1].value();
+    let bias_array = bias_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
+        .expect("updated bias should be a NdarrayWrapper<f64, IxDyn>");
+    for &v in bias_array.as_array().iter() {
+        assert!((v - (-0.2)).abs() < 1e-12, "expected bias -0.2, got {v}");
+    }
+
+    // Zero gradients
+    optimizer.zero_grad();
+
+    // Check that gradients are zeroed
+    assert!(optimizer.variables()[0].grad_2().is_none());
+    assert!(optimizer.variables()[1].grad_2().is_none());
 }
 
 // ---- integer dtype coverage tests ----

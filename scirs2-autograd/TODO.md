@@ -1,12 +1,40 @@
 # scirs2-autograd TODO
 
-## Status: v0.6.3 (released 2026-07-27; last reviewed 2026-07-27)
+## Status: v0.6.5 (released 2026-07-31; last reviewed 2026-07-31)
 
-Untouched by this release's fix work (no autograd-specific changes shipped in 0.6.3); the status
-and test results below — last reviewed against source on 2026-07-22 — remain accurate since the
-crate source is unchanged.
+**The headline fix of the 0.6.5 release cycle**, surfaced by a workspace-wide `#[ignore]`-legitimacy
+audit followed to ground. The live backward-pass dispatcher (`gradient.rs`'s `compute_override_grads`
+/ `compute_grads_via_op`, previously a ~670-line if/else chain keyed on `Op::name()` strings) covered
+only 58 of 281 differentiable op implementations; everything it didn't recognize silently fell
+through to an identity gradient (`Some(gy)`), with no error, warning, or `debug_assert`. Dispatch now
+consults each op's own `Op::grad()` implementation (`op.grad(&mut ctx)` in `compute_grads_via_op`) for
+anything the override table doesn't special-case, fixing roughly 223 wrong-or-absent gradients:
+every elementary math function (`sqrt`/`exp`/`ln`/`sin`/`cos`/`tan`/`asin`/`acos`/`atan`/`sinh`/`cosh`/
+`asinh`/`acosh`/`atanh`/`log2`/`log10`/`exp2`/`exp10`/`abs`) and every activation (`softplus`/`elu`/
+`swish`/`gelu`/`mish`) had a correct `Op::grad()` implementation that was simply never called.
 
-scirs2-autograd's own test suite (freshly run 2026-07-15): 1260 tests pass, 0 failed, 18 skipped (default features); 1345 tests pass, 0 failed, 18 skipped (`--all-features`).
+Also fixed independently: `reduce_sum`/`transpose`/`gather` were only correct under an all-ones
+cotangent (masking the bug from every existing test); `reduce_mean` lost its `1/N` factor;
+`sigmoid_cross_entropy` was caught by a `contains("Sigmoid")` substring match and produced
+sign-flipped gradients; `BatchMatMul` was caught by `ends_with("MatMul")` and applied a 2-D transpose
+rule to 3-D batched tensors; `concat`/`einsum`/`tensordot` panicked during backprop instead of
+returning a gradient. `SymmetricEigenOp`'s forward pass now genuinely diagonalizes via a real
+cyclic-Jacobi algorithm (`tensor_ops::matrix_calculus::symmetric_eigen`), shared by one code path for
+every matrix size instead of separate `n==1`/`n==2`/general-case special cases with their own
+eigenvector sign/ordering conventions.
+
+The public custom-gradient API (`custom_op`, `scale_gradient`, `selective_stop_gradient`, `detach` —
+all in `custom_gradient.rs`) was a complete no-op: every one of them returned the identity gradient
+regardless of the user-supplied backward closure, silently disabling gradient-reversal layers and
+detach-based graph pruning. Now routes through the same fixed dispatch above and is genuinely
+functional.
+
+New `tests/gradient_fd_harness.rs` (49 tests) + `tests/gradient_fd_harness_matrix.rs` (31 tests): a
+finite-difference regression harness using a **non-uniform** cotangent — a uniform all-ones cotangent
+is what let `transpose`/`gather`/`reduce_sum` ship broken for this long without a failing test. See
+`CHANGELOG.md` `[0.6.5]` for full detail.
+
+scirs2-autograd's own test suite (last independently run 2026-07-15, pre-fix): 1260 tests pass, 0 failed, 18 skipped (default features); 1345 tests pass, 0 failed, 18 skipped (`--all-features`). Not re-run for this docs update; the 80 new finite-difference harness tests above are additional to this baseline.
 
 ## v0.3.3 Completed
 

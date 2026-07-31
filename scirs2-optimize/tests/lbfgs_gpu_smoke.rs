@@ -73,13 +73,11 @@ mod gpu_tests {
             Ok(r) => r,
             Err(e) => {
                 let msg = e.to_string();
-                if msg.contains("adapter")
-                    || msg.contains("Adapter")
-                    || msg.contains("GPU")
-                    || msg.contains("no suitable")
-                    || msg.contains("wgpu")
-                {
-                    println!("No wgpu adapter available — skipping GPU test ({msg})");
+                if scirs2_core::testing::gpu_availability::is_gpu_unavailable_error(&msg) {
+                    scirs2_core::testing::gpu_availability::print_gpu_skip(
+                        "lbfgs_gpu_matches_cpu_on_rosenbrock_or_skips",
+                        &msg,
+                    );
                     return;
                 }
                 panic!("Unexpected GPU L-BFGS error: {e}");

@@ -487,3 +487,312 @@ fn test_rk45_coupled_oscillators() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// 8. RK23 / DOP853: real-method regression tests.
+//
+// Before the fix, `rk23_method`/`dop853_method` silently ran a fixed-step
+// forward Euler under the RK23/DOP853 labels (single f(t,y) eval, "always
+// accept", zero error estimate). The tests below are chosen specifically
+// to fail under that stand-in: it ignores rtol/atol entirely (so tightening
+// tolerance changes nothing), and it is numerically unstable for anything
+// but trivial problems taken in ~100 fixed steps (verified separately: it
+// diverges to ~1e20 on the many-period oscillator below and ~1e124 on the
+// stiff relaxation problem below).
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_rk23_convergence_order_tolerance_halving() {
+    let k = 2.0_f64;
+    let y0 = 3.0_f64;
+    let f = move |_t: f64, y: ArrayView1<f64>| -> Array1<f64> { Array1::from_vec(vec![-k * y[0]]) };
+    let y_exact = y0 * (-k * 2.0_f64).exp();
+
+    let mut rtol = 1e-4_f64;
+    let mut prev_err: Option<f64> = None;
+    let mut errors = Vec::new();
+
+    for _ in 0..5 {
+        let opts = ODEOptions {
+            method: ODEMethod::RK23,
+            rtol,
+            atol: rtol * 1e-3,
+            max_steps: 200_000,
+            ..Default::default()
+        };
+        let result = solve_ivp(f, [0.0_f64, 2.0], Array1::from_vec(vec![y0]), Some(opts))
+            .expect("RK23 convergence-order solve failed");
+        assert!(result.success, "RK23 solve did not succeed at rtol={rtol}");
+        assert!(result.n_accepted > 0, "RK23 took no accepted steps");
+
+        let y_final = result.y.last().expect("empty y in result")[0];
+        let err = (y_final - y_exact).abs();
+
+        if let Some(prev) = prev_err {
+            assert!(
+                err < prev,
+                "RK23 error did not shrink when tolerance was halved: {err:e} vs previous {prev:e} (rtol={rtol:e})"
+            );
+        }
+        errors.push(err);
+        prev_err = Some(err);
+        rtol /= 2.0;
+    }
+
+    // Over 4 halvings (16x tighter tolerance) a real adaptive 3rd-order
+    // method should show a substantial cumulative error reduction; a
+    // tolerance-blind stub would show none at all.
+    let first = *errors.first().expect("no errors recorded");
+    let last = *errors.last().expect("no errors recorded");
+    assert!(
+        last < first / 4.0,
+        "RK23 error did not shrink enough over 4 tolerance halvings: first={first:e} last={last:e}"
+    );
+}
+
+#[test]
+fn test_dop853_convergence_order_tolerance_halving() {
+    let k = 2.0_f64;
+    let y0 = 3.0_f64;
+    let f = move |_t: f64, y: ArrayView1<f64>| -> Array1<f64> { Array1::from_vec(vec![-k * y[0]]) };
+    let y_exact = y0 * (-k * 2.0_f64).exp();
+
+    let mut rtol = 1e-3_f64;
+    let mut prev_err: Option<f64> = None;
+    let mut errors = Vec::new();
+
+    for _ in 0..5 {
+        let opts = ODEOptions {
+            method: ODEMethod::DOP853,
+            rtol,
+            atol: rtol * 1e-3,
+            max_steps: 200_000,
+            ..Default::default()
+        };
+        let result = solve_ivp(f, [0.0_f64, 2.0], Array1::from_vec(vec![y0]), Some(opts))
+            .expect("DOP853 convergence-order solve failed");
+        assert!(
+            result.success,
+            "DOP853 solve did not succeed at rtol={rtol}"
+        );
+        assert!(result.n_accepted > 0, "DOP853 took no accepted steps");
+
+        let y_final = result.y.last().expect("empty y in result")[0];
+        let err = (y_final - y_exact).abs();
+
+        if let Some(prev) = prev_err {
+            assert!(
+                err < prev,
+                "DOP853 error did not shrink when tolerance was halved: {err:e} vs previous {prev:e} (rtol={rtol:e})"
+            );
+        }
+        errors.push(err);
+        prev_err = Some(err);
+        rtol /= 2.0;
+    }
+
+    let first = *errors.first().expect("no errors recorded");
+    let last = *errors.last().expect("no errors recorded");
+    assert!(
+        last < first / 4.0,
+        "DOP853 error did not shrink enough over 4 tolerance halvings: first={first:e} last={last:e}"
+    );
+}
+
+#[test]
+fn test_rk23_harmonic_oscillator_many_periods() {
+    let omega = 2.0_f64;
+    let f = move |_t: f64, y: ArrayView1<f64>| -> Array1<f64> {
+        Array1::from_vec(vec![y[1], -omega * omega * y[0]])
+    };
+
+    let opts = ODEOptions {
+        method: ODEMethod::RK23,
+        rtol: 1e-6,
+        atol: 1e-9,
+        max_steps: 200_000,
+        ..Default::default()
+    };
+
+    let period = 2.0 * PI / omega;
+    let t_end = 20.0 * period; // many periods, non-trivial oscillatory data
+    let result = solve_ivp(
+        f,
+        [0.0_f64, t_end],
+        Array1::from_vec(vec![1.0_f64, 0.0]),
+        Some(opts),
+    )
+    .expect("RK23 harmonic oscillator solve failed");
+
+    assert!(result.success, "RK23 many-period solve did not succeed");
+    assert!(result.n_accepted > 0, "RK23 took no accepted steps");
+
+    // After exactly 20 full periods the state must return arbitrarily
+    // close to the initial condition. A fixed-step, tolerance-blind Euler
+    // stand-in diverges here (unbounded energy growth from too-large
+    // steps on an undamped oscillator), so this is a strong regression
+    // check for genuine 3rd-order accuracy + adaptivity.
+    let y_end = result.y.last().expect("empty y in result");
+    assert!(
+        (y_end[0] - 1.0).abs() < 1e-2,
+        "RK23 harmonic oscillator y[0] drifted too far after 20 periods: {}",
+        y_end[0]
+    );
+    assert!(
+        y_end[1].abs() < 1e-2,
+        "RK23 harmonic oscillator y[1] drifted too far after 20 periods: {}",
+        y_end[1]
+    );
+}
+
+#[test]
+fn test_dop853_harmonic_oscillator_many_periods() {
+    let omega = 2.0_f64;
+    let f = move |_t: f64, y: ArrayView1<f64>| -> Array1<f64> {
+        Array1::from_vec(vec![y[1], -omega * omega * y[0]])
+    };
+
+    let opts = ODEOptions {
+        method: ODEMethod::DOP853,
+        rtol: 1e-9,
+        atol: 1e-12,
+        max_steps: 200_000,
+        ..Default::default()
+    };
+
+    let period = 2.0 * PI / omega;
+    let t_end = 20.0 * period;
+    let result = solve_ivp(
+        f,
+        [0.0_f64, t_end],
+        Array1::from_vec(vec![1.0_f64, 0.0]),
+        Some(opts),
+    )
+    .expect("DOP853 harmonic oscillator solve failed");
+
+    assert!(result.success, "DOP853 many-period solve did not succeed");
+    assert!(result.n_accepted > 0, "DOP853 took no accepted steps");
+
+    let y_end = result.y.last().expect("empty y in result");
+    assert!(
+        (y_end[0] - 1.0).abs() < 1e-5,
+        "DOP853 harmonic oscillator y[0] drifted too far after 20 periods: {}",
+        y_end[0]
+    );
+    assert!(
+        y_end[1].abs() < 1e-5,
+        "DOP853 harmonic oscillator y[1] drifted too far after 20 periods: {}",
+        y_end[1]
+    );
+}
+
+#[test]
+fn test_rk23_dop853_stiff_relaxation_step_control_sanity() {
+    // A moderately stiff relaxation problem in the spirit of Robertson's
+    // chemical kinetics test: a fast mode relaxes onto a slowly-varying
+    // manifold, forcing genuine step-size adaptation (small steps during
+    // the initial transient, larger steps once on the manifold).
+    //   dy/dt = -lambda * (y - sin(t)),  y(0) = 0
+    // Exact solution: y(t) = A*sin(t) + B*cos(t) + C*exp(-lambda*t)
+    let lambda = 1000.0_f64;
+    let f = move |t: f64, y: ArrayView1<f64>| -> Array1<f64> {
+        Array1::from_vec(vec![-lambda * (y[0] - t.sin())])
+    };
+    let b_coef = -lambda / (lambda * lambda + 1.0);
+    let a_coef = -lambda * b_coef;
+    let c_coef = -b_coef;
+    let y_exact = |t: f64| a_coef * t.sin() + b_coef * t.cos() + c_coef * (-lambda * t).exp();
+
+    let t_end = 2.0_f64;
+
+    for method in [ODEMethod::RK23, ODEMethod::DOP853] {
+        let opts = ODEOptions {
+            method,
+            rtol: 1e-8,
+            atol: 1e-11,
+            max_steps: 50_000,
+            ..Default::default()
+        };
+        let result = solve_ivp(
+            f,
+            [0.0_f64, t_end],
+            Array1::from_vec(vec![0.0_f64]),
+            Some(opts),
+        )
+        .unwrap_or_else(|e| panic!("{method:?} stiff relaxation solve failed: {e}"));
+
+        assert!(
+            result.success,
+            "{method:?} did not converge on the stiff relaxation problem (max_steps hit)"
+        );
+        // Step-control sanity: the fast transient forces real adaptation
+        // (many small accepted steps, some rejections), unlike the
+        // tolerance-blind fixed-step stand-in this replaces (which
+        // diverges to ~1e124 on this exact problem taken in ~100 fixed
+        // steps).
+        assert!(
+            result.n_accepted > 10,
+            "{method:?} took suspiciously few accepted steps: {}",
+            result.n_accepted
+        );
+
+        let y_final = result.y.last().expect("empty y in result")[0];
+        let err = (y_final - y_exact(t_end)).abs();
+        assert!(
+            err < 1e-4,
+            "{method:?} stiff relaxation error too large: {err:e} (y_final={y_final}, expected={})",
+            y_exact(t_end)
+        );
+    }
+}
+
+#[test]
+fn test_cross_method_agreement_nonlinear_pendulum() {
+    // Nonlinear pendulum: theta'' = -sin(theta). There is no closed-form
+    // solution, but RK23, RK45 and DOP853 should all agree closely with
+    // each other at a tight tolerance -- a strong cross-check that the
+    // newly implemented RK23/DOP853 steppers are numerically correct and
+    // not merely "doesn't panic".
+    let f =
+        |_t: f64, y: ArrayView1<f64>| -> Array1<f64> { Array1::from_vec(vec![y[1], -y[0].sin()]) };
+
+    let y0 = Array1::from_vec(vec![1.0_f64, 0.0]);
+    let t_span = [0.0_f64, 5.0];
+    let methods = [ODEMethod::RK23, ODEMethod::RK45, ODEMethod::DOP853];
+
+    let mut finals: Vec<Array1<f64>> = Vec::new();
+    for method in methods {
+        let opts = ODEOptions {
+            method,
+            rtol: 1e-9,
+            atol: 1e-11,
+            max_steps: 200_000,
+            ..Default::default()
+        };
+        let result = solve_ivp(f, t_span, y0.clone(), Some(opts))
+            .unwrap_or_else(|e| panic!("{method:?} pendulum solve failed: {e}"));
+        assert!(result.success, "{method:?} pendulum solve did not succeed");
+        finals.push(result.y.last().expect("empty y in result").clone());
+    }
+
+    for i in 1..finals.len() {
+        let diff_theta = (finals[i][0] - finals[0][0]).abs();
+        let diff_omega = (finals[i][1] - finals[0][1]).abs();
+        assert!(
+            diff_theta < 1e-4,
+            "{:?} disagreed with {:?} on theta: {} vs {}",
+            methods[i],
+            methods[0],
+            finals[i][0],
+            finals[0][0]
+        );
+        assert!(
+            diff_omega < 1e-4,
+            "{:?} disagreed with {:?} on omega: {} vs {}",
+            methods[i],
+            methods[0],
+            finals[i][1],
+            finals[0][1]
+        );
+    }
+}

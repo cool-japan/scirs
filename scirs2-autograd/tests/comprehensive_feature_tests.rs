@@ -885,7 +885,6 @@ mod integration_tests {
     }
 
     #[test]
-    #[ignore = "Gradient shape propagation issue - architectural limitation"]
     fn test_efficient_operations_with_gradients() {
         ag::run(|ctx: &mut ag::Context<'_, f32>| {
             // Create variable tensors

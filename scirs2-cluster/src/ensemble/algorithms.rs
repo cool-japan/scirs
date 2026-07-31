@@ -855,25 +855,38 @@ where
         Ok(parameters)
     }
 
-    /// Run clustering with specified algorithm and parameters
+    /// Run clustering with specified algorithm and parameters.
+    ///
+    /// A genuine failure from the underlying base clusterer is propagated to
+    /// the caller rather than silently replaced with fabricated labels: a
+    /// clustering that never actually converged must never be indistinguishable
+    /// from a real one inside the ensemble's consensus. This mirrors how
+    /// established ensemble implementations treat a failing base estimator
+    /// (the whole `fit` fails loudly) instead of masking the failure.
     fn run_clustering(
         &self,
         data: &Array2<F>,
         algorithm: &ClusteringAlgorithm,
         parameters: &HashMap<String, String>,
     ) -> Result<Array1<i32>> {
-        let data_f64 = data.mapv(|x| x.to_f64().unwrap_or(0.0));
-
         match algorithm {
             ClusteringAlgorithm::KMeans { .. } => {
-                let k = parameters
+                let requested_k = parameters
                     .get("k")
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(3);
+                // A bootstrap/subspace-sampled subset can legitimately be
+                // smaller than the diversity strategy's k_range upper bound
+                // (this is an expected, normal condition, not a genuine
+                // clustering failure): never ask for more clusters than
+                // there are samples to cluster. This is real parameter
+                // adjustment before running the real algorithm, not the
+                // silent-fabrication-of-results this function used to do.
+                let k = requested_k.min(data.nrows().max(1)).max(1);
 
                 // Use kmeans from crate
                 use crate::vq::kmeans2;
-                match kmeans2(
+                let (_, labels) = kmeans2(
                     data.view(),
                     k,
                     Some(100),   // max_iter
@@ -882,15 +895,8 @@ where
                     None,        // missing method
                     Some(false), // check_finite
                     None,        // seed
-                ) {
-                    Ok((_, labels)) => Ok(labels.mapv(|x| x as i32)),
-                    Err(_) => {
-                        // Fallback: create dummy labels
-                        let n_samples = data.nrows();
-                        let labels = Array1::from_shape_fn(n_samples, |i| (i % k) as i32);
-                        Ok(labels)
-                    }
-                }
+                )?;
+                Ok(labels.mapv(|x| x as i32))
             }
             ClusteringAlgorithm::AffinityPropagation { .. } => {
                 let damping = parameters
@@ -917,23 +923,19 @@ where
                     verbose: false,
                 };
 
-                match affinity_propagation(data.view(), false, Some(options)) {
-                    Ok((_, labels)) => Ok(labels),
-                    Err(_) => {
-                        // Fallback: create dummy labels
-                        Ok(Array1::zeros(data.nrows()).mapv(|_: f64| 0i32))
-                    }
-                }
+                let (_, labels) = affinity_propagation(data.view(), false, Some(options))?;
+                Ok(labels)
             }
             _ => {
                 // For any other algorithms, fallback to k-means
-                let k = parameters
+                let requested_k = parameters
                     .get("k")
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(3);
+                let k = requested_k.min(data.nrows().max(1)).max(1);
 
                 use crate::vq::kmeans2;
-                match kmeans2(
+                let (_, labels) = kmeans2(
                     data.view(),
                     k,
                     Some(100),
@@ -942,10 +944,8 @@ where
                     None,
                     Some(false),
                     None,
-                ) {
-                    Ok((_, labels)) => Ok(labels.mapv(|x| x as i32)),
-                    Err(_) => Ok(Array1::zeros(data.nrows()).mapv(|_: f64| 0i32)),
-                }
+                )?;
+                Ok(labels.mapv(|x| x as i32))
             }
         }
     }
@@ -1058,17 +1058,97 @@ where
         optimal_clusters.min(self.config.max_clusters.unwrap_or(10))
     }
 
-    /// Calculate diversity metrics for the ensemble
+    /// Calculate diversity metrics for the ensemble.
+    ///
+    /// `diversity_matrix[i][j]` is the real pairwise disagreement between
+    /// members `i` and `j`, computed as `1 - ARI(labels_i, labels_j)` (the
+    /// Adjusted Rand Index the crate already provides in `metrics`), clamped
+    /// to `[0, 1]` so the result stays a normalized diversity index (ARI can
+    /// go negative for anti-correlated labelings, which would otherwise push
+    /// `1 - ARI` above 1): two identical labelings have ARI = 1 so diversity
+    /// = 0, while completely unrelated/anti-correlated labelings clamp to
+    /// the maximum diversity of 1. This replaces the previous stub, which
+    /// always reported a constant 0.5 average and an identity matrix
+    /// regardless of what the ensemble members actually produced.
     fn calculate_diversity_metrics(
         &self,
         results: &[ClusteringResult],
     ) -> Result<DiversityMetrics> {
+        let n = results.len();
+        let mut diversity_matrix = Array2::<f64>::zeros((n, n));
+
+        for i in 0..n {
+            for j in (i + 1)..n {
+                let ari: f64 =
+                    adjusted_rand_index(results[i].labels.view(), results[j].labels.view())?;
+                let diversity = (1.0 - ari).clamp(0.0, 1.0);
+                diversity_matrix[[i, j]] = diversity;
+                diversity_matrix[[j, i]] = diversity;
+            }
+        }
+
+        let average_diversity = if n > 1 {
+            let mut sum = 0.0;
+            let mut count = 0usize;
+            for i in 0..n {
+                for j in (i + 1)..n {
+                    sum += diversity_matrix[[i, j]];
+                    count += 1;
+                }
+            }
+            sum / count as f64
+        } else {
+            0.0
+        };
+
+        let mut algorithm_distribution = HashMap::new();
+        for result in results {
+            *algorithm_distribution
+                .entry(result.algorithm.clone())
+                .or_insert(0) += 1;
+        }
+
+        let parameter_diversity = self.calculate_parameter_diversity(results);
+
         Ok(DiversityMetrics {
-            average_diversity: 0.5,                       // Stub implementation
-            diversity_matrix: Array2::eye(results.len()), // Stub implementation
-            algorithm_distribution: HashMap::new(),       // Stub implementation
-            parameter_diversity: HashMap::new(),          // Stub implementation
+            average_diversity,
+            diversity_matrix,
+            algorithm_distribution,
+            parameter_diversity,
         })
+    }
+
+    /// Calculate, for each named parameter, how diverse the values used
+    /// across ensemble members actually were: `0.0` when every member used
+    /// the exact same value, approaching `1.0` as more members used mutually
+    /// distinct values (normalized so a fully-diverse set of `total` members
+    /// scores exactly `1.0`).
+    fn calculate_parameter_diversity(&self, results: &[ClusteringResult]) -> HashMap<String, f64> {
+        let mut values_seen: HashMap<String, HashSet<String>> = HashMap::new();
+        let mut totals: HashMap<String, usize> = HashMap::new();
+
+        for result in results {
+            for (name, value) in &result.parameters {
+                values_seen
+                    .entry(name.clone())
+                    .or_default()
+                    .insert(value.clone());
+                *totals.entry(name.clone()).or_insert(0) += 1;
+            }
+        }
+
+        values_seen
+            .into_iter()
+            .map(|(name, distinct_values)| {
+                let total = totals.get(&name).copied().unwrap_or(1);
+                let diversity = if total > 1 {
+                    (distinct_values.len() - 1) as f64 / (total - 1) as f64
+                } else {
+                    0.0
+                };
+                (name, diversity)
+            })
+            .collect()
     }
 
     /// Calculate consensus statistics for the ensemble
@@ -1144,5 +1224,187 @@ impl Default for EnsembleConfig {
             quality_threshold: None,
             max_clusters: Some(20),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tiny_data() -> Array2<f64> {
+        Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+            .expect("Operation failed")
+    }
+
+    #[test]
+    fn test_run_clustering_propagates_kmeans_failure_instead_of_fabricating_labels() {
+        let clusterer = EnsembleClusterer::<f64>::new(EnsembleConfig::default());
+        // Empty data cannot be clustered at all (there is no sample count to
+        // clamp k down to): kmeans2 must genuinely fail, and that failure
+        // must surface as a real error rather than a silently fabricated
+        // round-robin labeling.
+        let data = Array2::<f64>::zeros((0, 2));
+        let algorithm = ClusteringAlgorithm::KMeans { k_range: (3, 3) };
+        let mut parameters = HashMap::new();
+        parameters.insert("k".to_string(), "3".to_string());
+
+        let result = clusterer.run_clustering(&data, &algorithm, &parameters);
+        assert!(
+            result.is_err(),
+            "a base clusterer that cannot possibly succeed must surface as an error, not fabricated labels"
+        );
+    }
+
+    #[test]
+    fn test_run_clustering_clamps_k_to_available_samples_instead_of_failing() {
+        let clusterer = EnsembleClusterer::<f64>::new(EnsembleConfig::default());
+        // Only 4 samples but request 50 clusters -- exactly what a
+        // bootstrap-shrunk subset can legitimately look like. This must
+        // gracefully clamp k down to what the data can support and run a
+        // genuine clustering, rather than erroring out (asking for more
+        // clusters than samples is a parameter mismatch, not a real
+        // algorithmic failure) or fabricating labels.
+        let data = tiny_data();
+        let algorithm = ClusteringAlgorithm::KMeans { k_range: (50, 50) };
+        let mut parameters = HashMap::new();
+        parameters.insert("k".to_string(), "50".to_string());
+
+        let labels = clusterer
+            .run_clustering(&data, &algorithm, &parameters)
+            .expect("clamped k-means should succeed");
+        assert_eq!(labels.len(), 4);
+        for &label in labels.iter() {
+            assert!(label >= 0, "expected valid non-negative cluster labels");
+        }
+    }
+
+    #[test]
+    fn test_run_clustering_propagates_affinity_propagation_failure() {
+        let clusterer = EnsembleClusterer::<f64>::new(EnsembleConfig::default());
+        let empty_data = Array2::<f64>::zeros((0, 2));
+        let algorithm = ClusteringAlgorithm::AffinityPropagation {
+            damping_range: (0.5, 0.5),
+        };
+        let parameters = HashMap::new();
+
+        let result = clusterer.run_clustering(&empty_data, &algorithm, &parameters);
+        assert!(
+            result.is_err(),
+            "affinity propagation on empty data must surface as an error, not fabricated labels"
+        );
+    }
+
+    #[test]
+    fn test_fit_surfaces_base_clusterer_failure_as_error() {
+        // Empty data cannot be clustered by any base clusterer -- every
+        // ensemble member must genuinely fail, and that failure must
+        // propagate out of `fit()` rather than being silently replaced with
+        // a consensus built from fabricated labels.
+        let config = EnsembleConfig {
+            n_estimators: 3,
+            sampling_strategy: SamplingStrategy::None,
+            consensus_method: ConsensusMethod::MajorityVoting,
+            random_seed: Some(1),
+            diversity_strategy: Some(DiversityStrategy::AlgorithmDiversity {
+                algorithms: vec![ClusteringAlgorithm::KMeans { k_range: (2, 2) }],
+            }),
+            quality_threshold: None,
+            max_clusters: None,
+        };
+        let clusterer = EnsembleClusterer::<f64>::new(config);
+        let empty_data = Array2::<f64>::zeros((0, 2));
+
+        let result = clusterer.fit(empty_data.view());
+        assert!(
+            result.is_err(),
+            "ensemble fit() must fail loudly when every base clusterer genuinely fails, \
+             rather than silently returning a consensus built from fabricated labels"
+        );
+    }
+
+    fn make_result(labels: Vec<i32>, algorithm: &str, k: &str) -> ClusteringResult {
+        let mut parameters = HashMap::new();
+        parameters.insert("k".to_string(), k.to_string());
+        ClusteringResult::new(
+            Array1::from_vec(labels),
+            algorithm.to_string(),
+            parameters,
+            0.5,
+            0.01,
+        )
+    }
+
+    #[test]
+    fn test_calculate_diversity_metrics_identical_members_have_zero_diversity() {
+        let clusterer = EnsembleClusterer::<f64>::new(EnsembleConfig::default());
+        let results = vec![
+            make_result(vec![0, 0, 1, 1], "kmeans", "2"),
+            make_result(vec![0, 0, 1, 1], "kmeans", "2"),
+            make_result(vec![0, 0, 1, 1], "kmeans", "2"),
+        ];
+
+        let metrics = clusterer
+            .calculate_diversity_metrics(&results)
+            .expect("Operation failed");
+
+        assert!(
+            metrics.average_diversity.abs() < 1e-9,
+            "identical members should have zero diversity, got {}",
+            metrics.average_diversity
+        );
+        for i in 0..results.len() {
+            for j in 0..results.len() {
+                assert!(metrics.diversity_matrix[[i, j]].abs() < 1e-9);
+            }
+        }
+    }
+
+    #[test]
+    fn test_calculate_diversity_metrics_orthogonal_partitions_have_high_diversity() {
+        let clusterer = EnsembleClusterer::<f64>::new(EnsembleConfig::default());
+        // Two maximally-disagreeing partitions of the same 6 points: one
+        // groups them into 3 pairs by position, the other cuts straight
+        // across those pairs into 2 halves.
+        let results = vec![
+            make_result(vec![0, 0, 1, 1, 2, 2], "kmeans", "3"),
+            make_result(vec![0, 1, 0, 1, 0, 1], "kmeans", "3"),
+        ];
+
+        let metrics = clusterer
+            .calculate_diversity_metrics(&results)
+            .expect("Operation failed");
+
+        assert!(
+            metrics.average_diversity > 0.9,
+            "orthogonal partitions should score high diversity, got {}",
+            metrics.average_diversity
+        );
+        assert_ne!(
+            metrics.average_diversity, 0.5,
+            "must not be the old stub constant"
+        );
+    }
+
+    #[test]
+    fn test_calculate_parameter_diversity_reflects_real_variation() {
+        let clusterer = EnsembleClusterer::<f64>::new(EnsembleConfig::default());
+
+        let same_k = vec![
+            make_result(vec![0, 1], "kmeans", "4"),
+            make_result(vec![0, 1], "kmeans", "4"),
+            make_result(vec![0, 1], "kmeans", "4"),
+        ];
+        let diverse_k = vec![
+            make_result(vec![0, 1], "kmeans", "2"),
+            make_result(vec![0, 1], "kmeans", "5"),
+            make_result(vec![0, 1], "kmeans", "9"),
+        ];
+
+        let same_diversity = clusterer.calculate_parameter_diversity(&same_k);
+        let diverse_diversity = clusterer.calculate_parameter_diversity(&diverse_k);
+
+        assert!((same_diversity["k"] - 0.0).abs() < 1e-9);
+        assert!((diverse_diversity["k"] - 1.0).abs() < 1e-9);
+        assert!(diverse_diversity["k"] > same_diversity["k"]);
     }
 }

@@ -187,24 +187,44 @@ fn test_logistic_shifted_reference() {
 
 #[test]
 fn test_chi_square_df4_reference() {
-    // chi2(df=4) — the SciRS2 implementation uses a Gamma approximation for the PDF.
-    // scipy: chi2.pdf(2, df=4) = 2*exp(-1)/8 = 0.25*exp(-1) ≈ 0.09196986029286058
-    // NOTE: The implementation currently returns ~0.18394 for pdf(2) due to a known
-    // factor-of-2 discrepancy in the PDF normalisation for df=4.  We document the
-    // actual value returned and verify the PDF is finite, positive, and monotone,
-    // while testing the theoretically exact CDF and mean/var.
+    // chi2(df=4) has a closed form for even df (k=2m): pdf(x) = (x/4) exp(-x/2),
+    // cdf(x) = 1 - exp(-x/2)*(1+x/2).
+    //
+    // A previous version of this test claimed scipy gives pdf(2, df=4) =
+    // 0.25*exp(-1) ≈ 0.0919699, and that the implementation's actual output of
+    // ~0.18394 was a "known factor-of-2 discrepancy" — so the CDF range checks
+    // were skipped too, "documented as a known implementation limitation".
+    // That claim was independently re-checked against a live scipy install:
+    //   scipy.stats.chi2.pdf(2, df=4) == 0.18393972058572114
+    //   scipy.stats.chi2.cdf(2, df=4) == 0.2642411176571153
+    //   scipy.stats.chi2.cdf(4, df=4) == 0.5939941502901616
+    // i.e. 0.18394 (matching the closed form (x/4)exp(-x/2) at x=2) is the
+    // CORRECT value; the "0.0919699" reference in the old comment was itself
+    // wrong (off by exactly a factor of 2). The CDF is likewise correct and
+    // in-range everywhere checked. There is no implementation bug here — the
+    // old comment was stale/incorrect, so the exact reference checks below
+    // replace the previous "document the bug and skip" stance.
     let dist = ChiSquare::new(4.0_f64, 0.0, 1.0).expect("valid params");
 
-    // PDF is positive
+    // PDF exact reference values (closed form (x/4) exp(-x/2), cross-checked
+    // against scipy.stats.chi2.pdf(x, df=4)).
     let pdf2 = dist.pdf(2.0);
     assert!(
-        pdf2 > 0.0,
-        "ChiSquare(4) pdf(2) must be positive, got {pdf2}"
+        check_pdf(pdf2, 0.18393972058572114, 1e-9, "ChiSquare(4)", 2.0),
+        "ChiSquare(4) pdf(2) = {pdf2}"
+    );
+    let pdf3 = dist.pdf(3.0);
+    assert!(
+        check_pdf(pdf3, 0.1673476201113224, 1e-9, "ChiSquare(4)", 3.0),
+        "ChiSquare(4) pdf(3) = {pdf3}"
+    );
+    let pdf5 = dist.pdf(5.0);
+    assert!(
+        check_pdf(pdf5, 0.10260624827987348, 1e-9, "ChiSquare(4)", 5.0),
+        "ChiSquare(4) pdf(5) = {pdf5}"
     );
 
     // PDF is monotonically decreasing beyond mode (mode = df-2 = 2 for df=4)
-    let pdf3 = dist.pdf(3.0);
-    let pdf5 = dist.pdf(5.0);
     assert!(
         pdf3 < pdf2,
         "ChiSquare(4) PDF should decrease from mode: pdf(2)={pdf2} pdf(3)={pdf3}"
@@ -214,10 +234,27 @@ fn test_chi_square_df4_reference() {
         "ChiSquare(4) PDF should decrease beyond mode: pdf(3)={pdf3} pdf(5)={pdf5}"
     );
 
-    // NOTE: The chi2(df=4) CDF implementation has known approximation issues that can
-    // return out-of-range (negative) values for some x.  We therefore skip the CDF range
-    // assertions for df=4 and document this as a known implementation limitation.
-    // The CDF for df=2 IS tested separately and is correct.
+    // CDF exact reference values (closed form 1 - exp(-x/2)*(1+x/2), cross-checked
+    // against scipy.stats.chi2.cdf(x, df=4)). Also confirms the CDF stays in [0,1].
+    let cdf2 = dist.cdf(2.0);
+    assert!(
+        check_cdf(cdf2, 0.2642411176571153, 1e-9, "ChiSquare(4)", 2.0),
+        "ChiSquare(4) cdf(2) = {cdf2}"
+    );
+    let cdf4 = dist.cdf(4.0);
+    assert!(
+        check_cdf(cdf4, 0.5939941502901616, 1e-9, "ChiSquare(4)", 4.0),
+        "ChiSquare(4) cdf(4) = {cdf4}"
+    );
+    for &x in &[
+        0.01_f64, 0.1, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 8.0, 10.0, 15.0, 20.0, 30.0,
+    ] {
+        let cdf = dist.cdf(x);
+        assert!(
+            (0.0..=1.0).contains(&cdf),
+            "ChiSquare(4) cdf({x}) out of [0,1]: {cdf}"
+        );
+    }
 
     // mean=4, var=8 for chi2(df=4) — accessed via Distribution trait
     let mean = <ChiSquare<f64> as ScirsDist<f64>>::mean(&dist);

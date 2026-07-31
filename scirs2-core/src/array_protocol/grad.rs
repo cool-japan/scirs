@@ -11,7 +11,7 @@
 //! type that implements the `ArrayProtocol` trait.
 
 use crate::ndarray::compat::ArrayStatCompat;
-use ::ndarray::{Array, ArrayD, Dimension, IxDyn};
+use ::ndarray::{Array, ArrayD, Dimension, Ix1, Ix2, IxDyn};
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
@@ -108,26 +108,14 @@ impl Default for GradientDict {
 // Convert Box<dyn ArrayProtocol> to Rc<dyn ArrayProtocol> with proper trait object handling
 #[allow(dead_code)]
 fn boxed_to_rc(boxed: Box<dyn ArrayProtocol>) -> Rc<dyn ArrayProtocol> {
-    // We need to create an Rc from a Box that contains a trait object.
-    // The most reliable way is to create a new NdarrayWrapper by extracting the ndarray data.
-
-    // Get a reference to the boxed value
-    let array_ref = boxed.as_ref();
-
-    // Extract the data using as_any and try common downcasts
-    // First, try to downcast to NdarrayWrapper<f64, IxDyn> (most common case)
-    if let Some(ndarray_wrapper) = array_ref
-        .as_any()
-        .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
-    {
-        let array_clone = ndarray_wrapper.as_array().clone();
-        return Rc::new(NdarrayWrapper::new(array_clone));
-    }
-
-    // If that fails, try other types like f32, etc.
-    // For now, create a placeholder 1x1 array as fallback
-    let fallback_array = ArrayD::<f64>::zeros(IxDyn(&[1, 1]));
-    Rc::new(NdarrayWrapper::new(fallback_array))
+    // `Rc<dyn Trait>` has a direct `From<Box<dyn Trait>>` impl in std: it
+    // reallocates the box's contents behind an `Rc` while preserving the exact
+    // concrete type and vtable. This previously downcast-enumerated only
+    // `NdarrayWrapper<f64, IxDyn>` and silently substituted a fabricated 1x1
+    // zero placeholder for every other type or dimension (e.g. the very common
+    // `NdarrayWrapper<f64, Ix2>` produced by `add`/`multiply` on `Array2`
+    // inputs) — a wrong-but-`Ok` result rather than a visible error.
+    Rc::from(boxed)
 }
 
 // Helper function to convert Box<dyn ArrayProtocol> to Rc<dyn ArrayProtocol>
@@ -366,17 +354,14 @@ impl GradientTensor {
 
     /// Backward pass to compute gradients.
     pub fn backward(&self) -> CoreResult<()> {
-        // Initialize gradient as ones with the same shape as value
-        let gradshape = if let Some(array) = self
-            .value()
-            .as_any()
-            .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
-        {
-            array.as_array().raw_dim()
-        } else {
-            // If we can't determine the shape, just create a scalar gradient
-            crate::ndarray::IxDyn(&[1])
-        };
+        // Initialize gradient as ones with the same shape as value.
+        // `ArrayProtocol::shape()` works for any concrete dimension type,
+        // unlike downcasting to a specific `NdarrayWrapper<f64, D>` — this
+        // used to only recognize `IxDyn` and silently fall back to a
+        // scalar-shaped gradient (`[1]`) for any other dimension (e.g. the
+        // very common `Ix2`), corrupting the shape the entire backward pass
+        // is seeded with.
+        let gradshape = IxDyn(self.value().shape());
 
         let grad_array = Array::<f64, IxDyn>::ones(gradshape);
         let grad = Rc::new(NdarrayWrapper::new(grad_array)) as Rc<dyn ArrayProtocol>;
@@ -1173,19 +1158,12 @@ impl Variable {
 
     /// Helper to convert Box<dyn ArrayProtocol> to Rc<dyn ArrayProtocol>
     fn box_to_rc(&self, boxed: Box<dyn ArrayProtocol>) -> Rc<dyn ArrayProtocol> {
-        // Extract data and create new Rc
-        if let Some(ndarray_wrapper) = boxed
-            .as_ref()
-            .as_any()
-            .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
-        {
-            let array_clone = ndarray_wrapper.as_array().clone();
-            Rc::new(NdarrayWrapper::new(array_clone))
-        } else {
-            // Fallback for other types
-            let fallback_array = ArrayD::<f64>::zeros(IxDyn(&[1, 1]));
-            Rc::new(NdarrayWrapper::new(fallback_array))
-        }
+        // See the module-level `boxed_to_rc`: `Rc::from` preserves the exact
+        // concrete type via std's `Rc<T>: From<Box<T>>` impl, rather than
+        // downcast-enumerating only `NdarrayWrapper<f64, IxDyn>` and silently
+        // substituting a fabricated 1x1 zero placeholder for anything else
+        // (e.g. an update or gradient with a different dimension type).
+        Rc::from(boxed)
     }
 }
 
@@ -1452,38 +1430,50 @@ impl Optimizer for Adam {
 
 // Helper functions for optimizers
 
+/// Extract an owned, dynamically-dimensioned copy of the array wrapped by an
+/// `ArrayProtocol` value, regardless of whether it is concretely stored as
+/// `Ix1`, `Ix2`, or `IxDyn`. Callers that only special-case `IxDyn` (as this
+/// file's optimizer helpers historically did) silently fail on the very
+/// common `Array2`/`Array1`-backed case — e.g. a `Variable` built from a 2-D
+/// weight matrix — even though the arithmetic itself has no real dimension
+/// restriction.
+fn downcast_to_ixdyn<T: Clone + Send + Sync + 'static>(a: &dyn ArrayProtocol) -> Option<ArrayD<T>> {
+    if let Some(w) = a.as_any().downcast_ref::<NdarrayWrapper<T, IxDyn>>() {
+        return Some(w.as_array().clone());
+    }
+    if let Some(w) = a.as_any().downcast_ref::<NdarrayWrapper<T, Ix2>>() {
+        return Some(w.as_array().clone().into_dyn());
+    }
+    if let Some(w) = a.as_any().downcast_ref::<NdarrayWrapper<T, Ix1>>() {
+        return Some(w.as_array().clone().into_dyn());
+    }
+    None
+}
+
 /// Multiply an array by a scalar.
 fn multiply_by_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn ArrayProtocol>> {
-    if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
-        let inputarray = a_array.as_array();
+    if let Some(inputarray) = downcast_to_ixdyn::<f64>(a) {
         let result = inputarray.mapv(|x| x * scalar);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f32, IxDyn>>() {
-        let inputarray = a_array.as_array();
+    } else if let Some(inputarray) = downcast_to_ixdyn::<f32>(a) {
         let result = inputarray.mapv(|x| x * scalar as f32);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<i32, IxDyn>>() {
-        let inputarray = a_array.as_array();
+    } else if let Some(inputarray) = downcast_to_ixdyn::<i32>(a) {
         let result = inputarray.mapv(|x| (x as f64 * scalar) as i32);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<i64, IxDyn>>() {
-        let inputarray = a_array.as_array();
+    } else if let Some(inputarray) = downcast_to_ixdyn::<i64>(a) {
         let result = inputarray.mapv(|x| (x as f64 * scalar) as i64);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>() {
-        let inputarray = a_array.as_array();
+    } else if let Some(inputarray) = downcast_to_ixdyn::<u8>(a) {
         let result = inputarray.mapv(|x| (x as f64 * scalar) as u8);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>() {
-        let inputarray = a_array.as_array();
+    } else if let Some(inputarray) = downcast_to_ixdyn::<u16>(a) {
         let result = inputarray.mapv(|x| (x as f64 * scalar) as u16);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>() {
-        let inputarray = a_array.as_array();
+    } else if let Some(inputarray) = downcast_to_ixdyn::<u32>(a) {
         let result = inputarray.mapv(|x| (x as f64 * scalar) as u32);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>() {
-        let inputarray = a_array.as_array();
+    } else if let Some(inputarray) = downcast_to_ixdyn::<u64>(a) {
         let result = inputarray.mapv(|x| (x as f64 * scalar) as u64);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
     } else {
@@ -1499,70 +1489,36 @@ fn subtract_arrays(
     b: &dyn ArrayProtocol,
 ) -> CoreResult<Box<dyn ArrayProtocol>> {
     // Perform element-wise subtraction and return a new array
-    if let (Some(a_wrapper), Some(b_array)) = (
-        a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
-        b.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
-    ) {
-        let a_arr = a_wrapper.as_array();
-        let b_arr = b_array.as_array();
-        let result = a_arr - b_arr;
-        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let (Some(a_wrapper), Some(b_array)) = (
-        a.as_any().downcast_ref::<NdarrayWrapper<f32, IxDyn>>(),
-        b.as_any().downcast_ref::<NdarrayWrapper<f32, IxDyn>>(),
-    ) {
-        let a_arr = a_wrapper.as_array();
-        let b_arr = b_array.as_array();
-        let result = a_arr - b_arr;
-        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let (Some(a_wrapper), Some(b_array)) = (
-        a.as_any().downcast_ref::<NdarrayWrapper<i32, IxDyn>>(),
-        b.as_any().downcast_ref::<NdarrayWrapper<i32, IxDyn>>(),
-    ) {
-        let a_arr = a_wrapper.as_array();
-        let b_arr = b_array.as_array();
-        let result = a_arr - b_arr;
-        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let (Some(a_wrapper), Some(b_array)) = (
-        a.as_any().downcast_ref::<NdarrayWrapper<i64, IxDyn>>(),
-        b.as_any().downcast_ref::<NdarrayWrapper<i64, IxDyn>>(),
-    ) {
-        let a_arr = a_wrapper.as_array();
-        let b_arr = b_array.as_array();
-        let result = a_arr - b_arr;
-        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let (Some(a_wrapper), Some(b_array)) = (
-        a.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>(),
-        b.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>(),
-    ) {
-        let a_arr = a_wrapper.as_array();
-        let b_arr = b_array.as_array();
-        let result = a_arr - b_arr;
-        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let (Some(a_wrapper), Some(b_array)) = (
-        a.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>(),
-        b.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>(),
-    ) {
-        let a_arr = a_wrapper.as_array();
-        let b_arr = b_array.as_array();
-        let result = a_arr - b_arr;
-        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let (Some(a_wrapper), Some(b_array)) = (
-        a.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>(),
-        b.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>(),
-    ) {
-        let a_arr = a_wrapper.as_array();
-        let b_arr = b_array.as_array();
-        let result = a_arr - b_arr;
-        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
-    } else if let (Some(a_wrapper), Some(b_array)) = (
-        a.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>(),
-        b.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>(),
-    ) {
-        let a_arr = a_wrapper.as_array();
-        let b_arr = b_array.as_array();
-        let result = a_arr - b_arr;
-        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    if let (Some(a_arr), Some(b_arr)) = (downcast_to_ixdyn::<f64>(a), downcast_to_ixdyn::<f64>(b)) {
+        Ok(Box::new(NdarrayWrapper::new(a_arr - b_arr)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_arr), Some(b_arr)) =
+        (downcast_to_ixdyn::<f32>(a), downcast_to_ixdyn::<f32>(b))
+    {
+        Ok(Box::new(NdarrayWrapper::new(a_arr - b_arr)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_arr), Some(b_arr)) =
+        (downcast_to_ixdyn::<i32>(a), downcast_to_ixdyn::<i32>(b))
+    {
+        Ok(Box::new(NdarrayWrapper::new(a_arr - b_arr)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_arr), Some(b_arr)) =
+        (downcast_to_ixdyn::<i64>(a), downcast_to_ixdyn::<i64>(b))
+    {
+        Ok(Box::new(NdarrayWrapper::new(a_arr - b_arr)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_arr), Some(b_arr)) =
+        (downcast_to_ixdyn::<u8>(a), downcast_to_ixdyn::<u8>(b))
+    {
+        Ok(Box::new(NdarrayWrapper::new(a_arr - b_arr)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_arr), Some(b_arr)) =
+        (downcast_to_ixdyn::<u16>(a), downcast_to_ixdyn::<u16>(b))
+    {
+        Ok(Box::new(NdarrayWrapper::new(a_arr - b_arr)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_arr), Some(b_arr)) =
+        (downcast_to_ixdyn::<u32>(a), downcast_to_ixdyn::<u32>(b))
+    {
+        Ok(Box::new(NdarrayWrapper::new(a_arr - b_arr)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_arr), Some(b_arr)) =
+        (downcast_to_ixdyn::<u64>(a), downcast_to_ixdyn::<u64>(b))
+    {
+        Ok(Box::new(NdarrayWrapper::new(a_arr - b_arr)) as Box<dyn ArrayProtocol>)
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(
             "subtract_arrays not implemented for these array types".to_string(),

@@ -1,5 +1,6 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
+use crate::tensor_ops::matrix_calculus::{self, MatrixFnKind, MatrixFnVjpOp};
 use crate::Float;
 use scirs2_core::ndarray::{Array1, Array2, Ix2};
 use scirs2_core::numeric::FromPrimitive;
@@ -111,80 +112,100 @@ impl<F: Float> Op<F> for PseudoInverseOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let output = ctx.output(); // This is the pseudo-inverse
-        let input = ctx.input(0);
+        // Golub-Pereyra derivative of the Moore-Penrose pseudo-inverse.
+        let a = *ctx.input(0);
+        let p = *ctx.output();
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
+        let gx = Tensor::builder(g)
+            .append_input(a, false)
+            .append_input(p, false)
+            .append_input(gy, false)
+            .build(PseudoInverseVjpOp);
+        ctx.append_input_grad(0, Some(gx));
+    }
+}
 
-        // Evaluate tensors
-        let output_array = match output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+/// Backward node of [`PseudoInverseOp`].
+///
+/// Inputs are `(A, P, gy)` with `P = A⁺` (taken from the forward output rather than
+/// recomputed) and `gy` the cotangent of `P`.
+///
+/// Differentiating the Moore-Penrose conditions (Golub & Pereyra, 1973) gives
+///
+/// ```text
+///   dA⁺ = -A⁺ dA A⁺ + A⁺ A⁺ᵀ dAᵀ (I - A A⁺) + (I - A⁺ A) dAᵀ A⁺ᵀ A⁺
+/// ```
+///
+/// and taking the adjoint of each term against `gy` yields
+///
+/// ```text
+///   Ā = -Pᵀ gy Pᵀ + (I_m - A P) gyᵀ P Pᵀ + Pᵀ P gyᵀ (I_n - P A)
+/// ```
+///
+/// The last two terms are the *range* and *null-space* corrections; they vanish when `A`
+/// is square and invertible, where the rule correctly collapses to the matrix-inverse VJP
+/// `-A⁻ᵀ gy A⁻ᵀ`.
+///
+/// The previous implementation used
+/// `PᵀP gy Aᵀ Pᵀ` and `Pᵀ Aᵀ gy Pᵀᵀ Pᵀ` for those two corrections. Neither is the adjoint
+/// of anything in the expression above, and neither vanishes for an invertible `A`: on a
+/// 3x3 symmetric positive definite matrix the reported gradient was
+/// `+0.0344` where the true value is `-0.0473`.
+pub struct PseudoInverseVjpOp;
 
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+impl<F: Float> Op<F> for PseudoInverseVjpOp {
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a_in = ctx.input(0);
+        let p_in = ctx.input(1);
+        let gy_in = ctx.input(2);
 
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+        let a = a_in.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("pseudo-inverse backward: A is not 2-D".into())
+        })?;
+        let p = p_in.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("pseudo-inverse backward: A+ is not 2-D".into())
+        })?;
+        let gy = gy_in.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("pseudo-inverse backward: cotangent is not 2-D".into())
+        })?;
 
-        // Convert to 2D arrays
-        let pinv = match output_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+        let m = a.nrows();
+        let n = a.ncols();
+        if p.nrows() != n || p.ncols() != m {
+            return Err(OpError::IncompatibleShape(
+                "pseudo-inverse backward: A+ does not have the transposed shape of A".into(),
+            ));
+        }
+        if gy.shape() != p.shape() {
+            return Err(OpError::IncompatibleShape(
+                "pseudo-inverse backward: cotangent shape does not match A+".into(),
+            ));
+        }
 
-        let grad_out_2d = match grad_output_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+        let pt = p.t();
+        let gyt = gy.t();
 
-        let input_2d = match input_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
+        let term1 = pt.dot(&gy).dot(&pt).mapv(|v| -v);
 
-        // Gradient calculation
-        let pinv_t = pinv.t();
-        let term1 = -pinv_t.dot(&grad_out_2d).dot(&pinv_t);
-        let term2 = pinv_t
-            .dot(&pinv_t.t())
-            .dot(&grad_out_2d)
-            .dot(&input_2d.t())
-            .dot(&pinv_t);
-        let term3 = pinv_t
-            .dot(&input_2d.t())
-            .dot(&grad_out_2d)
-            .dot(&pinv_t.t())
-            .dot(&pinv_t);
+        // (I_m - A P) gyᵀ P Pᵀ
+        let range_projector = Array2::<F>::eye(m) - a.dot(&p);
+        let term2 = range_projector.dot(&gyt).dot(&p).dot(&pt);
 
-        let grad_input = term1 + term2 + term3;
+        // Pᵀ P gyᵀ (I_n - P A)
+        let null_projector = Array2::<F>::eye(n) - p.dot(&a);
+        let term3 = pt.dot(&p).dot(&gyt).dot(&null_projector);
 
-        // Convert gradient to tensor
-        let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        let grad = term1 + term2 + term3;
+        ctx.append_output(grad.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        matrix_calculus::append_unsupported_grad(
+            ctx,
+            "pseudo-inverse: second-order differentiation is not implemented".into(),
+        );
     }
 }
 
@@ -225,89 +246,22 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
+        // d det(A) / dA = det(A) * A^{-T}, so the VJP for an upstream scalar cotangent
+        // `gy` is `gy * det(A) * A^{-T}`.
+        //
+        // Built lazily out of graph ops.  The previous implementation evaluated `gy`,
+        // `det(A)` and `A` during graph construction and baked a constant tensor into the
+        // graph: that collapses the tape (no second derivative), needs every placeholder
+        // to already be fed, and indexed the 0-d determinant output with `[[0]]`, which
+        // panics with "Attempted to index with [0] in array with 0 axes".
         let input = ctx.input(0);
         let output = ctx.output();
-        let g = ctx.graph();
+        let gy = ctx.output_grad();
 
-        // Evaluate tensors
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let output_array = match output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Access scalar values
-        let grad_scalar = grad_output_array[[0]];
-        let det = output_array[[0]];
-
-        // Gradient of determinant: det(A) * A^{-T}
-        if det.abs() > F::epsilon() {
-            let input_2d = match input_array.view().into_dimensionality::<Ix2>() {
-                Ok(view) => view,
-                Err(_) => {
-                    ctx.append_input_grad(0, None);
-                    return;
-                }
-            };
-
-            match compute_inverse(&input_2d) {
-                Ok(inv) => {
-                    // Scale transpose of inverse by det and grad_scalar
-                    let inv_t = inv.t();
-
-                    // Correctly compute gradient: grad = grad_scalar * det * A^(-T)
-                    let scaled_grad = inv_t.mapv(|x| det * grad_scalar * x);
-                    let grad_tensor =
-                        crate::tensor_ops::convert_to_tensor(scaled_grad.into_dyn(), g);
-
-                    ctx.append_input_grad(0, Some(grad_tensor));
-                }
-                Err(_) => {
-                    // For nearly singular matrices, use regularized inverse
-                    let eps =
-                        F::epsilon() * F::from(10.0).expect("Failed to convert constant to float");
-                    let n = input_2d.shape()[0];
-                    let regularized = &input_2d + &(Array2::<F>::eye(n) * eps);
-
-                    if let Ok(reg_inv) = compute_inverse(&regularized.view()) {
-                        let reg_inv_t = reg_inv.t();
-                        let scaled_grad = reg_inv_t.mapv(|x| det * grad_scalar * x);
-                        let grad_tensor =
-                            crate::tensor_ops::convert_to_tensor(scaled_grad.into_dyn(), g);
-                        ctx.append_input_grad(0, Some(grad_tensor));
-                    } else {
-                        let zeros = scirs2_core::ndarray::Array::zeros(input_array.raw_dim());
-                        let grad_tensor = crate::tensor_ops::convert_to_tensor(zeros, g);
-                        ctx.append_input_grad(0, Some(grad_tensor));
-                    }
-                }
-            }
-            return;
-        }
-
-        // If matrix is singular, gradient is undefined
-        let zeros = scirs2_core::ndarray::Array::zeros(input_array.raw_dim());
-        let grad_tensor = crate::tensor_ops::convert_to_tensor(zeros, g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        let inv_a = crate::tensor_ops::matrix_inverse(input);
+        let inv_a_t = crate::tensor_ops::transpose(inv_a, &[1, 0]);
+        let scaled = crate::tensor_ops::mul(gy, output);
+        ctx.append_input_grad(0, Some(crate::tensor_ops::mul(scaled, inv_a_t)));
     }
 }
 
@@ -464,39 +418,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let output = ctx.output();
-        let g = ctx.graph();
-
-        // Gradient of matrix exponential: complex computation
-        // For now, use a simplified version
-        let _grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let _input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let _output_array = match output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Simplified gradient: pass through
-        ctx.append_input_grad(0, Some(*grad_output));
+        append_matrix_exp_grad(ctx);
     }
 }
 
@@ -526,10 +448,30 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        // Simplified gradient
-        ctx.append_input_grad(0, Some(*grad_output));
+        append_matrix_exp_grad(ctx);
     }
+}
+
+/// Backward rule shared by [`MatrixExp2Op`] and [`MatrixExp3Op`].
+///
+/// Both compute `exp(A)` (by different forward algorithms), so both have the same VJP:
+/// the adjoint of the Fréchet derivative of `exp` at `A` applied to the output cotangent,
+/// evaluated as the top-right block of `exp([[Aᵀ, gy], [0, Aᵀ]])`.
+///
+/// The node is built lazily instead of evaluated here. The previous code called
+/// `eval` on the input, the output *and* the cotangent, threw all three results away, and
+/// returned the cotangent unchanged — so `d expm(A) / dA` was the identity.
+fn append_matrix_exp_grad<F: Float>(ctx: &mut GradientContext<F>) {
+    let a = *ctx.input(0);
+    let gy = *ctx.output_grad();
+    let g = ctx.graph();
+    let gx = Tensor::builder(g)
+        .append_input(a, false)
+        .append_input(gy, false)
+        .build(MatrixFnVjpOp {
+            kind: MatrixFnKind::Exp,
+        });
+    ctx.append_input_grad(0, Some(gx));
 }
 
 /// Compute matrix exponential using Padé approximation
@@ -551,13 +493,13 @@ fn compute_matrix_exp_pade<F: Float + scirs2_core::ndarray::ScalarOperand + From
         }
     }
 
-    // Scaling parameter
-    let s = if norm > F::one() {
-        (norm.ln()
-            / F::from(2.0)
-                .expect("Failed to convert constant to float")
-                .ln())
-        .ceil()
+    // Scaling parameter.  The order-6 Padé approximant is accurate to `f64` rounding
+    // only once the scaled matrix has norm <= 1/2, so scale to that bound rather than to
+    // the norm <= 1 the previous `ceil(log2(norm))` produced.
+    let two = F::from(2.0).expect("Failed to convert constant to float");
+    let half = F::from(0.5).expect("Failed to convert constant to float");
+    let s = if norm > half {
+        ((norm / half).ln() / two.ln()).ceil()
     } else {
         F::zero()
     };
@@ -567,22 +509,30 @@ fn compute_matrix_exp_pade<F: Float + scirs2_core::ndarray::ScalarOperand + From
         .powf(s);
     let scaled_matrix = matrix.mapv(|x| x / scale);
 
-    // Padé approximation coefficients (order 6)
-    let c0 = F::from(1.0).expect("Failed to convert constant to float");
-    let c1 = F::from(0.5).expect("Failed to convert constant to float");
-    let c2 = F::from(12.0)
+    // Coefficients of the diagonal Padé approximant of order (6, 6):
+    //   b_j = (12 - j)! 6! / ( 12! j! (6 - j)! )
+    // i.e. 1, 1/2, 5/44, 1/66, 1/792, 1/15840, 1/665280.
+    //
+    // The previous constants (1/12, 1/120, 1/3360, 1/30240, 1/1209600) are not the
+    // order-6 Padé coefficients, and the odd part was built as `A * (b1*A + ...)`, which
+    // shifts every term one power too high and makes the "odd" polynomial even. Both are
+    // fixed here; `matrix_calculus::expm` is used as the cross-check in the unit test.
+    let b0 = F::from(1.0).expect("Failed to convert constant to float");
+    let b1 = F::from(0.5).expect("Failed to convert constant to float");
+    let b2 = F::from(44.0)
+        .expect("Failed to convert constant to float")
+        .recip()
+        * F::from(5.0).expect("Failed to convert constant to float");
+    let b3 = F::from(66.0)
         .expect("Failed to convert constant to float")
         .recip();
-    let c3 = F::from(120.0)
+    let b4 = F::from(792.0)
         .expect("Failed to convert constant to float")
         .recip();
-    let c4 = F::from(3360.0)
+    let b5 = F::from(15840.0)
         .expect("Failed to convert constant to float")
         .recip();
-    let c5 = F::from(30240.0)
-        .expect("Failed to convert constant to float")
-        .recip();
-    let c6 = F::from(1209600.0)
+    let b6 = F::from(665280.0)
         .expect("Failed to convert constant to float")
         .recip();
 
@@ -592,11 +542,12 @@ fn compute_matrix_exp_pade<F: Float + scirs2_core::ndarray::ScalarOperand + From
     let a4 = a2.dot(&a2);
     let a6 = a4.dot(&a2);
 
-    // Compute U and V for Padé approximation
-    let u = &scaled_matrix * c1 + &a2 * c3 + &a4 * c5;
+    // Odd part  U = A (b1 I + b3 A^2 + b5 A^4)
+    // Even part V = b0 I + b2 A^2 + b4 A^4 + b6 A^6
+    let u = &i * b1 + &a2 * b3 + &a4 * b5;
     let u = scaled_matrix.dot(&u);
 
-    let v = &i * c0 + &a2 * c2 + &a4 * c4 + &a6 * c6;
+    let v = &i * b0 + &a2 * b2 + &a4 * b4 + &a6 * b6;
 
     // Solve (V - U) * R = (V + U)
     let v_minus_u = &v - &u;
@@ -645,34 +596,12 @@ fn compute_matrix_exp_eigen<F: Float + scirs2_core::ndarray::ScalarOperand + Fro
         let result = temp.dot(&eigenvectors.t());
         Ok(result)
     } else {
-        // For general matrices, use approximation
-        compute_matrix_exp_taylor(matrix)
+        // A non-symmetric matrix has no real orthogonal eigendecomposition, so fall back
+        // to scaling-and-squaring.  The previous fallback was a bare 20-term Taylor
+        // series with no argument reduction, which loses all accuracy once ||A|| grows
+        // past a few units.
+        matrix_calculus::expm(matrix)
     }
-}
-
-/// Compute matrix exponential using Taylor series
-#[allow(dead_code)]
-fn compute_matrix_exp_taylor<F: Float + scirs2_core::ndarray::ScalarOperand>(
-    matrix: &scirs2_core::ndarray::ArrayView2<F>,
-) -> Result<Array2<F>, OpError> {
-    let n = matrix.shape()[0];
-    let mut result = Array2::<F>::eye(n);
-    let mut term = Array2::<F>::eye(n);
-
-    // Use more terms for better accuracy
-    for k in 1..=20 {
-        term = term.dot(matrix) / F::from(k).expect("Failed to convert to float");
-        let old_result = result.clone();
-        result += &term;
-
-        // Check convergence
-        let diff = (&result - &old_result).mapv(|x| x.abs()).sum();
-        if diff < F::epsilon() * F::from(n as f64).expect("Failed to convert to float") {
-            break;
-        }
-    }
-
-    Ok(result)
 }
 
 /// Solve matrix equation AX = B
@@ -757,74 +686,20 @@ fn is_symmetric_matrix<F: Float>(matrix: &scirs2_core::ndarray::ArrayView2<F>) -
     true
 }
 
-/// Simple symmetric eigendecomposition
+/// Symmetric eigendecomposition, `(values descending, vectors as columns)`.
+///
+/// Cyclic Jacobi via [`crate::tensor_ops::matrix_calculus::symmetric_eigen`]. The previous
+/// implementation solved the 2x2 case analytically and, for `n >= 3`, returned the
+/// diagonal of the matrix as its "eigenvalues" together with the identity as its
+/// "eigenvectors" — so `expm3` silently degenerated to `exp` of the diagonal for every
+/// matrix bigger than 2x2.
 #[allow(dead_code)]
 fn compute_symmetric_eigen_simple<
     F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive,
 >(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<(Array1<F>, Array2<F>), OpError> {
-    let n = matrix.shape()[0];
-
-    // For small matrices, use analytical solution
-    if n == 2 {
-        let a = matrix[[0, 0]];
-        let b = matrix[[0, 1]];
-        let c = matrix[[1, 1]];
-
-        let trace = a + c;
-        let det = a * c - b * b;
-        let discriminant =
-            trace * trace - F::from(4.0).expect("Failed to convert constant to float") * det;
-
-        if discriminant < F::zero() {
-            return Err(OpError::Other("Complex eigenvalues".into()));
-        }
-
-        let sqrt_disc = discriminant.sqrt();
-        let lambda1 =
-            (trace + sqrt_disc) / F::from(2.0).expect("Failed to convert constant to float");
-        let lambda2 =
-            (trace - sqrt_disc) / F::from(2.0).expect("Failed to convert constant to float");
-
-        let eigenvalues = Array1::from_vec(vec![lambda1, lambda2]);
-
-        // Compute eigenvectors
-        let mut eigenvectors = Array2::<F>::zeros((2, 2));
-
-        if b.abs() > F::epsilon() {
-            // First eigenvector
-            let v1_0 = lambda1 - c;
-            let v1_1 = b;
-            let norm1 = (v1_0 * v1_0 + v1_1 * v1_1).sqrt();
-            eigenvectors[[0, 0]] = v1_0 / norm1;
-            eigenvectors[[1, 0]] = v1_1 / norm1;
-
-            // Second eigenvector
-            let v2_0 = lambda2 - c;
-            let v2_1 = b;
-            let norm2 = (v2_0 * v2_0 + v2_1 * v2_1).sqrt();
-            eigenvectors[[0, 1]] = v2_0 / norm2;
-            eigenvectors[[1, 1]] = v2_1 / norm2;
-        } else {
-            // Matrix is diagonal
-            eigenvectors[[0, 0]] = F::one();
-            eigenvectors[[1, 1]] = F::one();
-        }
-
-        return Ok((eigenvalues, eigenvectors));
-    }
-
-    // For larger matrices, use iterative method (simplified)
-    let mut eigenvalues = Array1::<F>::zeros(n);
-    let eigenvectors = Array2::<F>::eye(n);
-
-    // Use diagonal approximation for simplicity
-    for i in 0..n {
-        eigenvalues[i] = matrix[[i, i]];
-    }
-
-    Ok((eigenvalues, eigenvectors))
+    matrix_calculus::symmetric_eigen(matrix)
 }
 
 // Public API functions

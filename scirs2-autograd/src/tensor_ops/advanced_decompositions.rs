@@ -1,5 +1,6 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
+use crate::tensor_ops::matrix_calculus;
 use crate::Float;
 use scirs2_core::ndarray::{s, Array1, Array2, Ix2};
 use scirs2_core::numeric::FromPrimitive;
@@ -20,9 +21,10 @@ pub struct JacobiSVDOp {
 /// Extraction operator for Jacobi SVD components
 pub struct SVDJacobiExtractOp {
     component: usize,
+    full_matrices: bool,
 }
 
-impl<F: Float> Op<F> for SVDJacobiExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for SVDJacobiExtractOp {
     fn name(&self) -> &'static str {
         match self.component {
             0 => "SVDJacobiExtractU",
@@ -33,14 +35,61 @@ impl<F: Float> Op<F> for SVDJacobiExtractOp {
     }
 
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
-        // This is a placeholder - the actual extraction happens in the parent op
-        Err(OpError::Other(
-            "SVD extraction should be handled by parent op".into(),
-        ))
+        // Re-run the decomposition on the original matrix and select one factor.
+        //
+        // This node used to unconditionally return
+        // `Err("SVD extraction should be handled by parent op")`, and no parent op ever
+        // did: `svd_jacobi()` returned three tensors none of which could be evaluated.
+        // Each component now recomputes the factorisation from the matrix it is given
+        // (the same design `decomposition_ops::SVDExtractOp` uses), which costs three
+        // decompositions but is correct and needs no multi-output plumbing — a graph node
+        // exposes only its first output.
+        let input = ctx.input(0);
+        let input_2d = input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("Jacobi SVD requires a 2-D matrix".into()))?;
+        let (u, sigma, vt) = compute_svd_jacobi(&input_2d, self.full_matrices)?;
+        match self.component {
+            0 => ctx.append_output(u.into_dyn()),
+            1 => ctx.append_output(sigma.into_dyn()),
+            2 => ctx.append_output(vt.into_dyn()),
+            other => {
+                return Err(OpError::Other(format!(
+                    "Jacobi SVD: component index {other} is out of range (expected 0, 1 or 2)"
+                )))
+            }
+        }
+        Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        ctx.append_input_grad(0, None);
+        if self.full_matrices {
+            // The extra `m - k` columns of a full `U` span the orthogonal complement of
+            // the range of `A` and are only determined up to an arbitrary rotation, so
+            // they have no well-defined derivative.
+            matrix_calculus::append_unsupported_grad(
+                ctx,
+                "svd_jacobi(full_matrices = true): the silent columns of a full U/Vt are \
+                 determined only up to a rotation of the null space and have no unique \
+                 derivative. Use full_matrices = false for a differentiable SVD."
+                    .into(),
+            );
+            return;
+        }
+        // Reduced SVD: the exact analytic VJP is already implemented in
+        // `decomposition_ops::SVDBackwardOp` (Townsend / Wan-Zhang), which recomputes the
+        // decomposition of A and applies the formula for the requested component.
+        let gy = *ctx.output_grad();
+        let input = *ctx.input(0);
+        let g = ctx.graph();
+        let gx = Tensor::builder(g)
+            .append_input(input, false)
+            .append_input(gy, false)
+            .build(crate::tensor_ops::decomposition_ops::SVDBackwardOp {
+                component: self.component,
+            });
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 
@@ -76,7 +125,10 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for J
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        // SVD gradient is complex - simplified version
+        // This node carries three outputs but a graph node exposes only its first, so it
+        // is never the tensor a user differentiates: `svd_jacobi()` builds one
+        // `SVDJacobiExtractOp` per factor and those carry the VJP.  Returning `None`
+        // (rather than a fabricated zero or a pass-through) keeps that honest.
         ctx.append_input_grad(0, None);
     }
 }
@@ -91,9 +143,14 @@ pub struct RandomizedSVDOp {
 /// Extraction operator for Randomized SVD components
 pub struct RandomizedSVDExtractOp {
     component: usize,
+    rank: usize,
+    oversampling: usize,
+    n_iter: usize,
 }
 
-impl<F: Float> Op<F> for RandomizedSVDExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F>
+    for RandomizedSVDExtractOp
+{
     fn name(&self) -> &'static str {
         match self.component {
             0 => "RandomizedSVDExtractU",
@@ -104,13 +161,41 @@ impl<F: Float> Op<F> for RandomizedSVDExtractOp {
     }
 
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
-        Err(OpError::Other(
-            "Randomized SVD extraction should be handled by parent op".into(),
-        ))
+        // As for `SVDJacobiExtractOp`: recompute and select, instead of the previous
+        // unconditional "should be handled by parent op" error that made
+        // `randomized_svd()` impossible to evaluate.
+        let input = ctx.input(0);
+        let input_2d = input.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("randomized SVD requires a 2-D matrix".into())
+        })?;
+        let (u, sigma, vt) =
+            compute_randomized_svd(&input_2d, self.rank, self.oversampling, self.n_iter)?;
+        match self.component {
+            0 => ctx.append_output(u.into_dyn()),
+            1 => ctx.append_output(sigma.into_dyn()),
+            2 => ctx.append_output(vt.into_dyn()),
+            other => {
+                return Err(OpError::Other(format!(
+                    "randomized SVD: component index {other} is out of range"
+                )))
+            }
+        }
+        Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        ctx.append_input_grad(0, None);
+        // A randomised range finder produces a rank-`rank` *approximation* whose factors
+        // depend on the sketch as well as on A.  The exact-SVD VJP is therefore not the
+        // derivative of this map, and pretending otherwise would report a gradient that
+        // is wrong by an amount nobody can bound.  `svd_jacobi(m, false)` is the
+        // differentiable entry point.
+        matrix_calculus::append_unsupported_grad(
+            ctx,
+            "randomized_svd: this is a sketched, rank-truncated approximation; its \
+             derivative is not the exact SVD VJP and is not implemented. Use \
+             svd_jacobi(matrix, false) when a gradient is required."
+                .into(),
+        );
     }
 }
 
@@ -156,7 +241,9 @@ pub struct GeneralizedEigenExtractOp {
     component: usize,
 }
 
-impl<F: Float> Op<F> for GeneralizedEigenExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F>
+    for GeneralizedEigenExtractOp
+{
     fn name(&self) -> &'static str {
         match self.component {
             0 => "GeneralizedEigenExtractValues",
@@ -166,13 +253,113 @@ impl<F: Float> Op<F> for GeneralizedEigenExtractOp {
     }
 
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
-        Err(OpError::Other(
-            "Generalized eigen extraction should be handled by parent op".into(),
-        ))
+        // Inputs are `(A, B)`; the node recomputes the decomposition and selects one
+        // component.  Previously this always returned an error, so `generalized_eigen()`
+        // produced two tensors that could not be evaluated at all.
+        let a_in = ctx.input(0);
+        let b_in = ctx.input(1);
+        let a = a_in.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("generalized eigenproblem: A is not 2-D".into())
+        })?;
+        let b = b_in.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("generalized eigenproblem: B is not 2-D".into())
+        })?;
+        let (values, vectors) = compute_generalized_eigen(&a, &b)?;
+        match self.component {
+            0 => ctx.append_output(values.into_dyn()),
+            1 => ctx.append_output(vectors.into_dyn()),
+            other => {
+                return Err(OpError::Other(format!(
+                    "generalized eigenproblem: component index {other} is out of range"
+                )))
+            }
+        }
+        Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        ctx.append_input_grad(0, None);
+        if self.component != 0 {
+            matrix_calculus::append_unsupported_grad(
+                ctx,
+                "generalized_eigen: the eigenvector VJP is not implemented (it needs the \
+                 1/(lambda_i - lambda_j) coupling matrix and a rule for the arbitrary \
+                 scale of each eigenvector). The eigenvalue output is differentiable."
+                    .into(),
+            );
+            return;
+        }
+        // First-order perturbation of `A v = lambda B v` with B-orthonormal eigenvectors
+        // (`v_kᵀ B v_k = 1`) gives `dlambda_k = v_kᵀ (dA - lambda_k dB) v_k`, hence
+        //
+        //     Ā = V diag(ḡ) Vᵀ            B̄ = -V diag(ḡ · lambda) Vᵀ
+        let a = *ctx.input(0);
+        let b = *ctx.input(1);
+        let gy = *ctx.output_grad();
+        let g = ctx.graph();
+        let grad_a = Tensor::builder(g)
+            .append_input(a, false)
+            .append_input(b, false)
+            .append_input(gy, false)
+            .build(GeneralizedEigenValuesVjpOp { wrt_b: false });
+        let grad_b = Tensor::builder(g)
+            .append_input(a, false)
+            .append_input(b, false)
+            .append_input(gy, false)
+            .build(GeneralizedEigenValuesVjpOp { wrt_b: true });
+        ctx.append_input_grad(0, Some(grad_a));
+        ctx.append_input_grad(1, Some(grad_b));
+    }
+}
+
+/// Backward node of the generalized-eigenvalue extraction.
+///
+/// Inputs are `(A, B, ḡ)`; the output is `Ā` (`wrt_b = false`) or `B̄` (`wrt_b = true`).
+pub struct GeneralizedEigenValuesVjpOp {
+    wrt_b: bool,
+}
+
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F>
+    for GeneralizedEigenValuesVjpOp
+{
+    fn name(&self) -> &'static str {
+        "GeneralizedEigenValuesVjp"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a_in = ctx.input(0);
+        let b_in = ctx.input(1);
+        let gy_in = ctx.input(2);
+        let a = a_in.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("generalized eigen backward: A is not 2-D".into())
+        })?;
+        let b = b_in.view().into_dimensionality::<Ix2>().map_err(|_| {
+            OpError::IncompatibleShape("generalized eigen backward: B is not 2-D".into())
+        })?;
+        let n = a.nrows();
+        if gy_in.len() != n {
+            return Err(OpError::IncompatibleShape(
+                "generalized eigen backward: cotangent length does not match the problem size"
+                    .into(),
+            ));
+        }
+
+        let (values, vectors) = compute_generalized_eigen(&a, &b)?;
+        let mut scaled = Array2::<F>::zeros((n, n));
+        for (k, gk) in gy_in.iter().enumerate() {
+            let weight = if self.wrt_b { -(*gk * values[k]) } else { *gk };
+            for i in 0..n {
+                scaled[[i, k]] = vectors[[i, k]] * weight;
+            }
+        }
+        ctx.append_output(scaled.dot(&vectors.t()).into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        matrix_calculus::append_unsupported_grad(
+            ctx,
+            "generalized_eigen: second-order differentiation is not implemented".into(),
+        );
     }
 }
 
@@ -228,7 +415,7 @@ pub struct QRPivotExtractOp {
     component: usize,
 }
 
-impl<F: Float> Op<F> for QRPivotExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for QRPivotExtractOp {
     fn name(&self) -> &'static str {
         match self.component {
             0 => "QRPivotExtractQ",
@@ -239,13 +426,43 @@ impl<F: Float> Op<F> for QRPivotExtractOp {
     }
 
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
-        Err(OpError::Other(
-            "QR pivot extraction should be handled by parent op".into(),
-        ))
+        // Recompute-and-select, replacing the previous unconditional error that made
+        // `qr_pivot()` return three unevaluable tensors.
+        let input = ctx.input(0);
+        let input_2d = input
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("pivoted QR requires a 2-D matrix".into()))?;
+        let (q, r, p) = compute_qr_pivot(&input_2d)?;
+        match self.component {
+            0 => ctx.append_output(q.into_dyn()),
+            1 => ctx.append_output(r.into_dyn()),
+            2 => ctx.append_output(p.into_dyn()),
+            other => {
+                return Err(OpError::Other(format!(
+                    "pivoted QR: component index {other} is out of range"
+                )))
+            }
+        }
+        Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        ctx.append_input_grad(0, None);
+        if self.component == 2 {
+            // The permutation is an integer vector chosen by a discrete argmax over
+            // column norms: piecewise constant, so its derivative is zero wherever it is
+            // defined.  `None` is the honest answer and keeps a shape-mismatched edge out
+            // of the accumulation.
+            ctx.append_input_grad(0, None);
+            return;
+        }
+        matrix_calculus::append_unsupported_grad(
+            ctx,
+            "qr_pivot: the Q/R vector-Jacobian products are not implemented. The factors \
+             satisfy A P = Q R, so their VJP is the unpivoted QR rule composed with the \
+             column permutation; use qr() (decomposition_ops) for a differentiable QR."
+                .into(),
+        );
     }
 }
 
@@ -547,28 +764,77 @@ fn compute_randomized_svd<F: Float + scirs2_core::ndarray::ScalarOperand + FromP
 
 /// Compute generalized eigenvalue problem
 #[allow(dead_code)]
+/// Symmetric-definite generalized eigenproblem `A v = lambda B v`.
+///
+/// Returns `(values, vectors)` with the eigenvalues in descending order and the
+/// eigenvectors as **B-orthonormal columns**: `Vᵀ B V = I` and `Vᵀ A V = diag(values)`.
+/// That normalisation is what makes the eigenvalue derivative
+/// `dlambda_k = v_kᵀ (dA - lambda_k dB) v_k` valid, and it is the convention LAPACK's
+/// `sygv` uses.
+///
+/// The reduction is the textbook one: factor `B = L Lᵀ` (Cholesky), form the *symmetric*
+/// matrix `C = L^-1 A L^-ᵀ`, diagonalise it, and map the eigenvectors back with
+/// `V = L^-ᵀ Y`.
+///
+/// # Errors
+///
+/// Rejects a non-symmetric `A`, and a `B` that is not symmetric positive definite. The
+/// previous implementation formed the *non-symmetric* product `B^-1 A` and ran an
+/// unshifted QR iteration on it, returning the accumulated `Q` as "eigenvectors" — those
+/// are Schur vectors, not eigenvectors, unless `B^-1 A` happens to be symmetric, so the
+/// second output was simply the wrong matrix for a general input. Failing loudly is
+/// better than returning a plausible-looking basis that does not diagonalise anything.
 fn compute_generalized_eigen<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     a: &scirs2_core::ndarray::ArrayView2<F>,
     b: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<(Array1<F>, Array2<F>), OpError> {
-    let _n = a.shape()[0];
+    let n = a.nrows();
+    if a.ncols() != n || b.nrows() != n || b.ncols() != n {
+        return Err(OpError::IncompatibleShape(
+            "generalized eigenproblem: A and B must be square and the same size".into(),
+        ));
+    }
+    if !matrix_calculus::is_symmetric(a) {
+        return Err(OpError::Other(
+            "generalized eigenproblem: A must be symmetric (only the symmetric-definite \
+             problem is implemented; the general case needs the QZ algorithm)"
+                .into(),
+        ));
+    }
+    if !matrix_calculus::is_symmetric(b) {
+        return Err(OpError::Other(
+            "generalized eigenproblem: B must be symmetric positive definite".into(),
+        ));
+    }
 
-    // Simple approach: compute B^(-1)A if B is non-singular
-    // For a robust implementation, use QZ algorithm
+    // Cholesky factor of B (lower triangular), with a positive-definiteness check.
+    let mut l = Array2::<F>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..=i {
+            let mut sum = (b[[i, j]] + b[[j, i]]) / F::from(2.0).unwrap_or_else(F::one);
+            for k in 0..j {
+                sum -= l[[i, k]] * l[[j, k]];
+            }
+            if i == j {
+                if sum <= F::zero() {
+                    return Err(OpError::Other(
+                        "generalized eigenproblem: B is not positive definite".into(),
+                    ));
+                }
+                l[[i, j]] = sum.sqrt();
+            } else {
+                l[[i, j]] = sum / l[[j, j]];
+            }
+        }
+    }
 
-    // Check if B is positive definite (simplified check)
-    let b_inv = match compute_matrix_inverse(b) {
-        Ok(inv) => inv,
-        Err(_) => return Err(OpError::Other("Matrix B is singular".into())),
-    };
-
-    // Compute B^(-1)A
-    let c = b_inv.dot(a);
-
-    // Compute eigenvalues of C
-    let (eigenvalues, eigenvectors) = compute_eigen_iterative(&c.view())?;
-
-    Ok((eigenvalues, eigenvectors))
+    let l_inv = matrix_calculus::inverse(&l.view())?;
+    // C = L^-1 A L^-T, symmetric by construction.
+    let c = l_inv.dot(a).dot(&l_inv.t());
+    let (values, y) = matrix_calculus::symmetric_eigen(&c.view())?;
+    // V = L^-T Y satisfies Vᵀ B V = Yᵀ L^-1 (L Lᵀ) L^-T Y = Yᵀ Y = I.
+    let vectors = l_inv.t().dot(&y);
+    Ok((values, vectors))
 }
 
 /// QR decomposition with column pivoting
@@ -940,25 +1206,20 @@ pub fn svd_jacobi<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimi
 ) -> (Tensor<'g, F>, Tensor<'g, F>, Tensor<'g, F>) {
     let g = matrix.graph();
 
-    // Build the SVD operation
-    let svd_op = Tensor::builder(g)
-        .append_input(matrix, false)
-        .build(JacobiSVDOp { full_matrices });
+    // Each component reads the *original matrix*, not a shared parent node: a graph node
+    // exposes only its first output, so a multi-output parent cannot hand U, S and Vt to
+    // three separate consumers.  Wiring the extractors to the parent is what made every
+    // one of these tensors fail to evaluate.
+    let component = |index: usize| {
+        Tensor::builder(g)
+            .append_input(matrix, false)
+            .build(SVDJacobiExtractOp {
+                component: index,
+                full_matrices,
+            })
+    };
 
-    // Extract components using SVDExtractOp
-    let u = Tensor::builder(g)
-        .append_input(svd_op, false)
-        .build(SVDJacobiExtractOp { component: 0 });
-
-    let s = Tensor::builder(g)
-        .append_input(svd_op, false)
-        .build(SVDJacobiExtractOp { component: 1 });
-
-    let vt = Tensor::builder(g)
-        .append_input(svd_op, false)
-        .build(SVDJacobiExtractOp { component: 2 });
-
-    (u, s, vt)
+    (component(0), component(1), component(2))
 }
 
 /// Compute randomized SVD for large matrices
@@ -971,27 +1232,18 @@ pub fn randomized_svd<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromP
 ) -> (Tensor<'g, F>, Tensor<'g, F>, Tensor<'g, F>) {
     let g = matrix.graph();
 
-    let svd_op = Tensor::builder(g)
-        .append_input(matrix, false)
-        .build(RandomizedSVDOp {
-            rank,
-            oversampling,
-            n_iter,
-        });
+    let component = |index: usize| {
+        Tensor::builder(g)
+            .append_input(matrix, false)
+            .build(RandomizedSVDExtractOp {
+                component: index,
+                rank,
+                oversampling,
+                n_iter,
+            })
+    };
 
-    let u = Tensor::builder(g)
-        .append_input(svd_op, false)
-        .build(RandomizedSVDExtractOp { component: 0 });
-
-    let s = Tensor::builder(g)
-        .append_input(svd_op, false)
-        .build(RandomizedSVDExtractOp { component: 1 });
-
-    let vt = Tensor::builder(g)
-        .append_input(svd_op, false)
-        .build(RandomizedSVDExtractOp { component: 2 });
-
-    (u, s, vt)
+    (component(0), component(1), component(2))
 }
 
 /// Solve generalized eigenvalue problem Ax = λBx
@@ -1002,20 +1254,14 @@ pub fn generalized_eigen<'g, F: Float + scirs2_core::ndarray::ScalarOperand + Fr
 ) -> (Tensor<'g, F>, Tensor<'g, F>) {
     let g = a.graph();
 
-    let eigen_op = Tensor::builder(g)
-        .append_input(a, false)
-        .append_input(b, false)
-        .build(GeneralizedEigenOp);
+    let component = |index: usize| {
+        Tensor::builder(g)
+            .append_input(a, false)
+            .append_input(b, false)
+            .build(GeneralizedEigenExtractOp { component: index })
+    };
 
-    let eigenvalues = Tensor::builder(g)
-        .append_input(eigen_op, false)
-        .build(GeneralizedEigenExtractOp { component: 0 });
-
-    let eigenvectors = Tensor::builder(g)
-        .append_input(eigen_op, false)
-        .build(GeneralizedEigenExtractOp { component: 1 });
-
-    (eigenvalues, eigenvectors)
+    (component(0), component(1))
 }
 
 /// QR decomposition with column pivoting
@@ -1025,21 +1271,11 @@ pub fn qr_pivot<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
 ) -> (Tensor<'g, F>, Tensor<'g, F>, Tensor<'g, F>) {
     let g = matrix.graph();
 
-    let qr_op = Tensor::builder(g)
-        .append_input(matrix, false)
-        .build(QRPivotOp);
+    let component = |index: usize| {
+        Tensor::builder(g)
+            .append_input(matrix, false)
+            .build(QRPivotExtractOp { component: index })
+    };
 
-    let q = Tensor::builder(g)
-        .append_input(qr_op, false)
-        .build(QRPivotExtractOp { component: 0 });
-
-    let r = Tensor::builder(g)
-        .append_input(qr_op, false)
-        .build(QRPivotExtractOp { component: 1 });
-
-    let p = Tensor::builder(g)
-        .append_input(qr_op, false)
-        .build(QRPivotExtractOp { component: 2 });
-
-    (q, r, p)
+    (component(0), component(1), component(2))
 }

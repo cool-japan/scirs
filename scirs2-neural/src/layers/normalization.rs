@@ -36,8 +36,9 @@ where
     eps: F,
     /// Input cache for backward pass
     input_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
-    /// Normalized input cache for backward pass
-    norm_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+    /// Cache of the standardized input `x_hat` (before the gamma/beta affine),
+    /// shaped `[batch, features]`; required by the backward pass
+    xhat_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
     /// Mean cache for backward pass
     mean_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
     /// Variance cache for backward pass
@@ -53,7 +54,7 @@ where
             Ok(guard) => guard.clone(),
             Err(_) => None,
         };
-        let norm_cache_clone = match self.norm_cache.read() {
+        let xhat_cache_clone = match self.xhat_cache.read() {
             Ok(guard) => guard.clone(),
             Err(_) => None,
         };
@@ -78,7 +79,7 @@ where
             )),
             eps: self.eps,
             input_cache: Arc::new(RwLock::new(input_cache_clone)),
-            norm_cache: Arc::new(RwLock::new(norm_cache_clone)),
+            xhat_cache: Arc::new(RwLock::new(xhat_cache_clone)),
             mean_cache: Arc::new(RwLock::new(mean_cache_clone)),
             var_cache: Arc::new(RwLock::new(var_cache_clone)),
         }
@@ -113,7 +114,7 @@ where
             dbeta,
             eps,
             input_cache: Arc::new(RwLock::new(None)),
-            norm_cache: Arc::new(RwLock::new(None)),
+            xhat_cache: Arc::new(RwLock::new(None)),
             mean_cache: Arc::new(RwLock::new(None)),
             var_cache: Arc::new(RwLock::new(None)),
         })
@@ -222,6 +223,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
 
         // Normalize and apply gamma/beta
         // Using SIMD for larger dimensions
+        let mut xhat = Array::<F, IxDyn>::zeros(IxDyn(&[batch_size, feat_dim]));
         let mut normalized = Array::<F, IxDyn>::zeros(IxDyn(&[batch_size, feat_dim]));
         for i in 0..batch_size {
             let inv_std = (var[[i, 0]] + self.eps).sqrt().recip();
@@ -229,18 +231,14 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
 
             for j in 0..feat_dim {
                 let x_norm = (reshaped[[i, j]] - mean_i) * inv_std;
+                xhat[[i, j]] = x_norm;
                 normalized[[i, j]] = x_norm * self.gamma[[j]] + self.beta[[j]];
             }
         }
 
-        // Cache normalized input
-        if let Ok(mut cache) = self.norm_cache.write() {
-            *cache = Some(
-                normalized
-                    .clone()
-                    .into_dimensionality::<IxDyn>()
-                    .expect("Operation failed"),
-            );
+        // Cache the standardized input (pre-affine) for the backward pass
+        if let Ok(mut cache) = self.xhat_cache.write() {
+            *cache = Some(xhat);
         }
 
         // Reshape back to original shape
@@ -251,18 +249,138 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
         Ok(output)
     }
 
+    /// Exact gradient of layer normalization.
+    ///
+    /// With `y_j = gamma_j * x_hat_j + beta_j` and
+    /// `x_hat_j = (x_j - mean) / sqrt(var + eps)` over the last axis:
+    ///
+    /// ```text
+    /// dgamma_j = sum_batch dy_j * x_hat_j
+    /// dbeta_j  = sum_batch dy_j
+    /// dx_j     = (dxhat_j - mean_k(dxhat_k) - x_hat_j * mean_k(dxhat_k x_hat_k)) / sqrt(var + eps)
+    /// ```
+    ///
+    /// where `dxhat_j = dy_j * gamma_j`. Parameter gradients are stored for
+    /// [`Layer::update`] and [`Layer::gradients`].
     fn backward(
         &self,
         _input: &Array<F, IxDyn>,
         grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // Simple implementation - return grad_output as is
-        Ok(grad_output.clone())
+        let xhat_guard = self.xhat_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on xhat cache".to_string())
+        })?;
+        let var_guard = self.var_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on variance cache".to_string())
+        })?;
+        let missing = || {
+            NeuralError::InferenceError(
+                "No cached values for backward pass. Call forward() first.".to_string(),
+            )
+        };
+        let xhat = xhat_guard.as_ref().ok_or_else(missing)?;
+        let var = var_guard.as_ref().ok_or_else(missing)?;
+
+        let feat_dim = self.normalizedshape[0];
+        let outshape = grad_output.shape().to_vec();
+        let ndim = outshape.len();
+        if ndim < 1 || outshape[ndim - 1] != feat_dim {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Gradient last dimension must be {feat_dim}, got {outshape:?}"
+            )));
+        }
+        let batch_size: usize = outshape[..ndim - 1].iter().product();
+        if xhat.shape() != [batch_size, feat_dim] {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Cached activations have shape {:?} but the gradient implies [{batch_size}, {feat_dim}]",
+                xhat.shape()
+            )));
+        }
+
+        let grad2d = grad_output
+            .to_owned()
+            .into_shape_with_order(IxDyn(&[batch_size, feat_dim]))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("Failed to reshape output gradient: {e}"))
+            })?;
+
+        let n = F::from(feat_dim).ok_or_else(|| {
+            NeuralError::InferenceError("Failed to convert feature count".to_string())
+        })?;
+
+        let mut dgamma = Array::<F, IxDyn>::zeros(IxDyn(&[feat_dim]));
+        let mut dbeta = Array::<F, IxDyn>::zeros(IxDyn(&[feat_dim]));
+        let mut grad_input = Array::<F, IxDyn>::zeros(IxDyn(&[batch_size, feat_dim]));
+
+        for i in 0..batch_size {
+            let inv_std = (var[[i, 0]] + self.eps).sqrt().recip();
+
+            let mut sum_dxhat = F::zero();
+            let mut sum_dxhat_xhat = F::zero();
+            for j in 0..feat_dim {
+                let dy = grad2d[[i, j]];
+                let xh = xhat[[i, j]];
+                dgamma[j] += dy * xh;
+                dbeta[j] += dy;
+                let dxhat = dy * self.gamma[[j]];
+                sum_dxhat += dxhat;
+                sum_dxhat_xhat += dxhat * xh;
+            }
+
+            for j in 0..feat_dim {
+                let dxhat = grad2d[[i, j]] * self.gamma[[j]];
+                grad_input[[i, j]] =
+                    (dxhat - sum_dxhat / n - xhat[[i, j]] * sum_dxhat_xhat / n) * inv_std;
+            }
+        }
+
+        if let Ok(mut cache) = self.dgamma.write() {
+            *cache = dgamma;
+        }
+        if let Ok(mut cache) = self.dbeta.write() {
+            *cache = dbeta;
+        }
+
+        grad_input
+            .into_shape_with_order(IxDyn(&outshape))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("Failed to reshape input gradient: {e}"))
+            })
     }
 
-    fn update(&mut self, _learningrate: F) -> Result<()> {
-        // Simple implementation - no-op for now
+    fn update(&mut self, learningrate: F) -> Result<()> {
+        let dgamma = self
+            .dgamma
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError("Failed to acquire read lock on dgamma".to_string())
+            })?
+            .clone();
+        let dbeta = self
+            .dbeta
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError("Failed to acquire read lock on dbeta".to_string())
+            })?
+            .clone();
+
+        for (param, grad) in [(&mut self.gamma, &dgamma), (&mut self.beta, &dbeta)] {
+            if param.shape() != grad.shape() {
+                return Err(NeuralError::ShapeMismatch(format!(
+                    "Parameter shape {:?} does not match gradient shape {:?}",
+                    param.shape(),
+                    grad.shape()
+                )));
+            }
+            scirs2_core::ndarray::Zip::from(&mut *param)
+                .and(grad)
+                .for_each(|w, &g| *w -= learningrate * g);
+        }
         Ok(())
+    }
+
+    fn gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
+        ParamLayer::get_gradients(self)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -303,8 +421,13 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
         vec![self.gamma.clone(), self.beta.clone()]
     }
 
+    /// Gradients of `[gamma, beta]`; zero until `backward` has run.
     fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
-        vec![]
+        let read = |cell: &Arc<RwLock<Array<F, IxDyn>>>| match cell.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Array::zeros(IxDyn(&[0])),
+        };
+        vec![read(&self.dgamma), read(&self.dbeta)]
     }
 
     fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
@@ -339,63 +462,206 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + SimdUnifiedOps + 'static +
 }
 
 /// Batch Normalization layer
-#[derive(Debug, Clone)]
+///
+/// Implements batch normalization as described in "Batch Normalization:
+/// Accelerating Deep Network Training by Reducing Internal Covariate Shift"
+/// (Ioffe & Szegedy, 2015).
+///
+/// For every channel `c`, the layer normalizes over the batch dimension and
+/// any trailing spatial dimensions (i.e. over all `(n, s)` for input shape
+/// `[N, C, ...]`), then applies a learnable affine transform:
+///
+/// ```text
+/// mean_c = mean_{n,s}(x[n, c, s])
+/// var_c  = mean_{n,s}((x[n, c, s] - mean_c)^2)
+/// x_hat[n, c, s] = (x[n, c, s] - mean_c) / sqrt(var_c + eps)
+/// y[n, c, s]     = gamma_c * x_hat[n, c, s] + beta_c
+/// ```
+///
+/// In training mode the batch statistics above are used, and an exponential
+/// moving average (the "running" mean/variance) is updated for later use at
+/// inference time. In evaluation mode (`set_training(false)`) the running
+/// statistics are used directly instead of recomputing batch statistics,
+/// matching standard BatchNorm semantics.
+///
+/// # Input shape
+/// `[N, C, ...]` — batch, channel, then zero or more trailing spatial
+/// dimensions (e.g. `[N, C]` for dense features or `[N, C, H, W]` for
+/// images).
+#[derive(Debug)]
 pub struct BatchNorm<F: Float + Debug + Send + Sync + NumAssign> {
     /// Number of features (channels)
     num_features: usize,
-    /// Learnable scale parameter
+    /// Learnable scale parameter, shape `[C]`
     gamma: Array<F, IxDyn>,
-    /// Learnable shift parameter
+    /// Learnable shift parameter, shape `[C]`
     beta: Array<F, IxDyn>,
     /// Small constant for numerical stability
-    #[allow(dead_code)]
     eps: F,
-    /// Momentum for running statistics updates
-    #[allow(dead_code)]
+    /// Momentum for the running-statistics exponential moving average (the
+    /// weight given to the newly observed batch statistic; PyTorch
+    /// convention, typically `0.1`)
     momentum: F,
     /// Whether we're in training mode
     training: bool,
+    /// Running mean, shape `[C]`; used for normalization in evaluation mode
+    running_mean: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Running (unbiased) variance, shape `[C]`; used for normalization in
+    /// evaluation mode
+    running_var: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of gamma, shape `[C]`
+    dgamma: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of beta, shape `[C]`
+    dbeta: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Cache of the standardized `x_hat` from the last forward pass, shaped
+    /// `[N, C, S]` (`S` = product of trailing spatial dims)
+    xhat_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+    /// Cache of `1 / sqrt(var + eps)` per channel from the last forward pass
+    inv_std_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+    /// Original input shape from the last forward pass, for reshaping the
+    /// gradient back
+    inputshape_cache: Arc<RwLock<Option<Vec<usize>>>>,
+    /// Whether the cached forward pass used batch statistics (training) or
+    /// running statistics (evaluation); the backward formula differs.
+    forward_was_training: Arc<RwLock<bool>>,
+}
+
+impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Clone for BatchNorm<F> {
+    fn clone(&self) -> Self {
+        let clone_arr = |cell: &Arc<RwLock<Array<F, IxDyn>>>| -> Array<F, IxDyn> {
+            cell.read()
+                .map(|g| g.clone())
+                .unwrap_or_else(|_| Array::zeros(IxDyn(&[self.num_features])))
+        };
+        Self {
+            num_features: self.num_features,
+            gamma: self.gamma.clone(),
+            beta: self.beta.clone(),
+            eps: self.eps,
+            momentum: self.momentum,
+            training: self.training,
+            running_mean: Arc::new(RwLock::new(clone_arr(&self.running_mean))),
+            running_var: Arc::new(RwLock::new(clone_arr(&self.running_var))),
+            dgamma: Arc::new(RwLock::new(clone_arr(&self.dgamma))),
+            dbeta: Arc::new(RwLock::new(clone_arr(&self.dbeta))),
+            xhat_cache: Arc::new(RwLock::new(
+                self.xhat_cache.read().map(|c| c.clone()).unwrap_or(None),
+            )),
+            inv_std_cache: Arc::new(RwLock::new(
+                self.inv_std_cache.read().map(|c| c.clone()).unwrap_or(None),
+            )),
+            inputshape_cache: Arc::new(RwLock::new(
+                self.inputshape_cache
+                    .read()
+                    .map(|c| c.clone())
+                    .unwrap_or(None),
+            )),
+            forward_was_training: Arc::new(RwLock::new(
+                self.forward_was_training.read().map(|g| *g).unwrap_or(true),
+            )),
+        }
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> BatchNorm<F> {
-    /// Create a new batch normalization layer
-    pub fn new<R: Rng>(
-        _num_features: usize,
-        momentum: f64,
-        eps: f64,
-        _rng: &mut R,
-    ) -> Result<Self> {
-        let gamma = Array::<F, IxDyn>::from_elem(IxDyn(&[_num_features]), F::one());
-        let beta = Array::<F, IxDyn>::from_elem(IxDyn(&[_num_features]), F::zero());
+    /// Create a new batch normalization layer.
+    ///
+    /// # Arguments
+    /// * `num_features` - number of channels `C`.
+    /// * `momentum` - weight given to the current batch statistic when
+    ///   updating the running mean/variance (typical: `0.1`).
+    /// * `eps` - small constant added to the variance for numerical
+    ///   stability (typical: `1e-5`).
+    pub fn new<R: Rng>(num_features: usize, momentum: f64, eps: f64, _rng: &mut R) -> Result<Self> {
+        if num_features == 0 {
+            return Err(NeuralError::InvalidArchitecture(
+                "BatchNorm: num_features must be non-zero".to_string(),
+            ));
+        }
 
-        let momentum = F::from(momentum).ok_or_else(|| {
+        let gamma = Array::<F, IxDyn>::from_elem(IxDyn(&[num_features]), F::one());
+        let beta = Array::<F, IxDyn>::from_elem(IxDyn(&[num_features]), F::zero());
+
+        let momentum_f = F::from(momentum).ok_or_else(|| {
             NeuralError::InvalidArchitecture("Failed to convert momentum to type F".to_string())
         })?;
 
-        let eps = F::from(eps).ok_or_else(|| {
+        let eps_f = F::from(eps).ok_or_else(|| {
             NeuralError::InvalidArchitecture("Failed to convert epsilon to type F".to_string())
         })?;
 
         Ok(Self {
-            num_features: _num_features,
+            num_features,
             gamma,
             beta,
-            eps,
-            momentum,
+            eps: eps_f,
+            momentum: momentum_f,
             training: true,
+            running_mean: Arc::new(RwLock::new(Array::zeros(IxDyn(&[num_features])))),
+            running_var: Arc::new(RwLock::new(Array::from_elem(
+                IxDyn(&[num_features]),
+                F::one(),
+            ))),
+            dgamma: Arc::new(RwLock::new(Array::zeros(IxDyn(&[num_features])))),
+            dbeta: Arc::new(RwLock::new(Array::zeros(IxDyn(&[num_features])))),
+            xhat_cache: Arc::new(RwLock::new(None)),
+            inv_std_cache: Arc::new(RwLock::new(None)),
+            inputshape_cache: Arc::new(RwLock::new(None)),
+            forward_was_training: Arc::new(RwLock::new(true)),
         })
     }
 
-    /// Set the training mode
-    #[allow(dead_code)]
+    /// Set the training mode on the concrete type.
+    ///
+    /// Prefer going through [`Layer::set_training`] when the layer is stored
+    /// as a `Box<dyn Layer<F>>` (e.g. inside [`crate::layers::Sequential`]) —
+    /// that trait method is overridden below to do the same thing, so both
+    /// paths stay in sync.
     pub fn set_training(&mut self, training: bool) {
         self.training = training;
     }
 
     /// Get the number of features
-    #[allow(dead_code)]
     pub fn num_features(&self) -> usize {
         self.num_features
+    }
+
+    /// Get the running mean (all zeros until at least one training-mode
+    /// forward pass has run).
+    pub fn running_mean(&self) -> Array<F, IxDyn> {
+        self.running_mean
+            .read()
+            .map(|g| g.clone())
+            .unwrap_or_else(|_| Array::zeros(IxDyn(&[self.num_features])))
+    }
+
+    /// Get the running (unbiased) variance (all ones until at least one
+    /// training-mode forward pass has run).
+    pub fn running_var(&self) -> Array<F, IxDyn> {
+        self.running_var
+            .read()
+            .map(|g| g.clone())
+            .unwrap_or_else(|_| Array::from_elem(IxDyn(&[self.num_features]), F::one()))
+    }
+
+    /// Validate `shape` is `[N, C, ...]` with `C == num_features` and return
+    /// `(batch, channels, trailing_spatial_size)`.
+    fn split_shape(&self, shape: &[usize]) -> Result<(usize, usize, usize)> {
+        if shape.len() < 2 {
+            return Err(NeuralError::InferenceError(format!(
+                "BatchNorm requires an input of shape [N, C, ...], got {shape:?}"
+            )));
+        }
+        let n = shape[0];
+        let c = shape[1];
+        if c != self.num_features {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "BatchNorm: expected {} channels, got {}",
+                self.num_features, c
+            )));
+        }
+        let s: usize = shape[2..].iter().product();
+        Ok((n, c, s))
     }
 }
 
@@ -403,20 +669,290 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Layer
     for BatchNorm<F>
 {
     fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
-        // Simple implementation - return input as is for now
-        Ok(input.clone())
+        let inputshape = input.shape().to_vec();
+        let (n, c, s) = self.split_shape(&inputshape)?;
+
+        let flat = input
+            .to_owned()
+            .into_shape_with_order(IxDyn(&[n, c, s]))
+            .map_err(|e| NeuralError::InferenceError(format!("Failed to reshape input: {e}")))?;
+
+        let mut xhat = Array::<F, IxDyn>::zeros(IxDyn(&[n, c, s]));
+        let mut output = Array::<F, IxDyn>::zeros(IxDyn(&[n, c, s]));
+        let mut inv_std = Array::<F, IxDyn>::zeros(IxDyn(&[c]));
+        let was_training = self.training;
+
+        if was_training {
+            let count = n * s;
+            if count == 0 {
+                return Err(NeuralError::InferenceError(
+                    "BatchNorm: cannot compute batch statistics over an empty batch".to_string(),
+                ));
+            }
+            let count_f = F::from(count).ok_or_else(|| {
+                NeuralError::InferenceError("Failed to convert element count".to_string())
+            })?;
+
+            let mut mean = Array::<F, IxDyn>::zeros(IxDyn(&[c]));
+            let mut var = Array::<F, IxDyn>::zeros(IxDyn(&[c]));
+
+            for ci in 0..c {
+                let mut sum = F::zero();
+                for ni in 0..n {
+                    for si in 0..s {
+                        sum += flat[[ni, ci, si]];
+                    }
+                }
+                mean[[ci]] = sum / count_f;
+            }
+            for ci in 0..c {
+                let mu = mean[[ci]];
+                let mut sq_sum = F::zero();
+                for ni in 0..n {
+                    for si in 0..s {
+                        let diff = flat[[ni, ci, si]] - mu;
+                        sq_sum += diff * diff;
+                    }
+                }
+                var[[ci]] = sq_sum / count_f;
+            }
+            for ci in 0..c {
+                inv_std[[ci]] = (var[[ci]] + self.eps).sqrt().recip();
+            }
+            for ci in 0..c {
+                let mu = mean[[ci]];
+                let is = inv_std[[ci]];
+                let g = self.gamma[[ci]];
+                let b = self.beta[[ci]];
+                for ni in 0..n {
+                    for si in 0..s {
+                        let xh = (flat[[ni, ci, si]] - mu) * is;
+                        xhat[[ni, ci, si]] = xh;
+                        output[[ni, ci, si]] = xh * g + b;
+                    }
+                }
+            }
+
+            // Update the running statistics. The batch itself is normalized
+            // with the biased variance above, but (matching common practice)
+            // the running average tracks the *unbiased* estimator.
+            let unbiased_scale = if count > 1 {
+                count_f / F::from(count - 1).unwrap_or(F::one())
+            } else {
+                F::one()
+            };
+            if let (Ok(mut rm), Ok(mut rv)) = (self.running_mean.write(), self.running_var.write())
+            {
+                let keep = F::one() - self.momentum;
+                for ci in 0..c {
+                    rm[[ci]] = keep * rm[[ci]] + self.momentum * mean[[ci]];
+                    rv[[ci]] = keep * rv[[ci]] + self.momentum * (var[[ci]] * unbiased_scale);
+                }
+            }
+        } else {
+            let rm = self.running_mean.read().map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on running mean".to_string(),
+                )
+            })?;
+            let rv = self.running_var.read().map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on running variance".to_string(),
+                )
+            })?;
+            for ci in 0..c {
+                inv_std[[ci]] = (rv[[ci]] + self.eps).sqrt().recip();
+            }
+            for ci in 0..c {
+                let mu = rm[[ci]];
+                let is = inv_std[[ci]];
+                let g = self.gamma[[ci]];
+                let b = self.beta[[ci]];
+                for ni in 0..n {
+                    for si in 0..s {
+                        let xh = (flat[[ni, ci, si]] - mu) * is;
+                        xhat[[ni, ci, si]] = xh;
+                        output[[ni, ci, si]] = xh * g + b;
+                    }
+                }
+            }
+        }
+
+        if let Ok(mut cache) = self.xhat_cache.write() {
+            *cache = Some(xhat);
+        }
+        if let Ok(mut cache) = self.inv_std_cache.write() {
+            *cache = Some(inv_std);
+        }
+        if let Ok(mut cache) = self.inputshape_cache.write() {
+            *cache = Some(inputshape.clone());
+        }
+        if let Ok(mut cache) = self.forward_was_training.write() {
+            *cache = was_training;
+        }
+
+        output
+            .into_shape_with_order(IxDyn(&inputshape))
+            .map_err(|e| NeuralError::InferenceError(format!("Failed to reshape output: {e}")))
     }
 
+    /// Gradient of batch normalization.
+    ///
+    /// In training mode this is the standard BN backward (mean/var are
+    /// functions of the batch, so their contribution to `dx` is included):
+    ///
+    /// ```text
+    /// dgamma_c = sum_{n,s} dy[n,c,s] * x_hat[n,c,s]
+    /// dbeta_c  = sum_{n,s} dy[n,c,s]
+    /// dx[n,c,s] = (gamma_c * inv_std_c / count)
+    ///     * (count*dy[n,c,s] - sum_dy_c - x_hat[n,c,s] * sum_dy_xhat_c)
+    /// ```
+    ///
+    /// In evaluation mode the running statistics are fixed constants (not
+    /// functions of the input), so the map degenerates to a plain per-element
+    /// affine: `dx = dy * gamma_c * inv_std_c`.
     fn backward(
         &self,
         _input: &Array<F, IxDyn>,
         grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        Ok(grad_output.clone())
+        let xhat_guard = self.xhat_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on xhat cache".to_string())
+        })?;
+        let inv_std_guard = self.inv_std_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on inv_std cache".to_string())
+        })?;
+        let shape_guard = self.inputshape_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on shape cache".to_string())
+        })?;
+        let training_guard = self.forward_was_training.read().map_err(|_| {
+            NeuralError::InferenceError(
+                "Failed to acquire read lock on training-mode cache".to_string(),
+            )
+        })?;
+
+        let missing = || {
+            NeuralError::InferenceError(
+                "No cached values for backward pass. Call forward() first.".to_string(),
+            )
+        };
+        let xhat = xhat_guard.as_ref().ok_or_else(missing)?;
+        let inv_std = inv_std_guard.as_ref().ok_or_else(missing)?;
+        let cachedshape = shape_guard.as_ref().ok_or_else(missing)?;
+        let was_training = *training_guard;
+
+        let outshape = grad_output.shape().to_vec();
+        if &outshape != cachedshape {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Gradient shape {outshape:?} does not match the cached forward shape {cachedshape:?}"
+            )));
+        }
+        let (n, c, s) = self.split_shape(&outshape)?;
+        if xhat.shape() != [n, c, s] {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Cached activations have shape {:?} but the gradient implies [{n}, {c}, {s}]",
+                xhat.shape()
+            )));
+        }
+
+        let grad_flat = grad_output
+            .to_owned()
+            .into_shape_with_order(IxDyn(&[n, c, s]))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("Failed to reshape output gradient: {e}"))
+            })?;
+
+        let count = n * s;
+        let count_f = F::from(count).ok_or_else(|| {
+            NeuralError::InferenceError("Failed to convert element count".to_string())
+        })?;
+
+        let mut dgamma = Array::<F, IxDyn>::zeros(IxDyn(&[c]));
+        let mut dbeta = Array::<F, IxDyn>::zeros(IxDyn(&[c]));
+        let mut grad_input = Array::<F, IxDyn>::zeros(IxDyn(&[n, c, s]));
+
+        for ci in 0..c {
+            let mut sum_dy = F::zero();
+            let mut sum_dy_xhat = F::zero();
+            for ni in 0..n {
+                for si in 0..s {
+                    let dy = grad_flat[[ni, ci, si]];
+                    let xh = xhat[[ni, ci, si]];
+                    sum_dy += dy;
+                    sum_dy_xhat += dy * xh;
+                }
+            }
+            dgamma[[ci]] = sum_dy_xhat;
+            dbeta[[ci]] = sum_dy;
+
+            let g = self.gamma[[ci]];
+            let is = inv_std[[ci]];
+
+            if was_training {
+                for ni in 0..n {
+                    for si in 0..s {
+                        let dy = grad_flat[[ni, ci, si]];
+                        let xh = xhat[[ni, ci, si]];
+                        grad_input[[ni, ci, si]] =
+                            (g * is / count_f) * (count_f * dy - sum_dy - xh * sum_dy_xhat);
+                    }
+                }
+            } else {
+                for ni in 0..n {
+                    for si in 0..s {
+                        grad_input[[ni, ci, si]] = grad_flat[[ni, ci, si]] * g * is;
+                    }
+                }
+            }
+        }
+
+        if let Ok(mut cache) = self.dgamma.write() {
+            *cache = dgamma;
+        }
+        if let Ok(mut cache) = self.dbeta.write() {
+            *cache = dbeta;
+        }
+
+        grad_input
+            .into_shape_with_order(IxDyn(&outshape))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("Failed to reshape input gradient: {e}"))
+            })
     }
 
-    fn update(&mut self, _learningrate: F) -> Result<()> {
+    fn update(&mut self, learningrate: F) -> Result<()> {
+        let dgamma = self
+            .dgamma
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError("Failed to acquire read lock on dgamma".to_string())
+            })?
+            .clone();
+        let dbeta = self
+            .dbeta
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError("Failed to acquire read lock on dbeta".to_string())
+            })?
+            .clone();
+
+        for (param, grad) in [(&mut self.gamma, &dgamma), (&mut self.beta, &dbeta)] {
+            if param.shape() != grad.shape() {
+                return Err(NeuralError::ShapeMismatch(format!(
+                    "Parameter shape {:?} does not match gradient shape {:?}",
+                    param.shape(),
+                    grad.shape()
+                )));
+            }
+            scirs2_core::ndarray::Zip::from(&mut *param)
+                .and(grad)
+                .for_each(|w, &g| *w -= learningrate * g);
+        }
         Ok(())
+    }
+
+    fn gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
+        ParamLayer::get_gradients(self)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -425,6 +961,19 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Layer
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
+    }
+
+    /// Switch between batch-statistic (training) and running-statistic
+    /// (evaluation) normalization. Overridden so that dispatch through a
+    /// `Box<dyn Layer<F>>` — e.g. `Sequential::set_training` — actually
+    /// reaches the field; the default `Layer::set_training` is a no-op.
+    fn set_training(&mut self, training: bool) {
+        self.training = training;
+    }
+
+    /// See [`Layer::set_training`]: overridden for the same reason.
+    fn is_training(&self) -> bool {
+        self.training
     }
 
     fn layer_type(&self) -> &str {
@@ -457,8 +1006,13 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Param
         vec![self.gamma.clone(), self.beta.clone()]
     }
 
+    /// Gradients of `[gamma, beta]`; zero until `backward` has run.
     fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
-        vec![]
+        let read = |cell: &Arc<RwLock<Array<F, IxDyn>>>| match cell.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Array::zeros(IxDyn(&[0])),
+        };
+        vec![read(&self.dgamma), read(&self.dbeta)]
     }
 
     fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
@@ -466,6 +1020,21 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Param
             return Err(NeuralError::InvalidArchitecture(format!(
                 "Expected 2 parameters, got {}",
                 params.len()
+            )));
+        }
+
+        if params[0].shape() != self.gamma.shape() {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "Gamma shape mismatch: expected {:?}, got {:?}",
+                self.gamma.shape(),
+                params[0].shape()
+            )));
+        }
+        if params[1].shape() != self.beta.shape() {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "Beta shape mismatch: expected {:?}, got {:?}",
+                self.beta.shape(),
+                params[1].shape()
             )));
         }
 

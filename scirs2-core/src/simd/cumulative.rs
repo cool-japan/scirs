@@ -121,6 +121,17 @@ pub fn simd_diff_f32(input: &ArrayView1<f32>) -> Array1<f32> {
     }
 
     let len = input.len() - 1;
+
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices).
+    // Correctness over speed here: a plain sequential scan, not vectorized.
+    if input.as_slice().is_none() {
+        let mut result = Vec::with_capacity(len);
+        for i in 0..len {
+            result.push(input[i + 1] - input[i]);
+        }
+        return Array1::from_vec(result);
+    }
+
     let mut result = Vec::with_capacity(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -131,8 +142,9 @@ pub fn simd_diff_f32(input: &ArrayView1<f32>) -> Array1<f32> {
 
                 let mut i = 0;
                 while i + 8 <= len {
-                    let curr_slice = &input.as_slice().expect("Operation failed")[i..i + 8];
-                    let next_slice = &input.as_slice().expect("Operation failed")[i + 1..i + 9];
+                    let curr_slice = &input.as_slice().expect("contiguity checked above")[i..i + 8];
+                    let next_slice =
+                        &input.as_slice().expect("contiguity checked above")[i + 1..i + 9];
 
                     let curr_vec = _mm256_loadu_ps(curr_slice.as_ptr());
                     let next_vec = _mm256_loadu_ps(next_slice.as_ptr());
@@ -162,8 +174,9 @@ pub fn simd_diff_f32(input: &ArrayView1<f32>) -> Array1<f32> {
 
                 let mut i = 0;
                 while i + 4 <= len {
-                    let curr_slice = &input.as_slice().expect("Operation failed")[i..i + 4];
-                    let next_slice = &input.as_slice().expect("Operation failed")[i + 1..i + 5];
+                    let curr_slice = &input.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let next_slice =
+                        &input.as_slice().expect("contiguity checked above")[i + 1..i + 5];
 
                     let curr_vec = vld1q_f32(curr_slice.as_ptr());
                     let next_vec = vld1q_f32(next_slice.as_ptr());
@@ -199,6 +212,17 @@ pub fn simd_diff_f64(input: &ArrayView1<f64>) -> Array1<f64> {
     }
 
     let len = input.len() - 1;
+
+    // Fall back to scalar for non-contiguous arrays (e.g. column slices).
+    // Correctness over speed here: a plain sequential scan, not vectorized.
+    if input.as_slice().is_none() {
+        let mut result = Vec::with_capacity(len);
+        for i in 0..len {
+            result.push(input[i + 1] - input[i]);
+        }
+        return Array1::from_vec(result);
+    }
+
     let mut result = Vec::with_capacity(len);
 
     #[cfg(target_arch = "x86_64")]
@@ -209,8 +233,9 @@ pub fn simd_diff_f64(input: &ArrayView1<f64>) -> Array1<f64> {
 
                 let mut i = 0;
                 while i + 4 <= len {
-                    let curr_slice = &input.as_slice().expect("Operation failed")[i..i + 4];
-                    let next_slice = &input.as_slice().expect("Operation failed")[i + 1..i + 5];
+                    let curr_slice = &input.as_slice().expect("contiguity checked above")[i..i + 4];
+                    let next_slice =
+                        &input.as_slice().expect("contiguity checked above")[i + 1..i + 5];
 
                     let curr_vec = _mm256_loadu_pd(curr_slice.as_ptr());
                     let next_vec = _mm256_loadu_pd(next_slice.as_ptr());
@@ -239,8 +264,9 @@ pub fn simd_diff_f64(input: &ArrayView1<f64>) -> Array1<f64> {
 
                 let mut i = 0;
                 while i + 2 <= len {
-                    let curr_slice = &input.as_slice().expect("Operation failed")[i..i + 2];
-                    let next_slice = &input.as_slice().expect("Operation failed")[i + 1..i + 3];
+                    let curr_slice = &input.as_slice().expect("contiguity checked above")[i..i + 2];
+                    let next_slice =
+                        &input.as_slice().expect("contiguity checked above")[i + 1..i + 3];
 
                     let curr_vec = vld1q_f64(curr_slice.as_ptr());
                     let next_vec = vld1q_f64(next_slice.as_ptr());

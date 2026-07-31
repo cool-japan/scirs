@@ -559,13 +559,18 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync + 'static> DistributedKMeans
                     computation_time_ms: computation_time,
                 });
 
-                // Update worker performance metrics
+                // Update worker performance metrics using a real resource
+                // measurement of the process actually performing the work
+                // (see `PerformanceMonitor::sample_resources` for why this
+                // is not attributable per-worker but is genuinely measured,
+                // not a fabricated constant).
                 let throughput = partition.data.nrows() as f64 / (computation_time as f64 / 1000.0);
                 let efficiency = 1.0 / (1.0 + computation_time as f64 / 10000.0); // Simplified efficiency
+                let (cpu_usage, memory_usage) = self.performance_monitor.sample_resources();
                 self.performance_monitor.update_worker_metrics(
                     partition.workerid,
-                    0.5, // CPU usage (placeholder)
-                    0.4, // Memory usage (placeholder)
+                    cpu_usage,
+                    memory_usage,
                     throughput,
                     computation_time as f64,
                 )?;
@@ -1010,5 +1015,60 @@ mod tests {
 
         let imbalanced_score = kmeans.calculate_load_balance_score();
         assert!(imbalanced_score < balanced_score);
+    }
+
+    #[test]
+    fn test_compute_worker_assignments_records_real_resource_measurements() {
+        // Previously `compute_worker_assignments` always recorded the
+        // fabricated pair (cpu=0.5, memory=0.4) for every worker regardless
+        // of the actual host state; this verifies it now records a genuine
+        // measurement instead.
+        let config = DistributedKMeansConfig {
+            n_workers: 2,
+            ..Default::default()
+        };
+        let mut kmeans = DistributedKMeans::<f64>::new(2, config).expect("Operation failed");
+
+        kmeans.initialize_workers().expect("Operation failed");
+        kmeans.centroids = Some(
+            Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 10.0, 10.0]).expect("Operation failed"),
+        );
+        kmeans.partitions = vec![
+            DataPartition::new(
+                0,
+                Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 0.5, 0.5, 0.2, 0.2])
+                    .expect("Operation failed"),
+                0,
+            ),
+            DataPartition::new(
+                1,
+                Array2::from_shape_vec((4, 2), vec![10.0, 10.0, 11.0, 11.0, 9.5, 9.5, 10.2, 10.2])
+                    .expect("Operation failed"),
+                1,
+            ),
+        ];
+
+        kmeans
+            .compute_worker_assignments()
+            .expect("Operation failed");
+
+        let worker_metrics = kmeans.performance_monitor.get_worker_metrics();
+        assert_eq!(worker_metrics.len(), 2);
+        for metrics in worker_metrics.values() {
+            let &cpu = metrics
+                .cpu_usage_history
+                .back()
+                .expect("expected a recorded cpu sample");
+            let &mem = metrics
+                .memory_usage_history
+                .back()
+                .expect("expected a recorded memory sample");
+            assert!((0.0..=1.0).contains(&cpu), "cpu out of range: {cpu}");
+            assert!((0.0..=1.0).contains(&mem), "memory out of range: {mem}");
+            assert!(
+                !(cpu == 0.5 && mem == 0.4),
+                "must not reproduce the old fabricated (0.5, 0.4) placeholder pair"
+            );
+        }
     }
 }

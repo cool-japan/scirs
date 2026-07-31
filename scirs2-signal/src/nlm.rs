@@ -1,4 +1,5 @@
 use scirs2_core::ndarray::s;
+use std::f64::consts::PI;
 // Non-Local Means denoising module
 //
 // This module implements Non-Local Means (NLM) denoising techniques for signal and image
@@ -126,7 +127,7 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
 
     // Pad _signal for boundary handling
     let padded_signal = if config.boundary {
-        pad_signal_1d(_signal, cmp::max(half_patch, half_search))
+        pad_signal_1d(signal, cmp::max(half_patch, half_search))
     } else {
         signal.clone()
     };
@@ -291,7 +292,7 @@ pub fn nlm_denoise_2d(image: &Array2<f64>, config: &NlmConfig) -> SignalResult<A
 
     // Pad _image for boundary handling
     let padded_image = if config.boundary {
-        pad_image_2d(_image, cmp::max(half_patch, half_search))
+        pad_image_2d(image, cmp::max(half_patch, half_search))
     } else {
         image.clone()
     };
@@ -541,7 +542,7 @@ pub fn nlm_block_matching_2d(
                     // Store block and weight if significant
                     if weight > 0.01 {
                         similar_blocks.push((si, sj));
-                        blockweights.push(weight);
+                        block_weights.push(weight);
 
                         // Limit the number of _blocks
                         if similar_blocks.len() >= max_blocks {
@@ -557,12 +558,12 @@ pub fn nlm_block_matching_2d(
 
             // Always include reference patch
             similar_blocks.push((i, j));
-            blockweights.push(1.0);
+            block_weights.push(1.0);
 
             // Normalize weights
-            let total_weight: f64 = blockweights.iter().sum();
+            let total_weight: f64 = block_weights.iter().sum();
             let normalized_weights: Vec<f64> =
-                blockweights.iter().map(|&w| w / total_weight).collect();
+                block_weights.iter().map(|&w| w / total_weight).collect();
 
             // Apply weighted average to each pixel in the patch
             for pi in 0..config.patch_size {
@@ -717,7 +718,7 @@ pub fn nlm_color_image(image: &Array3<f64>, config: &NlmConfig) -> SignalResult<
 
     // Pad _image for boundary handling
     let padded_image = if config.boundary {
-        pad_color_image(_image, cmp::max(half_patch, half_search))
+        pad_color_image(image, cmp::max(half_patch, half_search))
     } else {
         image.clone()
     };
@@ -863,22 +864,22 @@ pub fn nlm_color_image(image: &Array3<f64>, config: &NlmConfig) -> SignalResult<
 
 /// Helper function to pad a 1D signal with reflection at boundaries
 #[allow(dead_code)]
-fn pad_signal_1d(_signal: &Array1<f64>, padsize: usize) -> Array1<f64> {
+fn pad_signal_1d(signal: &Array1<f64>, padsize: usize) -> Array1<f64> {
     let n = signal.len();
-    let mut padded = Array1::zeros(n + 2 * pad_size);
+    let mut padded = Array1::zeros(n + 2 * padsize);
 
     // Copy original _signal
     for i in 0..n {
-        padded[i + pad_size] = signal[i];
+        padded[i + padsize] = signal[i];
     }
 
     // Reflect boundaries
-    for i in 0..pad_size {
+    for i in 0..padsize {
         // Left boundary
-        padded[pad_size - 1 - i] = signal[i.min(n - 1)];
+        padded[padsize - 1 - i] = signal[i.min(n - 1)];
 
         // Right boundary
-        padded[n + pad_size + i] = signal[n - 1 - i.min(n - 1)];
+        padded[n + padsize + i] = signal[n - 1 - i.min(n - 1)];
     }
 
     padded
@@ -886,47 +887,46 @@ fn pad_signal_1d(_signal: &Array1<f64>, padsize: usize) -> Array1<f64> {
 
 /// Helper function to pad a 2D image with reflection at boundaries
 #[allow(dead_code)]
-fn pad_image_2d(_image: &Array2<f64>, padsize: usize) -> Array2<f64> {
+fn pad_image_2d(image: &Array2<f64>, padsize: usize) -> Array2<f64> {
     let (height, width) = image.dim();
-    let mut padded = Array2::zeros((height + 2 * pad_size, width + 2 * pad_size));
+    let mut padded = Array2::zeros((height + 2 * padsize, width + 2 * padsize));
 
     // Copy original _image
     for i in 0..height {
         for j in 0..width {
-            padded[[i + pad_size, j + pad_size]] = image[[i, j]];
+            padded[[i + padsize, j + padsize]] = image[[i, j]];
         }
     }
 
     // Pad top and bottom edges
-    for i in 0..pad_size {
+    for i in 0..padsize {
         for j in 0..width {
             // Top edge
-            padded[[pad_size - 1 - i, j + pad_size]] = image[[i.min(height - 1), j]];
+            padded[[padsize - 1 - i, j + padsize]] = image[[i.min(height - 1), j]];
 
             // Bottom edge
-            padded[[height + pad_size + i, j + pad_size]] =
+            padded[[height + padsize + i, j + padsize]] =
                 image[[height - 1 - i.min(height - 1), j]];
         }
     }
 
     // Pad left and right edges
-    for i in 0..height + 2 * pad_size {
-        for j in 0..pad_size {
+    for i in 0..height + 2 * padsize {
+        for j in 0..padsize {
             // Handle corner cases
-            let src_i = if i < pad_size {
-                i.min(pad_size - 1)
-            } else if i >= height + pad_size {
-                height - 1 - (i - (height + pad_size)).min(height - 1)
+            let src_i = if i < padsize {
+                i.min(padsize - 1)
+            } else if i >= height + padsize {
+                height - 1 - (i - (height + padsize)).min(height - 1)
             } else {
-                i - pad_size
+                i - padsize
             };
 
             // Left edge
-            padded[[i, pad_size - 1 - j]] = padded[[i, pad_size + j.min(width - 1)]];
+            padded[[i, padsize - 1 - j]] = padded[[i, padsize + j.min(width - 1)]];
 
             // Right edge
-            padded[[i, width + pad_size + j]] =
-                padded[[i, width + pad_size - 1 - j.min(width - 1)]];
+            padded[[i, width + padsize + j]] = padded[[i, width + padsize - 1 - j.min(width - 1)]];
         }
     }
 
@@ -935,14 +935,14 @@ fn pad_image_2d(_image: &Array2<f64>, padsize: usize) -> Array2<f64> {
 
 /// Helper function to pad a 3D color image with reflection at boundaries
 #[allow(dead_code)]
-fn pad_color_image(_image: &Array3<f64>, padsize: usize) -> Array3<f64> {
+fn pad_color_image(image: &Array3<f64>, padsize: usize) -> Array3<f64> {
     let (height, width, channels) = image.dim();
-    let mut padded = Array3::zeros((height + 2 * pad_size, width + 2 * pad_size, channels));
+    let mut padded = Array3::zeros((height + 2 * padsize, width + 2 * padsize, channels));
 
     // Pad each channel separately
     for c in 0..channels {
         let channel = image.index_axis(Axis(2), c).to_owned();
-        let padded_channel = pad_image_2d(&channel, pad_size);
+        let padded_channel = pad_image_2d(&channel, padsize);
 
         for i in 0..padded_channel.dim().0 {
             for j in 0..padded_channel.dim().1 {
@@ -1104,7 +1104,7 @@ fn estimate_noise_sigma(signal: &Array1<f64>) -> f64 {
 
     let mut diffs = Vec::with_capacity(n - 1);
     for i in 1..n {
-        diffs.push((_signal[i] - signal[i - 1]).abs());
+        diffs.push((signal[i] - signal[i - 1]).abs());
     }
 
     // Sort differences and find median

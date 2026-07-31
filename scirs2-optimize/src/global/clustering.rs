@@ -5,6 +5,7 @@
 //! unique local minima and provides insights into the optimization landscape.
 
 use crate::error::OptimizeError;
+use crate::global::qmc::SobolGenerator;
 use crate::unconstrained::{minimize, Method, Options};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::collections::HashMap;
@@ -988,29 +989,23 @@ fn generate_grid_points(bounds: &[(f64, f64)], num_points: usize) -> Vec<Array1<
     _points
 }
 
-/// Generate Sobol sequence points (simplified)
+/// Generate Sobol sequence points: validated direction numbers for the
+/// first [`crate::global::qmc::MAX_SOBOL_DIM`] dimensions, Halton fallback
+/// beyond that (see [`crate::global::qmc`]). A previous version of this
+/// function used a Van-der-Corput sequence with a shifted base per
+/// dimension -- a real low-discrepancy sequence, but not Sobol despite the
+/// name.
 #[allow(dead_code)]
 fn generate_sobol_points(bounds: &[(f64, f64)], num_points: usize) -> Vec<Array1<f64>> {
-    // Simplified Sobol sequence (in practice, use proper implementation)
     let dim = bounds.len();
-    let mut points = Vec::new();
+    let mut sobol_gen = SobolGenerator::new(dim);
+    let mut points = Vec::with_capacity(num_points);
 
-    for i in 0..num_points {
+    for _ in 0..num_points {
+        let sobol_point = sobol_gen.next_point();
         let mut point = Array1::zeros(dim);
         for (j, &(low, high)) in bounds.iter().enumerate() {
-            // Van der Corput sequence for dimension j
-            let mut n = i + 1;
-            let base = 2 + j; // Different base for each dimension
-            let mut result = 0.0;
-            let mut f = 1.0 / base as f64;
-
-            while n > 0 {
-                result += (n % base) as f64 * f;
-                n /= base;
-                f /= base as f64;
-            }
-
-            point[j] = low + result * (high - low);
+            point[j] = low + sobol_point[j] * (high - low);
         }
         points.push(point);
     }

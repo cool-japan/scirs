@@ -1,49 +1,16 @@
 //! Core types and configuration for robotics metrics
 //!
-//! This module contains the main RoboticsMetrics structure and shared types
-//! used throughout the robotics evaluation system.
+//! This module contains shared value types (trajectory points, poses, error
+//! statistics, ...) used throughout the robotics evaluation system. The
+//! top-level [`RoboticsMetrics`](super::RoboticsMetrics) aggregate struct
+//! itself lives in the parent `mod.rs`, where it is actually constructed and
+//! implements [`DomainMetrics`](super::super::DomainMetrics).
 
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use super::super::{DomainEvaluationResult, DomainMetrics};
-use crate::error::{MetricsError, Result};
-use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::time::Duration;
-
-// Re-export from submodules
-use super::motion_planning::MotionPlanningMetrics;
-use super::slam_localization::SlamMetrics;
-use super::manipulation::ManipulationMetrics;
-use super::navigation::NavigationMetrics;
-use super::human_robot_interaction::HumanRobotInteractionMetrics;
-use super::multi_robot::MultiRobotMetrics;
-use super::safety_reliability::SafetyReliabilityMetrics;
-use super::perception::RoboticPerceptionMetrics;
-
-/// Comprehensive robotics evaluation metrics suite
-#[derive(Debug)]
-pub struct RoboticsMetrics {
-    /// Motion planning and control metrics
-    pub motion_metrics: MotionPlanningMetrics,
-    /// SLAM and localization metrics
-    pub slam_metrics: SlamMetrics,
-    /// Manipulation task metrics
-    pub manipulation_metrics: ManipulationMetrics,
-    /// Navigation metrics
-    pub navigation_metrics: NavigationMetrics,
-    /// Human-robot interaction metrics
-    pub hri_metrics: HumanRobotInteractionMetrics,
-    /// Multi-robot coordination metrics
-    pub multi_robot_metrics: MultiRobotMetrics,
-    /// Safety and reliability metrics
-    pub safety_metrics: SafetyReliabilityMetrics,
-    /// Perception metrics for robotics
-    pub perception_metrics: RoboticPerceptionMetrics,
-}
 
 /// Common error statistics used across multiple robotics domains
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -103,47 +70,6 @@ pub struct MemoryUsageMetrics {
     pub allocation_rate: f64,
     /// Memory fragmentation percentage
     pub fragmentation_percentage: f64,
-}
-
-/// Configuration parameters for robotics evaluation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoboticsEvaluationConfig {
-    /// Time window for evaluation (seconds)
-    pub evaluation_window: Duration,
-    /// Sampling frequency (Hz)
-    pub sampling_frequency: f64,
-    /// Enable detailed analysis
-    pub enable_detailed_analysis: bool,
-    /// Coordinate system type
-    pub coordinate_system: CoordinateSystem,
-    /// Evaluation mode
-    pub evaluation_mode: EvaluationMode,
-}
-
-/// Coordinate system types
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum CoordinateSystem {
-    /// World coordinate system
-    World,
-    /// Robot base coordinate system
-    RobotBase,
-    /// Camera coordinate system
-    Camera,
-    /// Custom coordinate system
-    Custom(String),
-}
-
-/// Evaluation modes
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum EvaluationMode {
-    /// Float-time evaluation
-    RealTime,
-    /// Offline analysis
-    Offline,
-    /// Benchmark comparison
-    Benchmark,
-    /// Simulation mode
-    Simulation,
 }
 
 /// Common trajectory point representation
@@ -212,18 +138,6 @@ pub struct BoundingBox {
     pub center: [f64; 3],
     /// Dimensions (width, height, depth)
     pub dimensions: [f64; 3],
-}
-
-impl Default for RoboticsEvaluationConfig {
-    fn default() -> Self {
-        Self {
-            evaluation_window: Duration::from_secs(60),
-            sampling_frequency: 30.0,
-            enable_detailed_analysis: true,
-            coordinate_system: CoordinateSystem::World,
-            evaluation_mode: EvaluationMode::RealTime,
-        }
-    }
 }
 
 impl Default for ErrorStatistics {
@@ -320,12 +234,16 @@ impl Pose {
     }
 
     /// Calculate angular difference to another pose (in radians)
+    ///
+    /// Uses the standard closed-form angular distance between two unit
+    /// quaternions, `theta = 2*acos(|q1 . q2|)`. This is exact when both
+    /// `orientation` quaternions are unit-normalized (the convention used
+    /// throughout this module); it is not a heuristic approximation.
     pub fn angular_distance_to(&self, other: &Pose) -> f64 {
-        // Simplified quaternion distance calculation
-        let dot_product = self.orientation[0] * other.orientation[0] +
-                         self.orientation[1] * other.orientation[1] +
-                         self.orientation[2] * other.orientation[2] +
-                         self.orientation[3] * other.orientation[3];
+        let dot_product = self.orientation[0] * other.orientation[0]
+            + self.orientation[1] * other.orientation[1]
+            + self.orientation[2] * other.orientation[2]
+            + self.orientation[3] * other.orientation[3];
         2.0 * dot_product.abs().acos()
     }
 }
@@ -338,11 +256,7 @@ impl BoundingBox {
             (min[1] + max[1]) / 2.0,
             (min[2] + max[2]) / 2.0,
         ];
-        let dimensions = [
-            max[0] - min[0],
-            max[1] - min[1],
-            max[2] - min[2],
-        ];
+        let dimensions = [max[0] - min[0], max[1] - min[1], max[2] - min[2]];
 
         Self {
             min,
@@ -359,9 +273,12 @@ impl BoundingBox {
 
     /// Check if a point is inside the bounding box
     pub fn contains_point(&self, point: [f64; 3]) -> bool {
-        point[0] >= self.min[0] && point[0] <= self.max[0] &&
-        point[1] >= self.min[1] && point[1] <= self.max[1] &&
-        point[2] >= self.min[2] && point[2] <= self.max[2]
+        point[0] >= self.min[0]
+            && point[0] <= self.max[0]
+            && point[1] >= self.min[1]
+            && point[1] <= self.max[1]
+            && point[2] >= self.min[2]
+            && point[2] <= self.max[2]
     }
 
     /// Calculate intersection with another bounding box
@@ -374,7 +291,10 @@ impl BoundingBox {
         let max_z = self.max[2].min(other.max[2]);
 
         if min_x <= max_x && min_y <= max_y && min_z <= max_z {
-            Some(BoundingBox::new([min_x, min_y, min_z], [max_x, max_y, max_z]))
+            Some(BoundingBox::new(
+                [min_x, min_y, min_z],
+                [max_x, max_y, max_z],
+            ))
         } else {
             None
         }
@@ -437,17 +357,16 @@ pub mod utils {
         }
 
         let mean = values.iter().sum::<f64>() / values.len() as f64;
-        let variance = values.iter()
-            .map(|x| (x - mean).powi(2))
-            .sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / values.len() as f64;
         let std_dev = variance.sqrt();
         let rmse = (values.iter().map(|x| x.powi(2)).sum::<f64>() / values.len() as f64).sqrt();
 
         let mut sorted_values = values.to_vec();
         sorted_values.sort_by(|a, b| a.partial_cmp(b).expect("Operation failed"));
 
-        let median = if sorted_values.len() % 2 == 0 {
-            (sorted_values[sorted_values.len() / 2 - 1] + sorted_values[sorted_values.len() / 2]) / 2.0
+        let median = if sorted_values.len().is_multiple_of(2) {
+            (sorted_values[sorted_values.len() / 2 - 1] + sorted_values[sorted_values.len() / 2])
+                / 2.0
         } else {
             sorted_values[sorted_values.len() / 2]
         };

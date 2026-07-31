@@ -134,12 +134,82 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
             .map_err(|e| NeuralError::InferenceError(format!("reshape back: {e}")))
     }
 
-    fn backward(
-        &self,
-        _input: &Array<F, IxDyn>,
-        grad: &Array<F, IxDyn>,
-    ) -> Result<Array<F, IxDyn>> {
-        Ok(grad.clone())
+    /// Exact gradient of `y = gamma * x / rms(x)`, `rms(x) = sqrt(mean(x^2) + eps)`.
+    ///
+    /// Recomputed from the `input` the caller hands back (rather than an
+    /// internal cache): with `xnorm = x / rms(x)` and `dg = dy * gamma`,
+    ///
+    /// ```text
+    /// dgamma_j = sum_batch dy_j * xnorm_j
+    /// dx_k     = (1 / rms) * (dg_k - xnorm_k * mean_j(dg_j * xnorm_j))
+    /// ```
+    fn backward(&self, input: &Array<F, IxDyn>, grad: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        let shape = input.shape();
+        let ndim = shape.len();
+        if ndim < 1 {
+            return Err(NeuralError::InferenceError("Need >= 1D".into()));
+        }
+        let feat = shape[ndim - 1];
+        if feat != self.d_model {
+            return Err(NeuralError::InferenceError(format!(
+                "Last dim ({feat}) != d_model ({})",
+                self.d_model
+            )));
+        }
+        if grad.shape() != shape {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Gradient shape {:?} must match input shape {shape:?}",
+                grad.shape()
+            )));
+        }
+
+        let outer: usize = shape[..ndim - 1].iter().product();
+        let flat_in = input
+            .clone()
+            .into_shape_with_order(IxDyn(&[outer, feat]))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape: {e}")))?;
+        let flat_grad = grad
+            .clone()
+            .into_shape_with_order(IxDyn(&[outer, feat]))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape grad: {e}")))?;
+
+        let n = F::from(feat).unwrap_or(F::one());
+        let mut grad_input = Array::<F, IxDyn>::zeros(IxDyn(&[outer, feat]));
+        let mut dgamma = Array::<F, IxDyn>::zeros(IxDyn(&[feat]));
+        let mut dg_row = vec![F::zero(); feat];
+
+        for i in 0..outer {
+            let mut sum_sq = F::zero();
+            for j in 0..feat {
+                let v = flat_in[[i, j]];
+                sum_sq += v * v;
+            }
+            let rms = (sum_sq / n + self.eps).sqrt();
+            let inv_rms = F::one() / rms;
+
+            let mut s = F::zero();
+            for j in 0..feat {
+                let xnorm = flat_in[[i, j]] * inv_rms;
+                let dy = flat_grad[[i, j]];
+                let dg = dy * self.gamma[[j]];
+                dg_row[j] = dg;
+                dgamma[j] += dy * xnorm;
+                s += dg * xnorm;
+            }
+            let mean_s = s / n;
+            for j in 0..feat {
+                let xnorm = flat_in[[i, j]] * inv_rms;
+                grad_input[[i, j]] = inv_rms * (dg_row[j] - xnorm * mean_s);
+            }
+        }
+
+        if let Ok(mut cache) = self.dgamma.write() {
+            *cache = dgamma;
+        }
+
+        grad_input
+            .into_shape_with_order(IxDyn(shape))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape back: {e}")))
     }
 
     fn update(&mut self, lr: F) -> Result<()> {
@@ -240,7 +310,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Group
                 "num_groups and num_channels must be > 0".into(),
             ));
         }
-        if num_channels % num_groups != 0 {
+        if !num_channels.is_multiple_of(num_groups) {
             return Err(NeuralError::InvalidArchitecture(format!(
                 "num_channels ({num_channels}) must be divisible by num_groups ({num_groups})"
             )));
@@ -316,7 +386,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
                             mean += input[[b, s, c]];
                         }
                     }
-                    mean = mean / n;
+                    mean /= n;
 
                     let mut var = F::zero();
                     for s in 0..seq {
@@ -325,7 +395,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
                             var += diff * diff;
                         }
                     }
-                    var = var / n;
+                    var /= n;
 
                     let inv_std = (var + self.eps).sqrt().recip();
 
@@ -357,7 +427,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
                             }
                         }
                     }
-                    mean = mean / n;
+                    mean /= n;
 
                     let mut var = F::zero();
                     for c in c_start..c_end {
@@ -368,7 +438,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
                             }
                         }
                     }
-                    var = var / n;
+                    var /= n;
 
                     let inv_std = (var + self.eps).sqrt().recip();
                     for c in c_start..c_end {
@@ -393,12 +463,163 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
         Ok(output)
     }
 
-    fn backward(
-        &self,
-        _input: &Array<F, IxDyn>,
-        grad: &Array<F, IxDyn>,
-    ) -> Result<Array<F, IxDyn>> {
-        Ok(grad.clone())
+    /// Exact gradient of group normalization.
+    ///
+    /// Recomputed from the `input` the caller hands back (rather than an
+    /// internal cache). Within one `(batch, group)` reduction set, `gamma`
+    /// and `beta` vary by channel exactly like they do in
+    /// [`super::normalization::LayerNorm`], so the same closed form applies
+    /// per group:
+    ///
+    /// ```text
+    /// dxhat_j  = dy_j * gamma_{c(j)}
+    /// dx_j     = inv_std * (dxhat_j - mean_k(dxhat_k) - xhat_j * mean_k(dxhat_k * xhat_k))
+    /// ```
+    ///
+    /// where `mean_k` ranges over the same `(channel-in-group, spatial)`
+    /// reduction set that produced `mean`/`var`. `dgamma`/`dbeta` sum over
+    /// the batch and spatial dims for each channel.
+    fn backward(&self, input: &Array<F, IxDyn>, grad: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        let shape = input.shape();
+        if grad.shape() != shape {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Gradient shape {:?} must match input shape {shape:?}",
+                grad.shape()
+            )));
+        }
+        let ndim = shape.len();
+        let ch_axis = self.channel_axis;
+        let channels_per_group = self.num_channels / self.num_groups;
+        let batch = shape[0];
+
+        let mut dgamma = Array::<F, IxDyn>::zeros(IxDyn(&[self.num_channels]));
+        let mut dbeta = Array::<F, IxDyn>::zeros(IxDyn(&[self.num_channels]));
+        let mut grad_input = Array::<F, IxDyn>::zeros(IxDyn(shape));
+
+        if ndim == 3 && ch_axis == 2 {
+            let seq = shape[1];
+            let count = seq * channels_per_group;
+            let n = F::from(count).unwrap_or(F::one());
+
+            for b in 0..batch {
+                for g in 0..self.num_groups {
+                    let c_start = g * channels_per_group;
+                    let c_end = c_start + channels_per_group;
+
+                    let mut mean = F::zero();
+                    for s in 0..seq {
+                        for c in c_start..c_end {
+                            mean += input[[b, s, c]];
+                        }
+                    }
+                    mean /= n;
+                    let mut var = F::zero();
+                    for s in 0..seq {
+                        for c in c_start..c_end {
+                            let diff = input[[b, s, c]] - mean;
+                            var += diff * diff;
+                        }
+                    }
+                    var /= n;
+                    let inv_std = (var + self.eps).sqrt().recip();
+
+                    let mut sum_dxhat = F::zero();
+                    let mut sum_dxhat_xhat = F::zero();
+                    for s in 0..seq {
+                        for c in c_start..c_end {
+                            let xhat = (input[[b, s, c]] - mean) * inv_std;
+                            let dy = grad[[b, s, c]];
+                            dgamma[c] += dy * xhat;
+                            dbeta[c] += dy;
+                            let dxhat = dy * self.gamma[[c]];
+                            sum_dxhat += dxhat;
+                            sum_dxhat_xhat += dxhat * xhat;
+                        }
+                    }
+                    for s in 0..seq {
+                        for c in c_start..c_end {
+                            let xhat = (input[[b, s, c]] - mean) * inv_std;
+                            let dxhat = grad[[b, s, c]] * self.gamma[[c]];
+                            grad_input[[b, s, c]] =
+                                inv_std * (dxhat - sum_dxhat / n - xhat * sum_dxhat_xhat / n);
+                        }
+                    }
+                }
+            }
+        } else if ndim == 4 && ch_axis == 1 {
+            let h = shape[2];
+            let w = shape[3];
+            let count = channels_per_group * h * w;
+            let n = F::from(count).unwrap_or(F::one());
+
+            for b in 0..batch {
+                for g in 0..self.num_groups {
+                    let c_start = g * channels_per_group;
+                    let c_end = c_start + channels_per_group;
+
+                    let mut mean = F::zero();
+                    for c in c_start..c_end {
+                        for y in 0..h {
+                            for x in 0..w {
+                                mean += input[[b, c, y, x]];
+                            }
+                        }
+                    }
+                    mean /= n;
+                    let mut var = F::zero();
+                    for c in c_start..c_end {
+                        for y in 0..h {
+                            for x in 0..w {
+                                let diff = input[[b, c, y, x]] - mean;
+                                var += diff * diff;
+                            }
+                        }
+                    }
+                    var /= n;
+                    let inv_std = (var + self.eps).sqrt().recip();
+
+                    let mut sum_dxhat = F::zero();
+                    let mut sum_dxhat_xhat = F::zero();
+                    for c in c_start..c_end {
+                        for y in 0..h {
+                            for x in 0..w {
+                                let xhat = (input[[b, c, y, x]] - mean) * inv_std;
+                                let dy = grad[[b, c, y, x]];
+                                dgamma[c] += dy * xhat;
+                                dbeta[c] += dy;
+                                let dxhat = dy * self.gamma[[c]];
+                                sum_dxhat += dxhat;
+                                sum_dxhat_xhat += dxhat * xhat;
+                            }
+                        }
+                    }
+                    for c in c_start..c_end {
+                        for y in 0..h {
+                            for x in 0..w {
+                                let xhat = (input[[b, c, y, x]] - mean) * inv_std;
+                                let dxhat = grad[[b, c, y, x]] * self.gamma[[c]];
+                                grad_input[[b, c, y, x]] =
+                                    inv_std * (dxhat - sum_dxhat / n - xhat * sum_dxhat_xhat / n);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            return Err(NeuralError::InferenceError(format!(
+                "GroupNorm: unsupported layout ndim={ndim}, channel_axis={ch_axis}. \
+                 Supported: 3D ch=2 or 4D ch=1."
+            )));
+        }
+
+        if let Ok(mut cache) = self.dgamma.write() {
+            *cache = dgamma;
+        }
+        if let Ok(mut cache) = self.dbeta.write() {
+            *cache = dbeta;
+        }
+
+        Ok(grad_input)
     }
 
     fn update(&mut self, lr: F) -> Result<()> {
@@ -481,6 +702,10 @@ pub struct InstanceNorm<F: Float + Debug + Send + Sync + NumAssign> {
     /// Whether to use affine transform
     affine: bool,
     training: bool,
+    /// Gradient of gamma (unused, kept zero, unless `affine`)
+    dgamma: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of beta (unused, kept zero, unless `affine`)
+    dbeta: Arc<RwLock<Array<F, IxDyn>>>,
     _phantom: PhantomData<F>,
 }
 
@@ -516,6 +741,8 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Insta
             beta,
             affine,
             training: true,
+            dgamma: Arc::new(RwLock::new(Array::zeros(IxDyn(&[num_channels])))),
+            dbeta: Arc::new(RwLock::new(Array::zeros(IxDyn(&[num_channels])))),
             _phantom: PhantomData,
         })
     }
@@ -560,7 +787,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
                 for s in 0..spatial {
                     mean += flat[[b, c, s]];
                 }
-                mean = mean / n;
+                mean /= n;
 
                 // Variance
                 let mut var = F::zero();
@@ -568,7 +795,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
                     let diff = flat[[b, c, s]] - mean;
                     var += diff * diff;
                 }
-                var = var / n;
+                var /= n;
 
                 let inv_std = (var + self.eps).sqrt().recip();
 
@@ -588,14 +815,127 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
             .map_err(|e| NeuralError::InferenceError(format!("reshape back: {e}")))
     }
 
-    fn backward(
-        &self,
-        _input: &Array<F, IxDyn>,
-        grad: &Array<F, IxDyn>,
-    ) -> Result<Array<F, IxDyn>> {
-        Ok(grad.clone())
+    /// Exact gradient of instance normalization.
+    ///
+    /// Recomputed from the `input` the caller hands back. Each `(batch,
+    /// channel)` pair normalizes independently over the spatial axis, and
+    /// `gamma`/`beta` (when present) are constant across that reduction set,
+    /// so the closed form matches [`super::normalization::BatchNorm`]'s
+    /// per-channel case with the reduction restricted to one sample:
+    ///
+    /// ```text
+    /// dx[b,c,s] = gamma_c * inv_std / S * (S*dy[b,c,s] - sum_s(dy) - xhat[b,c,s] * sum_s(dy*xhat))
+    /// ```
+    fn backward(&self, input: &Array<F, IxDyn>, grad: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        let shape = input.shape();
+        if grad.shape() != shape {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Gradient shape {:?} must match input shape {shape:?}",
+                grad.shape()
+            )));
+        }
+        if shape.len() < 3 {
+            return Err(NeuralError::InferenceError(
+                "InstanceNorm requires >= 3D input".into(),
+            ));
+        }
+        let batch = shape[0];
+        let channels = shape[1];
+        if channels != self.num_channels {
+            return Err(NeuralError::InferenceError(format!(
+                "Channel dim ({channels}) != num_channels ({})",
+                self.num_channels
+            )));
+        }
+        let spatial: usize = shape[2..].iter().product();
+        let n = F::from(spatial).unwrap_or(F::one());
+
+        let flat_in = input
+            .clone()
+            .into_shape_with_order(IxDyn(&[batch, channels, spatial]))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape: {e}")))?;
+        let flat_grad = grad
+            .clone()
+            .into_shape_with_order(IxDyn(&[batch, channels, spatial]))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape grad: {e}")))?;
+
+        let mut dgamma = Array::<F, IxDyn>::zeros(IxDyn(&[channels]));
+        let mut dbeta = Array::<F, IxDyn>::zeros(IxDyn(&[channels]));
+        let mut grad_input = Array::<F, IxDyn>::zeros(IxDyn(&[batch, channels, spatial]));
+
+        for b in 0..batch {
+            for c in 0..channels {
+                let mut mean = F::zero();
+                for s in 0..spatial {
+                    mean += flat_in[[b, c, s]];
+                }
+                mean /= n;
+                let mut var = F::zero();
+                for s in 0..spatial {
+                    let diff = flat_in[[b, c, s]] - mean;
+                    var += diff * diff;
+                }
+                var /= n;
+                let inv_std = (var + self.eps).sqrt().recip();
+                let gamma_c = self.gamma.as_ref().map(|g| g[[c]]).unwrap_or(F::one());
+
+                let mut sum_dy = F::zero();
+                let mut sum_dy_xhat = F::zero();
+                for s in 0..spatial {
+                    let xhat = (flat_in[[b, c, s]] - mean) * inv_std;
+                    let dy = flat_grad[[b, c, s]];
+                    dgamma[c] += dy * xhat;
+                    dbeta[c] += dy;
+                    sum_dy += dy;
+                    sum_dy_xhat += dy * xhat;
+                }
+                for s in 0..spatial {
+                    let xhat = (flat_in[[b, c, s]] - mean) * inv_std;
+                    let dy = flat_grad[[b, c, s]];
+                    grad_input[[b, c, s]] =
+                        (gamma_c * inv_std / n) * (n * dy - sum_dy - xhat * sum_dy_xhat);
+                }
+            }
+        }
+
+        if self.affine {
+            if let Ok(mut cache) = self.dgamma.write() {
+                *cache = dgamma;
+            }
+            if let Ok(mut cache) = self.dbeta.write() {
+                *cache = dbeta;
+            }
+        }
+
+        grad_input
+            .into_shape_with_order(IxDyn(shape))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape back: {e}")))
     }
-    fn update(&mut self, _lr: F) -> Result<()> {
+
+    fn update(&mut self, lr: F) -> Result<()> {
+        if !self.affine {
+            return Ok(());
+        }
+        let dg = self
+            .dgamma
+            .read()
+            .map_err(|_| NeuralError::InferenceError("lock".into()))?
+            .clone();
+        let db = self
+            .dbeta
+            .read()
+            .map_err(|_| NeuralError::InferenceError("lock".into()))?
+            .clone();
+        if let Some(ref mut gamma) = self.gamma {
+            for c in 0..self.num_channels {
+                gamma[[c]] -= lr * dg[[c]];
+            }
+        }
+        if let Some(ref mut beta) = self.beta {
+            for c in 0..self.num_channels {
+                beta[[c]] -= lr * db[[c]];
+            }
+        }
         Ok(())
     }
     fn as_any(&self) -> &dyn std::any::Any {
@@ -666,6 +1006,12 @@ pub struct WeightNorm<F: Float + Debug + Send + Sync + NumAssign> {
     /// Bias [out_features]
     bias: Array<F, IxDyn>,
     training: bool,
+    /// Gradient of `v`, shape `[in_features, out_features]`
+    dv: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of `g`, shape `[out_features]`
+    dg: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of `bias`, shape `[out_features]`
+    dbias: Arc<RwLock<Array<F, IxDyn>>>,
     _phantom: PhantomData<F>,
 }
 
@@ -717,6 +1063,12 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Weigh
             g,
             bias,
             training: true,
+            dv: Arc::new(RwLock::new(Array::zeros(IxDyn(&[
+                in_features,
+                out_features,
+            ])))),
+            dg: Arc::new(RwLock::new(Array::zeros(IxDyn(&[out_features])))),
+            dbias: Arc::new(RwLock::new(Array::zeros(IxDyn(&[out_features])))),
             _phantom: PhantomData,
         })
     }
@@ -788,14 +1140,166 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + NumAssign + 'static> Layer
             .map_err(|e| NeuralError::InferenceError(format!("reshape back: {e}")))
     }
 
-    fn backward(
-        &self,
-        _input: &Array<F, IxDyn>,
-        grad: &Array<F, IxDyn>,
-    ) -> Result<Array<F, IxDyn>> {
-        Ok(grad.clone())
+    /// Exact gradient of `y = x @ (g * v / ||v||) + bias`.
+    ///
+    /// Recomputed from the `input` the caller hands back. First backprops
+    /// through the linear map using the effective weight `w = g*v/||v||`,
+    /// then through the weight-norm reparameterization itself (Salimans &
+    /// Kingma, 2016):
+    ///
+    /// ```text
+    /// dbias_o = sum_batch dy[b,o]
+    /// dw[i,o] = sum_batch dy[b,o] * x[b,i]
+    /// dx[b,i] = sum_o dy[b,o] * w[i,o]
+    /// dg_o    = sum_i dw[i,o] * v[i,o] / ||v[:,o]||
+    /// dv[i,o] = (g_o / ||v[:,o]||) * (dw[i,o] - v[i,o] * dot_o / ||v[:,o]||^2)
+    /// ```
+    ///
+    /// where `dot_o = sum_i dw[i,o] * v[i,o]`.
+    fn backward(&self, input: &Array<F, IxDyn>, grad: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        let shape = input.shape().to_vec();
+        if shape.len() < 2 {
+            return Err(NeuralError::InferenceError("Need >= 2D".into()));
+        }
+        let last = shape[shape.len() - 1];
+        if last != self.in_features {
+            return Err(NeuralError::InferenceError(format!(
+                "Last dim ({last}) != in_features ({})",
+                self.in_features
+            )));
+        }
+        let mut expectedshape = shape[..shape.len() - 1].to_vec();
+        expectedshape.push(self.out_features);
+        if grad.shape() != expectedshape.as_slice() {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Gradient shape {:?} must be {:?}",
+                grad.shape(),
+                expectedshape
+            )));
+        }
+
+        let outer: usize = shape[..shape.len() - 1].iter().product();
+        let flat_in = input
+            .clone()
+            .into_shape_with_order(IxDyn(&[outer, self.in_features]))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape: {e}")))?;
+        let flat_grad = grad
+            .clone()
+            .into_shape_with_order(IxDyn(&[outer, self.out_features]))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape grad: {e}")))?;
+
+        let w = self.compute_weights();
+
+        let mut dbias = Array::<F, IxDyn>::zeros(IxDyn(&[self.out_features]));
+        let mut dw = Array::<F, IxDyn>::zeros(IxDyn(&[self.in_features, self.out_features]));
+        let mut grad_input = Array::<F, IxDyn>::zeros(IxDyn(&[outer, self.in_features]));
+
+        for o in 0..self.out_features {
+            let mut acc = F::zero();
+            for b in 0..outer {
+                acc += flat_grad[[b, o]];
+            }
+            dbias[[o]] = acc;
+        }
+        for i in 0..self.in_features {
+            for o in 0..self.out_features {
+                let mut acc = F::zero();
+                for b in 0..outer {
+                    acc += flat_grad[[b, o]] * flat_in[[b, i]];
+                }
+                dw[[i, o]] = acc;
+            }
+        }
+        for b in 0..outer {
+            for i in 0..self.in_features {
+                let mut acc = F::zero();
+                for o in 0..self.out_features {
+                    acc += flat_grad[[b, o]] * w[[i, o]];
+                }
+                grad_input[[b, i]] = acc;
+            }
+        }
+
+        // Backprop through w = g * v / ||v|| (per output column).
+        let mut dv = Array::<F, IxDyn>::zeros(IxDyn(&[self.in_features, self.out_features]));
+        let mut dg = Array::<F, IxDyn>::zeros(IxDyn(&[self.out_features]));
+        let eps = F::from(1e-12).unwrap_or(F::zero());
+        for o in 0..self.out_features {
+            let mut norm_sq = F::zero();
+            for i in 0..self.in_features {
+                let val = self.v[[i, o]];
+                norm_sq += val * val;
+            }
+            let norm = norm_sq.sqrt();
+
+            if norm <= eps {
+                // Degenerate (near-)zero direction column: `compute_weights`
+                // treats `inv_norm` as the constant `1` in this case, so the
+                // norm is detached from `v` and w = g*v directly.
+                let mut dg_o = F::zero();
+                for i in 0..self.in_features {
+                    dv[[i, o]] = dw[[i, o]] * self.g[[o]];
+                    dg_o += dw[[i, o]] * self.v[[i, o]];
+                }
+                dg[[o]] = dg_o;
+                continue;
+            }
+
+            let mut dot = F::zero();
+            for i in 0..self.in_features {
+                dot += dw[[i, o]] * self.v[[i, o]];
+            }
+            let g_o = self.g[[o]];
+            let mut dg_o = F::zero();
+            for i in 0..self.in_features {
+                let v_io = self.v[[i, o]];
+                dg_o += dw[[i, o]] * v_io / norm;
+                dv[[i, o]] = (g_o / norm) * (dw[[i, o]] - v_io * dot / (norm * norm));
+            }
+            dg[[o]] = dg_o;
+        }
+
+        if let Ok(mut cache) = self.dv.write() {
+            *cache = dv;
+        }
+        if let Ok(mut cache) = self.dg.write() {
+            *cache = dg;
+        }
+        if let Ok(mut cache) = self.dbias.write() {
+            *cache = dbias;
+        }
+
+        grad_input
+            .into_shape_with_order(IxDyn(&shape))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape back: {e}")))
     }
-    fn update(&mut self, _lr: F) -> Result<()> {
+
+    fn update(&mut self, lr: F) -> Result<()> {
+        let dv = self
+            .dv
+            .read()
+            .map_err(|_| NeuralError::InferenceError("lock".into()))?
+            .clone();
+        let dg = self
+            .dg
+            .read()
+            .map_err(|_| NeuralError::InferenceError("lock".into()))?
+            .clone();
+        let dbias = self
+            .dbias
+            .read()
+            .map_err(|_| NeuralError::InferenceError("lock".into()))?
+            .clone();
+
+        for i in 0..self.in_features {
+            for o in 0..self.out_features {
+                self.v[[i, o]] -= lr * dv[[i, o]];
+            }
+        }
+        for o in 0..self.out_features {
+            self.g[[o]] -= lr * dg[[o]];
+            self.bias[[o]] -= lr * dbias[[o]];
+        }
         Ok(())
     }
     fn as_any(&self) -> &dyn std::any::Any {

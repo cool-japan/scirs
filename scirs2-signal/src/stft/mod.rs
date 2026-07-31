@@ -62,10 +62,10 @@
 //! ```
 
 // Module organization
-pub mod types;
-pub mod core;
 pub mod algorithms;
+pub mod core;
 pub mod memory_efficient;
+pub mod types;
 pub mod utils;
 
 // Re-export all public types for backward compatibility
@@ -77,8 +77,8 @@ pub use memory_efficient::{MemoryEfficientStft, MemoryInfo};
 
 // Re-export utility functions
 pub use utils::{
-    closest_stft_dual_window, create_cola_window, check_cola_condition,
-    calculate_window_normalization, estimate_optimal_hop_size, effective_window_length,
+    calculate_window_normalization, check_cola_condition, closest_stft_dual_window,
+    create_cola_window, effective_window_length, estimate_optimal_hop_size,
 };
 
 #[cfg(test)]
@@ -132,13 +132,16 @@ mod tests {
         let mut config = StftConfig::default();
         config.dual_win = Some(rect_window.clone());
 
-        let stft = ShortTimeFft::new(&rect_window, hop_size, 1.0, Some(config)).expect("Operation failed");
+        let stft =
+            ShortTimeFft::new(&rect_window, hop_size, 1.0, Some(config)).expect("Operation failed");
 
         // Compute STFT
         let stft_result = stft.stft(&signal).expect("Operation failed");
 
         // Reconstruct signal
-        let reconstructed = stft.istft(&stft_result, None, None).expect("Operation failed");
+        let reconstructed = stft
+            .istft(&stft_result, None, None)
+            .expect("Operation failed");
 
         // The reconstructed signal will be longer due to windowing
         // Just check that we get reasonable reconstruction in the middle part
@@ -167,7 +170,11 @@ mod tests {
             }
 
             // STFT/iSTFT reconstruction may have some error due to windowing
-            assert!(best_error < 2.0, "Reconstruction error too high: {}", best_error);
+            assert!(
+                best_error < 2.0,
+                "Reconstruction error too high: {}",
+                best_error
+            );
         }
     }
 
@@ -214,7 +221,11 @@ mod tests {
 
         // Check time vector
         assert!(t_vec.len() > 0);
-        assert_relative_eq!(t_vec[0], stft.p_min() as f64 * stft.hop as f64 / stft.fs, epsilon = 1e-10);
+        assert_relative_eq!(
+            t_vec[0],
+            stft.p_min() as f64 * stft.hop as f64 / stft.fs,
+            epsilon = 1e-10
+        );
     }
 
     #[test]
@@ -226,21 +237,19 @@ mod tests {
             memory_limit: 10, // Very small limit to force chunking
             chunk_size: Some(100),
             chunk_overlap: 32,
+            ..Default::default()
         };
 
-        let memory_stft = MemoryEfficientStft::new(
-            &window,
-            16,
-            100.0,
-            None,
-            memory_config,
-        ).expect("Operation failed");
+        let memory_stft = MemoryEfficientStft::new(&window, 16, 100.0, None, memory_config)
+            .expect("Operation failed");
 
         let result = memory_stft.stft_chunked(&signal).expect("Operation failed");
         assert!(result.nrows() > 0);
         assert!(result.ncols() > 0);
 
-        let spectrogram = memory_stft.spectrogram_chunked(&signal).expect("Operation failed");
+        let spectrogram = memory_stft
+            .spectrogram_chunked(&signal)
+            .expect("Operation failed");
         assert_eq!(spectrogram.shape(), result.shape());
 
         // All spectrogram values should be non-negative
@@ -289,7 +298,7 @@ mod tests {
         let hop_99 = estimate_optimal_hop_size(&window, 0.99);
 
         assert_eq!(hop_0, 64); // No overlap
-        assert_eq!(hop_99, 1);  // Maximum overlap
+        assert_eq!(hop_99, 1); // Maximum overlap
     }
 
     #[test]
@@ -302,6 +311,13 @@ mod tests {
 
         let eff_len = effective_window_length(&window, 0.01);
         assert!(eff_len < 64);
-        assert!(eff_len >= 32);
+        // The half-sine occupies indices 16..48 (32 samples), but
+        // `window[16] == sin(0) == 0.0` exactly, which is below the 1%
+        // threshold and therefore correctly excluded from the "effective"
+        // (thresholded) span -- so the true effective length is 31, not 32.
+        assert_eq!(
+            eff_len, 31,
+            "effective length should exactly match the thresholded non-zero span"
+        );
     }
 }

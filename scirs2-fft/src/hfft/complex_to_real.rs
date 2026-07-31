@@ -11,7 +11,7 @@ use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
 
 // Importing the try_as_complex utility for type conversion
-use super::utility::try_as_complex;
+use super::utility::{other_axis_index_combinations, try_as_complex, HfftNorm};
 
 /// Compute the 1-dimensional discrete Fourier Transform for a Hermitian-symmetric input.
 ///
@@ -111,7 +111,7 @@ where
 
 /// Internal implementation for Complex64 input
 #[allow(dead_code)]
-fn _hfft_complex(x: &[Complex64], n: Option<usize>, _norm: Option<&str>) -> FFTResult<Vec<f64>> {
+fn _hfft_complex(x: &[Complex64], n: Option<usize>, norm: Option<&str>) -> FFTResult<Vec<f64>> {
     let n_fft = n.unwrap_or(x.len());
 
     // Calculate the expected length of the output (real) array
@@ -120,14 +120,17 @@ fn _hfft_complex(x: &[Complex64], n: Option<usize>, _norm: Option<&str>) -> FFTR
     // Create the output array
     let mut output = Vec::with_capacity(n_real);
 
-    // Compute FFT of the input
-    // Note: We ignore the _norm parameter for now as the fft function doesn't support it yet
+    // Compute FFT of the input. `fft()` performs a completely unnormalized
+    // (raw) forward transform, which is exactly the "backward"-mode baseline
+    // for a forward-type transform, so the norm-dependent scale factor below
+    // can be applied directly to its result.
     let fft_result = fft(x, Some(n_fft))?;
+    let scale = HfftNorm::parse(norm)?.forward_scale(n_fft)?;
 
     // Extract real parts from the FFT result - the result should be real
     // (within numerical precision) due to the Hermitian symmetry of the input
     for val in fft_result {
-        output.push(val.re);
+        output.push(val.re * scale);
     }
 
     Ok(output)
@@ -208,7 +211,7 @@ fn _hfft2_complex(
     x: &ArrayView2<Complex64>,
     shape: Option<(usize, usize)>,
     axes: Option<(usize, usize)>,
-    _norm: Option<&str>,
+    norm: Option<&str>,
 ) -> FFTResult<Array2<f64>> {
     // Extract dimensions
     let (n_rows, n_cols) = x.dim();
@@ -224,6 +227,13 @@ fn _hfft2_complex(
         ));
     }
 
+    // The norm scale for a multi-dimensional transform is computed from the
+    // total number of transformed elements (matching NumPy/SciPy's `fftn`
+    // convention), applied once at the end since both passes below use the
+    // crate's completely unnormalized `fft()`.
+    let total_elements = out_rows.saturating_mul(out_cols);
+    let scale = HfftNorm::parse(norm)?.forward_scale(total_elements)?;
+
     // Create a flattened temporary array for the first FFT along axis 0
     let mut temp = Array2::zeros((out_rows, n_cols));
 
@@ -235,8 +245,7 @@ fn _hfft2_complex(
             col.push(x[[r, c]]);
         }
 
-        // Perform 1D FFT for each column
-        // Note: We ignore the _norm parameter for now
+        // Perform 1D FFT for each column (unnormalized; norm is applied once below)
         let fft_col = fft(&col, Some(out_rows))?;
 
         // Store the result in the temporary array
@@ -256,13 +265,12 @@ fn _hfft2_complex(
             row.push(temp[[r, c]]);
         }
 
-        // Perform 1D FFT for each row
-        // Note: We ignore the _norm parameter for now
+        // Perform 1D FFT for each row (unnormalized; norm is applied once below)
         let fft_row = fft(&row, Some(out_cols))?;
 
-        // Store only the real part in the output
+        // Store only the real part in the output, scaled per the requested norm mode
         for c in 0..out_cols {
-            output[[r, c]] = fft_row[c].re;
+            output[[r, c]] = fft_row[c].re * scale;
         }
     }
 
@@ -349,7 +357,7 @@ fn _hfftn_complex(
     x: &ArrayView<Complex64, IxDyn>,
     shape: Option<Vec<usize>>,
     axes: Option<Vec<usize>>,
-    _norm: Option<&str>,
+    norm: Option<&str>,
     _overwrite_x: Option<bool>,
     _workers: Option<usize>,
 ) -> FFTResult<Array<f64, IxDyn>> {
@@ -406,54 +414,58 @@ fn _hfftn_complex(
             complex_result.push(val);
         }
 
-        // Note: We ignore the _norm parameter for now
         let fft_result = fft(&complex_result, Some(outshape[0]))?;
+        let scale = HfftNorm::parse(norm)?.forward_scale(outshape[0])?;
         let mut real_result = Array::zeros(IxDyn(&[outshape[0]]));
 
         for i in 0..outshape[0] {
-            real_result[i] = fft_result[i].re;
+            real_result[i] = fft_result[i].re * scale;
         }
 
         return Ok(real_result);
     }
+
+    // The norm scale for an N-D transform is computed from the total number
+    // of elements across only the axes actually being transformed (matching
+    // NumPy/SciPy's `fftn` convention), applied once at the end since every
+    // per-axis pass below uses the crate's completely unnormalized `fft()`.
+    let total_elements: usize = transform_axes.iter().map(|&ax| outshape[ax]).product();
+    let scale = HfftNorm::parse(norm)?.forward_scale(total_elements)?;
 
     // For multi-dimensional transforms, we have to transform along each axis
     let mut array = Array::from_shape_fn(IxDyn(&xshape), |idx| x[idx.clone()]);
 
     // For each axis, perform a 1D transform along that axis
     for &axis in &transform_axes {
-        // Get the shape for this axis transformation
+        // The current shape (as of this pass; earlier passes may already
+        // have resized previously-transformed axes).
+        let current_shape = array.shape().to_vec();
         let axis_dim = outshape[axis];
 
         // Reshape the array to transform along this axis
-        let _dim_permutation: Vec<_> = (0..ndim).collect();
-        let mut workingshape = xshape.clone();
+        let mut workingshape = current_shape.clone();
         workingshape[axis] = axis_dim;
 
         // Allocate an array for the result along this axis
         let mut axis_result = Array::zeros(IxDyn(&workingshape));
 
-        // For each "fiber" along the current axis, perform a 1D FFT
-        let mut indices = vec![0; ndim];
-        let mut fiber = Vec::with_capacity(axis_dim);
+        // Sweep every fiber along `axis` (i.e. every combination of the
+        // *other* axes' indices), not just the single fiber at the origin.
+        for mut indices in other_axis_index_combinations(&current_shape, axis) {
+            let mut fiber = Vec::with_capacity(current_shape[axis]);
+            for i in 0..current_shape[axis] {
+                indices[axis] = i;
+                fiber.push(array[IxDyn(&indices)]);
+            }
 
-        // Get slices along the axis
-        for i in 0..axis_dim {
-            indices[axis] = i;
-            // Here, we would collect the values along the fiber and transform them
-            // This is a simplification - in a real implementation, we would use ndarray's
-            // slicing capabilities more effectively
-            fiber.push(array[IxDyn(&indices)]);
-        }
+            // Perform the 1D FFT (unnormalized; the total norm scale is applied once below)
+            let fft_result = fft(&fiber, Some(axis_dim))?;
 
-        // Perform the 1D FFT
-        // Note: We ignore the _norm parameter for now
-        let fft_result = fft(&fiber, Some(axis_dim))?;
-
-        // Store the result back in the working array
-        for (i, val) in fft_result.iter().enumerate().take(axis_dim) {
-            indices[axis] = i;
-            axis_result[IxDyn(&indices)] = *val;
+            // Store the result back in the working array
+            for (i, val) in fft_result.iter().enumerate().take(axis_dim) {
+                indices[axis] = i;
+                axis_result[IxDyn(&indices)] = *val;
+            }
         }
 
         // Update the array for the next axis transformation
@@ -472,8 +484,298 @@ fn _hfftn_complex(
                 *idx_val = divided % array.shape()[dim];
             }
         }
-        real_result[IxDyn(&idx)] = val.re;
+        real_result[IxDyn(&idx)] = val.re * scale;
     }
 
     Ok(real_result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+
+    const EPS: f64 = 1e-8;
+
+    /// A Hermitian-symmetric (`x[k] = conj(x[N-k])`) complex sequence of
+    /// length 5 (odd `N`, no Nyquist term). Non-constant so a fabricated
+    /// stub (e.g. one that just echoes the input or a constant) cannot pass.
+    fn hermitian_n5() -> Vec<Complex64> {
+        vec![
+            Complex64::new(3.0, 0.0),
+            Complex64::new(2.0, 1.0),
+            Complex64::new(-1.0, 0.5),
+            Complex64::new(-1.0, -0.5),
+            Complex64::new(2.0, -1.0),
+        ]
+    }
+
+    /// A Hermitian-symmetric complex sequence of length 6 (even `N`,
+    /// includes a real Nyquist term at index 3).
+    fn hermitian_n6() -> Vec<Complex64> {
+        vec![
+            Complex64::new(1.5, 0.0),
+            Complex64::new(2.0, -0.3),
+            Complex64::new(-0.5, 1.0),
+            Complex64::new(0.8, 0.0),
+            Complex64::new(-0.5, -1.0),
+            Complex64::new(2.0, 0.3),
+        ]
+    }
+
+    // Reference values below were computed with `numpy.fft.fft(x,
+    // norm=mode).real` for the exact `x` above. `numpy.fft.fft`'s `norm`
+    // convention *is* the forward-type convention `hfft` documents
+    // ("backward": no scaling; "forward": 1/n; "ortho": 1/sqrt(n)), and
+    // `hfft`'s own core computation is precisely an unnormalized `fft()` of
+    // a full-length Hermitian-symmetric sequence followed by taking the
+    // real part, so this is an exact (not approximate-by-construction)
+    // ground truth for the scaling this test is checking.
+
+    #[test]
+    fn test_hfft_norm_backward_matches_numpy_n5() {
+        let x = hermitian_n5();
+        let expected = [
+            5.0,
+            8.344_000_251_132_465,
+            -0.629_587_977_959_892,
+            -1.078_615_954_539_477_3,
+            3.364_203_681_366_904_5,
+        ];
+        let result = hfft(&x, None, Some("backward")).expect("hfft failed");
+        for (r, e) in result.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(r, e, epsilon = EPS);
+        }
+        // The default (`None`) must behave exactly like "backward".
+        let result_default = hfft(&x, None, None).expect("hfft failed");
+        for (r, e) in result_default.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(r, e, epsilon = EPS);
+        }
+    }
+
+    #[test]
+    fn test_hfft_norm_forward_matches_numpy_n5() {
+        let x = hermitian_n5();
+        let expected = [
+            1.0,
+            1.668_800_050_226_493_2,
+            -0.125_917_595_591_978_4,
+            -0.215_723_190_907_895_5,
+            0.672_840_736_273_380_9,
+        ];
+        let result = hfft(&x, None, Some("forward")).expect("hfft failed");
+        for (r, e) in result.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(r, e, epsilon = EPS);
+        }
+    }
+
+    #[test]
+    fn test_hfft_norm_ortho_matches_numpy_n5() {
+        let x = hermitian_n5();
+        let expected = [
+            2.236_067_977_499_79,
+            3.731_550_353_161_501_7,
+            -0.281_560_303_306_991_56,
+            -0.482_371_719_193_218_8,
+            1.504_517_624_338_288_3,
+        ];
+        let result = hfft(&x, None, Some("ortho")).expect("hfft failed");
+        for (r, e) in result.iter().zip(expected.iter()) {
+            assert_abs_diff_eq!(r, e, epsilon = EPS);
+        }
+    }
+
+    #[test]
+    fn test_hfft_norm_modes_match_numpy_n6() {
+        let x = hermitian_n6();
+        let backward = [
+            5.3,
+            4.412_435_565_298_214,
+            -1.451_666_049_839_540_4,
+            -4.3,
+            3.051_666_049_839_54,
+            1.987_564_434_701_786_2,
+        ];
+        let forward = [
+            0.883_333_333_333_333_3,
+            0.735_405_927_549_702_2,
+            -0.241_944_341_639_923_4,
+            -0.716_666_666_666_666_6,
+            0.508_611_008_306_59,
+            0.331_260_739_116_964_35,
+        ];
+        let ortho = [
+            2.163_715_939_458_474_4,
+            1.801_369_276_314_945_1,
+            -0.592_640_183_171_421_4,
+            -1.755_467_648_994_611,
+            1.245_837_447_913_602_3,
+            0.811_419_782_653_778_7,
+        ];
+
+        for (mode, expected) in [
+            ("backward", backward),
+            ("forward", forward),
+            ("ortho", ortho),
+        ] {
+            let result = hfft(&x, None, Some(mode)).expect("hfft failed");
+            for (r, e) in result.iter().zip(expected.iter()) {
+                assert_abs_diff_eq!(r, e, epsilon = EPS);
+            }
+        }
+
+        // Regression guard for the original bug (norm accepted but
+        // silently ignored, i.e. always behaving as "backward"): forward
+        // and ortho scaling must actually change the numeric result.
+        let backward_result = hfft(&x, None, Some("backward")).expect("hfft failed");
+        let forward_result = hfft(&x, None, Some("forward")).expect("hfft failed");
+        let ortho_result = hfft(&x, None, Some("ortho")).expect("hfft failed");
+        assert!((backward_result[0] - forward_result[0]).abs() > 1.0);
+        assert!((backward_result[0] - ortho_result[0]).abs() > 1.0);
+    }
+
+    #[test]
+    fn test_hfft_invalid_norm_is_an_error() {
+        let x = hermitian_n5();
+        let err = hfft(&x, None, Some("bogus")).unwrap_err();
+        assert!(matches!(err, FFTError::ValueError(_)));
+    }
+
+    /// A Hermitian-symmetric 3x4 complex array, constructed as `fft2` of a
+    /// real (and non-constant) array -- which is guaranteed to be
+    /// Hermitian-symmetric by construction.
+    fn hermitian_2d() -> Array2<Complex64> {
+        #[rustfmt::skip]
+        let data = vec![
+            Complex64::new(5.0, 0.0), Complex64::new(2.25, -2.75), Complex64::new(4.5, 0.0), Complex64::new(2.25, 2.75),
+            Complex64::new(0.5, -1.732_050_807_568_877_2), Complex64::new(9.336_696_879_329_399, -5.854_646_071_760_522), Complex64::new(-6.75, -0.433_012_701_892_219_3), Complex64::new(-4.086_696_879_329_399, -4.104_646_071_760_522),
+            Complex64::new(0.5, 1.732_050_807_568_877_2), Complex64::new(-4.086_696_879_329_399, 4.104_646_071_760_522), Complex64::new(-6.75, 0.433_012_701_892_219_3), Complex64::new(9.336_696_879_329_399, 5.854_646_071_760_522),
+        ];
+        Array2::from_shape_vec((3, 4), data).expect("valid shape")
+    }
+
+    // Reference values computed with `numpy.fft.fft2(x, norm=mode).real`
+    // for the exact `x` returned by `hermitian_2d()` above.
+    fn hfft2_expected_backward() -> Array2<f64> {
+        #[rustfmt::skip]
+        let data = vec![
+            12.0, 6.0, -18.0, 24.0,
+            -6.0, -36.0, 30.0, 18.0,
+            36.0, 15.0, 3.0, -24.0,
+        ];
+        Array2::from_shape_vec((3, 4), data).expect("valid shape")
+    }
+
+    fn hfft2_expected_forward() -> Array2<f64> {
+        #[rustfmt::skip]
+        let data = vec![
+            1.0, 0.5, -1.5, 2.0,
+            -0.5, -3.0, 2.5, 1.5,
+            3.0, 1.25, 0.25, -2.0,
+        ];
+        Array2::from_shape_vec((3, 4), data).expect("valid shape")
+    }
+
+    fn hfft2_expected_ortho() -> Array2<f64> {
+        #[rustfmt::skip]
+        let data = vec![
+            3.464_101_615_137_754_4, 1.732_050_807_568_877_6, -5.196_152_422_706_633, 6.928_203_230_275_51,
+            -1.732_050_807_568_876_5, -10.392_304_845_413_266, 8.660_254_037_844_387, 5.196_152_422_706_631,
+            10.392_304_845_413_266, 4.330_127_018_922_193, 0.866_025_403_784_439_3, -6.928_203_230_275_509,
+        ];
+        Array2::from_shape_vec((3, 4), data).expect("valid shape")
+    }
+
+    #[test]
+    fn test_hfft2_norm_modes_match_numpy() {
+        let x = hermitian_2d();
+
+        let backward = hfft2(&x.view(), None, None, Some("backward")).expect("hfft2 failed");
+        for (r, e) in backward.iter().zip(hfft2_expected_backward().iter()) {
+            assert_abs_diff_eq!(r, e, epsilon = 1e-6);
+        }
+
+        let forward = hfft2(&x.view(), None, None, Some("forward")).expect("hfft2 failed");
+        for (r, e) in forward.iter().zip(hfft2_expected_forward().iter()) {
+            assert_abs_diff_eq!(r, e, epsilon = 1e-6);
+        }
+
+        let ortho = hfft2(&x.view(), None, None, Some("ortho")).expect("hfft2 failed");
+        for (r, e) in ortho.iter().zip(hfft2_expected_ortho().iter()) {
+            assert_abs_diff_eq!(r, e, epsilon = 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_hfftn_full_transform_matches_hfft2() {
+        // hfftn transforming every axis of the same 2D input must agree
+        // with the dedicated hfft2 implementation (and hence with the
+        // same numpy-derived reference values), exercising the generic
+        // N-D per-axis code path rather than hfft2's own hand-written one.
+        let x = hermitian_2d().into_dyn();
+
+        for (mode, expected) in [
+            ("backward", hfft2_expected_backward()),
+            ("forward", hfft2_expected_forward()),
+            ("ortho", hfft2_expected_ortho()),
+        ] {
+            let result =
+                hfftn(&x.view(), None, None, Some(mode), None, None).expect("hfftn failed");
+            for (r, e) in result.iter().zip(expected.iter()) {
+                assert_abs_diff_eq!(r, e, epsilon = 1e-6);
+            }
+        }
+    }
+
+    #[test]
+    fn test_hfftn_partial_axes_scale_uses_only_transformed_axis_size() {
+        // Two independent length-4 Hermitian-symmetric rows. When `axes`
+        // restricts the transform to axis 1 only, the norm scale factor
+        // must be based on the size of *that* axis (4), not on the total
+        // element count (8) -- and every row must actually be transformed,
+        // not just the row at the origin (regression guard for a fiber-walk
+        // bug where only the all-zero-index fiber was ever processed).
+        #[rustfmt::skip]
+        let data = vec![
+            Complex64::new(1.0, 0.0), Complex64::new(2.0, -0.5), Complex64::new(-1.0, 0.0), Complex64::new(2.0, 0.5),
+            Complex64::new(-0.5, 0.0), Complex64::new(0.25, 1.0), Complex64::new(0.75, 0.0), Complex64::new(0.25, -1.0),
+        ];
+        let x = Array2::from_shape_vec((2, 4), data)
+            .expect("valid shape")
+            .into_dyn();
+
+        let cases: [(&str, [f64; 4], [f64; 4]); 3] = [
+            (
+                "backward",
+                [4.0, 1.0, -4.0, 3.0],
+                [0.75, 0.75, -0.25, -3.25],
+            ),
+            (
+                "forward",
+                [1.0, 0.25, -1.0, 0.75],
+                [0.1875, 0.1875, -0.0625, -0.8125],
+            ),
+            (
+                "ortho",
+                [2.0, 0.5, -2.0, 1.5],
+                [0.375, 0.375, -0.125, -1.625],
+            ),
+        ];
+
+        for (mode, expected_row0, expected_row1) in cases {
+            let result = hfftn(&x.view(), None, Some(vec![1]), Some(mode), None, None)
+                .expect("hfftn failed");
+            let row0 = result.index_axis(scirs2_core::ndarray::Axis(0), 0);
+            let row1 = result.index_axis(scirs2_core::ndarray::Axis(0), 1);
+            for (r, e) in row0.iter().zip(expected_row0.iter()) {
+                assert_abs_diff_eq!(r, e, epsilon = EPS);
+            }
+            for (r, e) in row1.iter().zip(expected_row1.iter()) {
+                assert_abs_diff_eq!(r, e, epsilon = EPS);
+            }
+            // Row 1 must not be left as all-zero (the fiber-walk bug this
+            // guards against always left every non-origin fiber at zero).
+            assert!(row1.iter().any(|v| v.abs() > 1e-6));
+        }
+    }
 }

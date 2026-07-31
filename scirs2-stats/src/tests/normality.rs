@@ -917,11 +917,18 @@ fn calculate_ks_2samp_p_value<F: Float + NumCast>(
         } else {
             0.0
         }
-    } else if alternative == "greater" {
-        // One-sided "greater" test (x CDF above y CDF)
-        1.0 - (-2.0 * z * z).exp()
     } else {
-        // One-sided "less" test (x CDF below y CDF)
+        // One-sided test ("less" uses d_plus, "greater" uses d_minus --
+        // the caller already selected the appropriate one-sided statistic,
+        // so both directions share the same asymptotic tail-probability
+        // formula here).
+        //
+        // NOTE: this used to special-case "greater" as `1.0 - (-2*z*z).exp()`.
+        // That was wrong: at d=0 (z=0, i.e. no evidence at all in the tested
+        // direction) it returned p=0 (maximal evidence against the null)
+        // instead of p=1 (no evidence against the null). Confirmed against
+        // the independent sibling implementation `nonparametric::ks_2samp`,
+        // which uses this same unified formula for both one-sided cases.
         (-2.0 * z * z).exp()
     };
 

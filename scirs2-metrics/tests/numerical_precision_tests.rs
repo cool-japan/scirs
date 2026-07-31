@@ -238,7 +238,6 @@ fn test_clustering_metrics_precision() {
 }
 
 #[test]
-#[ignore = "timeout"]
 #[allow(dead_code)]
 fn test_floating_point_edge_cases() {
     // Test with very close but not equal values
@@ -265,7 +264,6 @@ fn test_floating_point_edge_cases() {
 }
 
 #[test]
-#[ignore = "timeout"]
 #[allow(dead_code)]
 fn test_cancellation_errors() {
     // Test subtraction of nearly equal large numbers

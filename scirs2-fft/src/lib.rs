@@ -41,7 +41,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-fft = "0.6.4"
+//! scirs2-fft = "0.6.5"
 //! ```
 //!
 //!
@@ -157,7 +157,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.6.4
+//! - **Version**: 0.6.5
 //! - **Release Date**: July 16, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-fft](https://docs.rs/scirs2-fft)
@@ -329,6 +329,7 @@ pub mod sparse_fft_gpu;
 pub mod sparse_fft_gpu_cuda;
 pub mod sparse_fft_gpu_kernels;
 pub mod sparse_fft_gpu_memory;
+pub mod sparse_fft_gpu_performance;
 #[cfg(feature = "never")]
 pub mod time_frequency;
 #[cfg(feature = "never")]

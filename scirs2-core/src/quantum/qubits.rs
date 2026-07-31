@@ -163,8 +163,7 @@ impl Qubit {
         let theta = 2.0 * self.alpha.norm().acos().min(PI);
         let phi = {
             let raw = self.beta.arg() - self.alpha.arg();
-            let normalised = raw.rem_euclid(2.0 * PI);
-            normalised
+            raw.rem_euclid(2.0 * PI)
         };
         (theta, phi)
     }
@@ -499,9 +498,23 @@ impl std::fmt::Display for QubitRegister {
                 write!(f, ", ")?;
             }
             if amp.im >= 0.0 {
-                write!(f, "|{:0>width$b}⟩: {:.4}+{:.4}i", i, amp.re, amp.im, width = self.n_qubits)?;
+                write!(
+                    f,
+                    "|{:0>width$b}⟩: {:.4}+{:.4}i",
+                    i,
+                    amp.re,
+                    amp.im,
+                    width = self.n_qubits
+                )?;
             } else {
-                write!(f, "|{:0>width$b}⟩: {:.4}{:.4}i", i, amp.re, amp.im, width = self.n_qubits)?;
+                write!(
+                    f,
+                    "|{:0>width$b}⟩: {:.4}{:.4}i",
+                    i,
+                    amp.re,
+                    amp.im,
+                    width = self.n_qubits
+                )?;
             }
         }
         write!(f, "]")

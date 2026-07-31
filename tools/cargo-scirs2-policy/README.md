@@ -31,6 +31,8 @@ cargo scirs2-policy --help
 
 > **Windows exempt-path matching (0.6.3)**: the source scanner's (`src/rules/source_scan.rs`) exempt-path matching previously compared against `Path::to_string_lossy()` directly — on Windows this renders path separators as `\`, so `/`-separated directory-segment exemption checks never matched. Paths are now normalized to `/` before comparison. Verified by code review; not exercised under Windows CI.
 
+> **`#[ignore]`-reason taxonomy enforcement + nextest filter fix (0.6.5)**: a new `ignore_audit` check (`IGNORE_AUDIT_001`–`IGNORE_AUDIT_004`, `src/checks/ignore_audit.rs`) requires every `#[ignore = "..."]` reason to start with an approved prefix — `requires-gpu:`, `requires-env:`, `slow:`, `bench:`, or `not-implemented:` — and flags a bare `#[ignore]` with no reason at all. It also outlaws two "fake-passing" test patterns that the 0.6.5 workspace-wide ignore audit found hiding real defects (a self-deadlock, two O(n²) generator bugs, a ~75s unbounded TCP stall, and several vacuous "Skipping"-only test bodies, among others): a bare tautological `assert!(true)`, and a `#[test]` fn whose `Err(_)`/`Err(e)` match arm body is only a `println!`/`eprintln!` call mentioning "skipping" (asserts nothing, so it can never fail regardless of what the code under test actually does). The check scans a crate's entire tree (`src/`, `tests/`, `benches/`, `examples/`), not just `src/`; `cargo-scirs2-policy`'s own crate is excluded from the scan, since its own unit tests construct literal fixture strings containing these exact patterns to test the detector itself. Separately, the workspace's `.config/nextest.toml` had a `test(property_)` filter override that matched the *wrong* tests — `test()` filters match test names, and the real quickcheck/proptest suites (`tests/property_based_tests.rs` in scirs2-stats/scirs2-metrics) have names like `descriptive_stats_properties::mean_bounds_property`, with no `property_` substring anywhere — fixed to `binary(property_based_tests)`, verified against `cargo nextest run --workspace --list`.
+
 ### `check` — full policy compliance scan
 
 Runs all registered rules against the workspace and reports violations.
@@ -170,6 +172,10 @@ cargo scirs2-policy version-policy --workspace .
 | `DEPRECATION_003` | INFO | Item deprecated 2+ minor versions ago — ready for removal |
 | `DEPRECATION_004` | WARNING | `since` version is newer than the current crate version |
 | `API_COMPAT_001–003` | ERROR/WARNING | Public API item removed or changed relative to snapshot |
+| `IGNORE_AUDIT_001` | ERROR | Bare `#[ignore]` with no reason string |
+| `IGNORE_AUDIT_002` | ERROR | `#[ignore = "..."]` reason not tagged with an approved prefix (`requires-gpu:`/`requires-env:`/`slow:`/`bench:`/`not-implemented:`) |
+| `IGNORE_AUDIT_003` | ERROR | `assert!(true)` — a tautological, always-passing assertion |
+| `IGNORE_AUDIT_004` | ERROR | `#[test]` fn whose `Err(_)`/`Err(e)` match arm body is only a `println!`/`eprintln!` mentioning "skipping" |
 
 Violations at severity `ERROR` cause a non-zero exit code.
 

@@ -41,8 +41,8 @@ use std::sync::{Arc, RwLock};
 pub struct Bidirectional<F: Float + Debug + Send + Sync + NumAssign> {
     /// Forward direction layer
     forward_layer: Box<dyn Layer<F> + Send + Sync>,
-    /// Backward direction layer (using the same layer type)
-    backward_layer: Option<Box<dyn Layer<F> + Send + Sync>>,
+    /// Backward direction layer, with its own independent parameters
+    backward_layer: Box<dyn Layer<F> + Send + Sync>,
     /// Name for the layer
     name: Option<String>,
     /// Input cache for backward pass
@@ -54,31 +54,37 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Bidir
     ///
     /// # Arguments
     /// * `forward_layer` - The recurrent layer to use in forward direction
-    /// * `backward_layer` - Optional recurrent layer for backward direction (if None, forward layer will be used)
+    /// * `backward_layer` - The recurrent layer for the backward direction
     /// * `name` - Optional name for the layer
     ///
     /// # Returns
     /// * A new bidirectional layer
+    ///
+    /// # Errors
+    /// Returns [`NeuralError::InvalidArchitecture`] when `backward_layer` is
+    /// `None`. A bidirectional RNN needs an independent parameter set per
+    /// direction: reusing one layer for both would make the two directions
+    /// share weights, and the shared layer's forward cache and gradient
+    /// accumulator can only hold one direction at a time, so the reported
+    /// gradients would silently be wrong.
     pub fn new(
         forward_layer: Box<dyn Layer<F> + Send + Sync>,
         backward_layer: Option<Box<dyn Layer<F> + Send + Sync>>,
         name: Option<&str>,
     ) -> Result<Self> {
+        let backward_layer = backward_layer.ok_or_else(|| {
+            NeuralError::InvalidArchitecture(
+                "Bidirectional requires a dedicated backward-direction layer; pass a second \
+                 recurrent layer with its own parameters instead of None"
+                    .to_string(),
+            )
+        })?;
         Ok(Self {
             forward_layer,
             backward_layer,
             name: name.map(String::from),
             input_cache: Arc::new(RwLock::new(None)),
         })
-    }
-
-    /// Create a new bidirectional wrapper with a single layer
-    /// This constructor is for backward compatibility
-    pub fn new_with_single_layer(
-        layer: Box<dyn Layer<F> + Send + Sync>,
-        name: Option<&str>,
-    ) -> Result<Self> {
-        Self::new(layer, None, name)
     }
 
     /// Get the name of the layer
@@ -107,42 +113,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
         // Forward direction
         let forward_output = self.forward_layer.forward(input)?;
 
-        // If no backward layer is provided, we need to create a duplicate of the forward layer
-        // for backward processing. Since we can't clone trait objects directly, we'll
-        // process the sequence twice with the same layer for bidirectional behavior.
-        if self.backward_layer.is_none() {
-            // Process the input in reverse direction with the same forward layer
-            // Create reversed input
-            let mut reversed_slices = Vec::new();
-            for t in (0..seq_len).rev() {
-                let slice = input.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
-                reversed_slices.push(slice);
-            }
-            let views: Vec<_> = reversed_slices.iter().map(|s| s.view()).collect();
-            let reversed_input = concatenate(Axis(1), &views)?.into_dyn();
-
-            // Process through the same forward layer
-            let backward_output = self.forward_layer.forward(&reversed_input)?;
-
-            // Reverse the backward output to align with forward output
-            let mut backward_reversed_slices = Vec::new();
-            for t in (0..seq_len).rev() {
-                let slice = backward_output.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
-                backward_reversed_slices.push(slice);
-            }
-            let backward_views: Vec<_> =
-                backward_reversed_slices.iter().map(|s| s.view()).collect();
-            let backward_output_aligned = concatenate(Axis(1), &backward_views)?.into_dyn();
-
-            // Concatenate forward and backward outputs along the feature dimension
-            let forward_view = forward_output.view();
-            let backward_view = backward_output_aligned.view();
-            let output = concatenate(Axis(2), &[forward_view, backward_view])?.into_dyn();
-            return Ok(output);
-        }
-
         // Process backward direction
-        let backward_layer = self.backward_layer.as_ref().expect("Operation failed");
+        let backward_layer = &self.backward_layer;
 
         // Reverse the sequence dimension of input
         // Create views for each time step and reverse their order
@@ -200,65 +172,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
         let seq_len = gradshape[1];
         let total_hidden = gradshape[2];
 
-        // If no backward layer, we need to handle gradients for both directions processed
-        // by the same layer
-        if self.backward_layer.is_none() {
-            // Split gradient into forward and backward components
-            let hidden_size = total_hidden / 2;
-            let grad_forward = grad_output
-                .slice(scirs2_core::ndarray::s![.., .., ..hidden_size])
-                .to_owned()
-                .into_dyn();
-            let grad_backward = grad_output
-                .slice(scirs2_core::ndarray::s![.., .., hidden_size..])
-                .to_owned()
-                .into_dyn();
-
-            // Backward pass through forward layer with forward gradient
-            let grad_input_forward = self.forward_layer.backward(cached_input, &grad_forward)?;
-
-            // For backward gradient, we need to reverse it first, then compute backward pass
-            let mut backward_grad_slices = Vec::new();
-            for t in (0..seq_len).rev() {
-                let slice = grad_backward.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
-                backward_grad_slices.push(slice);
-            }
-            let backward_grad_views: Vec<_> =
-                backward_grad_slices.iter().map(|s| s.view()).collect();
-            let grad_backward_reversed = concatenate(Axis(1), &backward_grad_views)?.into_dyn();
-
-            // Reverse the _input for backward processing
-            let mut input_slices = Vec::new();
-            for t in (0..seq_len).rev() {
-                let slice = cached_input.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
-                input_slices.push(slice);
-            }
-            let input_views: Vec<_> = input_slices.iter().map(|s| s.view()).collect();
-            let input_reversed = concatenate(Axis(1), &input_views)?.into_dyn();
-
-            // Backward pass through the same forward layer
-            let grad_input_backward_reversed = self
-                .forward_layer
-                .backward(&input_reversed, &grad_backward_reversed)?;
-
-            // Reverse the backward gradient back to original order
-            let mut final_backward_slices = Vec::new();
-            for t in (0..seq_len).rev() {
-                let slice =
-                    grad_input_backward_reversed.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
-                final_backward_slices.push(slice);
-            }
-            let final_backward_views: Vec<_> =
-                final_backward_slices.iter().map(|s| s.view()).collect();
-            let grad_input_backward = concatenate(Axis(1), &final_backward_views)?.into_dyn();
-
-            // Sum the gradients from forward and backward paths
-            let grad_input = grad_input_forward + grad_input_backward;
-            return Ok(grad_input);
-        }
-
         // Get the backward layer
-        let backward_layer = self.backward_layer.as_ref().expect("Operation failed");
+        let backward_layer = &self.backward_layer;
 
         // Split gradient into forward and backward components
         let hidden_size = total_hidden / 2;
@@ -313,15 +228,33 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
     }
 
     fn update(&mut self, learningrate: F) -> Result<()> {
-        // Update forward layer
         self.forward_layer.update(learningrate)?;
-
-        // Update backward layer if present
-        if let Some(ref mut backward_layer) = self.backward_layer {
-            backward_layer.update(learningrate)?;
-        }
-
+        self.backward_layer.update(learningrate)?;
         Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        let mut params = self.forward_layer.params();
+        params.extend(self.backward_layer.params());
+        params
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        let mut grads = self.forward_layer.gradients();
+        grads.extend(self.backward_layer.gradients());
+        grads
+    }
+
+    fn layer_type(&self) -> &str {
+        "Bidirectional"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.forward_layer.parameter_count() + self.backward_layer.parameter_count()
+    }
+
+    fn name(&self) -> Option<&str> {
+        self.name.as_deref()
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

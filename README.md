@@ -2,8 +2,8 @@
 
 [![crates.io](https://img.shields.io/crates/v/scirs2.svg)](https://crates.io/crates/scirs2)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
-[![Lines of Code](https://img.shields.io/badge/Rust_SLoC-3.9M-blue)](https://github.com/cool-japan/scirs)
-[![Tests](https://img.shields.io/badge/tests-37.4k-green)](https://github.com/cool-japan/scirs)
+[![Lines of Code](https://img.shields.io/badge/Rust_SLoC-3.1M-blue)](https://github.com/cool-japan/scirs)
+[![Tests](https://img.shields.io/badge/tests-38.8k-green)](https://github.com/cool-japan/scirs)
 
 **Production-Ready Pure Rust Scientific Computing** • **No System Dependencies** • **10-100x Performance Gains**
 
@@ -28,25 +28,37 @@ cargo build --release
 ⚡ **Ultra-Fast**: 10-100x performance improvements through SIMD optimization
 🔒 **Memory Safe**: Rust's ownership system prevents memory leaks and data races
 🌍 **Cross-Platform**: Linux, macOS, Windows, WebAssembly - identical behavior
-🧪 **Battle-Tested**: 37,442 tests (all-features) / 35,668 (default-features) + 5,000 doc-tests — workspace-wide via `cargo nextest` — plus 3.9M+ lines of Rust code, 29 workspace crates
+🧪 **Battle-Tested**: 38,768 tests (all-features) / 36,989 (default-features) + 5,136 doc-tests — workspace-wide via `cargo nextest` — plus 3.1M+ lines of Rust code, 29 workspace crates
 📊 **Comprehensive**: Linear algebra, statistics, ML, FFT, signal processing, computer vision, and more
 
 ## Project Overview
 
 SciRS2 provides a complete ecosystem for scientific computing, data analysis, and machine learning in Rust, with production-grade quality and performance that rivals or exceeds traditional C/Fortran-based libraries.
 
-## 🎉 Release Status: v0.6.4 (2026-07-28)
+## 🎉 Release Status: v0.6.5 (2026-07-31)
 
-**Latest Stable Release** - v0.6.4 (July 28, 2026) 🚀
+**Latest Stable Release** - v0.6.5 (July 31, 2026) 🚀
 
-- ✅ **37,442 Tests (all-features) / 35,668 (default-features) + 5,000 Doc-Tests**: Full workspace-wide test suite via `cargo nextest`, across 29 workspace crates
-- ✅ **3.9M+ Lines of Rust Code**: Comprehensive coverage of scientific computing and AI/ML
+- ✅ **38,768 Tests (all-features) / 36,989 (default-features) + 5,136 Doc-Tests**: Full workspace-wide test suite via `cargo nextest`, across 29 workspace crates
+- ✅ **3.1M+ Lines of Rust Code**: Comprehensive coverage of scientific computing and AI/ML
 - ✅ **29 Workspace Crates**: Specialized modules for every scientific computing domain
-- ✅ **80,800+ Public API Items**: Extensive, well-documented API surface
+- ✅ **81,100+ Public API Items**: Extensive, well-documented API surface
 - ✅ **Near-complete implementation**: Minimal stubs remaining across all modules
 - ✅ **Pure Rust by Default**: OxiBLAS, OxiFFT, oxiarc-* - zero C/Fortran dependencies
 - ✅ **Zero Warnings Policy**: Clean build with 0 compilation errors, 0 clippy warnings, 0 rustdoc warnings
-- 📅 **Release Date**: July 28, 2026
+- 📅 **Release Date**: July 31, 2026
+
+**What's New in 0.6.5** — Ignore-Audit Bug Hunt: the Live Backward Pass Was Mostly Dead Code:
+
+- **scirs2-autograd**: the single most impactful fix in this release. The live backward-pass dispatcher (a ~670-line if/else chain keyed on op-name strings) covered only 58 of 281 differentiable op implementations; every op it didn't recognize silently fell through to an identity gradient, with no error or warning. Dispatch now consults each op's own `Op::grad()` implementation first, converting roughly 223 wrong-or-absent gradients to correct ones — including every elementary math function (`sqrt`/`exp`/`ln`/trig/hyperbolic-trig/`log2`/`log10`/`abs`) and activation (`softplus`/`elu`/`swish`/`gelu`/`mish`). Also fixed: `reduce_sum`/`transpose`/`gather` were only correct under an all-ones cotangent, `reduce_mean` lost its `1/N` factor, `sigmoid_cross_entropy` and `BatchMatMul` were misidentified by fragile substring matching, `concat`/`einsum`/`tensordot` panicked during backprop, and `SymmetricEigenOp` now genuinely diagonalizes via cyclic Jacobi instead of separate per-size special cases. The public custom-gradient API (`custom_op`, `scale_gradient`, `selective_stop_gradient`, `detach`) was a complete no-op regardless of the user's backward closure — now genuinely functional.
+- **scirs2-linalg**: a real, convergence-checked general (non-symmetric) eigenvalue/Schur engine (Householder→Hessenberg reduction, then implicit double-shift Francis QR with deflation) now backs `decomposition::schur`, `lapack::eig`, and `eigen::advanced_precision_eig`, replacing per-call implementations that either never checked for convergence or only worked on already-diagonal input.
+- **scirs2-stats**: fixed an asymmetric/backwards one-sided Kolmogorov-Smirnov p-value (printing logically-inverted "Rejected"/"Not rejected" conclusions), a hardcoded-zero F-test p-value in `polyfit`, a self-deadlocking `ErrorMonitor`, and garbage-output Niederreiter/Sobol QMC sequence generators.
+- **scirs2-graph**: spectral clustering and Hungarian matching now compute real linear-algebra/optimal-assignment answers instead of a random/stand-in result; `watts_strogatz_graph` no longer hangs on ~99.8% of seeds at `p > 0` (its rewiring step checked `has_node`, always `true`, instead of `has_edge`).
+- **scirs2-io / scirs2-integrate / scirs2-series / scirs2-spatial / scirs2-ndimage / scirs2-special**: real NetCDF3 read/write (was a no-op stand-in), real DOP853/RK23 adaptive-step error estimators, a fixed `out_of_core` streaming hang/unbounded-memory-growth/double-count, fixed inverted `octree`/`quadtree` k-NN `BinaryHeap` ordering (was returning the *farthest* candidates) and an always-zero A* path cost, a mmap loader that ignored its own file header (shifting every element), and `gamma(x)` silently returning `inf` for `x` in ~[140.5, 171].
+- **scirs2-signal**: wired 83 previously-orphaned-but-real files back into the crate — a full Kalman filter family (standard/extended/unscented/ensemble/information/particle), a BSS/ICA toolkit, compressed-sensing sparse recovery (OMP/basis-pursuit/LASSO/CoSaMP), and a SciPy-`ShortTimeFFT`-class STFT port — and deleted ~167 unreachable legacy/duplicate files (541 total `.rs` files, 255 unreachable — 47% of the crate).
+- **Workspace-wide**: completed a full `#[ignore]`-legitimacy audit — every ignored test workspace-wide actually run and root-caused, not just read — dropping the count from 132 (~31% bare/no-reason) to 59, every one now reason-tagged (`requires-gpu:`/`requires-env:`/`slow:`/`bench:`/`not-implemented:`) and enforced going forward by a new `cargo-scirs2-policy` lint.
+
+See [CHANGELOG.md](CHANGELOG.md) `[0.6.5]` for the complete list.
 
 **What's New in 0.6.4** — wasm32 Follow-Up Fix:
 
@@ -448,7 +460,7 @@ Profiler::global().lock().unwrap().print_report();
 
 Each module has its own README with detailed documentation and is available on crates.io.
 
-### Complete Crate Reference (v0.6.4)
+### Complete Crate Reference (v0.6.5)
 
 | Crate | Description | docs.rs |
 |-------|-------------|---------|
@@ -608,7 +620,7 @@ SciRS2 follows the COOLJAPAN Pure Rust Policy. All default dependencies are 100%
 
 ### System Dependencies
 
-**v0.6.4 uses Pure Rust dependencies only - No system libraries required!** 🎉
+**v0.6.5 uses Pure Rust dependencies only - No system libraries required!** 🎉
 
 SciRS2 is **100% Pure Rust** with OxiBLAS (Pure Rust BLAS/LAPACK implementation). You don't need to install:
 - ❌ OpenBLAS
@@ -630,7 +642,7 @@ SciRS2 and all its modules are available on [crates.io](https://crates.io/crates
 ```toml
 # Add the main integration crate for all functionality
 [dependencies]
-scirs2 = "0.6.4"
+scirs2 = "0.6.5"
 ```
 
 Or include only the specific modules you need:
@@ -638,16 +650,16 @@ Or include only the specific modules you need:
 ```toml
 [dependencies]
 # Core utilities
-scirs2-core = "0.6.4"
+scirs2-core = "0.6.5"
 
 # Scientific computing modules
-scirs2-linalg = "0.6.4"
-scirs2-stats = "0.6.4"
-scirs2-optimize = "0.6.4"
+scirs2-linalg = "0.6.5"
+scirs2-stats = "0.6.5"
+scirs2-optimize = "0.6.5"
 
 # AI/ML modules
-scirs2-neural = "0.6.4"
-scirs2-autograd = "0.6.4"
+scirs2-neural = "0.6.5"
+scirs2-autograd = "0.6.5"
 # Note: For ML optimization algorithms, use the independent OptiRS project
 ```
 
@@ -765,15 +777,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Platform Compatibility
 
-SciRS2 v0.6.4 (July 28, 2026) has been tested on the following platforms:
+SciRS2 v0.6.5 (July 31, 2026) has been tested on the following platforms:
 
 ### ✅ Fully Supported Platforms
 
 | Platform | Architecture | Test Status | Notes |
 |----------|-------------|-------------|-------|
-| **macOS** | Apple M3 (ARM64) | ✅ All tests passing (37,442 tests, all-features) | macOS 15.6.1, 24GB RAM |
-| **Linux** | x86_64 | ✅ All tests passing (37,442 tests, all-features) | With required dependencies |
-| **Linux + CUDA** | x86_64 + NVIDIA GPU | ✅ All tests passing (37,442 tests, all-features) | CUDA support enabled |
+| **macOS** | Apple M3 (ARM64) | ✅ All tests passing (38,768 tests, all-features) | macOS 15.6.1, 24GB RAM |
+| **Linux** | x86_64 | ✅ All tests passing (38,768 tests, all-features) | With required dependencies |
+| **Linux + CUDA** | x86_64 + NVIDIA GPU | ✅ All tests passing (38,768 tests, all-features) | CUDA support enabled |
 
 ### ⚠️ Partially Supported Platforms
 
@@ -787,7 +799,7 @@ SciRS2 v0.6.4 (July 28, 2026) has been tested on the following platforms:
 To run the full test suite with all features:
 ```bash
 # No system dependencies required - Pure Rust!
-cargo nextest run --nff --all-features  # 37,442 tests
+cargo nextest run --nff --all-features  # 38,768 tests
 ```
 
 #### Windows
@@ -814,7 +826,7 @@ cargo install cargo-nextest
 cargo nextest run --nff --all-features
 ```
 
-## Current Status (v0.6.4 - Released July 28, 2026)
+## Current Status (v0.6.5 - Released July 31, 2026)
 
 ### 🎉 Production-Ready Features
 
@@ -855,9 +867,9 @@ cargo nextest run --nff --all-features
 - ✨ **Statistics**: Conformal prediction (CQR/RAPS/Mondrian), Bayesian NNs, INLA, ADVI/Laplace/SWAG
 - ✨ **Zero Warnings**: 60+ clippy warnings fixed, 0 errors, 0 warnings, 0 rustdoc warnings
 
-### Stable Modules (Production Ready — v0.6.4)
+### Stable Modules (Production Ready — v0.6.5)
 
-All 29 workspace crates are production-ready with comprehensive test coverage (37,442 tests all-features, 35,668 default-features, + 5,000 doc-tests).
+All 29 workspace crates are production-ready with comprehensive test coverage (38,768 tests all-features, 36,989 default-features, + 5,136 doc-tests).
 
 #### Core Scientific Computing Modules
 - **Linear Algebra** (`scirs2-linalg`): Full decompositions, iterative solvers (GMRES/PCG/BiCGStab/MINRES), tensor decompositions, matrix functions, control theory
@@ -914,10 +926,10 @@ All SciRS2 modules are available on crates.io. Add the modules you need to your 
 
 ```toml
 [dependencies]
-scirs2 = "0.6.4"  # Core library with all modules
+scirs2 = "0.6.5"  # Core library with all modules
 # Or individual modules:
-scirs2-linalg = "0.6.4"  # Linear algebra
-scirs2-stats = "0.6.4"   # Statistics
+scirs2-linalg = "0.6.5"  # Linear algebra
+scirs2-stats = "0.6.5"   # Statistics
 # ... and more
 ```
 
@@ -992,9 +1004,9 @@ For detailed development plans, upcoming features, and contribution opportunitie
 
 ## Development Branch Status
 
-**Current Branch**: `0.6.4` (July 28, 2026)
+**Current Branch**: `0.6.5` (July 31, 2026)
 
-**Release Status**: All major features through v0.6.4 have been implemented and tested (Waves 53–78, plus the 0.6.0 CUDA-decentralization, 0.6.1 hardening, 0.6.2 Pure-Rust dependency-elimination, 0.6.3 Windows-compatibility hardening, and 0.6.4 wasm32 follow-up fix cycles):
+**Release Status**: All major features through v0.6.5 have been implemented and tested (Waves 53–78, plus the 0.6.0 CUDA-decentralization, 0.6.1 hardening, 0.6.2 Pure-Rust dependency-elimination, 0.6.3 Windows-compatibility hardening, 0.6.4 wasm32 follow-up fix, and 0.6.5 ignore-audit bug-hunt cycles):
 - ✅ 29 workspace crates fully implemented
 - ✅ 78 waves of development completed
 - ✅ Flash Attention 2, QAT, ONNX export, LoRA/DoRA/GPTQ in neural
@@ -1003,10 +1015,10 @@ For detailed development plans, upcoming features, and contribution opportunitie
 - ✅ NUMA-aware `par_map_chunks`, lock-free data structures, GpuNdarray<f32>
 - ✅ WebGPU/WASM backend, conformal prediction, Bayesian NNs
 - ✅ Complete EML-IR CAS: canonicalize, e-graphs, SMT (OxiZ), JIT, GPU eval, diffgeom, ALiBi
-- ✅ Pure-Rust `oxicuda-*` CUDA backend across 10 crates (0.6.0), real model-serving codegen + DLPack safety fixes (0.6.1), hdf5/tracy/libnuma/opencl3 C-dependency removal (0.6.2), Windows heap-corruption/stack-overflow/path-validation fixes (0.6.3), oxifft wasm32-threading compile-error fix enabling scirs2-wasm/scirs2 meta-crate to resume publishing (0.6.4)
-- ✅ 37,442 tests (all-features) / 35,668 (default-features) + 5,000 doc-tests passing
+- ✅ Pure-Rust `oxicuda-*` CUDA backend across 10 crates (0.6.0), real model-serving codegen + DLPack safety fixes (0.6.1), hdf5/tracy/libnuma/opencl3 C-dependency removal (0.6.2), Windows heap-corruption/stack-overflow/path-validation fixes (0.6.3), oxifft wasm32-threading compile-error fix enabling scirs2-wasm/scirs2 meta-crate to resume publishing (0.6.4), full `#[ignore]`-legitimacy audit fixing autograd's mostly-dead-code live backward pass (0.6.5)
+- ✅ 38,768 tests (all-features) / 36,989 (default-features) + 5,136 doc-tests passing
 - ✅ Zero warnings policy maintained (clippy, rustdoc, compilation)
-- ✅ 80,800+ public API items documented
+- ✅ 81,100+ public API items documented
 
 **Next Steps**:
 - Ready for git commit and version tagging
@@ -1079,7 +1091,7 @@ Planned for upcoming releases:
 See [TODO.md](TODO.md) for the complete development roadmap.
 
 ### Performance Tests
-- Benchmark and performance tests are excluded from regular CI runs (404 tests marked as ignored) to optimize build times. Run with `cargo test -- --ignored` to execute full test suite including benchmarks.
+- Benchmark, GPU-only, and other environment-dependent tests are excluded from regular CI runs (59 tests marked `#[ignore]` as of the 0.6.5 ignore-legitimacy audit, each carrying a `requires-gpu:` / `requires-env:` / `slow:` / `bench:` / `not-implemented:` reason so the taxonomy is machine-checked by `cargo-scirs2-policy`'s `ignore_audit` lint) to optimize build times. Run with `cargo test -- --ignored` to execute the full test suite including benchmarks.
 
 ### Hardware-Dependent Features
 - GPU acceleration features require compatible hardware and drivers
@@ -1346,7 +1358,7 @@ If you use SciRS2 in your research, please cite:
   author = {{COOLJAPAN OU (Team KitaSan)}},
   year = {2026},
   url = {https://github.com/cool-japan/scirs},
-  version = {0.6.4}
+  version = {0.6.5}
 }
 ```
 

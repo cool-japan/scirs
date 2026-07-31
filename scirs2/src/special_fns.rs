@@ -197,40 +197,32 @@ pub fn lgamma<T: Float + FromPrimitive + FloatConst>(x: T) -> T {
 /// # Examples
 ///
 /// ```
-/// use scirs2::special::beta;
-/// let result = beta(2.0_f64, 3.0_f64);
+/// use scirs2::special_fns::beta;
+/// let result = beta(2.0_f64, 3.0_f64).expect("positive arguments");
 /// assert!((result - 1.0/12.0).abs() < 1e-10);
+/// // Also correct for non-integer arguments (uses lgamma internally):
+/// let result = beta(2.5_f64, 3.5_f64).expect("positive arguments");
+/// assert!((result - 0.036815538909255395).abs() < 1e-10);
 /// ```
 #[allow(dead_code)]
 pub fn beta<T: Float + FromPrimitive + FloatConst>(a: T, b: T) -> SciRS2Result<T> {
-    // Beta function defined in terms of the gamma function
-    // B(a, b) = Γ(a) * Γ(b) / Γ(a + b)
-
+    // Beta function defined in terms of the gamma function:
+    // B(a, b) = Γ(a) * Γ(b) / Γ(a + b) = exp(lnΓ(a) + lnΓ(b) - lnΓ(a+b))
+    //
+    // Computed via lgamma (rather than gamma directly) so it stays accurate
+    // for large a/b, where gamma(a) or gamma(a+b) individually can overflow
+    // even though their ratio (the actual Beta value) is finite. This is
+    // valid for all real a, b > 0: Γ is strictly positive there (no sign
+    // subtleties from the reflection formula, which only applies for
+    // non-positive arguments), so lgamma == ln(Γ) exactly, with no need to
+    // special-case integer arguments separately.
     check_domain(
         a > T::zero() && b > T::zero(),
         "Beta function parameters must be positive",
     )?;
 
-    // Simple implementation for integer arguments
-    // For a more comprehensive implementation, we would use a more robust gamma function
-
-    let a_int = a.round().to_usize().unwrap_or(0);
-    let b_int = b.round().to_usize().unwrap_or(0);
-
-    if (a - T::from(a_int).expect("Failed to convert to float")).abs() < T::epsilon()
-        && (b - T::from(b_int).expect("Failed to convert to float")).abs() < T::epsilon()
-    {
-        // For integer arguments
-        let num1 = gamma(a);
-        let num2 = gamma(b);
-        let denom = gamma(a + b);
-
-        return Ok(num1 * num2 / denom);
-    }
-
-    // For non-integer arguments, return NaN for now
-    // This would be replaced with a proper implementation
-    Ok(T::nan())
+    let log_beta = lgamma(a) + lgamma(b) - lgamma(a + b);
+    Ok(log_beta.exp())
 }
 
 /// Error function
@@ -445,84 +437,109 @@ pub fn jn<T: Float + FromPrimitive>(n: i32, x: T) -> T {
 }
 
 /// Helper function for J_0(x)
+///
+/// Uses the Numerical-Recipes rational (minimax) approximations (Abramowitz &
+/// Stegun 9.4), accurate to ~1e-8 relative error across the whole real line.
+/// A previous version of this helper used a truncated Maclaurin series for
+/// `|x| < 8`, which diverges badly as `|x|` approaches 8 (e.g. ~57% relative
+/// error at `x = 5`); this version is verified against reference values.
 #[allow(dead_code)]
 fn bessel_j0<T: Float + FromPrimitive>(x: T) -> T {
-    let abs_x = x.abs();
+    let xf = match x.to_f64() {
+        Some(v) => v,
+        None => return T::nan(),
+    };
+    T::from_f64(bessel_j0_f64(xf)).unwrap_or(T::nan())
+}
 
-    if abs_x < T::from_f64(8.0).expect("Operation failed") {
-        // Series expansion for small x (rewritten without compound assignment)
+fn bessel_j0_f64(x: f64) -> f64 {
+    let ax = x.abs();
+    if ax < 8.0 {
         let y = x * x;
-        let y2 = y * y;
-        let y3 = y2 * y;
-        let y4 = y3 * y;
-        let y5 = y4 * y;
-        T::one() - y / T::from_f64(4.0).unwrap_or(T::nan())
-            + y2 / T::from_f64(64.0).unwrap_or(T::nan())
-            - y3 / T::from_f64(2304.0).unwrap_or(T::nan())
-            + y4 / T::from_f64(147456.0).unwrap_or(T::nan())
-            - y5 / T::from_f64(14745600.0).unwrap_or(T::nan())
+        let ans1 = 57_568_490_574.0
+            + y * (-13_362_590_354.0
+                + y * (651_619_640.7
+                    + y * (-11_214_424.18 + y * (77_392.330_17 + y * (-184.905_245_6)))));
+        let ans2 = 57_568_490_411.0
+            + y * (1_029_532_985.0
+                + y * (9_494_680.718 + y * (59_272.648_53 + y * (267.853_271_2 + y))));
+        ans1 / ans2
     } else {
-        // Asymptotic expansion for large x
-        let z = T::from_f64(8.0).unwrap_or(T::nan()) / abs_x;
-        let z2 = z * z;
-        let z3 = z2 * z;
-        let z4 = z3 * z;
-        let pi_val = T::from_f64(std::f64::consts::PI).unwrap_or(T::nan());
-        let p = T::one() - T::from_f64(0.1098628627).unwrap_or(T::nan()) * z2
-            + T::from_f64(0.0143125463).unwrap_or(T::nan()) * z4
-            - T::from_f64(0.0045681716).unwrap_or(T::nan()) * z4 * z2;
-        let q = z * T::from_f64(0.125).unwrap_or(T::nan())
-            - z * z2 * T::from_f64(0.0732421875).unwrap_or(T::nan())
-            + z * z4 * T::from_f64(0.0227108002).unwrap_or(T::nan());
-        let sqrt_term = (T::from_f64(2.0).unwrap_or(T::nan()) / (pi_val * abs_x)).sqrt();
-        let angle = abs_x - pi_val / T::from_f64(4.0).unwrap_or(T::nan());
-        sqrt_term * (p * angle.cos() - q * angle.sin())
+        let z = 8.0 / ax;
+        let y = z * z;
+        let xx = ax - 0.785_398_164;
+        let ans1 = 1.0
+            + y * (-0.109_862_862_7e-2
+                + y * (0.273_451_040_7e-4 + y * (-0.207_337_063_9e-5 + y * 0.209_388_721_1e-6)));
+        let ans2 = -0.156_249_999_5e-1
+            + y * (0.143_048_876_5e-3
+                + y * (-0.691_114_765_1e-5 + y * (0.762_109_516_1e-6 + y * (-0.934_935_152e-7))));
+        (std::f64::consts::FRAC_2_PI / ax).sqrt() * (xx.cos() * ans1 - z * xx.sin() * ans2)
     }
 }
 
 /// Helper function for J_1(x)
+///
+/// See [`bessel_j0_f64`] for the accuracy/history note; this uses the
+/// matching Numerical-Recipes rational approximation for order 1.
 #[allow(dead_code)]
 fn bessel_j1<T: Float + FromPrimitive>(x: T) -> T {
-    let abs_x = x.abs();
+    let xf = match x.to_f64() {
+        Some(v) => v,
+        None => return T::nan(),
+    };
+    T::from_f64(bessel_j1_f64(xf)).unwrap_or(T::nan())
+}
 
-    if abs_x < T::from_f64(8.0).unwrap_or(T::nan()) {
-        // Series expansion for small x (rewritten without compound assignment)
+fn bessel_j1_f64(x: f64) -> f64 {
+    let ax = x.abs();
+    if ax < 8.0 {
         let y = x * x;
-        let y2 = y * y;
-        let y3 = y2 * y;
-        let y4 = y3 * y;
-        x / T::from_f64(2.0).unwrap_or(T::nan()) - x * y / T::from_f64(16.0).unwrap_or(T::nan())
-            + x * y2 / T::from_f64(384.0).unwrap_or(T::nan())
-            - x * y3 / T::from_f64(18432.0).unwrap_or(T::nan())
-            + x * y4 / T::from_f64(1474560.0).unwrap_or(T::nan())
+        let ans1 = x
+            * (72_362_614_232.0
+                + y * (-7_895_059_235.0
+                    + y * (242_396_853.1
+                        + y * (-2_972_611.439 + y * (15_704.482_60 + y * (-30.160_366_06))))));
+        let ans2 = 144_725_228_442.0
+            + y * (2_300_535_178.0
+                + y * (18_583_304.74 + y * (99_447.433_94 + y * (376.999_139_7 + y))));
+        ans1 / ans2
     } else {
-        // Asymptotic expansion for large x
-        let z = T::from_f64(8.0).unwrap_or(T::nan()) / abs_x;
-        let z2 = z * z;
-        let z3 = z2 * z;
-        let z4 = z3 * z;
-        let z5 = z4 * z;
-        let pi_val = T::from_f64(std::f64::consts::PI).unwrap_or(T::nan());
-        let p = T::one() + T::from_f64(0.183105e-2).unwrap_or(T::nan()) * z2
-            - T::from_f64(0.3516396496).unwrap_or(T::nan()) * z4
-            + T::from_f64(0.2457520174e-1).unwrap_or(T::nan()) * z4 * z2;
-        let q = -(z * T::from_f64(0.375).unwrap_or(T::nan()))
-            + z * z2 * T::from_f64(0.2109375).unwrap_or(T::nan())
-            - z * z4 * T::from_f64(0.1025390625).unwrap_or(T::nan());
-        let _ = z5; // suppress unused variable warning
-        let sqrt_term = (T::from_f64(2.0).unwrap_or(T::nan()) / (pi_val * abs_x)).sqrt();
-        let angle = abs_x - T::from_f64(3.0 * std::f64::consts::PI / 4.0).unwrap_or(T::nan());
-        let result = sqrt_term * (p * angle.cos() - q * angle.sin());
-
-        if x < T::zero() {
-            -result
+        let z = 8.0 / ax;
+        let y = z * z;
+        let xx = ax - 2.356_194_491;
+        let ans1 = 1.0
+            + y * (0.183_105e-2
+                + y * (-0.351_639_649_6e-4 + y * (0.245_752_017_4e-5 + y * (-0.240_337_019e-6))));
+        let ans2 = 0.046_874_999_95
+            + y * (-0.200_269_087_3e-3
+                + y * (0.844_919_909_6e-5 + y * (-0.882_289_87e-6 + y * 0.105_787_412e-6)));
+        let ans =
+            (std::f64::consts::FRAC_2_PI / ax).sqrt() * (xx.cos() * ans1 - z * xx.sin() * ans2);
+        if x < 0.0 {
+            -ans
         } else {
-            result
+            ans
         }
     }
 }
 
 /// Helper function for J_n(x) using recurrence relation
+///
+/// Callers (`jn`) guarantee `n >= 2` and `x > 0` by the time this is reached
+/// (negative order/argument and n = 0, 1 are all handled beforehand).
+///
+/// # History
+///
+/// This previously used *pure upward* recurrence
+/// `J_{i+1} = (2i/x)·J_i - J_{i-1}` unconditionally. That recurrence is only
+/// numerically stable while `x > n`: J_n is the *recessive* (rapidly
+/// decaying) solution of the three-term recurrence when `n > x`, so each
+/// upward step admixes a tiny but rapidly *growing* amount of the dominant
+/// (Y_n-like) solution from rounding error, and the result is pure garbage
+/// once `n` gets much larger than `x` — e.g. the previous code returned
+/// `jn(20, 1.0) ≈ 3.17e5` against the true value `≈ 3.87e-25` (30 orders of
+/// magnitude off). See Numerical Recipes §6.5.
 #[allow(dead_code)]
 fn bessel_jn_recurrence<T: Float + FromPrimitive>(n: i32, x: T) -> T {
     if n == 0 {
@@ -532,72 +549,332 @@ fn bessel_jn_recurrence<T: Float + FromPrimitive>(n: i32, x: T) -> T {
         return bessel_j1(x);
     }
 
-    // Use upward recurrence for moderate n
-    let mut j_n_minus_2 = bessel_j0(x);
-    let mut j_n_minus_1 = bessel_j1(x);
-    let mut j_n = T::zero();
+    let xf = match x.to_f64() {
+        Some(v) => v,
+        None => return T::nan(),
+    };
+    T::from_f64(bessel_jn_f64(n, xf)).unwrap_or(T::nan())
+}
 
-    for i in 2..=n {
-        let two_i_minus_1 = T::from_i32(2 * i - 1).expect("Test/example failed");
-        j_n = (two_i_minus_1 / x) * j_n_minus_1 - j_n_minus_2;
-        j_n_minus_2 = j_n_minus_1;
-        j_n_minus_1 = j_n;
+/// J_n(x) for integer order `n >= 2` and `x > 0`, dispatching between plain
+/// upward recurrence (stable for `x > n`) and Miller's algorithm (stable for
+/// `x <= n`).
+fn bessel_jn_f64(n: i32, x: f64) -> f64 {
+    let ax = x.abs();
+    if ax == 0.0 {
+        return 0.0;
     }
 
-    j_n
+    if ax > n as f64 {
+        // Upward recurrence tracks the dominant solution here, so it is
+        // numerically stable: J_{i+1} = (2i/x)·J_i - J_{i-1}.
+        let tox = 2.0 / ax;
+        let mut bjm = bessel_j0_f64(ax);
+        let mut bj = bessel_j1_f64(ax);
+        for j in 1..n {
+            let bjp = f64::from(j) * tox * bj - bjm;
+            bjm = bj;
+            bj = bjp;
+        }
+        bj
+    } else {
+        // Miller's algorithm: downward recurrence from an order well above
+        // `n` (arbitrary starting value), renormalized afterward using the
+        // summation identity `1 = J_0(x) + 2·Σ_{k=1}^∞ J_{2k}(x)`, which
+        // follows from the Bessel generating function
+        // `e^{(x/2)(t - 1/t)} = Σ_{k=-∞}^∞ J_k(x)·t^k` evaluated at `t = 1`
+        // together with `J_{-k}(x) = (-1)^k J_k(x)`.
+        //
+        // Downward recurrence is stable in this regime because the
+        // recessive solution (J_n) becomes the numerically dominant one when
+        // iterating toward *smaller* order — any admixture of the unwanted
+        // solution decays away rather than growing. (Numerical Recipes §6.5,
+        // "Miller's algorithm".)
+        const ACC: f64 = 40.0;
+        const BIG_NO: f64 = 1.0e10;
+        const BIG_NI: f64 = 1.0e-10;
+
+        let tox = 2.0 / ax;
+        // Starting order: comfortably above `n` so that by the time the
+        // recurrence reaches order `n`, the spurious admixture has decayed
+        // to insignificance. Forced even so the normalization sum (which
+        // only accumulates even orders) lines up correctly.
+        let extra = (ACC * n as f64).sqrt().floor() as i32;
+        let m = 2 * ((n + extra) / 2);
+
+        let mut jsum = false;
+        let mut bjp = 0.0_f64;
+        let mut ans = 0.0_f64;
+        let mut sum = 0.0_f64;
+        let mut bj = 1.0_f64;
+
+        let mut j = m;
+        while j > 0 {
+            let bjm = f64::from(j) * tox * bj - bjp;
+            bjp = bj;
+            bj = bjm;
+            if bj.abs() > BIG_NO {
+                // Renormalize to avoid overflow; the eventual ratio ans/sum
+                // is unaffected by any common rescaling.
+                bj *= BIG_NI;
+                bjp *= BIG_NI;
+                ans *= BIG_NI;
+                sum *= BIG_NI;
+            }
+            if jsum {
+                sum += bj;
+            }
+            jsum = !jsum;
+            if j == n {
+                ans = bjp;
+            }
+            j -= 1;
+        }
+        sum = 2.0 * sum - bj;
+        ans / sum
+    }
+}
+
+/// Y_0(x) via the Numerical-Recipes rational (minimax) approximation.
+fn bessel_y0_f64(x: f64) -> f64 {
+    if x < 8.0 {
+        let y = x * x;
+        let ans1 = -2_957_821_389.0
+            + y * (7_062_834_065.0
+                + y * (-512_359_803.6
+                    + y * (10_879_881.29 + y * (-86_327.927_57 + y * 228.462_273_3))));
+        let ans2 = 40_076_544_269.0
+            + y * (745_249_964.8
+                + y * (7_189_466.438 + y * (47_447.264_70 + y * (226.103_024_4 + y))));
+        (ans1 / ans2) + std::f64::consts::FRAC_2_PI * bessel_j0_f64(x) * x.ln()
+    } else {
+        let z = 8.0 / x;
+        let y = z * z;
+        let xx = x - 0.785_398_164;
+        let ans1 = 1.0
+            + y * (-0.109_862_862_7e-2
+                + y * (0.273_451_040_7e-4 + y * (-0.207_337_063_9e-5 + y * 0.209_388_721_1e-6)));
+        let ans2 = -0.156_249_999_5e-1
+            + y * (0.143_048_876_5e-3
+                + y * (-0.691_114_765_1e-5 + y * (0.762_109_516_1e-6 + y * (-0.934_935_152e-7))));
+        (std::f64::consts::FRAC_2_PI / x).sqrt() * (xx.sin() * ans1 + z * xx.cos() * ans2)
+    }
+}
+
+/// Y_1(x) via the Numerical-Recipes rational (minimax) approximation.
+fn bessel_y1_f64(x: f64) -> f64 {
+    if x < 8.0 {
+        let y = x * x;
+        let ans1 = x
+            * (-4.900_604_943e13
+                + y * (1.275_274_390e13
+                    + y * (-5.153_438_139e11
+                        + y * (7.349_264_551e9 + y * (-4.237_922_726e7 + y * 8.511_937_935e4)))));
+        let ans2 = 2.499_580_570e14
+            + y * (4.244_419_664e12
+                + y * (3.733_650_367e10
+                    + y * (2.245_904_002e8 + y * (1.020_426_050e6 + y * (3.549_632_885e3 + y)))));
+        (ans1 / ans2) + std::f64::consts::FRAC_2_PI * (bessel_j1_f64(x) * x.ln() - 1.0 / x)
+    } else {
+        let z = 8.0 / x;
+        let y = z * z;
+        let xx = x - 2.356_194_491;
+        let ans1 = 1.0
+            + y * (0.183_105e-2
+                + y * (-0.351_639_649_6e-4 + y * (0.245_752_017_4e-5 + y * (-0.240_337_019e-6))));
+        let ans2 = 0.046_874_999_95
+            + y * (-0.200_269_087_3e-3
+                + y * (0.844_919_909_6e-5 + y * (-0.882_289_87e-6 + y * 0.105_787_412e-6)));
+        (std::f64::consts::FRAC_2_PI / x).sqrt() * (xx.sin() * ans1 + z * xx.cos() * ans2)
+    }
+}
+
+/// Y_n(x) for non-negative integer order via the numerically stable upward
+/// recurrence `Y_{n+1}(x) = (2n/x)·Y_n(x) - Y_{n-1}(x)` (stable in the
+/// increasing-n direction, unlike the same recurrence for J_n).
+fn bessel_yn_f64(n: i32, x: f64) -> f64 {
+    if n == 0 {
+        return bessel_y0_f64(x);
+    }
+    if n == 1 {
+        return bessel_y1_f64(x);
+    }
+    let mut y_prev = bessel_y0_f64(x);
+    let mut y_curr = bessel_y1_f64(x);
+    for j in 1..n {
+        let y_next = (2.0 * f64::from(j) / x) * y_curr - y_prev;
+        y_prev = y_curr;
+        y_curr = y_next;
+    }
+    y_curr
 }
 
 /// Bessel function of the second kind, order n
 ///
+/// Computed via Numerical-Recipes-style rational (minimax) approximations for
+/// Y_0/Y_1 (~1e-8 relative accuracy) combined with the numerically stable
+/// upward recurrence for higher orders.
+///
 /// # Arguments
 ///
-/// * `n` - Order of the Bessel function
-/// * `x` - Input value
+/// * `n` - Order of the Bessel function (may be negative: uses the identity
+///   `Y_{-n}(x) = (-1)^n · Y_n(x)`)
+/// * `x` - Input value (must be positive; `Y_n` has a branch point at `x = 0`
+///   and is not real-valued for `x < 0`)
 ///
 /// # Returns
 ///
-/// * Bessel function value at x
+/// * Bessel function of the second kind at `x`; `NaN` for `x < 0`, `-∞` at
+///   `x == 0`
+///
+/// # Examples
+///
+/// ```
+/// use scirs2::special_fns::yn;
+/// let result = yn(0, 1.0_f64);
+/// assert!((result - 0.08825696421567697).abs() < 1e-6);
+/// let result = yn(1, 1.0_f64);
+/// assert!((result - (-0.7812128213002888)).abs() < 1e-6);
+/// ```
 #[allow(dead_code)]
 pub fn yn<T: Float + FromPrimitive>(n: i32, x: T) -> T {
-    // Placeholder implementation
-    // A proper implementation would use a series expansion or numerical approximation
-    T::nan()
+    let xf = match x.to_f64() {
+        Some(v) => v,
+        None => return T::nan(),
+    };
+
+    if xf.is_nan() || xf < 0.0 {
+        return T::nan();
+    }
+    if xf == 0.0 {
+        return T::from_f64(f64::NEG_INFINITY).unwrap_or(T::nan());
+    }
+
+    if n < 0 {
+        let n_pos = -n;
+        let val = bessel_yn_f64(n_pos, xf);
+        let signed = if n_pos % 2 == 0 { val } else { -val };
+        return T::from_f64(signed).unwrap_or(T::nan());
+    }
+
+    T::from_f64(bessel_yn_f64(n, xf)).unwrap_or(T::nan())
+}
+
+/// Shared arithmetic-geometric-mean (AGM) computation of the complete
+/// elliptic integrals of the first and second kind, for parameter `m` in
+/// `[0, 1]` (Abramowitz & Stegun 17.6). Quadratically convergent (~1e-15
+/// accuracy in a handful of iterations).
+fn agm_elliptic_f64(m: f64) -> (f64, f64) {
+    let half_pi = std::f64::consts::FRAC_PI_2;
+    if m <= 0.0 {
+        return (half_pi, half_pi);
+    }
+    if m >= 1.0 {
+        // K(1) diverges to +infinity; E(1) = 1 exactly.
+        return (f64::INFINITY, 1.0);
+    }
+
+    let mut a = 1.0_f64;
+    let mut b = (1.0 - m).sqrt();
+    let mut c = m.sqrt();
+    let mut sum = 0.5 * c * c; // running Σ 2^(n-1)·c_n^2, n = 0 term
+    let mut pow2 = 0.5_f64; // tracks 2^(n-1) for the current n
+
+    for _ in 0..64 {
+        if (a - b).abs() <= a * 1e-16 {
+            break;
+        }
+        let a_next = 0.5 * (a + b);
+        let b_next = (a * b).sqrt();
+        c = 0.5 * (a - b);
+        a = a_next;
+        b = b_next;
+        pow2 *= 2.0;
+        sum += pow2 * c * c;
+    }
+
+    let k = half_pi / a;
+    let e = k * (1.0 - sum);
+    (k, e)
+}
+
+/// Complete elliptic integrals K(m)/E(m) for any `m < 1`, including negative
+/// `m`, via the imaginary-modulus transformation for `m < 0` (DLMF 19.7.5):
+/// `K(-m) = K(m/(1+m)) / sqrt(1+m)`, `E(-m) = E(m/(1+m)) · sqrt(1+m)`.
+fn complete_elliptic_f64(m: f64) -> (f64, f64) {
+    if m >= 0.0 {
+        agm_elliptic_f64(m)
+    } else {
+        let mp = -m;
+        let m2 = mp / (1.0 + mp);
+        let (k2, e2) = agm_elliptic_f64(m2);
+        let scale = (1.0 + mp).sqrt();
+        (k2 / scale, e2 * scale)
+    }
 }
 
 /// Complete elliptic integral of the first kind
 ///
+/// Computed via the arithmetic-geometric mean (AGM), which converges
+/// quadratically to full `f64` precision in a handful of iterations.
+///
 /// # Arguments
 ///
-/// * `m` - Parameter
+/// * `m` - Parameter (SciPy/`m`-convention, i.e. `k^2`; must be `< 1`)
 ///
 /// # Returns
 ///
-/// * Complete elliptic integral value
+/// * Complete elliptic integral value `K(m)`; `+∞` at `m == 1`
+///
+/// # Examples
+///
+/// ```
+/// use scirs2::special_fns::ellipk;
+/// let result = ellipk(0.5_f64).expect("m < 1");
+/// assert!((result - 1.8540746773013719).abs() < 1e-10);
+/// ```
 #[allow(dead_code)]
 pub fn ellipk<T: Float + FromPrimitive>(m: T) -> SciRS2Result<T> {
     check_domain(m < T::one(), "Parameter m must be less than 1")?;
 
-    // Placeholder implementation
-    // A proper implementation would use a series expansion or numerical approximation
-    Ok(T::nan())
+    let mf = match m.to_f64() {
+        Some(v) => v,
+        None => return Ok(T::nan()),
+    };
+    let (k, _e) = complete_elliptic_f64(mf);
+    Ok(T::from_f64(k).unwrap_or(T::nan()))
 }
 
 /// Complete elliptic integral of the second kind
 ///
+/// Computed via the arithmetic-geometric mean (AGM), which converges
+/// quadratically to full `f64` precision in a handful of iterations.
+///
 /// # Arguments
 ///
-/// * `m` - Parameter
+/// * `m` - Parameter (SciPy/`m`-convention, i.e. `k^2`; must be `< 1`)
 ///
 /// # Returns
 ///
-/// * Complete elliptic integral value
+/// * Complete elliptic integral value `E(m)`
+///
+/// # Examples
+///
+/// ```
+/// use scirs2::special_fns::ellipe;
+/// let result = ellipe(0.5_f64).expect("m < 1");
+/// assert!((result - 1.3506438810476755).abs() < 1e-10);
+/// ```
 #[allow(dead_code)]
 pub fn ellipe<T: Float + FromPrimitive>(m: T) -> SciRS2Result<T> {
     check_domain(m < T::one(), "Parameter m must be less than 1")?;
 
-    // Placeholder implementation
-    // A proper implementation would use a series expansion or numerical approximation
-    Ok(T::nan())
+    let mf = match m.to_f64() {
+        Some(v) => v,
+        None => return Ok(T::nan()),
+    };
+    let (_k, e) = complete_elliptic_f64(mf);
+    Ok(T::from_f64(e).unwrap_or(T::nan()))
 }
 
 #[cfg(test)]
@@ -653,6 +930,130 @@ mod tests {
         assert!((beta(1.0, 1.0).expect("Operation failed") - 1.0).abs() < 1e-10);
         assert!((beta(2.0, 3.0).expect("Operation failed") - 1.0 / 12.0).abs() < 1e-10);
         assert!((beta(3.0, 2.0).expect("Operation failed") - 1.0 / 12.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_beta_non_integer_args() {
+        // Previously this returned NaN for ANY non-integer argument pair.
+        // Reference values from `scipy.special.beta`.
+        assert!(
+            (beta(2.5_f64, 3.5).expect("Operation failed") - 0.036815538909255395).abs() < 1e-10
+        );
+        assert!(
+            (beta(1.5_f64, 2.5).expect("Operation failed") - 0.19634954084936204).abs() < 1e-10
+        );
+        assert!(
+            (beta(0.5_f64, 0.5).expect("Operation failed") - std::f64::consts::PI).abs() < 1e-9
+        );
+        // Large arguments: gamma(10.5) or gamma(30.8) would individually be
+        // enormous, but lgamma-based computation keeps the ratio accurate.
+        assert!(
+            (beta(10.5_f64, 20.3).expect("Operation failed") - 2.514034214191836e-9).abs() < 1e-15
+        );
+    }
+
+    #[test]
+    fn test_yn_matches_reference() {
+        // Previously `yn` was an unconditional `T::nan()` stub for every input.
+        // Reference values from `scipy.special.yn`.
+        assert!((yn(0, 1.0_f64) - 0.08825696421567697).abs() < 1e-6);
+        assert!((yn(1, 1.0_f64) - (-0.7812128213002888)).abs() < 1e-6);
+        assert!((yn(2, 1.0_f64) - (-1.6506826068162546)).abs() < 1e-6);
+        assert!((yn(0, 5.0_f64) - (-0.30851762524903314)).abs() < 1e-6);
+        // Higher order + moderate x accumulates a bit more error through the
+        // upward recurrence, so use a slightly looser tolerance here.
+        assert!((yn(3, 5.0_f64) - 0.14626716269319184).abs() < 1e-4);
+        assert!((yn(5, 10.0_f64) - 0.13540304768936254).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_yn_negative_order_and_domain() {
+        // Y_{-n}(x) = (-1)^n Y_n(x)
+        assert!((yn(-1, 1.0_f64) - 0.7812128213002888).abs() < 1e-6);
+        assert!((yn(-2, 1.0_f64) - (-1.6506826068162546)).abs() < 1e-6);
+        // Y_n is undefined (branch point) for x <= 0.
+        assert!(yn(0, -1.0_f64).is_nan());
+        assert!(yn(0, 0.0_f64).is_infinite());
+    }
+
+    #[test]
+    fn test_jn_still_correct_for_orders_0_and_1() {
+        // Regression check for the bessel_j0/bessel_j1 coefficient fix that
+        // yn() needed: the previous truncated-Maclaurin-series/mis-keyed
+        // asymptotic implementation was badly wrong approaching x = 8 (e.g.
+        // jn(0, 5.0) was previously off by ~57%: -0.2792 vs the true
+        // -0.17760). Reference values from `scipy.special.jv`.
+        assert!((jn(0, 5.0_f64) - (-0.17759677131433835)).abs() < 1e-6);
+        assert!((jn(1, 5.0_f64) - (-0.3275791375914652)).abs() < 1e-6);
+        assert!((jn(0, 7.9_f64) - 0.19436184484127844).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_jn_miller_algorithm_n_greater_than_x() {
+        // Previously `bessel_jn_recurrence` used *pure upward* recurrence
+        // unconditionally. That recurrence tracks the recessive solution
+        // when n > x, so rounding error grows catastrophically: the old
+        // code returned `jn(20, 1.0) ~= 3.17e5` against the true value
+        // `~= 3.87e-25` (30 orders of magnitude off). This regime now uses
+        // Miller's algorithm (downward recurrence + renormalization).
+        // Reference values from `scipy.special.jv`.
+        fn rel_close(actual: f64, expected: f64, tol: f64) -> bool {
+            (actual - expected).abs() <= tol * expected.abs().max(1e-300)
+        }
+
+        assert!(rel_close(jn(20, 1.0_f64), 3.8735030085246507e-25, 1e-9));
+        assert!(rel_close(jn(30, 5.0_f64), 2.6711772782508136e-21, 1e-9));
+        assert!(rel_close(jn(10, 2.0_f64), 2.5153862827167347e-07, 1e-9));
+        assert!(rel_close(jn(100, 10.0_f64), 6.597316064155483e-89, 1e-8));
+        assert!(rel_close(jn(50, 1.0_f64), 2.906_004_948_173_25e-80, 1e-8));
+        assert!(rel_close(jn(7, 3.0_f64), 0.002547294451804692, 1e-9));
+
+        // Negative x should stay consistent with J_n(-x) = (-1)^n J_n(x)
+        // (exercised through the same n > x path in the public `jn` API).
+        assert!(rel_close(jn(20, -1.0_f64), 3.8735030085246507e-25, 1e-9));
+        assert!(rel_close(jn(7, -3.0_f64), -0.002547294451804692, 1e-9));
+    }
+
+    #[test]
+    fn test_jn_upward_regime_still_correct() {
+        // x > n: already the numerically stable regime for upward
+        // recurrence; confirm the dispatch didn't regress it. Tolerance
+        // matches the ~1e-8-relative accuracy of the underlying J_0/J_1
+        // rational approximations (see `test_jn_still_correct_for_orders_0_and_1`).
+        // Reference values from `scipy.special.jv`.
+        assert!((jn(15, 50.0_f64) - (-0.10822559897511456)).abs() < 1e-6);
+        assert!((jn(3, 5.0_f64) - 0.364831230613667).abs() < 1e-6);
+        assert!((jn(5, 10.0_f64) - (-0.2340615281867936)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_ellipk_matches_reference() {
+        // Previously `ellipk` returned NaN for every valid input.
+        // Reference values from `scipy.special.ellipk`.
+        assert!(
+            (ellipk(0.0_f64).expect("Operation failed") - std::f64::consts::FRAC_PI_2).abs()
+                < 1e-12
+        );
+        assert!((ellipk(0.5_f64).expect("Operation failed") - 1.8540746773013719).abs() < 1e-10);
+        assert!((ellipk(0.9_f64).expect("Operation failed") - 2.5780921133481733).abs() < 1e-10);
+        // Negative m (imaginary-modulus transform path).
+        assert!((ellipk(-5.0_f64).expect("Operation failed") - 0.9555039270640441).abs() < 1e-10);
+        // m >= 1 is rejected by the domain check.
+        assert!(ellipk(1.0_f64).is_err());
+    }
+
+    #[test]
+    fn test_ellipe_matches_reference() {
+        // Previously `ellipe` returned NaN for every valid input.
+        // Reference values from `scipy.special.ellipe`.
+        assert!(
+            (ellipe(0.0_f64).expect("Operation failed") - std::f64::consts::FRAC_PI_2).abs()
+                < 1e-12
+        );
+        assert!((ellipe(0.5_f64).expect("Operation failed") - 1.3506438810476755).abs() < 1e-10);
+        assert!((ellipe(0.9_f64).expect("Operation failed") - 1.1047747327040733).abs() < 1e-10);
+        // Negative m (imaginary-modulus transform path).
+        assert!((ellipe(-5.0_f64).expect("Operation failed") - 2.830198246345877).abs() < 1e-10);
     }
 
     #[test]

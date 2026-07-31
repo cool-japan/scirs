@@ -21,6 +21,7 @@
 
 pub mod ecosystem_integration;
 pub mod fuzzing;
+pub mod gpu_availability;
 pub mod integration;
 pub mod large_scale;
 pub mod propertybased;

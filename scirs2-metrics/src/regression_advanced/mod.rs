@@ -30,9 +30,7 @@ pub fn quantile_loss(y_true: &[f64], y_pred: &[f64], quantile: f64) -> Result<f6
         )));
     }
     if y_true.is_empty() {
-        return Err(MetricsError::InvalidInput(
-            "Empty input arrays".to_string(),
-        ));
+        return Err(MetricsError::InvalidInput("Empty input arrays".to_string()));
     }
     if quantile <= 0.0 || quantile >= 1.0 {
         return Err(MetricsError::InvalidInput(format!(
@@ -68,9 +66,7 @@ pub fn quantile_loss(y_true: &[f64], y_pred: &[f64], quantile: f64) -> Result<f6
 pub fn coverage_error(y_true: &[f64], y_lower: &[f64], y_upper: &[f64]) -> Result<f64> {
     validate_triple_lengths(y_true, y_lower, y_upper)?;
     if y_true.is_empty() {
-        return Err(MetricsError::InvalidInput(
-            "Empty input arrays".to_string(),
-        ));
+        return Err(MetricsError::InvalidInput("Empty input arrays".to_string()));
     }
 
     let not_covered = y_true
@@ -97,9 +93,7 @@ pub fn interval_width(y_lower: &[f64], y_upper: &[f64]) -> Result<f64> {
         )));
     }
     if y_lower.is_empty() {
-        return Err(MetricsError::InvalidInput(
-            "Empty input arrays".to_string(),
-        ));
+        return Err(MetricsError::InvalidInput("Empty input arrays".to_string()));
     }
 
     let total: f64 = y_lower
@@ -130,17 +124,10 @@ pub fn interval_width(y_lower: &[f64], y_upper: &[f64]) -> Result<f64> {
 /// * `y_lower` — lower bounds of prediction intervals
 /// * `y_upper` — upper bounds of prediction intervals
 /// * `alpha` — significance level of the prediction interval (e.g. 0.05 for 95%)
-pub fn winkler_score(
-    y_true: &[f64],
-    y_lower: &[f64],
-    y_upper: &[f64],
-    alpha: f64,
-) -> Result<f64> {
+pub fn winkler_score(y_true: &[f64], y_lower: &[f64], y_upper: &[f64], alpha: f64) -> Result<f64> {
     validate_triple_lengths(y_true, y_lower, y_upper)?;
     if y_true.is_empty() {
-        return Err(MetricsError::InvalidInput(
-            "Empty input arrays".to_string(),
-        ));
+        return Err(MetricsError::InvalidInput("Empty input arrays".to_string()));
     }
     if alpha <= 0.0 || alpha >= 1.0 {
         return Err(MetricsError::InvalidInput(format!(
@@ -177,10 +164,7 @@ pub fn winkler_score(
 ///
 /// # Returns
 /// Mean CRPS across all forecast cases.
-pub fn continuous_ranked_probability_score(
-    y_true: &[f64],
-    ensemble: &[Vec<f64>],
-) -> Result<f64> {
+pub fn continuous_ranked_probability_score(y_true: &[f64], ensemble: &[Vec<f64>]) -> Result<f64> {
     if y_true.len() != ensemble.len() {
         return Err(MetricsError::InvalidInput(format!(
             "y_true ({}) and ensemble ({}) have different lengths",
@@ -189,9 +173,7 @@ pub fn continuous_ranked_probability_score(
         )));
     }
     if y_true.is_empty() {
-        return Err(MetricsError::InvalidInput(
-            "Empty input arrays".to_string(),
-        ));
+        return Err(MetricsError::InvalidInput("Empty input arrays".to_string()));
     }
 
     let total: f64 = y_true
@@ -246,9 +228,7 @@ pub fn energy_score(y_true: &[Vec<f64>], ensemble: &[Vec<Vec<f64>>]) -> Result<f
         )));
     }
     if y_true.is_empty() {
-        return Err(MetricsError::InvalidInput(
-            "Empty input arrays".to_string(),
-        ));
+        return Err(MetricsError::InvalidInput("Empty input arrays".to_string()));
     }
 
     let total: f64 = y_true
@@ -267,11 +247,7 @@ fn energy_score_single(y: &[f64], members: &[Vec<f64>]) -> f64 {
     let m = members.len() as f64;
 
     // E||X - y||
-    let e_xy: f64 = members
-        .iter()
-        .map(|x| l2_distance(x, y))
-        .sum::<f64>()
-        / m;
+    let e_xy: f64 = members.iter().map(|x| l2_distance(x, y)).sum::<f64>() / m;
 
     // E||X - X'||
     let mut e_xx = 0.0_f64;
@@ -315,7 +291,10 @@ mod tests {
         let y_true = vec![1.0, 2.0, 3.0];
         let y_pred = vec![1.0, 2.0, 3.0];
         let loss = quantile_loss(&y_true, &y_pred, 0.5).expect("should succeed");
-        assert!((loss - 0.0).abs() < 1e-10, "Perfect predictions → 0 loss, got {loss}");
+        assert!(
+            (loss - 0.0).abs() < 1e-10,
+            "Perfect predictions → 0 loss, got {loss}"
+        );
     }
 
     #[test]

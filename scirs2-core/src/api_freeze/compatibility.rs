@@ -58,13 +58,19 @@ pub fn is_version_compatible(required: &Version) -> bool {
 }
 
 /// Macro to check API availability at compile time
+///
+/// Honestly a no-op today: it does not yet perform a real compile-time
+/// API-existence check (that would require `$api`/`$module` to be actual
+/// item paths rather than message fragments, plus a redesign of this
+/// macro's public signature). It previously used a tautological
+/// `assert!(true, ..)` here, which "passed" unconditionally regardless of
+/// whether the referenced API existed — this version is an honest no-op
+/// instead of masquerading as a check.
 #[macro_export]
 macro_rules! require_api {
     ($api:expr, $module:expr) => {
         const _: () = {
-            // This will cause a compile error if the API doesn't exist
-            // In practice, this would be more sophisticated
-            assert!(true, concat!("API required: ", $module, "::", $api));
+            let _ = concat!("API required: ", $module, "::", $api);
         };
     };
 }

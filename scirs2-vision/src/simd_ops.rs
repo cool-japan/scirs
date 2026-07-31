@@ -1449,7 +1449,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - unwrap on None in scirs2-core/src/simd/dot.rs:511"]
     fn test_simd_gaussian_blur() {
         let image = arr2(&[
             [1.0, 1.0, 1.0, 1.0],

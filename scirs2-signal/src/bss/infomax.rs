@@ -34,7 +34,7 @@ pub fn infomax_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        scirs2_core::random::rngs::StdRng::seed_from_u64([seed as u8; 32])
+        scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
     } else {
         {
             // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
@@ -136,7 +136,7 @@ pub fn extended_infomax_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        scirs2_core::random::rngs::StdRng::seed_from_u64([seed as u8; 32])
+        scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
     } else {
         {
             // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
@@ -205,8 +205,7 @@ pub fn extended_infomax_ica(
                     for j in 0..batch_size {
                         k[[i, j]] = y[[i, j]].tanh();
                     }
-                    k_prime[[i, i]] =
-                        1.0 - k.slice(s![i, ..]).mapv(|x: f64| x.powi(2)).mean();
+                    k_prime[[i, i]] = 1.0 - k.slice(s![i, ..]).mapv(|x: f64| x.powi(2)).mean();
                 } else {
                     // Sub-Gaussian: cubic nonlinearity
                     for j in 0..batch_size {

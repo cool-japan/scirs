@@ -299,13 +299,20 @@ struct DistancePoint {
     distance_sq: f64,
 }
 
-/// For binary heap, we want max heap, but we want to extract the minimum distance,
-/// so we reverse the ordering
+/// `result_queue` in `query_nearest` keeps the current k best (smallest
+/// distance) candidates and must evict the *worst* one once it grows beyond
+/// k. That means `DistancePoint` needs the natural ordering by
+/// `distance_sq` (farthest point sorts as the max), so a plain `BinaryHeap`
+/// (a max-heap) pops/evicts the farthest point when the set overflows, and
+/// `peek()` reports the current farthest point as the new `worst_dist`.
+/// Do NOT invert this the way `DistanceNode` below does — that inversion is
+/// only correct for a "closest first" traversal queue, and applying it here
+/// previously caused the *closest* point to be evicted instead of the
+/// farthest one, silently corrupting nearest-neighbor results.
 impl Ord for DistancePoint {
     fn cmp(&self, other: &Self) -> Ordering {
-        other
-            .distance_sq
-            .partial_cmp(&self.distance_sq)
+        self.distance_sq
+            .partial_cmp(&other.distance_sq)
             .unwrap_or(Ordering::Equal)
     }
 }
@@ -1016,9 +1023,7 @@ mod tests {
             .expect("Operation failed");
 
         assert_eq!(indices.len(), 1);
-        // The exact index and distance might vary based on implementation details
-        // Just verify we get a valid result with a positive distance
-        assert!(indices[0] < points.shape()[0]);
+        assert_eq!(indices[0], 0); // Closest to origin
         assert!(distances[0] >= 0.0);
 
         // Test multiple nearest neighbors

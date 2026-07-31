@@ -872,9 +872,16 @@ mod tests {
                 assert!(!context.all_devices().is_empty());
                 assert!(context.current_device_info().is_available);
             }
-            Err(_) => {
-                // Expected: no GPU runtime available.
-                println!("GPU not available, skipping GPU context test");
+            Err(e) => {
+                // Expected: no GPU runtime available. Still assert the
+                // failure carries a real, non-empty diagnostic message
+                // rather than just swallowing the error silently.
+                let message = e.to_string();
+                assert!(
+                    !message.is_empty(),
+                    "GpuContext::new() error should carry a diagnostic message"
+                );
+                println!("GPU not available, skipping GPU context test: {message}");
             }
         }
     }

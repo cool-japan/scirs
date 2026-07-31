@@ -4,17 +4,19 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-signal)](https://docs.rs/scirs2-signal)
 [![Status](https://img.shields.io/badge/status-stable-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-0.6.4-green)]()
+[![Version](https://img.shields.io/badge/version-0.6.5-green)]()
 
 **Production-ready signal processing for Rust** — part of the [SciRS2](https://github.com/cool-japan/scirs) scientific computing ecosystem.
 
-`scirs2-signal` provides a comprehensive signal processing toolkit modelled after SciPy's `signal` module while going considerably further in v0.5.0: matched filtering, CFAR detection, Kalman/EKF/UKF state estimation, MFCC and cepstral analysis, EMD/HHT, compressed sensing (OMP/ISTA), blind source separation (ICA, NMF audio), system identification (ARX, N4SID), radar processing, and music information retrieval. The Savitzky-Golay polynomial smoother (`savgol`) was re-enabled and validated in the v0.5.0 stub-check sweep.
+`scirs2-signal` provides a comprehensive signal processing toolkit modelled after SciPy's `signal` module, going considerably further: matched filtering, CFAR detection, a full Kalman filter family (standard/EKF/UKF/ensemble/information/particle), MFCC and cepstral analysis, EMD/HHT, compressed sensing (OMP/basis pursuit/LASSO/CoSaMP), blind source separation (ICA/BSS, NMF audio), and system identification (ARX, N4SID). The Savitzky-Golay polynomial smoother (`savgol`) was re-enabled and validated in the v0.5.0 stub-check sweep. Note: the Kalman, compressed-sensing, and BSS modules, plus a class-based `ShortTimeFFT`-style STFT port, existed as source since earlier releases but had no `mod` declaration anywhere in `lib.rs` — they were only wired into the compiled crate as of v0.6.5 (see below); matched filtering/CFAR (`radar`) was in the same position.
 
-Tested: 1489/1489 tests passing with default features, 1489/1489 with `--all-features` (verified 2026-07-15).
+Tested: 1489/1489 tests passing with default features, 1489/1489 with `--all-features` (verified 2026-07-15, predates the v0.6.5 file wiring/deletion below — the exact count has shifted and has not been re-measured for this docs pass).
 
 **v0.6.3:** fixed two correctness bugs — `eigenvalues_francis_qr` (`src/phase_estimation/esprit.rs`, used by ESPRIT phase estimation) had a wrong bulge-term index and a right-multiply loop one row short in its double-shift QR, letting eigenvalues silently drift from the input matrix's; and `n4sid_estimate` (`src/system_identification/n4sid.rs`) now solves its least-squares steps through an SVD-based minimum-norm solve (new `pseudoinverse_product`) instead of normal equations, which previously returned silently-bogus huge-norm solutions for rank-deficient (non-persistently-exciting) inputs instead of erroring.
 
 **v0.6.4:** `oxifft`'s `threading` (rayon) feature is no longer enabled by default on `wasm32-unknown-unknown` — `oxifft` is now declared via target-gated `[target.'cfg(...)'.dependencies]` tables, resolving a hard `compile_error!` that `oxifft` 0.4.1 added for that combination.
+
+**v0.6.5:** wired 83 previously-orphaned-but-real files back into the crate (see `wire_files.txt` at the crate root) — a full Kalman filter family (standard/extended/unscented/ensemble/information/particle, `src/kalman/`), a BSS/ICA toolkit (`src/bss/`), compressed-sensing sparse recovery (OMP/basis-pursuit/LASSO/CoSaMP, `src/compressed_sensing/`), time-series feature extraction (`src/features/`), and a SciPy-`ShortTimeFFT`-class STFT port (`src/stft/`) — none of which had any wired equivalent anywhere in the crate before this release. Also deleted ~167 unreachable legacy/duplicate files (541 total `.rs` files in `src/`, 255 unreachable — 47%, not the ~82 previously estimated): six mutually-redundant Lomb-Scargle validation suites, five competing WPT validation suites, four independent copies of the sparse-recovery algorithm family, three redundant synchrosqueezed-transform implementations, and several half-finished `splitrs`-style refactors never wired into `lib.rs`. **One casualty of the cleanup**: `mir.rs` (the crate's only Music Information Retrieval implementation — beat tracking, tempo estimation, key detection, tonal centroid, self-similarity structural segmentation) was deleted with no surviving equivalent wired anywhere. CQT-based chroma (`cqt::chromagram`) and spectral-flux onset detection (`streaming::spectral_analysis::SpectralFlux`) remain available and unaffected, but the rest of the former MIR feature set is not currently implemented (see the MIR section below and `TODO.md`).
 
 ---
 
@@ -24,7 +26,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ---
 
-## Feature List (v0.6.4)
+## Feature List (v0.6.5)
 
 ### Filter Design & Application
 - **IIR filters**: Butterworth, Chebyshev I/II, Elliptic, Bessel — analog prototype design and digital transformation
@@ -88,10 +90,12 @@ Signal processing tasks range from basic filtering and spectral analysis through
 - Applications: echo cancellation, noise cancellation, channel equalization, system identification
 
 ### State Estimation (Kalman Family)
-- **Kalman filter** and Rauch-Tung-Striebel (RTS) smoother
-- **Extended Kalman Filter (EKF)**: linearisation via Jacobians (analytical or numerical)
-- **Unscented Kalman Filter (UKF)**: sigma-point propagation (Van der Merwe parametrisation)
-- Square-root formulations of EKF and UKF for numerical stability
+- **Kalman filter** (`kalman::KalmanFilter`) and Rauch-Tung-Striebel (RTS) smoother (`kalman::legacy`)
+- **Extended Kalman Filter (EKF)**: linearisation via Jacobians, analytical or numerical (`kalman::extended`)
+- **Unscented Kalman Filter (UKF)**: sigma-point propagation (`kalman::unscented`)
+- **Ensemble Kalman Filter (EnKF)**: Monte Carlo ensemble propagation for high-dimensional state (`kalman::ensemble`)
+- **Information Filter**: dual/information-form linear Kalman filter (`kalman::information`)
+- **Particle filter**: sequential Monte Carlo for nonlinear/non-Gaussian systems, with Gaussian and Student-t likelihoods and configurable resampling (`kalman::particle`)
 
 ### Compressed Sensing & Sparse Recovery
 - **OMP (Orthogonal Matching Pursuit)**: greedy sparse recovery with sparsity or residual stopping
@@ -165,11 +169,12 @@ Signal processing tasks range from basic filtering and spectral analysis through
 - EVM (error vector magnitude)
 
 ### Music Information Retrieval (MIR)
-- Beat tracking and tempo estimation (onset-strength-based)
-- Chroma features (PCP, CQT-based chroma)
-- Tonal centroid (Harmonic Network) and key detection
-- Onset detection (spectral flux, HFC, complex domain)
-- Structural segmentation via self-similarity matrices
+- Chroma features: CQT-based chroma (`cqt::chromagram`)
+- Onset detection: spectral flux (`streaming::spectral_analysis::SpectralFlux`)
+- **Not currently implemented** (the crate's only implementation, `mir.rs`, was removed with no
+  replacement wired during v0.6.5's dead-code cleanup — see "What's New" above): beat tracking and
+  tempo estimation, PCP chroma, HFC/complex-domain onset detection, tonal centroid (Harmonic
+  Network), key detection, and structural segmentation via self-similarity matrices
 
 ### Radar Signal Processing
 - Linear and non-linear frequency-modulated chirp waveforms
@@ -189,7 +194,7 @@ Signal processing tasks range from basic filtering and spectral analysis through
 
 ```toml
 [dependencies]
-scirs2-signal = "0.6.4"
+scirs2-signal = "0.6.5"
 ```
 
 ### Butterworth Low-Pass Filter
@@ -232,7 +237,7 @@ let spec = spectrogram(&signal.view(), fs, 512, 256, "hamming").unwrap();
 ### MFCC Extraction
 
 ```rust
-use scirs2_signal::cepstrum::mfcc;
+use scirs2_signal::cepstral::mfcc;
 
 // 1 second of 16 kHz audio
 let audio: Vec<f64> = vec![0.0_f64; 16000];
@@ -245,50 +250,47 @@ println!("MFCC frames: {}", features.nrows());
 ### OMP Sparse Recovery
 
 ```rust
-use scirs2_signal::compressed_sensing::omp;
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_signal::compressed_sensing::{omp, OmpConfig};
 
-// y = Phi * x_sparse + noise
-let (x_recovered, support) = omp(&phi.view(), &y.view(), 10, None).unwrap();
-println!("Recovered {} non-zero coefficients", support.len());
+// y = Phi * x_sparse + noise (`phi`: Array2<f64> sensing matrix, `y`: Array1<f64> measurements)
+let cfg = OmpConfig { sparsity: 10, ..Default::default() };
+let x_recovered = omp(&phi, &y, &cfg).unwrap();
+let nnz = x_recovered.iter().filter(|v| v.abs() > 1e-8).count();
+println!("Recovered {nnz} non-zero coefficients");
 ```
 
 ### Kalman Filter Tracking
 
 ```rust
-use scirs2_signal::kalman::{KalmanFilter, KalmanConfig};
-use scirs2_core::ndarray::{array, Array1, Array2};
+use scirs2_signal::kalman::KalmanFilter;
 
-// Constant-velocity 1D model
-let config = KalmanConfig {
-    state_dim: 2,
-    obs_dim: 1,
-    transition: array![[1.0, 1.0], [0.0, 1.0]],
-    observation: array![[1.0, 0.0]],
-    process_noise: Array2::eye(2) * 0.01,
-    observation_noise: Array2::eye(1) * 1.0,
-    initial_state: Array1::zeros(2),
-    initial_covariance: Array2::eye(2),
-};
-
-let mut kf = KalmanFilter::new(config);
+// Constant-velocity 1D model: state = [position, velocity]
+let mut kf = KalmanFilter::new(2, 1); // (state_dim, obs_dim)
+kf.set_F(vec![vec![1.0, 1.0], vec![0.0, 1.0]]).unwrap();
+kf.set_H(vec![vec![1.0, 0.0]]).unwrap();
+kf.set_Q(vec![vec![0.01, 0.0], vec![0.0, 0.01]]).unwrap();
+kf.set_R(vec![vec![0.1]]).unwrap();
+kf.set_initial_state(&[0.0, 1.0]).unwrap();
 
 for obs in &measurements {
-    let (state, cov) = kf.update(&array![*obs]).unwrap();
-    println!("Position estimate: {:.3}", state[0]);
+    kf.predict().unwrap();
+    kf.update(&[*obs]).unwrap();
+    println!("Position estimate: {:.3}", kf.state()[0]);
 }
 ```
 
 ### Matched Filter Detection
 
 ```rust
-use scirs2_signal::radar::{matched_filter, ca_cfar};
+use scirs2_signal::radar::{matched_filter, cfar_detector, CfarConfig, CfarVariant};
 
-let detected = matched_filter(&received.view(), &template.view()).unwrap();
+let detected = matched_filter(&received, &template).unwrap();
 
-// CA-CFAR detection
-let detections = ca_cfar(&detected.view(), 16, 4, 1e-4).unwrap();
-println!("Detected {} targets", detections.iter().filter(|&&d| d).count());
+// CA-CFAR detection: 16 reference cells, 4 guard cells, Pfa = 1e-4
+let power: Vec<f64> = detected.iter().map(|v| v * v).collect();
+let cfg = CfarConfig::new(16, 4, 1e-4, CfarVariant::CellAveraging).unwrap();
+let detections = cfar_detector(&power, &cfg).unwrap();
+println!("Detected {} targets", detections.len());
 ```
 
 ### Granger / AR Spectral Estimation
@@ -317,26 +319,22 @@ let (freqs, psd) = ar_spectrum(&ar_coeffs, variance, 1.0, 1024).unwrap();
 | `spectral` | Periodogram, Welch, STFT, spectrogram, Lomb-Scargle |
 | `spectral_estimation` | Multitaper (DPSS), parametric AR/ARMA, MUSIC, ESPRIT |
 | `parametric_spectral` | AR via Yule-Walker, Burg, covariance; ARMA |
-| `reassigned` | Reassigned spectrogram, synchrosqueezing transform |
-| `wigner_ville` | Wigner-Ville and Pseudo-WVD, Cohen's class |
+| `time_frequency` | Wigner-Ville/Pseudo-WVD, Cohen's class (Choi-Williams, Born-Jordan), reassigned spectrogram — the standalone `wvd`/`reassigned`/`reassignment` modules were deleted as duplicates in v0.6.5; this already-wired module is the surviving implementation |
 | `synchrosqueezing` | SST, ridge extraction, inverse SST |
-| `zoom_fft` | Chirp-z transform and zoom FFT sub-band analysis |
+| `czt` | Chirp-Z transform, Zoom FFT, Goertzel, Sliding DFT — merged in from the former `zoom_fft` module (renamed in v0.6.5) |
 | `wavelet` | DWT, CWT, SWT, DTCWT, packets, wavelet denoising |
 | `wavelet_denoise` | VisuShrink, BayesShrink, SUREshrink |
-| `cepstrum` | Complex/real cepstrum, MFCC, mel filterbank, pitch estimation |
-| `kalman` | KF, EKF, UKF, RTS smoother |
-| `adaptive_filter` | LMS, NLMS, RLS, lattice RLS |
-| `compressed_sensing` | OMP, CoSaMP, ISTA/FISTA, basis pursuit |
-| `compressive_sensing` | Measurement matrix construction, recovery diagnostics |
-| `sparse_recovery` | Unified sparse recovery interface |
-| `bss` | FastICA, JADE, SOBI, convolutive BSS, NMF audio |
-| `source_separation` | High-level source separation API |
+| `cepstral` | Complex/real cepstrum, MFCC, mel filterbank, pitch estimation, inverse cepstrum, liftering — merged in from the former `cepstrum` module (renamed in v0.6.5) |
+| `kalman` | Standard/EKF/UKF/ensemble/information/particle Kalman filters, RTS smoother — newly wired in v0.6.5, previously present as unreachable source only |
+| `adaptive` | LMS, NLMS, RLS, lattice RLS (module renamed from `adaptive_filter`) |
+| `compressed_sensing` | OMP, CoSaMP, ISTA/FISTA, basis pursuit, LASSO, measurement matrices — newly wired in v0.6.5; the duplicate `compressive_sensing`/`sparse_recovery`/`source_separation` modules were deleted |
+| `bss` | FastICA, JADE, SOBI, convolutive BSS, NMF audio — newly wired in v0.6.5, previously present as unreachable source only |
 | `sysid_enhanced` | ARX, ARMAX, N4SID, ERA, validation |
-| `hht` | EMD, EEMD, CEEMDAN, HHT spectrum |
+| `emd` | EMD, EEMD, Hilbert-Huang spectrum (`hilbert_huang_spectrum`) |
+| `multiscale` | HHT (wraps `emd`'s EMD/EEMD with the Hilbert transform) and Variational Mode Decomposition (VMD) |
 | `multitaper_mod` | Multitaper PSD and coherence |
-| `radar` | Matched filter, CA/OS/GO/SO-CFAR, pulse compression, ambiguity function |
-| `mir` | Beat tracking, chroma, onset detection, key detection |
-| `multiscale` | Multiscale signal decomposition utilities |
+| `radar` | Matched filter, CA/OS/GO/SO-CFAR, pulse compression, ambiguity function — newly wired in v0.6.5, previously present as unreachable source only |
+| `cqt` | Constant-Q transform; CQT-based chromagram (`chromagram`) — the only MIR-adjacent feature still wired after v0.6.5's `mir.rs` cleanup |
 | `lti` | Transfer function, state-space, Bode, root locus |
 | `waveforms` | Sine, chirp, Gaussian pulse, noise waveforms |
 | `peak` | Peak detection, prominence, width, FWHM |

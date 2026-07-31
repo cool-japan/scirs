@@ -9,23 +9,25 @@
 
 `scirs2-linalg` provides a comprehensive linear algebra library with SciPy-compatible APIs, pure-Rust BLAS/LAPACK via OxiBLAS (no C or Fortran dependencies), SIMD acceleration, randomized methods, tensor decompositions, and iterative solvers suitable for large-scale scientific computing and machine learning.
 
-**Tests:** 2018/2018 passing (default features), 2248/2248 passing (`--all-features`) — as of 2026-07-22.
+**Tests:** 2018/2018 passing (default features), 2248/2248 passing (`--all-features`) as of 2026-07-22 baseline; not independently re-run for the 0.6.5 docs update, plus 4 new unit tests in `eigen/general.rs` for the general eigenvalue engine below.
+
+**Fixed in 0.6.5:** added a real, convergence-checked general (non-symmetric) eigenvalue/Schur decomposition engine (`eigen/general.rs`: Householder→upper-Hessenberg reduction, then implicit double-shift Francis QR with deflation, per Golub & Van Loan), now shared by `decomposition::schur`, `lapack::eig`, and `eigen::advanced_precision_eig`'s non-symmetric path. Each of those three previously carried its own broken implementation: a fixed count of *unshifted* QR iterations with no convergence check (empirically verified to leave sub-diagonal entries around `1e-4` and eigenvalues off by 1-3% on a companion matrix with closely-spaced eigenvalues), or a placeholder only correct for already-diagonal input. `lstsq`/`pinv` (`compat.rs`) were already real (both delegate to the crate's genuine SVD-based solvers), so this completes the eig/schur/lstsq trio end-to-end. See [CHANGELOG.md](../CHANGELOG.md) `[0.6.5]` for full detail.
 
 ## Installation
 
 ```toml
 [dependencies]
-scirs2-linalg = "0.6.4"
+scirs2-linalg = "0.6.5"
 ```
 
 With optional acceleration:
 
 ```toml
 [dependencies]
-scirs2-linalg = { version = "0.6.4", features = ["simd", "parallel"] }
+scirs2-linalg = { version = "0.6.5", features = ["simd", "parallel"] }
 ```
 
-## Features (v0.6.3)
+## Features (v0.6.5)
 
 ### Core Decompositions
 - LU (with partial/rook/complete pivoting), QR, SVD, Cholesky, LDL^T

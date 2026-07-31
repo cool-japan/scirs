@@ -18,8 +18,8 @@ use crate::{
     moments_simd::{kurtosis_simd, skewness_simd},
     pearson_r,
 };
-use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Test data generator for property-based tests
 #[derive(Clone, Debug)]
@@ -56,11 +56,7 @@ impl MatrixTestData {
     pub fn new(data: Vec<Vec<f64>>) -> Self {
         let rows = data.len();
         let cols = if rows > 0 { data[0].len() } else { 0 };
-        Self {
-            data: data,
-            rows,
-            cols,
-        }
+        Self { data, rows, cols }
     }
 
     pub fn generate_sample() -> Self {
@@ -478,7 +474,7 @@ impl BatchProcessingTester {
                 column.mean_or(0.0)
             })
             .collect();
-        
+
         match Ok::<Vec<f64>, crate::error::StatsError>(batch_means) {
             Ok(batch_moments) => {
                 for (i, &individual_mean) in individual_means.iter().enumerate() {
@@ -525,7 +521,7 @@ impl BatchProcessingTester {
                 pearson_r(&col_i, &col_j)
             })
             .collect();
-        
+
         match batch_results {
             Ok(batch_results) => {
                 for (idx, &(i, j)) in correlation_pairs.iter().enumerate() {
@@ -733,7 +729,7 @@ impl FuzzingTester {
     /// Generate random data with various characteristics for stress testing
     pub fn generate_randomdata(size: usize, seed: u64) -> StatisticalTestData {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, SeedableRng};
+        use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(seed);
         let data: Vec<f64> = (0..size)
@@ -743,13 +739,9 @@ impl FuzzingTester {
     }
 
     /// Generate data with specific distribution characteristics
-    pub fn generate_skeweddata(
-        size: usize,
-        skew_direction: f64,
-        seed: u64,
-    ) -> StatisticalTestData {
+    pub fn generate_skeweddata(size: usize, skew_direction: f64, seed: u64) -> StatisticalTestData {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, SeedableRng};
+        use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(seed);
         let mut data: Vec<f64> = (0..size).map(|_| rng.random_range(0.0..1.0)).collect();
@@ -774,7 +766,7 @@ impl FuzzingTester {
         seed: u64,
     ) -> StatisticalTestData {
         use scirs2_core::random::rngs::StdRng;
-        use scirs2_core::random::{Rng, SeedableRng};
+        use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(seed);
         let mut data: Vec<f64> = (0..size).map(|_| rng.random_range(-1.0..1.0)).collect();
@@ -1002,7 +994,19 @@ impl RobustnessTester {
 
         match (mean(&arr.view()), var(&arr.view(), 1, None)) {
             (Ok(mean_val), Ok(var_val)) => {
-                ((mean_val - constant_value) as f64).abs() < 1e-15 && (var_val as f64).abs() < 1e-15
+                // An absolute 1e-15 tolerance on `mean_val` is unsatisfiable by
+                // construction: summing 50 copies of a ~123-magnitude value
+                // and dividing back accumulates rounding on the order of the
+                // value's own ULP (ULP(123.456) ~= 2.7e-14), so *any* correct
+                // summation-based `mean()` -- this one included, verified via
+                // a plain `f64` reference sum -- lands around 7e-14 away from
+                // the exact constant, ~70x over the old threshold. Use a
+                // relative tolerance instead (matching this file's own
+                // `relative_error < 1e-12` convention elsewhere), which still
+                // meaningfully checks mean == constant_value while being
+                // achievable in IEEE 754 f64 arithmetic.
+                ((mean_val - constant_value) as f64 / constant_value).abs() < 1e-12
+                    && (var_val as f64).abs() < 1e-15
             }
             _ => false,
         }
@@ -1286,12 +1290,12 @@ mod tests {
     #[test]
     fn test_mathematical_invariants() {
         let testdata1 = StatisticalTestData::generate_sample(); // 10 elements
-        let testdata2 = StatisticalTestData::new(vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0]); // 10 elements
+        let testdata2 =
+            StatisticalTestData::new(vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0]); // 10 elements
         let matrixdata = MatrixTestData::generate_sample();
 
         assert!(MathematicalInvariantTester::test_correlation_bounds(
-            &testdata1,
-            &testdata1
+            &testdata1, &testdata1
         ));
         assert!(MathematicalInvariantTester::test_variance_properties(
             &testdata1
@@ -1300,16 +1304,13 @@ mod tests {
             &testdata1
         ));
         assert!(MathematicalInvariantTester::test_correlation_matrix_symmetry(&matrixdata));
-        assert!(MathematicalInvariantTester::test_mean_linearity(
-            &testdata1
-        ));
+        assert!(MathematicalInvariantTester::test_mean_linearity(&testdata1));
         assert!(MathematicalInvariantTester::test_variance_scaling(
             &testdata1
         ));
         assert!(
             MathematicalInvariantTester::test_correlation_translation_invariance(
-                &testdata1,
-                &testdata2
+                &testdata1, &testdata2
             )
         );
         assert!(MathematicalInvariantTester::test_skewness_properties(
@@ -1364,9 +1365,7 @@ mod tests {
         assert!(CrossPlatformTester::test_floating_point_consistency(
             &testdata
         ));
-        assert!(CrossPlatformTester::test_endianness_independence(
-            &testdata
-        ));
+        assert!(CrossPlatformTester::test_endianness_independence(&testdata));
     }
 
     #[test]
@@ -1380,7 +1379,17 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Ignore by default since these are performance tests
+    #[ignore = "slow: every assertion in this test is a wall-clock Instant::now() ratio/absolute-time \
+                comparison (mean/var < 1000ms, simd_time <= scalar_time*2, per-pattern times within \
+                2x of each other) over a tiny size=1000/10-100-iteration workload -- microsecond-scale \
+                measurements that are inherently sensitive to concurrent CPU contention and OS scheduler \
+                jitter, not to a real code regression. Empirically confirmed during the 0.6.5 ignore audit: \
+                un-ignoring this (module was previously orphaned/never compiled, so it had never actually \
+                been run before) failed reproducibly under heavy concurrent build load on a shared host \
+                with `assertion failed: simd_time.as_nanos() <= scalar_time.as_nanos() * 2` -- `mean_simd` \
+                itself is correct and not regressed; this is a timing-comparison test, not a correctness \
+                one, matching this module's original (pre-orphaning) ignore intent of \"ignored by default \
+                since these are performance-regression tests\""]
     fn test_performance_regression() {
         let size = 1000;
         let iterations = 100;
@@ -1409,28 +1418,25 @@ mod tests {
     fn test_extended_mathematical_properties() {
         // Use test data of the same length for Cauchy-Schwarz inequality
         let testdata1 = StatisticalTestData::generate_sample(); // 10 elements
-        let testdata2 = StatisticalTestData::new(vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0]); // 10 elements
-        let testdata3 = StatisticalTestData::new(vec![1.0, 4.0, 2.0, 8.0, 5.0, 7.0, 3.0, 9.0, 6.0, 10.0]); // 10 elements
+        let testdata2 =
+            StatisticalTestData::new(vec![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0]); // 10 elements
+        let testdata3 =
+            StatisticalTestData::new(vec![1.0, 4.0, 2.0, 8.0, 5.0, 7.0, 3.0, 9.0, 6.0, 10.0]); // 10 elements
 
         // Test advanced mathematical properties
         assert!(ExtendedMathematicalTester::test_cauchy_schwarz_inequality(
-            &testdata1,
-            &testdata2,
-            &testdata3
+            &testdata1, &testdata2, &testdata3
         ));
         assert!(
             ExtendedMathematicalTester::test_triangle_inequality_property(
-                &testdata1,
-                &testdata2,
-                &testdata3
+                &testdata1, &testdata2, &testdata3
             )
         );
         assert!(ExtendedMathematicalTester::test_jensen_inequality(
             &testdata1
         ));
         assert!(ExtendedMathematicalTester::test_minkowski_inequality(
-            &testdata1,
-            &testdata2
+            &testdata1, &testdata2
         ));
         assert!(ExtendedMathematicalTester::test_chebyshev_inequality(
             &testdata2

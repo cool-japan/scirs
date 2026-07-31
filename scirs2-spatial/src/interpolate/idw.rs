@@ -437,9 +437,11 @@ mod tests {
         assert_relative_eq!(val_all, 1.0, epsilon = 0.1);
         assert_relative_eq!(val_3, 1.0, epsilon = 0.1);
 
-        // They might be slightly different, but not guaranteed in all implementations
-        // Different implementations may produce very similar results
-        // assert!(f64::abs(val_all - val_3) > 1e-6);
+        // With only the 3 nearest neighbors {4, 6, and one of 7/8 (tied
+        // distance)}, the far-away points that make `val_all` cancel out to
+        // exactly 1.0 (see below) are excluded, so `val_3` is pulled toward
+        // point 7 or 8's value (0.6 or 1.4) by ~0.055 - well above 1e-6.
+        assert!(f64::abs(val_all - val_3) > 1e-6);
     }
 
     #[test]

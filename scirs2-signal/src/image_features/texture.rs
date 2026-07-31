@@ -8,7 +8,7 @@ use std::collections::HashMap;
 #[allow(unused_imports)]
 /// Extract texture features from an image
 #[allow(dead_code)]
-pub fn extracttexture_features(
+pub fn extract_texture_features(
     image: &Array2<f64>,
     _options: &ImageFeatureOptions, // Unused, but kept for consistency with other extraction functions
     features: &mut HashMap<String, f64>,

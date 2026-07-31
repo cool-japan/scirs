@@ -165,7 +165,7 @@ where
     }
 
     fn dtype(&self) -> &str {
-        "float" // This is a placeholder; ideally, we'd return the actual type
+        std::any::type_name::<T>()
     }
 
     fn to_array(&self) -> Array2<T> {
@@ -535,6 +535,19 @@ where
 mod tests {
     use super::*;
     use scirs2_core::ndarray::Array;
+
+    #[test]
+    fn test_dok_array_dtype_reflects_actual_element_type() {
+        let dok_f64 = DokArray::<f64>::new((2, 2));
+        let dok_f32 = DokArray::<f32>::new((2, 2));
+
+        // Previously `dtype()` always returned the literal string "float"
+        // regardless of the actual generic element type.
+        assert_eq!(dok_f64.dtype(), "f64");
+        assert_eq!(dok_f32.dtype(), "f32");
+        assert_ne!(dok_f64.dtype(), "float");
+        assert_ne!(dok_f32.dtype(), dok_f64.dtype());
+    }
 
     #[test]
     fn test_dok_array_create_and_access() {

@@ -447,10 +447,25 @@ mod gpu_implementation {
             Ok(optimization_result)
         }
 
-        /// Auto-tune kernel for optimal performance
+        /// Auto-tune a kernel for optimal performance.
+        ///
+        /// `kernel` must be a real, dispatchable handle for the workload
+        /// being tuned (e.g. from
+        /// [`GpuContext::get_kernel`](crate::gpu::GpuContext::get_kernel),
+        /// [`GpuCompiler::compile`](crate::gpu::GpuCompiler::compile), or
+        /// the [`GpuCompiler::compile_kernel`](crate::gpu::GpuCompiler::compile_kernel)
+        /// typed path) — auto-tuning without one has nothing to measure and
+        /// can only ever fabricate a result, which is why this requires one
+        /// rather than returning a canned "converged" answer regardless of
+        /// input. The generated candidate parameter sets are actually
+        /// benchmarked by dispatching `kernel` (see
+        /// [`AutoTuner::tune`](crate::gpu::auto_tuning::AutoTuner::tune)),
+        /// and the best-performing configuration by measured throughput is
+        /// returned.
         pub fn auto_tune_kernel(
             &self,
-            kernel: &str,
+            kernel_name: &str,
+            kernel: &crate::gpu::GpuKernelHandle,
             tensor_size: &[usize],
             backend: GpuBackend,
         ) -> CoreResult<TuningResult> {
@@ -461,25 +476,26 @@ mod gpu_implementation {
                 )))
             })?;
 
-            let _auto_tuner = auto_tuners.get(&backend).ok_or_else(|| {
+            let auto_tuner = auto_tuners.get(&backend).ok_or_else(|| {
                 CoreError::InvalidArgument(crate::error::ErrorContext::new(format!(
                     "Auto-tuner not found for backend: {backend:?}"
                 )))
             })?;
 
             // Generate intelligent tuning space
-            let _tuning_space =
-                self.generate_intelligent_tuning_space(backend, kernel, tensor_size)?;
+            let tuning_space =
+                self.generate_intelligent_tuning_space(backend, kernel_name, tensor_size)?;
 
-            // Create a tuning result (simplified for now)
-            let tuning_result = TuningResult {
-                best_params: KernelParameters::default(),
-                best_performance: PerformanceMetrics::default(),
-                evaluations: 10,
-                tuning_time: Duration::from_millis(100),
-                converged: true,
-                improvement_factor: 1.5,
-            };
+            // Actually benchmark every generated candidate configuration by
+            // dispatching the real kernel and measuring elapsed time, then
+            // pick the best by measured throughput.
+            let tuning_result = auto_tuner
+                .tune(kernel, kernel_name, tensor_size, tuning_space)
+                .map_err(|e| {
+                    CoreError::ComputationError(crate::error::ErrorContext::new(format!(
+                        "Auto-tuning failed for kernel '{kernel_name}': {e}"
+                    )))
+                })?;
 
             // Learn from results
             if self.config.enable_real_time_learning {
@@ -487,7 +503,7 @@ mod gpu_implementation {
             }
 
             // Update scheduling decisions
-            self.update_scheduling_decisions(backend, kernel, &tuning_result)?;
+            self.update_scheduling_decisions(backend, kernel_name, &tuning_result)?;
 
             Ok(tuning_result)
         }
@@ -690,6 +706,82 @@ mod gpu_implementation {
 
 #[cfg(feature = "gpu")]
 pub use gpu_implementation::*;
+
+#[cfg(feature = "gpu")]
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression test for `auto_tune_kernel`: it used to return exactly
+    /// the same fabricated `TuningResult` (evaluations=10,
+    /// tuning_time=100ms, converged=true, improvement_factor=1.5)
+    /// regardless of the kernel, tensor size, or backend passed in. With a
+    /// real dispatchable kernel handle, it must actually run the generated
+    /// tuning-space candidates through `AutoTuner::tune` and return a
+    /// result that reflects that real measurement loop.
+    #[test]
+    fn auto_tune_kernel_performs_real_measurement_not_a_fabricated_constant() {
+        let coordinator = AdvancedTensorCoreCoordinator::new(AdvancedTensorConfig::default())
+            .expect("construct coordinator");
+        coordinator
+            .initialize_backend(GpuBackend::Cpu)
+            .expect("initialize CPU backend");
+
+        let context = GpuContext::new(GpuBackend::Cpu).expect("construct CPU context");
+        let kernel = context
+            .execute(|compiler| compiler.compile("test kernel source"))
+            .expect("compile a real dispatchable kernel handle");
+
+        let result = coordinator
+            .auto_tune_kernel(
+                "regression_test_kernel",
+                &kernel,
+                &[64, 64],
+                GpuBackend::Cpu,
+            )
+            .expect("auto_tune_kernel should succeed with a real kernel handle");
+
+        let looks_like_the_old_fabricated_constant = result.evaluations == 10
+            && result.tuning_time == Duration::from_millis(100)
+            && result.improvement_factor == 1.5;
+        assert!(
+            !looks_like_the_old_fabricated_constant,
+            "auto_tune_kernel result looks identical to the old hardcoded stub: {result:?}"
+        );
+        // A real grid search over the generated tuning space benchmarks
+        // more than a single fixed configuration before converging.
+        assert!(
+            result.evaluations > 1,
+            "expected multiple real configurations to be benchmarked, got {}",
+            result.evaluations
+        );
+    }
+
+    /// Without an initialized auto-tuner for the requested backend, tuning
+    /// must fail rather than silently fabricate a result.
+    #[test]
+    fn auto_tune_kernel_fails_without_an_initialized_backend() {
+        let coordinator = AdvancedTensorCoreCoordinator::new(AdvancedTensorConfig::default())
+            .expect("construct coordinator");
+        // Note: no `initialize_backend` call, so no auto-tuner is registered.
+
+        let context = GpuContext::new(GpuBackend::Cpu).expect("construct CPU context");
+        let kernel = context
+            .execute(|compiler| compiler.compile("test kernel source"))
+            .expect("compile a real dispatchable kernel handle");
+
+        let result = coordinator.auto_tune_kernel(
+            "uninitialized_backend_kernel",
+            &kernel,
+            &[64, 64],
+            GpuBackend::Cpu,
+        );
+        assert!(
+            result.is_err(),
+            "auto-tuning against a backend with no registered auto-tuner must fail"
+        );
+    }
+}
 
 // Fallback implementations when GPU feature is not enabled
 #[cfg(not(feature = "gpu"))]

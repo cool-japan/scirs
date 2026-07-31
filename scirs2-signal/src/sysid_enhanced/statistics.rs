@@ -9,6 +9,7 @@ use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
+use scirs2_linalg::eig as linalg_eig;
 
 /// Jarque-Bera test for normality of residuals
 ///
@@ -296,10 +297,28 @@ pub fn compute_stability_margin(model: &SystemModel) -> SignalResult<f64> {
                 .fold(f64::INFINITY, f64::min);
             Ok(min_margin.max(0.0))
         }
-        SystemModel::StateSpace(_ss) => {
-            // For state-space models, check eigenvalues of A matrix
-            // This is a placeholder - in practice would use proper eigenvalue computation
-            Ok(0.5) // Default stable margin
+        SystemModel::StateSpace(ss) => {
+            // Genuine spectral-radius-based margin: build the state matrix A
+            // and compute its eigenvalues directly (mirroring the approach
+            // already used for the ARX/ARMAX cases above, and the sibling
+            // implementation in `legacy/functions_2.rs`), rather than a
+            // hardcoded "default stable" constant that cannot distinguish a
+            // marginally-stable system from a strongly-damped one.
+            let n = ss.n_states;
+            if n == 0 {
+                return Ok(1.0);
+            }
+            let a_matrix = Array2::from_shape_vec((n, n), ss.a.clone()).map_err(|e| {
+                SignalError::ComputationError(format!("Invalid A matrix shape: {e}"))
+            })?;
+            let (eigenvalues, _) = linalg_eig(&a_matrix.view(), None).map_err(|e| {
+                SignalError::ComputationError(format!("Eigenvalue computation failed: {e}"))
+            })?;
+            let max_magnitude = eigenvalues
+                .iter()
+                .map(|lambda| lambda.norm())
+                .fold(f64::NEG_INFINITY, f64::max);
+            Ok((1.0 - max_magnitude).max(0.0))
         }
         _ => Ok(0.5), // Default margin for other models
     }
@@ -399,17 +418,27 @@ fn compute_polynomial_roots(coeffs: &Array1<f64>) -> SignalResult<Vec<Complex64>
             }
         }
         _ => {
-            // For higher-order polynomials, provide stability approximation
-            let sum_abs_coeffs: f64 = coeffs.iter().skip(1).map(|&c| c.abs()).sum();
-            let leading_abs = coeffs[0].abs();
-
-            if sum_abs_coeffs < leading_abs {
-                // Likely stable - roots inside unit circle
-                Ok(vec![Complex64::new(0.5, 0.0)])
-            } else {
-                // Potentially unstable
-                Ok(vec![Complex64::new(1.1, 0.0)])
+            // For higher-order polynomials, find the genuine roots as the
+            // eigenvalues of the monic polynomial's companion matrix
+            // (Frobenius form), rather than fabricating a hardcoded
+            // "likely stable"/"potentially unstable" placeholder root from
+            // a coarse coefficient-sum heuristic.
+            let mut companion = Array2::<f64>::zeros((n, n));
+            for i in 0..n {
+                companion[[0, i]] = -coeffs[i + 1] / coeffs[0];
             }
+            for i in 1..n {
+                companion[[i, i - 1]] = 1.0;
+            }
+
+            let (eigenvalues, _) = linalg_eig(&companion.view(), None).map_err(|e| {
+                SignalError::ComputationError(format!("Polynomial root computation failed: {e}"))
+            })?;
+
+            Ok(eigenvalues
+                .iter()
+                .map(|z| Complex64::new(z.re, z.im))
+                .collect())
         }
     }
 }
@@ -453,6 +482,7 @@ pub fn compute_information_criteria(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lti::StateSpace;
 
     #[test]
     fn test_jarque_bera_normal_data() {
@@ -501,6 +531,104 @@ mod tests {
         let root_values: Vec<f64> = roots.iter().map(|r| r.re).collect();
         assert!(root_values.contains(&1.0) || (root_values[0] - 1.0).abs() < 1e-10);
         assert!(root_values.contains(&2.0) || (root_values[1] - 2.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_polynomial_roots_cubic_matches_known_distinct_roots() {
+        // (x - 0.5)(x - 0.6)(x - 0.7) = x^3 - 1.8x^2 + 1.07x - 0.21: three
+        // distinct, well-separated real roots. The old fabricated fallback
+        // (for degree > 2) ignored the coefficients entirely and returned a
+        // single hardcoded root at magnitude 0.5 or 1.1 depending on a
+        // coarse sum-of-|coeffs| threshold; a genuine companion-matrix
+        // eigendecomposition must instead recover all 3 real roots exactly.
+        let coeffs = Array1::from_vec(vec![1.0, -1.8, 1.07, -0.21]);
+        let roots = compute_polynomial_roots(&coeffs).expect("Operation failed");
+
+        assert_eq!(roots.len(), 3);
+        let mut real_parts: Vec<f64> = roots.iter().map(|r| r.re).collect();
+        real_parts.sort_by(|a, b| a.partial_cmp(b).expect("comparable f64 root"));
+        for (got, expected) in real_parts.iter().zip([0.5, 0.6, 0.7]) {
+            assert!(
+                (got - expected).abs() < 1e-6,
+                "expected root near {expected}, got {got}"
+            );
+        }
+        for root in &roots {
+            assert!(root.im.abs() < 1e-6, "expected a real root, got {root:?}");
+        }
+    }
+
+    #[test]
+    fn test_stability_margin_arx_reacts_to_pole_location() {
+        // Two ARX models whose AR polynomials have distinct real roots at
+        // different magnitudes ({0.5,0.6,0.7} vs {0.1,0.2,0.3}); a genuine
+        // spectral-radius margin must differ between them (and from the old
+        // hardcoded 0.5/0.0 stand-ins), tracking `1 - max|root|` in both
+        // cases.
+        let near_unstable = SystemModel::ARX {
+            a: Array1::from_vec(vec![1.0, -1.8, 1.07, -0.21]), // roots at 0.5, 0.6, 0.7
+            b: Array1::from_vec(vec![1.0]),
+            delay: 0,
+        };
+        let very_stable = SystemModel::ARX {
+            a: Array1::from_vec(vec![1.0, -0.6, 0.11, -0.006]), // roots at 0.1, 0.2, 0.3
+            b: Array1::from_vec(vec![1.0]),
+            delay: 0,
+        };
+
+        let margin_near = compute_stability_margin(&near_unstable).expect("Operation failed");
+        let margin_stable = compute_stability_margin(&very_stable).expect("Operation failed");
+
+        assert!(
+            (margin_near - 0.3).abs() < 1e-6,
+            "expected margin ~0.3 for max root 0.7, got {margin_near}"
+        );
+        assert!(
+            (margin_stable - 0.7).abs() < 1e-6,
+            "expected margin ~0.7 for max root 0.3, got {margin_stable}"
+        );
+        assert!(margin_stable > margin_near);
+    }
+
+    #[test]
+    fn test_stability_margin_state_space_reacts_to_eigenvalues() {
+        // Two diagonal state-space systems with distinct, known eigenvalue
+        // magnitudes (0.9 and 0.2); the old implementation always returned
+        // a hardcoded 0.5 regardless of the A matrix.
+        let weakly_damped = StateSpace::new(
+            vec![0.9, 0.0, 0.0, 0.9],
+            vec![1.0, 0.0],
+            vec![1.0, 0.0],
+            vec![0.0],
+            None,
+        )
+        .expect("Operation failed");
+        let strongly_damped = StateSpace::new(
+            vec![0.2, 0.0, 0.0, 0.2],
+            vec![1.0, 0.0],
+            vec![1.0, 0.0],
+            vec![0.0],
+            None,
+        )
+        .expect("Operation failed");
+
+        let margin_weak = compute_stability_margin(&SystemModel::StateSpace(weakly_damped))
+            .expect("Operation failed");
+        let margin_strong = compute_stability_margin(&SystemModel::StateSpace(strongly_damped))
+            .expect("Operation failed");
+
+        assert!(
+            (margin_weak - 0.1).abs() < 1e-6,
+            "expected margin ~0.1 for eigenvalue 0.9, got {margin_weak}"
+        );
+        assert!(
+            (margin_strong - 0.8).abs() < 1e-6,
+            "expected margin ~0.8 for eigenvalue 0.2, got {margin_strong}"
+        );
+        assert!(margin_strong > margin_weak);
+        // Neither should equal the old hardcoded 0.5 default.
+        assert!((margin_weak - 0.5).abs() > 1e-3);
+        assert!((margin_strong - 0.5).abs() > 1e-3);
     }
 
     #[test]

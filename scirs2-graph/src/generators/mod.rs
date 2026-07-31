@@ -768,9 +768,18 @@ pub fn watts_strogatz_graph<R: Rng>(
                 }
             }
 
-            // Add rewired edge to a random node
+            // Add rewired edge to a random node that isn't `edge.source`
+            // itself and isn't already connected to it (avoiding a self-loop
+            // or a duplicate parallel edge). `new_graph` was pre-populated
+            // with all `n` nodes above, so a `has_node` check here is always
+            // true regardless of `new_target` — that previously made this
+            // loop unconditionally infinite as soon as any edge was selected
+            // for rewiring (expected for the vast majority of seeds at
+            // p > 0, e.g. ~99.8% of the time for a 30-node, 60-edge graph at
+            // p=0.1). The intent was to check for an existing edge, not node
+            // membership.
             let mut new_target = rng.random_range(0..n);
-            while new_target == edge.source || new_graph.has_node(&new_target) {
+            while new_target == edge.source || new_graph.has_edge(&edge.source, &new_target) {
                 new_target = rng.random_range(0..n);
             }
 

@@ -7,11 +7,11 @@ use scirs2_core::ndarray::s;
 use crate::dwt::Wavelet;
 use crate::dwt2d_enhanced::BoundaryMode;
 use crate::error::{SignalError, SignalResult};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 use crate::dwt2d_enhanced::{
@@ -456,7 +456,7 @@ fn convert_to_f64<T>(array: &Array2<T>) -> SignalResult<Array2<f64>>
 where
     T: Float + NumCast,
 {
-    let mut result = Array2::zeros(_array.dim());
+    let mut result = Array2::zeros(array.dim());
     for ((i, j), &val) in array.indexed_iter() {
         result[[i, j]] = NumCast::from(val).ok_or_else(|| {
             SignalError::ValueError(format!("Could not convert value at ({}, {}) to f64", i, j))
@@ -467,10 +467,10 @@ where
 
 #[allow(dead_code)]
 fn extract_energy_features(decomp: &EnhancedDwt2dResult) -> SignalResult<SubbandFeatures> {
-    let approx = compute_energy(&_decomp.approx);
-    let detail_h = compute_energy(&_decomp.detail_h);
-    let detail_v = compute_energy(&_decomp.detail_v);
-    let detail_d = compute_energy(&_decomp.detail_d);
+    let approx = compute_energy(&decomp.approx);
+    let detail_h = compute_energy(&decomp.detail_h);
+    let detail_v = compute_energy(&decomp.detail_v);
+    let detail_d = compute_energy(&decomp.detail_d);
 
     Ok(SubbandFeatures {
         approx,
@@ -482,10 +482,10 @@ fn extract_energy_features(decomp: &EnhancedDwt2dResult) -> SignalResult<Subband
 
 #[allow(dead_code)]
 fn extract_entropy_features(decomp: &EnhancedDwt2dResult) -> SignalResult<SubbandFeatures> {
-    let approx = compute_entropy(&_decomp.approx);
-    let detail_h = compute_entropy(&_decomp.detail_h);
-    let detail_v = compute_entropy(&_decomp.detail_v);
-    let detail_d = compute_entropy(&_decomp.detail_d);
+    let approx = compute_entropy(&decomp.approx);
+    let detail_h = compute_entropy(&decomp.detail_h);
+    let detail_v = compute_entropy(&decomp.detail_v);
+    let detail_d = compute_entropy(&decomp.detail_d);
 
     Ok(SubbandFeatures {
         approx,
@@ -497,10 +497,10 @@ fn extract_entropy_features(decomp: &EnhancedDwt2dResult) -> SignalResult<Subban
 
 #[allow(dead_code)]
 fn extract_contrast_features(decomp: &EnhancedDwt2dResult) -> SignalResult<SubbandFeatures> {
-    let approx = compute_contrast(&_decomp.approx);
-    let detail_h = compute_contrast(&_decomp.detail_h);
-    let detail_v = compute_contrast(&_decomp.detail_v);
-    let detail_d = compute_contrast(&_decomp.detail_d);
+    let approx = compute_contrast(&decomp.approx);
+    let detail_h = compute_contrast(&decomp.detail_h);
+    let detail_v = compute_contrast(&decomp.detail_v);
+    let detail_d = compute_contrast(&decomp.detail_d);
 
     Ok(SubbandFeatures {
         approx,
@@ -512,10 +512,10 @@ fn extract_contrast_features(decomp: &EnhancedDwt2dResult) -> SignalResult<Subba
 
 #[allow(dead_code)]
 fn extract_homogeneity_features(decomp: &EnhancedDwt2dResult) -> SignalResult<SubbandFeatures> {
-    let approx = compute_homogeneity(&_decomp.approx);
-    let detail_h = compute_homogeneity(&_decomp.detail_h);
-    let detail_v = compute_homogeneity(&_decomp.detail_v);
-    let detail_d = compute_homogeneity(&_decomp.detail_d);
+    let approx = compute_homogeneity(&decomp.approx);
+    let detail_h = compute_homogeneity(&decomp.detail_h);
+    let detail_v = compute_homogeneity(&decomp.detail_v);
+    let detail_d = compute_homogeneity(&decomp.detail_d);
 
     Ok(SubbandFeatures {
         approx,
@@ -541,7 +541,7 @@ fn compute_entropy(array: &Array2<f64>) -> f64 {
         return 0.0;
     }
 
-    for &val in _array {
+    for &val in array {
         let bin = ((val - min_val) / (max_val - min_val) * 255.0) as usize;
         hist[bin.min(255)] += 1;
     }
@@ -567,7 +567,7 @@ fn compute_contrast(array: &Array2<f64>) -> f64 {
 #[allow(dead_code)]
 fn compute_homogeneity(array: &Array2<f64>) -> f64 {
     // Inverse of contrast
-    let contrast = compute_contrast(_array);
+    let contrast = compute_contrast(array);
     1.0 / (1.0 + contrast)
 }
 
@@ -773,10 +773,10 @@ fn upsample_bilinear(
 #[allow(dead_code)]
 fn estimate_noise_variance(_detailcoeffs: &Array2<f64>) -> f64 {
     // Robust noise estimation using median absolute deviation
-    let mut _coeffs: Vec<f64> = detail_coeffs.iter().cloned().collect();
+    let mut coeffs: Vec<f64> = _detailcoeffs.iter().cloned().collect();
     coeffs.sort_by(|a, b| a.partial_cmp(b).expect("Operation failed"));
 
-    let median = coeffs[_coeffs.len() / 2];
+    let median = coeffs[coeffs.len() / 2];
     let mad: f64 = coeffs.iter().map(|&x| (x - median).abs()).sum::<f64>() / coeffs.len() as f64;
 
     // Convert MAD to standard deviation estimate
@@ -874,7 +874,7 @@ fn apply_multi_criteria_thresholding(
 #[allow(dead_code)]
 fn compute_content_importance(decomp: &EnhancedDwt2dResult) -> SignalResult<Array2<f64>> {
     // Simplified implementation - would analyze content importance
-    Ok(Array2::ones(_decomp.approx.dim()))
+    Ok(Array2::ones(decomp.approx.dim()))
 }
 
 #[allow(dead_code)]
@@ -919,11 +919,15 @@ fn estimate_reconstruction_quality(
     Ok(30.0) // Placeholder quality value
 }
 
+#[cfg(test)]
 #[allow(unused_imports)]
 mod tests {
+    use super::*;
+
     #[test]
     fn testtexture_analysis() {
-        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect()).expect("Operation failed");
+        let image = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect())
+            .expect("Operation failed");
         let config = Dwt2dConfig {
             boundary_mode: BoundaryMode::Symmetric,
             use_simd: false,

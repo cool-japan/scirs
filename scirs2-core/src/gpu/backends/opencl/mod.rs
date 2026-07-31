@@ -245,12 +245,20 @@ impl GpuCompilerImpl for OpenCLCompiler {
         name: &str,
         _input_type: std::any::TypeId,
         _output_type: std::any::TypeId,
-    ) -> Arc<dyn GpuKernelImpl> {
-        Arc::new(OpenCLKernelHandle {
-            kernel_name: name.to_string(),
-            compiled_kernels: Arc::clone(&self.context.compiled_kernels),
-            params: Arc::new(Mutex::new(Vec::new())),
-        })
+    ) -> Result<Arc<dyn GpuKernelImpl>, GpuError> {
+        // No source and no registry access are available here, so a real
+        // OpenCL program can't actually be built for an arbitrary `name`.
+        // Previously this handed back a handle referencing a kernel name
+        // that was never inserted into `compiled_kernels`, so `dispatch`
+        // silently found nothing every time. Fail honestly instead: real
+        // compilation is available via `GpuCompilerImpl::compile` (real
+        // OpenCL C source) or `GpuContext::get_kernel` (registry-backed
+        // named kernels).
+        Err(GpuError::KernelCompilationError(format!(
+            "compile_typed has no generated OpenCL source for kernel '{name}'; use \
+             GpuCompiler::compile with real OpenCL C source, or GpuContext::get_kernel for \
+             registry-backed named kernels"
+        )))
     }
 }
 

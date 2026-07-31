@@ -20,12 +20,20 @@ use super::types::{
     ARMAConfidenceIntervals, ARMADiagnostics, ARMAOptions, ARMAParameters, ARMAStandardErrors,
     ARMAValidation, AdaptationOptions, AdaptiveARMAEstimator, CircularBuffer, ConvergenceInfo,
     EnhancedARMAResult, EnhancedOrderSelectionResult, EnhancedSpectrumResult,
-    OrderSelectionCandidate, OrderSelectionCriterion, OrderSelectionOptions, PoleZeroAnalysis,
-    SpectralPeak, SpectrumMetrics, SpectrumOptions, StabilityAnalysis,
+    HeteroskedasticityTests, NormalityTests, OrderSelectionCandidate, OrderSelectionCriterion,
+    OrderSelectionOptions, PoleZeroAnalysis, SpectralPeak, SpectrumMetrics, SpectrumOptions,
+    StabilityAnalysis, StabilityTests,
 };
 
 // Re-import AR method for basic ARMA that uses AR initialization
 use super::ar_estimation::burg_method;
+
+// Genuine residual diagnostic tests (Ljung-Box, Jarque-Bera, ARCH-LM, KS,
+// Anderson-Darling, Breusch-Pagan, CUSUM/Chow-like stability checks).
+use super::diagnostics::{
+    anderson_darling_normal_stat, arch_lm_test, breusch_pagan_stat, jarque_bera_test,
+    kolmogorov_smirnov_normal_stat, ljung_box_test, sample_autocorrelation, stability_diagnostics,
+};
 
 /// Estimates ARMA model parameters using a two-stage approach
 ///
@@ -1024,10 +1032,21 @@ fn compute_residuals(signal: &Array1<f64>, params: &ARMAParameters) -> SignalRes
 // Placeholder implementations for additional helper functions
 // These would need to be fully implemented in a production system
 
+/// Residuals with the initial `max(p, q)` burn-in samples (identically
+/// zero by construction, see [`compute_residuals`]) dropped, so diagnostic
+/// tests operate only on genuine one-step-ahead prediction errors.
+fn burned_in_residuals(signal: &Array1<f64>, params: &ARMAParameters) -> SignalResult<Vec<f64>> {
+    let residuals = compute_residuals(signal, params)?;
+    let p = params.ar_coeffs.len();
+    let q = params.ma_coeffs.len();
+    let burn_in = p.max(q);
+    Ok(residuals.iter().skip(burn_in).copied().collect())
+}
+
 fn compute_arma_diagnostics(
     signal: &Array1<f64>,
     params: &ARMAParameters,
-    _opts: &ARMAOptions,
+    opts: &ARMAOptions,
 ) -> SignalResult<ARMADiagnostics> {
     let n = signal.len() as f64;
     let p = params.ar_coeffs.len() as f64;
@@ -1043,80 +1062,337 @@ fn compute_arma_diagnostics(
     // Bayesian Information Criterion (BIC)
     let bic = -2.0 * log_likelihood + num_params * n.ln();
 
-    // Placeholder for actual diagnostic tests
+    // Genuine residual diagnostics rather than `Default::default()` stand-ins
+    // (which hardcoded `p_value: 1.0`, meaning every model unconditionally
+    // "passed" every test regardless of actual fit quality).
+    let valid_residuals = burned_in_residuals(signal, params)?;
+
+    let lb_lags = opts
+        .ljung_box_lags
+        .unwrap_or(10)
+        .min(valid_residuals.len().saturating_sub(1))
+        .max(1);
+    let ljung_box = ljung_box_test(&valid_residuals, lb_lags);
+
+    let jarque_bera = jarque_bera_test(&valid_residuals);
+
+    let arch_lags = opts
+        .arch_lags
+        .unwrap_or(5)
+        .min(valid_residuals.len().saturating_sub(2))
+        .max(1);
+    let arch = arch_lm_test(&valid_residuals, arch_lags);
+
     Ok(ARMADiagnostics {
         aic,
         bic,
-        ljung_box_test: Default::default(),
-        jarque_bera_test: Default::default(),
-        arch_test: Default::default(),
+        ljung_box_test: ljung_box,
+        jarque_bera_test: jarque_bera,
+        arch_test: arch,
     })
 }
 
 fn validate_arma_model(
-    _signal: &Array1<f64>,
-    _params: &ARMAParameters,
-    _opts: &ARMAOptions,
+    signal: &Array1<f64>,
+    params: &ARMAParameters,
+    opts: &ARMAOptions,
 ) -> SignalResult<ARMAValidation> {
-    // Placeholder implementation
+    let p = params.ar_coeffs.len();
+    let q = params.ma_coeffs.len();
+    let burn_in = p.max(q);
+    let valid_residuals = burned_in_residuals(signal, params)?;
+
+    // Residual autocorrelation function, computed from the actual fitted
+    // residuals rather than a fixed zero vector.
+    let lags = 10.min(valid_residuals.len().saturating_sub(1)).max(1);
+    let mut residual_autocorrelation = Array1::zeros(lags);
+    for k in 1..=lags {
+        residual_autocorrelation[k - 1] = sample_autocorrelation(&valid_residuals, k);
+    }
+
+    let jarque_bera = jarque_bera_test(&valid_residuals);
+    let kolmogorov_smirnov = kolmogorov_smirnov_normal_stat(&valid_residuals);
+    let anderson_darling = anderson_darling_normal_stat(&valid_residuals);
+    let normality_tests = NormalityTests {
+        jarque_bera,
+        kolmogorov_smirnov,
+        anderson_darling,
+    };
+
+    let arch_lags = opts
+        .arch_lags
+        .unwrap_or(5)
+        .min(valid_residuals.len().saturating_sub(2))
+        .max(1);
+    let arch_test = arch_lm_test(&valid_residuals, arch_lags);
+    let white_test = arch_test.statistic; // both probe conditional heteroskedasticity
+    let breusch_pagan =
+        breusch_pagan_stat(&valid_residuals, signal.as_slice().unwrap_or(&[]), burn_in);
+    let heteroskedasticity_tests = HeteroskedasticityTests {
+        arch_test,
+        white_test,
+        breusch_pagan,
+    };
+
+    let (chow_test, cusum_test, recursive_residuals) = stability_diagnostics(&valid_residuals);
+    let stability_tests = StabilityTests {
+        chow_test,
+        cusum_test,
+        recursive_residuals,
+    };
+
     Ok(ARMAValidation {
-        residual_autocorrelation: Array1::zeros(10),
-        normality_tests: Default::default(),
-        heteroskedasticity_tests: Default::default(),
-        stability_tests: Default::default(),
+        residual_autocorrelation,
+        normality_tests,
+        heteroskedasticity_tests,
+        stability_tests,
     })
 }
 
 fn compute_order_criterion(
-    _signal: &Array1<f64>,
+    signal: &Array1<f64>,
     result: &EnhancedARMAResult,
     criterion: &OrderSelectionCriterion,
-    _opts: &OrderSelectionOptions,
+    opts: &OrderSelectionOptions,
 ) -> SignalResult<f64> {
+    let n = signal.len() as f64;
+    let p = result.ar_coeffs.len().saturating_sub(1);
+    let q = result.ma_coeffs.len().saturating_sub(1);
+    let num_params = (p + q + 1) as f64; // AR + MA + noise variance
+
     match criterion {
         OrderSelectionCriterion::AIC => Ok(result.aic),
         OrderSelectionCriterion::BIC => Ok(result.bic),
-        _ => Ok(result.aic), // Placeholder
+        OrderSelectionCriterion::HQC => {
+            // Hannan-Quinn Criterion: -2*LL + 2*k*ln(ln(n)); recover LL
+            // exactly from the already-computed AIC (aic = -2*LL + 2*k).
+            let log_likelihood = (2.0 * num_params - result.aic) / 2.0;
+            let penalty = 2.0 * num_params * n.ln().ln().max(1e-12);
+            Ok(-2.0 * log_likelihood + penalty)
+        }
+        OrderSelectionCriterion::FPE => {
+            // Final Prediction Error: sigma^2 * (n + k) / (n - k)
+            let k = num_params;
+            if n - k > 0.0 {
+                Ok(result.variance * (n + k) / (n - k))
+            } else {
+                Ok(f64::INFINITY)
+            }
+        }
+        OrderSelectionCriterion::AICc => {
+            // Small-sample-corrected AIC.
+            let k = num_params;
+            if n - k - 1.0 > 0.0 {
+                Ok(result.aic + (2.0 * k * (k + 1.0)) / (n - k - 1.0))
+            } else {
+                Ok(f64::INFINITY)
+            }
+        }
+        OrderSelectionCriterion::CrossValidation => {
+            compute_cross_validation_score(signal, p, q, opts)
+        }
+        OrderSelectionCriterion::PredictionError => Ok(result.variance),
     }
 }
 
+/// Rolling-origin (walk-forward) cross-validation for ARMA order
+/// selection: repeatedly re-fits the model on a growing prefix of the
+/// signal and scores its one-step-ahead forecast error on the next held-out
+/// sample, returning the mean squared forecast error (lower is better,
+/// consistent with the AIC/BIC convention used elsewhere in this module).
 fn compute_cross_validation_score(
-    _signal: &Array1<f64>,
-    _arorder: usize,
-    _maorder: usize,
-    _opts: &OrderSelectionOptions,
+    signal: &Array1<f64>,
+    arorder: usize,
+    maorder: usize,
+    opts: &OrderSelectionOptions,
 ) -> SignalResult<f64> {
-    // Placeholder implementation
-    Ok(0.0)
+    let n = signal.len();
+    let min_train = ((arorder + maorder) * 5).max(arorder + maorder + 5);
+
+    if n <= min_train + 1 {
+        // Not enough data for genuine held-out validation; fall back to
+        // the in-sample residual variance from a single fit rather than a
+        // hardcoded 0.0.
+        let fit = estimate_arma_enhanced(signal, arorder, maorder, None)?;
+        return Ok(fit.variance);
+    }
+
+    // A lighter iteration budget keeps the repeated per-fold refits fast
+    // while still performing a genuine optimization each time.
+    let cv_options = ARMAOptions {
+        max_iterations: 50,
+        ..ARMAOptions::default()
+    };
+
+    let n_folds = opts.cv_folds.max(1);
+    let test_len = n - min_train;
+    let fold_size = (test_len / n_folds).max(1);
+
+    let mut squared_errors = Vec::new();
+    for fold in 0..n_folds {
+        let split = min_train + fold * fold_size;
+        if split + 1 >= n {
+            break;
+        }
+        let train = signal.slice(s![0..split]).to_owned();
+        let actual_next = signal[split];
+
+        let fit = match estimate_arma_enhanced(&train, arorder, maorder, Some(cv_options.clone())) {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+
+        // One-step-ahead forecast from the AR component (the MA
+        // component's lagged innovations are unknown at the forecast
+        // origin and are conventionally treated as zero).
+        let mut forecast = 0.0;
+        for (i, &coeff) in fit.ar_coeffs.iter().enumerate() {
+            if i < train.len() {
+                forecast += coeff * train[train.len() - 1 - i];
+            }
+        }
+
+        let error = actual_next - forecast;
+        squared_errors.push(error * error);
+    }
+
+    if squared_errors.is_empty() {
+        let fit = estimate_arma_enhanced(signal, arorder, maorder, None)?;
+        return Ok(fit.variance);
+    }
+
+    Ok(squared_errors.iter().sum::<f64>() / squared_errors.len() as f64)
 }
 
+/// Assess the stability/invertibility of a fitted ARMA model and locate any
+/// AR poles close to the unit circle, rather than hardcoding
+/// `is_stable: true` and a constant margin regardless of the fitted
+/// coefficients.
 fn analyze_model_stability(result: &EnhancedARMAResult) -> SignalResult<StabilityAnalysis> {
+    // Reuses the same (sufficient-condition) stability/invertibility check
+    // already enforced during optimization on this exact `ar_coeffs` /
+    // `ma_coeffs` representation (`estimate_arma_enhanced` never returns a
+    // model that fails it), so this is a genuine re-derivation rather than
+    // an independent guess at a possibly-mismatched coefficient convention.
+    //
+    // NOTE: this deliberately does not attempt to report `critical_frequencies`
+    // via this file's `find_polynomial_roots`/companion-matrix root finder:
+    // that helper's companion matrix is sized for an (n-1)-degree polynomial
+    // from n coefficients but actually solves a degree-n one (its highest
+    // coefficient always normalizes to exactly 1), so its roots do not
+    // correspond to a well-defined polynomial in general. That is a
+    // separate, pre-existing issue in `find_polynomial_roots` itself
+    // (unrelated to the fabricated constants this function replaces) and is
+    // out of scope here; leaving `critical_frequencies` empty is an honest
+    // "not computed" rather than silently propagating that bug.
+    let is_stable =
+        check_ar_stability(&result.ar_coeffs) && check_ma_invertibility(&result.ma_coeffs);
+
+    let ar_sum: f64 = result.ar_coeffs.iter().map(|&x| x.abs()).sum();
+    let ma_sum: f64 = result.ma_coeffs.iter().map(|&x| x.abs()).sum();
+    let stability_margin = (1.0 - ar_sum).min(1.0 - ma_sum);
+
     Ok(StabilityAnalysis {
-        is_stable: true,
-        stability_margin: 0.5,
+        is_stable,
+        stability_margin,
         critical_frequencies: Vec::new(),
     })
 }
 
+/// Select the best candidate model for each requested criterion.
+///
+/// For every information criterion (AIC/BIC/HQC/FPE/AICc), cross-validation
+/// score, and prediction-error criterion computed above, a *lower* value
+/// indicates a better model; this selects the genuine minimizer among the
+/// real, previously-evaluated candidates instead of discarding all of them
+/// into an empty map.
 fn select_best_models(
-    _results: Vec<OrderSelectionCandidate>,
-    _criteria: &[OrderSelectionCriterion],
+    results: Vec<OrderSelectionCandidate>,
+    criteria: &[OrderSelectionCriterion],
     _opts: &OrderSelectionOptions,
 ) -> SignalResult<HashMap<OrderSelectionCriterion, OrderSelectionCandidate>> {
-    // Placeholder implementation
-    Ok(HashMap::new())
+    let mut best_models = HashMap::new();
+
+    for criterion in criteria {
+        let best = results
+            .iter()
+            .filter_map(|candidate| {
+                let value = match criterion {
+                    OrderSelectionCriterion::CrossValidation => candidate.cv_score,
+                    other => candidate.criterion_values.get(other).copied(),
+                };
+                value.map(|v| (v, candidate))
+            })
+            .min_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(_, candidate)| candidate.clone());
+
+        if let Some(candidate) = best {
+            best_models.insert(criterion.clone(), candidate);
+        }
+    }
+
+    Ok(best_models)
 }
 
+/// Generate order recommendations from the genuinely-selected best models
+/// (one per criterion), rather than a hardcoded `(1, 1)` recommendation.
+///
+/// Recommends the `(ar, ma)` order pair most criteria agree on (ties broken
+/// toward the more parsimonious model), and reports the fraction of
+/// criteria in agreement as the confidence level.
 fn generate_order_recommendations(
-    _best_models: &HashMap<OrderSelectionCriterion, OrderSelectionCandidate>,
-    _opts: &OrderSelectionOptions,
+    best_models: &HashMap<OrderSelectionCriterion, OrderSelectionCandidate>,
+    opts: &OrderSelectionOptions,
 ) -> SignalResult<super::types::OrderRecommendations> {
-    // Placeholder implementation
+    if best_models.is_empty() {
+        return Ok(super::types::OrderRecommendations {
+            recommended_ar: 0,
+            recommended_ma: 0,
+            confidence_level: 0.0,
+            rationale: "No candidate models were successfully evaluated".to_string(),
+        });
+    }
+
+    let mut votes: HashMap<(usize, usize), usize> = HashMap::new();
+    for candidate in best_models.values() {
+        *votes
+            .entry((candidate.arorder, candidate.maorder))
+            .or_insert(0) += 1;
+    }
+
+    let total_criteria = best_models.len();
+    let ((recommended_ar, recommended_ma), agreeing_votes) = votes
+        .iter()
+        .max_by(|(order_a, count_a), (order_b, count_b)| {
+            count_a
+                .cmp(count_b)
+                .then_with(|| (order_b.0 + order_b.1).cmp(&(order_a.0 + order_a.1)))
+        })
+        .map(|(&order, &count)| (order, count))
+        .unwrap_or(((0, 0), 0));
+
+    let confidence_level = agreeing_votes as f64 / total_criteria as f64;
+
+    let mut agreeing_criteria: Vec<String> = best_models
+        .iter()
+        .filter(|(_, candidate)| {
+            candidate.arorder == recommended_ar && candidate.maorder == recommended_ma
+        })
+        .map(|(criterion, _)| format!("{criterion:?}"))
+        .collect();
+    agreeing_criteria.sort();
+
+    let rationale = format!(
+        "ARMA({recommended_ar},{recommended_ma}) selected by {agreeing_votes}/{total_criteria} criteria ({}); stability weight {:.2}",
+        agreeing_criteria.join(", "),
+        opts.stability_weight
+    );
+
     Ok(super::types::OrderRecommendations {
-        recommended_ar: 1,
-        recommended_ma: 1,
-        confidence_level: 0.95,
-        rationale: "Placeholder recommendation".to_string(),
+        recommended_ar,
+        recommended_ma,
+        confidence_level,
+        rationale,
     })
 }
 
@@ -1315,5 +1591,260 @@ fn normal_quantile(p: f64) -> f64 {
         -x
     } else {
         x
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_test_result(
+        ar_coeffs: Vec<f64>,
+        ma_coeffs: Vec<f64>,
+        aic: f64,
+        bic: f64,
+    ) -> EnhancedARMAResult {
+        EnhancedARMAResult {
+            ar_coeffs: Array1::from_vec(ar_coeffs),
+            ma_coeffs: Array1::from_vec(ma_coeffs),
+            variance: 1.0,
+            likelihood: 0.0,
+            aic,
+            bic,
+            standard_errors: None,
+            confidence_intervals: None,
+            residuals: Array1::zeros(1),
+            diagnostics: ARMADiagnostics {
+                aic,
+                bic,
+                ljung_box_test: Default::default(),
+                jarque_bera_test: Default::default(),
+                arch_test: Default::default(),
+            },
+            validation: ARMAValidation {
+                residual_autocorrelation: Array1::zeros(1),
+                normality_tests: Default::default(),
+                heteroskedasticity_tests: Default::default(),
+                stability_tests: Default::default(),
+            },
+            convergence_info: ConvergenceInfo {
+                converged: true,
+                iterations: 1,
+                final_gradient_norm: 0.0,
+                final_step_size: 0.0,
+            },
+        }
+    }
+
+    fn make_test_candidate(
+        arorder: usize,
+        maorder: usize,
+        aic: f64,
+        bic: f64,
+        cv_score: Option<f64>,
+    ) -> OrderSelectionCandidate {
+        let mut criterion_values = HashMap::new();
+        criterion_values.insert(OrderSelectionCriterion::AIC, aic);
+        criterion_values.insert(OrderSelectionCriterion::BIC, bic);
+        OrderSelectionCandidate {
+            arorder,
+            maorder,
+            criterion_values,
+            cv_score,
+            stability: StabilityAnalysis {
+                is_stable: true,
+                stability_margin: 0.5,
+                critical_frequencies: Vec::new(),
+            },
+            model_result: make_test_result(vec![0.5], vec![0.0], aic, bic),
+        }
+    }
+
+    #[test]
+    fn test_select_best_models_returns_real_candidates() {
+        let opts = OrderSelectionOptions::default();
+        let candidates = vec![
+            make_test_candidate(1, 0, 100.0, 110.0, Some(5.0)),
+            make_test_candidate(2, 0, 90.0, 115.0, Some(3.0)), // best AIC
+            make_test_candidate(1, 1, 95.0, 100.0, Some(1.0)), // best BIC and CV
+        ];
+        let criteria = vec![
+            OrderSelectionCriterion::AIC,
+            OrderSelectionCriterion::BIC,
+            OrderSelectionCriterion::CrossValidation,
+        ];
+
+        let best = select_best_models(candidates, &criteria, &opts).expect("Operation failed");
+
+        // The fabricated implementation always returned an empty map,
+        // discarding every real candidate.
+        assert_eq!(best.len(), 3);
+        assert_eq!(best[&OrderSelectionCriterion::AIC].arorder, 2);
+        assert_eq!(best[&OrderSelectionCriterion::BIC].arorder, 1);
+        assert_eq!(best[&OrderSelectionCriterion::BIC].maorder, 1);
+        assert_eq!(best[&OrderSelectionCriterion::CrossValidation].maorder, 1);
+    }
+
+    #[test]
+    fn test_generate_order_recommendations_reflects_best_models() {
+        let opts = OrderSelectionOptions::default();
+        let mut best_models = HashMap::new();
+        best_models.insert(
+            OrderSelectionCriterion::AIC,
+            make_test_candidate(2, 1, 90.0, 110.0, None),
+        );
+        best_models.insert(
+            OrderSelectionCriterion::BIC,
+            make_test_candidate(2, 1, 95.0, 100.0, None),
+        );
+        best_models.insert(
+            OrderSelectionCriterion::HQC,
+            make_test_candidate(1, 0, 99.0, 105.0, None),
+        );
+
+        let recommendations =
+            generate_order_recommendations(&best_models, &opts).expect("Operation failed");
+
+        // Two out of three criteria agree on ARMA(2,1); the fabricated
+        // implementation always recommended a hardcoded ARMA(1,1).
+        assert_eq!(recommendations.recommended_ar, 2);
+        assert_eq!(recommendations.recommended_ma, 1);
+        assert!((recommendations.confidence_level - 2.0 / 3.0).abs() < 1e-9);
+        assert_ne!(recommendations.rationale, "Placeholder recommendation");
+    }
+
+    #[test]
+    fn test_analyze_model_stability_reacts_to_coefficients() {
+        let near_unstable = make_test_result(vec![0.95], vec![0.1], 100.0, 110.0);
+        let very_stable = make_test_result(vec![0.1], vec![0.05], 100.0, 110.0);
+
+        let near = analyze_model_stability(&near_unstable).expect("Operation failed");
+        let stable = analyze_model_stability(&very_stable).expect("Operation failed");
+
+        // The fabricated implementation always returned exactly 0.5
+        // regardless of the fitted coefficients.
+        assert!(stable.stability_margin > near.stability_margin);
+        assert!(
+            (near.stability_margin - 0.5).abs() > 1e-6
+                || (stable.stability_margin - 0.5).abs() > 1e-6
+        );
+    }
+
+    #[test]
+    fn test_cross_validation_score_reacts_to_signal_predictability() {
+        let n = 150;
+        // A highly predictable (smooth sinusoidal) signal...
+        let predictable: Array1<f64> = Array1::from_iter((0..n).map(|i| (i as f64 * 0.1).sin()));
+        // ...vs an unpredictable (deterministic pseudo-random) one of the
+        // same length and (approximately) matched variance, so the
+        // comparison probes predictability rather than raw signal scale.
+        let mut rng_state: u64 = 99;
+        let mut next = || {
+            rng_state ^= rng_state << 13;
+            rng_state ^= rng_state >> 7;
+            rng_state ^= rng_state << 17;
+            (rng_state as f64 / u64::MAX as f64) - 0.5
+        };
+        // sin(0.1*i) has variance ~0.5 (std ~0.707); uniform(-0.5, 0.5) has
+        // std ~0.289, so scale by ~2.449 to roughly match variance.
+        let noisy: Array1<f64> = Array1::from_iter((0..n).map(|_| 2.449 * next()));
+
+        let opts = OrderSelectionOptions {
+            cv_folds: 3,
+            ..OrderSelectionOptions::default()
+        };
+
+        let score_predictable =
+            compute_cross_validation_score(&predictable, 2, 0, &opts).expect("Operation failed");
+        let score_noisy =
+            compute_cross_validation_score(&noisy, 2, 0, &opts).expect("Operation failed");
+
+        // The fabricated implementation always returned exactly 0.0
+        // regardless of the signal; a genuine implementation must at least
+        // react differently to genuinely different data.
+        assert!(score_predictable >= 0.0);
+        assert!(score_noisy >= 0.0);
+        assert_ne!(score_predictable, score_noisy);
+    }
+
+    #[test]
+    fn test_arma_diagnostics_are_computed_from_real_residuals() {
+        let n = 300;
+        let mut signal = Array1::<f64>::zeros(n);
+        signal[0] = 1.0;
+        signal[1] = 0.5;
+        for t in 2..n {
+            signal[t] = 0.6 * signal[t - 1] - 0.2 * signal[t - 2] + 0.3 * (t as f64 * 0.31).sin();
+        }
+
+        let low_order = estimate_arma_enhanced(&signal, 1, 0, None).expect("Operation failed");
+        let high_order = estimate_arma_enhanced(&signal, 4, 2, None).expect("Operation failed");
+
+        // The fabricated implementation always returned `zeros(10)` /
+        // `Default::default()` (hardcoded `p_value: 1.0`) regardless of the
+        // fitted model or residuals.
+        assert_ne!(
+            low_order.validation.residual_autocorrelation,
+            high_order.validation.residual_autocorrelation
+        );
+        assert_ne!(
+            low_order.diagnostics.ljung_box_test.statistic,
+            high_order.diagnostics.ljung_box_test.statistic
+        );
+        for p_value in [
+            low_order.diagnostics.ljung_box_test.p_value,
+            high_order.diagnostics.ljung_box_test.p_value,
+        ] {
+            assert!((0.0..=1.0).contains(&p_value));
+        }
+
+        // Not every p-value should be exactly 1.0 (the old hardcoded default).
+        let all_ones = [
+            low_order.diagnostics.ljung_box_test.p_value,
+            low_order.diagnostics.jarque_bera_test.p_value,
+            low_order.diagnostics.arch_test.p_value,
+            high_order.diagnostics.ljung_box_test.p_value,
+            high_order.diagnostics.jarque_bera_test.p_value,
+            high_order.diagnostics.arch_test.p_value,
+        ]
+        .iter()
+        .all(|&p| (p - 1.0).abs() < 1e-9);
+        assert!(
+            !all_ones,
+            "at least one diagnostic p-value should differ from the hardcoded 1.0 default"
+        );
+    }
+
+    #[test]
+    fn test_select_armaorder_enhanced_end_to_end_produces_real_selection() {
+        let n = 150;
+        let mut signal = Array1::<f64>::zeros(n);
+        signal[0] = 1.0;
+        signal[1] = 0.5;
+        for t in 2..n {
+            signal[t] = 0.6 * signal[t - 1] - 0.2 * signal[t - 2] + 0.2 * (t as f64 * 0.31).sin();
+        }
+
+        let criteria = vec![OrderSelectionCriterion::AIC, OrderSelectionCriterion::BIC];
+        let options = OrderSelectionOptions {
+            use_cross_validation: false, // keep this end-to-end test fast
+            ..OrderSelectionOptions::default()
+        };
+
+        let result = select_armaorder_enhanced(&signal, 2, 1, criteria.clone(), Some(options))
+            .expect("Operation failed");
+
+        // The fabricated implementation always returned an empty
+        // `best_models` map and a hardcoded ARMA(1,1) recommendation
+        // regardless of the fitted candidates.
+        assert_eq!(result.best_models.len(), criteria.len());
+        for criterion in &criteria {
+            assert!(result.best_models.contains_key(criterion));
+        }
+        assert!(result.recommendations.confidence_level > 0.0);
+        assert_ne!(
+            result.recommendations.rationale,
+            "Placeholder recommendation"
+        );
     }
 }

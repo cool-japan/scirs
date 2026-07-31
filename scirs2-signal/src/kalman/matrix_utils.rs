@@ -139,7 +139,9 @@ pub fn mat_vec_mul(a: &[Vec<f64>], v: &[f64]) -> SignalResult<Vec<f64>> {
 pub fn mat_inv(a: &[Vec<f64>]) -> SignalResult<Vec<Vec<f64>>> {
     let n = a.len();
     if n == 0 {
-        return Err(SignalError::ValueError("Cannot invert empty matrix".to_string()));
+        return Err(SignalError::ValueError(
+            "Cannot invert empty matrix".to_string(),
+        ));
     }
     for row in a.iter() {
         if row.len() != n {

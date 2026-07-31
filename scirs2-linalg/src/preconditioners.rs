@@ -1151,9 +1151,13 @@ where
 /// Performance analysis for preconditioner effectiveness
 #[derive(Debug, Clone)]
 pub struct PreconditionerAnalysis {
-    /// Condition number improvement ratio
+    /// Condition number improvement ratio: `cond(A) / cond(M⁻¹A)`, so values
+    /// greater than 1 indicate the preconditioner tightened the spectrum.
     pub condition_improvement: f64,
-    /// Setup time in milliseconds
+    /// Setup (construction) time in milliseconds, as supplied by the caller
+    /// to [`analyze_preconditioner`] (this function receives an
+    /// already-built preconditioner and cannot measure its own
+    /// construction time); `0.0` means "not measured".
     pub setup_time_ms: f64,
     /// Average application time in microseconds
     pub apply_time_us: f64,
@@ -1178,11 +1182,36 @@ impl Default for PreconditionerAnalysis {
     }
 }
 
-/// Analyze preconditioner performance and effectiveness
+/// Analyze preconditioner performance and effectiveness.
+///
+/// * `matrix` - The original matrix `A` the preconditioner was built for.
+/// * `preconditioner` - The (already-constructed) preconditioner to analyze.
+/// * `setup_time` - Wall-clock time spent constructing `preconditioner`, if
+///   the caller measured it (e.g. via [`std::time::Instant`] around its own
+///   call to [`create_preconditioner`]). This function receives an
+///   *already-built* preconditioner, so it cannot itself measure
+///   construction time; pass `None` to report `setup_time_ms = 0.0` (i.e.
+///   "not measured") rather than a fabricated value.
+///
+/// All other metrics are genuinely measured or computed from `matrix` and
+/// `preconditioner`:
+/// * `apply_time_us` is timed directly (an average over several repeated
+///   [`PreconditionerOp::apply`] calls).
+/// * `condition_improvement` compares `cond(A)` to `cond(M⁻¹A)` (via SVD),
+///   so it is `> 1` exactly when the preconditioner genuinely tightens the
+///   spectrum.
+/// * `sparsity_preservation` is the fraction of (numerically) zero entries
+///   in the preconditioner's own dense matrix form `M⁻¹` -- how sparse the
+///   preconditioner itself is, on the same `[0, 1]` scale as a sparsity
+///   ratio computed from `matrix` directly.
+/// * `stability_estimate` is the reciprocal condition number `1/cond(M⁻¹)`
+///   (a standard, bounded `(0, 1]` measure of how far the preconditioner's
+///   own action is from being singular / ill-conditioned).
 #[allow(dead_code)]
 pub fn analyze_preconditioner<F>(
     matrix: &ArrayView2<F>,
-    _preconditioner: &dyn PreconditionerOp<F>,
+    preconditioner: &dyn PreconditionerOp<F>,
+    setup_time: Option<std::time::Duration>,
 ) -> LinalgResult<PreconditionerAnalysis>
 where
     F: Float
@@ -1196,14 +1225,76 @@ where
         + 'static,
 {
     let n = matrix.nrows();
-
-    // Simple analysis - full implementation would include more sophisticated metrics
-    let condition_improvement = 10.0; // Placeholder
-    let setup_time_ms = 1.0; // Placeholder
-    let apply_time_us = 10.0; // Placeholder
     let memory_usage_bytes = n * n * std::mem::size_of::<F>();
-    let sparsity_preservation = 0.8; // Placeholder
-    let stability_estimate = 0.9; // Placeholder
+    let setup_time_ms = setup_time.map(|d| d.as_secs_f64() * 1000.0).unwrap_or(0.0);
+
+    // Build the preconditioner's own dense matrix form M^-1 by applying it
+    // to each standard basis vector; this lets every other metric below be
+    // computed from real linear-algebra quantities instead of placeholders.
+    let mut m_inv = Array2::<F>::zeros((n, n));
+    let mut e_j = Array1::<F>::zeros(n);
+    let mut total_apply_secs = 0.0f64;
+    let apply_reps = 5usize;
+    for j in 0..n {
+        e_j[j] = F::one();
+        let start = std::time::Instant::now();
+        let col = preconditioner.apply(&e_j.view())?;
+        total_apply_secs += start.elapsed().as_secs_f64();
+        for i in 0..n {
+            m_inv[[i, j]] = col[i];
+        }
+        e_j[j] = F::zero();
+    }
+    // A handful of extra repeated applies (on the same vector) for a more
+    // stable average timing estimate.
+    if n > 0 {
+        let x = m_inv.column(0).to_owned();
+        for _ in 1..apply_reps {
+            let start = std::time::Instant::now();
+            let _ = preconditioner.apply(&x.view())?;
+            total_apply_secs += start.elapsed().as_secs_f64();
+        }
+    }
+    let total_applies = n + n.min(1) * (apply_reps.saturating_sub(1));
+    let apply_time_us = if total_applies > 0 {
+        (total_apply_secs / total_applies as f64) * 1_000_000.0
+    } else {
+        0.0
+    };
+
+    // Sparsity of the preconditioner's own action: fraction of (numerically)
+    // zero entries in its dense M^-1 form.
+    let zero_threshold = F::epsilon() * F::from(100.0).unwrap_or(F::one());
+    let nnz_m_inv = m_inv.iter().filter(|&&v| v.abs() > zero_threshold).count();
+    let sparsity_preservation = if n > 0 {
+        1.0 - (nnz_m_inv as f64) / ((n * n) as f64)
+    } else {
+        1.0
+    };
+
+    // Condition-number-based effectiveness: cond(A) vs cond(M^-1 A).
+    let cond_a = crate::norm::cond(matrix, None, None)
+        .ok()
+        .and_then(|c| c.to_f64())
+        .filter(|c| c.is_finite());
+    let cond_m_inv = crate::norm::cond(&m_inv.view(), None, None)
+        .ok()
+        .and_then(|c| c.to_f64())
+        .filter(|c| c.is_finite());
+    let preconditioned = m_inv.dot(matrix);
+    let cond_preconditioned = crate::norm::cond(&preconditioned.view(), None, None)
+        .ok()
+        .and_then(|c| c.to_f64())
+        .filter(|c| c.is_finite() && *c > 0.0);
+
+    let condition_improvement = match (cond_a, cond_preconditioned) {
+        (Some(ca), Some(cp)) if cp > 0.0 => ca / cp,
+        _ => 1.0, // Condition numbers could not be reliably estimated (e.g. singular matrix).
+    };
+    let stability_estimate = match cond_m_inv {
+        Some(c) if c > 0.0 => (1.0 / c).min(1.0),
+        _ => 0.0,
+    };
 
     Ok(PreconditionerAnalysis {
         condition_improvement,
@@ -1232,6 +1323,112 @@ mod tests {
         // Should be [1/4, 2/3]
         assert_relative_eq!(result[0], 0.25, epsilon = 1e-10);
         assert_relative_eq!(result[1], 2.0 / 3.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_analyze_preconditioner_real_metrics_diagonal() {
+        // Diagonally-dominant, non-constant, non-symmetric-scale matrix.
+        let matrix = array![[10.0, 1.0, 0.0], [1.0, 8.0, 2.0], [0.0, 2.0, 6.0]];
+        let preconditioner = DiagonalPreconditioner::new(&matrix.view()).expect("build");
+        let analysis =
+            analyze_preconditioner(&matrix.view(), &preconditioner, None).expect("analyze");
+
+        // A diagonal preconditioner's own dense M^-1 form has only n nonzero
+        // entries out of n*n; the old hardcoded 0.8 was independent of the
+        // preconditioner entirely, so this must reflect that real structure.
+        assert!(
+            analysis.sparsity_preservation > 0.5,
+            "expected high sparsity for a diagonal preconditioner, got {}",
+            analysis.sparsity_preservation
+        );
+
+        // Jacobi (diagonal) preconditioning on a diagonally dominant matrix
+        // genuinely improves the condition number; the old hardcoded 10.0
+        // was independent of both the matrix and the preconditioner.
+        assert!(
+            analysis.condition_improvement > 1.0,
+            "expected condition_improvement > 1, got {}",
+            analysis.condition_improvement
+        );
+
+        assert_eq!(
+            analysis.memory_usage_bytes,
+            3 * 3 * std::mem::size_of::<f64>()
+        );
+        assert!(analysis.apply_time_us >= 0.0);
+        assert!(analysis.stability_estimate > 0.0 && analysis.stability_estimate <= 1.0);
+        assert_eq!(
+            analysis.setup_time_ms, 0.0,
+            "setup_time_ms must be 0 (not fabricated) when not supplied"
+        );
+    }
+
+    #[test]
+    fn test_analyze_preconditioner_condition_improvement_varies_with_input() {
+        // Identity matrix: a diagonal preconditioner on it IS the identity,
+        // so there is nothing to improve (genuine condition_improvement must
+        // be close to 1.0, not the old hardcoded 10.0), and M^-1 = I is
+        // perfectly well-conditioned.
+        let identity = array![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let precond_identity = DiagonalPreconditioner::new(&identity.view()).expect("build");
+        let analysis_identity =
+            analyze_preconditioner(&identity.view(), &precond_identity, None).expect("analyze");
+
+        assert!(
+            (analysis_identity.condition_improvement - 1.0).abs() < 0.2,
+            "preconditioning an already-identity matrix should show ~no improvement \
+             (old hardcoded value was always 10.0), got {}",
+            analysis_identity.condition_improvement
+        );
+        assert!(
+            analysis_identity.stability_estimate > 0.9,
+            "M^-1 = I should be almost perfectly well-conditioned, got {}",
+            analysis_identity.stability_estimate
+        );
+
+        // A badly *scaled* matrix (D * B * D for a well-conditioned B and a
+        // diagonal D spanning 1e-3..1e3): diagonal (Jacobi) preconditioning
+        // undoes almost all of that scaling, giving a dramatic, easily
+        // distinguishable condition-number improvement. The old code
+        // returned the *same* hardcoded 10.0 regardless of the matrix or
+        // preconditioner.
+        let scaled = array![
+            [4.0e6, 1.0e3, 0.0],
+            [1.0e3, 3.0, 1.0e-3],
+            [0.0, 1.0e-3, 2.0e-6]
+        ];
+        let precond_scaled = DiagonalPreconditioner::new(&scaled.view()).expect("build");
+        let analysis_scaled =
+            analyze_preconditioner(&scaled.view(), &precond_scaled, None).expect("analyze");
+
+        assert!(
+            analysis_scaled.condition_improvement > 100.0,
+            "diagonal preconditioning of a badly-scaled matrix should show a large, real \
+             improvement (old hardcoded value was always 10.0), got {}",
+            analysis_scaled.condition_improvement
+        );
+        assert!(
+            (analysis_scaled.condition_improvement - analysis_identity.condition_improvement).abs()
+                > 1.0,
+            "condition_improvement must vary with the actual matrix/preconditioner rather than \
+             being a constant: identity case={}, scaled case={}",
+            analysis_identity.condition_improvement,
+            analysis_scaled.condition_improvement
+        );
+    }
+
+    #[test]
+    fn test_analyze_preconditioner_setup_time_passthrough() {
+        let matrix = array![[4.0, 1.0], [1.0, 3.0]];
+        let preconditioner = DiagonalPreconditioner::new(&matrix.view()).expect("build");
+        let measured = std::time::Duration::from_millis(7);
+        let analysis = analyze_preconditioner(&matrix.view(), &preconditioner, Some(measured))
+            .expect("analyze");
+        assert!(
+            (analysis.setup_time_ms - 7.0).abs() < 0.5,
+            "expected ~7.0ms, got {}",
+            analysis.setup_time_ms
+        );
     }
 
     #[test]
@@ -1352,7 +1549,7 @@ mod tests {
         let preconditioner =
             create_preconditioner(&matrix.view(), &config).expect("Operation failed");
 
-        let analysis = analyze_preconditioner(&matrix.view(), preconditioner.as_ref())
+        let analysis = analyze_preconditioner(&matrix.view(), preconditioner.as_ref(), None)
             .expect("Operation failed");
 
         // Verify analysis contains reasonable values

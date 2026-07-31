@@ -119,7 +119,7 @@ fn calc_dual_window_internal(win: &[f64], hop: usize) -> SignalResult<Array1<f64
     let win_array = Array1::from_vec(win.to_vec());
 
     // Calculate sum of shifted windows
-    let mut window_sum = Array1::zeros(m);
+    let mut window_sum = Array1::<f64>::zeros(m);
 
     // Add the window at different hop positions
     for shift in (0..m).step_by(hop) {
@@ -130,7 +130,7 @@ fn calc_dual_window_internal(win: &[f64], hop: usize) -> SignalResult<Array1<f64
     }
 
     // Calculate dual window
-    let mut dual_window = Array1::zeros(m);
+    let mut dual_window = Array1::<f64>::zeros(m);
     for i in 0..m {
         if window_sum[i] > 1e-12 {
             dual_window[i] = win[i] / window_sum[i];

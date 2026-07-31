@@ -1439,17 +1439,27 @@ impl LearnedOptimizer for AdaptiveTransformerOptimizer {
         let mut best_params = current_params.clone();
         let mut iterations = 0;
 
+        // Number of inner optimization steps to run. Previously this was a
+        // separate hardcoded `1000` here, completely ignoring
+        // `self.config.inner_steps` (a documented config field meant for
+        // exactly this purpose) -- every call paid the cost of up to 1000
+        // full transformer forward passes regardless of what the caller
+        // configured. Wiring it through fixes both the dead config field and
+        // the resulting (up to ~100x) unnecessary cost for callers using
+        // small/default `inner_steps` values.
+        let max_inner_steps = self.config.inner_steps.max(1);
+
         // Create default problem for encoding
         let default_problem = OptimizationProblem {
             name: "unknown".to_string(),
             dimension: initial_params.len(),
             problem_class: "general".to_string(),
             metadata: HashMap::new(),
-            max_evaluations: 1000,
+            max_evaluations: max_inner_steps,
             target_accuracy: 1e-6,
         };
 
-        for iter in 0..1000 {
+        for iter in 0..max_inner_steps {
             iterations = iter;
 
             // Get optimization step from transformer
@@ -1599,7 +1609,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Real timeout - test runs >60 seconds"]
     fn test_transformer_optimization() {
         let objective = |x: &ArrayView1<f64>| x[0].powi(2) + x[1].powi(2);
         let initial = Array1::from(vec![2.0, 2.0]);

@@ -1659,7 +1659,11 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Long-running benchmark test - runs comprehensive benchmarks that take >2 minutes"]
+    #[ignore = "bench: still running/not yet complete at 600.1s in a bounded 600s retry (0.6.5 ignore \
+                audit, up from the prior >120s TIMEOUT measurement) -- run_quick_validation benchmarks \
+                linear/cubic/PCHIP plus RBF/Kriging-class 'advanced' methods at sizes [1_000, 10_000] \
+                x 3 iterations + 1 warmup across 5 categories; a benchmark entry point, not a \
+                correctness test, so bench: applies regardless of the exact duration"]
     fn test_quick_validation() {
         // This would run actual benchmarks in a real test
         let result = run_quick_validation::<f64>();

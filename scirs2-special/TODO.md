@@ -205,3 +205,25 @@
   - Files: root `Cargo.toml` (`printpdf = { version = "0.11.1", ... }`).
 - [x] **Documentation correction: arbitrary-precision backend** — the "Extended Precision" entry above previously still described the original `rug`/MPFR design; corrected to match the shipped `oxinum-float` (Pure Rust, dashu-based) implementation. See updated entry under "Extended Precision".
 - Freshly re-run test counts (2026-07-15, `cargo nextest run -p scirs2-special` / `--all-features`): **1,202 passed, 1 skipped** (default features) / **1,351 passed, 1 skipped** (all-features) — consistent with the 2026-07-07 figures above; no regressions.
+
+## v0.6.5 Gamma Overflow Fix (2026-07-31)
+
+- [x] **`gamma(x)` silently returned `inf` for `x` in approximately `[140.5, 171]`** — `src/gamma/core.rs`'s
+  half-integer fast path (`Γ(n + 0.5) = (2n-1)!!/(2^n) · sqrt(π)`, entered whenever `x = n + 0.5`)
+  computed the raw double-factorial product `(2n-1)!!` directly *before* dividing it back down by
+  `2^n`; that raw product overflows `f64` at `n ≈ 151` even though the final, correctly-scaled
+  result is well within range (e.g. `gamma(170.5)` has `n = 170` and a true value of
+  `~5.5620924145599996e305`, but the pre-fix code computed `inf` for the numerator first). This was
+  compounded by the general Lanczos/Stirling fallback threshold (`x_f64 > 171.0`) being too high to
+  catch the problem early — it only protected values above 171, leaving the whole `(151.5, 171)`
+  half-integer range to hit the overflow. Fixed by adding an early `if n > 140 { return
+  stirling_approximation(x); }` guard in the half-integer branch, delegating straight to the
+  overflow-safe log-space Stirling approximation (accurate to <1e-15 relative error for `x > 20`)
+  well before the raw product can overflow.
+  - [x] **Fixed a wrong hardcoded test reference** — a cross-validation test (`src/cross_validation.rs`,
+    `gamma(170.5)` case) hardcoded an expected value that was off by roughly 13x from the true
+    `~5.5620924145599996e305`; the error was previously masked because the buggy implementation
+    returned `inf` for that input regardless, so the comparison never actually exercised the
+    correct-value path. Corrected to the MPFR-verified magnitude.
+  - Files: `src/gamma/core.rs` (`pub fn gamma`), `src/cross_validation.rs`.
+  - See `CHANGELOG.md` `[0.6.5]` for full detail.

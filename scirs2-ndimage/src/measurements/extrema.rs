@@ -421,7 +421,9 @@ where
 ///
 /// * `input` - Input 1D array containing the signal
 /// * `peaks` - Indices of detected peaks in the input array
-/// * `wlen` - Window length for calculating prominence (currently unused, reserved for future optimization)
+/// * `wlen` - Optional window length restricting how far the left/right
+///   base search extends from each peak (must be `>= 2` to take effect;
+///   `None` searches the full array, matching SciPy's default)
 ///
 /// # Returns
 ///
@@ -506,16 +508,11 @@ where
 /// - Input array is empty
 /// - Peak indices are out of bounds
 /// - Peak indices array is empty (returns empty result, not error)
-///
-/// # Note
-///
-/// Current implementation is a placeholder returning unit values.
-/// Full prominence calculation algorithm needs to be implemented.
 #[allow(dead_code)]
 pub fn peak_prominences<T>(
     input: &Array<T, scirs2_core::ndarray::Ix1>,
     peaks: &[usize],
-    _wlen: Option<usize>,
+    wlen: Option<usize>,
 ) -> NdimageResult<Vec<T>>
 where
     T: Float + FromPrimitive + Debug + NumAssign,
@@ -539,8 +536,88 @@ where
         }
     }
 
-    // Placeholder implementation
-    Ok(vec![T::one(); peaks.len()])
+    let (prominences, _left_bases, _right_bases) =
+        compute_prominences_and_bases(input, peaks, wlen);
+    Ok(prominences)
+}
+
+/// Compute prominences together with their left/right base indices.
+///
+/// This mirrors SciPy's `_peak_prominences`: starting from each peak, walk
+/// left (and separately right) tracking the lowest sample seen, stopping as
+/// soon as either the (optionally `wlen`-restricted) array boundary is
+/// reached or a sample *higher* than the peak itself is encountered. Those
+/// two lowest points are the peak's "bases", and the prominence is the
+/// height of the peak above the higher of the two bases -- i.e. the peak's
+/// height above the lowest contour line that encloses it but no higher
+/// peak.
+#[allow(dead_code)]
+fn compute_prominences_and_bases<T>(
+    input: &Array<T, scirs2_core::ndarray::Ix1>,
+    peaks: &[usize],
+    wlen: Option<usize>,
+) -> (Vec<T>, Vec<usize>, Vec<usize>)
+where
+    T: Float + FromPrimitive + Debug + NumAssign,
+{
+    let n = input.len();
+    let mut prominences = Vec::with_capacity(peaks.len());
+    let mut left_bases = Vec::with_capacity(peaks.len());
+    let mut right_bases = Vec::with_capacity(peaks.len());
+
+    for &peak in peaks {
+        let peak_height = input[peak];
+
+        // Optionally restrict the search window around the peak (SciPy's
+        // `wlen`); otherwise search the full array.
+        let (i_min, i_max) = match wlen {
+            Some(w) if w >= 2 => {
+                let half = w / 2;
+                (peak.saturating_sub(half), (peak + half).min(n - 1))
+            }
+            _ => (0, n - 1),
+        };
+        let i_min = i_min as isize;
+        let i_max = i_max as isize;
+        let peak_idx = peak as isize;
+
+        // Walk left from the peak, tracking the lowest sample seen, until
+        // either the window boundary is reached or a higher sample appears.
+        let mut left_base = peak;
+        let mut left_min = peak_height;
+        let mut i = peak_idx;
+        while i >= i_min && input[i as usize] <= peak_height {
+            if input[i as usize] < left_min {
+                left_min = input[i as usize];
+                left_base = i as usize;
+            }
+            i -= 1;
+        }
+
+        // Same walk to the right.
+        let mut right_base = peak;
+        let mut right_min = peak_height;
+        let mut i = peak_idx;
+        while i <= i_max && input[i as usize] <= peak_height {
+            if input[i as usize] < right_min {
+                right_min = input[i as usize];
+                right_base = i as usize;
+            }
+            i += 1;
+        }
+
+        let reference = if left_min > right_min {
+            left_min
+        } else {
+            right_min
+        };
+
+        prominences.push(peak_height - reference);
+        left_bases.push(left_base);
+        right_bases.push(right_base);
+    }
+
+    (prominences, left_bases, right_bases)
 }
 
 /// Calculate peak widths at specified height levels in a 1D array
@@ -614,15 +691,17 @@ pub type PeakWidthsResult<T> = (Vec<T>, Vec<T>, Vec<T>, Vec<T>);
 /// let signal = array![0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0];
 /// let peaks = vec![3];
 ///
-/// // Measure width at 25% of peak height
+/// // Measure width at 25% of peak height (close to the peak's own height,
+/// // i.e. close to its top -- a narrow slice)
 /// let (widths_25, _, _, _) = peak_widths(&signal, &peaks, Some(0.25)).expect("Operation failed");
 ///
-/// // Measure width at 75% of peak height
+/// // Measure width at 75% of peak height (close to the lowest contour line,
+/// // i.e. close to its base -- a wide slice)
 /// let (widths_75, _, _, _) = peak_widths(&signal, &peaks, Some(0.75)).expect("Operation failed");
 ///
-/// // Note: with placeholder implementation, widths are all 1.0
-/// // In real implementation, widths_25[0] should be > widths_75[0]
-/// assert_eq!(widths_25[0], widths_75[0]); // Placeholder returns 1.0
+/// // A lower `rel_height` measures nearer the peak's own height (narrower);
+/// // a higher `rel_height` measures nearer its base (wider).
+/// assert!(widths_25[0] < widths_75[0]);
 /// ```
 ///
 /// ## Peak Characterization Workflow
@@ -680,11 +759,6 @@ pub type PeakWidthsResult<T> = (Vec<T>, Vec<T>, Vec<T>, Vec<T>);
 /// - Peak indices are out of bounds
 /// - `rel_height` is not between 0.0 and 1.0
 /// - Peak indices array is empty (returns empty result, not error)
-///
-/// # Note
-///
-/// Current implementation is a placeholder returning default values.
-/// Full width calculation with interpolation needs to be implemented.
 #[allow(dead_code)]
 pub fn peak_widths<T>(
     input: &Array<T, scirs2_core::ndarray::Ix1>,
@@ -713,27 +787,78 @@ where
         }
     }
 
-    let _height = rel_height.unwrap_or_else(|| T::from_f64(0.5).expect("Operation failed"));
-    if _height <= T::zero() || _height >= T::one() {
+    let rel_height = rel_height.unwrap_or_else(|| T::from_f64(0.5).expect("Operation failed"));
+    if rel_height <= T::zero() || rel_height >= T::one() {
         return Err(NdimageError::InvalidInput(format!(
             "rel_height must be between 0 and 1, got {:?}",
-            _height
+            rel_height
         )));
     }
 
-    // Placeholder implementation
-    let widths = vec![T::one(); peaks.len()];
-    let heights = vec![T::zero(); peaks.len()];
-    let left_ips = vec![T::zero(); peaks.len()];
-    let right_ips = vec![T::from_usize(input.len() - 1).expect("Operation failed"); peaks.len()];
+    // SciPy's `peak_widths` computes prominences internally (with their
+    // left/right bases) purely to get the search interval and evaluation
+    // height used here -- do the same.
+    let (prominences, left_bases, right_bases) = compute_prominences_and_bases(input, peaks, None);
 
-    Ok((widths, heights, left_ips, right_ips))
+    let mut widths = Vec::with_capacity(peaks.len());
+    let mut width_heights = Vec::with_capacity(peaks.len());
+    let mut left_ips = Vec::with_capacity(peaks.len());
+    let mut right_ips = Vec::with_capacity(peaks.len());
+
+    for (idx, &peak) in peaks.iter().enumerate() {
+        let i_min = left_bases[idx];
+        let i_max = right_bases[idx];
+        // Evaluation height: `rel_height` fraction of the way down from the
+        // peak towards its prominence-defined base contour.
+        let height = input[peak] - prominences[idx] * rel_height;
+
+        // Walk left from the peak until the height is crossed (or the base
+        // boundary is reached), then linearly interpolate the crossing
+        // point between the last two samples straddling `height`.
+        let mut i = peak;
+        while i > i_min && height < input[i] {
+            i -= 1;
+        }
+        let mut left_ip = T::from_usize(i).expect("Operation failed");
+        if input[i] < height {
+            if let Some(&prev) = input.get(i + 1) {
+                let denom = prev - input[i];
+                if denom != T::zero() {
+                    left_ip += (height - input[i]) / denom;
+                }
+            }
+        }
+
+        // Same walk to the right.
+        let mut i = peak;
+        while i < i_max && height < input[i] {
+            i += 1;
+        }
+        let mut right_ip = T::from_usize(i).expect("Operation failed");
+        if input[i] < height {
+            if let Some(j) = i.checked_sub(1) {
+                if let Some(&prev) = input.get(j) {
+                    let denom = prev - input[i];
+                    if denom != T::zero() {
+                        right_ip -= (height - input[i]) / denom;
+                    }
+                }
+            }
+        }
+
+        widths.push(right_ip - left_ip);
+        width_heights.push(height);
+        left_ips.push(left_ip);
+        right_ips.push(right_ip);
+    }
+
+    Ok((widths, width_heights, left_ips, right_ips))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::Array2;
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_extrema() {
@@ -760,5 +885,91 @@ mod tests {
         let data = data_2d.into_dyn();
         let (minima, maxima) = local_extrema(&data, None, None).expect("Operation failed");
         assert!(maxima[vec![2, 2].as_slice()]); // Center should be a maximum
+    }
+
+    #[test]
+    fn test_peak_prominences_real_values() {
+        // Non-constant, deliberately irregular signal with three peaks of
+        // very different character: an isolated small peak, a tall isolated
+        // peak, and a peak partly "shadowed" by a nearby drop. A stub that
+        // always returns 1.0 (the pre-fix behavior) would fail every one of
+        // these assertions.
+        let signal = Array1::from_vec(vec![0.0, 1.0, 0.5, 3.0, 0.2, 2.0, 0.1]);
+        let peaks = vec![1, 3, 5];
+
+        let prominences = peak_prominences(&signal, &peaks, None).expect("Operation failed");
+
+        assert_eq!(prominences.len(), 3);
+        // Reference values independently derived from SciPy's
+        // `_peak_prominences` left/right-base-search algorithm.
+        assert!((prominences[0] - 0.5).abs() < 1e-10, "{:?}", prominences);
+        assert!((prominences[1] - 2.9).abs() < 1e-10, "{:?}", prominences);
+        assert!((prominences[2] - 1.8).abs() < 1e-10, "{:?}", prominences);
+
+        // The tallest, most isolated peak must be the most prominent.
+        assert!(prominences[1] > prominences[0]);
+        assert!(prominences[1] > prominences[2]);
+    }
+
+    #[test]
+    fn test_peak_prominences_out_of_bounds() {
+        let signal = Array1::from_vec(vec![0.0, 1.0, 0.0]);
+        let result = peak_prominences(&signal, &[5], None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_peak_prominences_wlen_restricts_search() {
+        // A peak with much lower values just outside a restrictive `wlen`
+        // window than immediately beside it: an unrestricted search finds
+        // the far, very-low base (large prominence); a `wlen`-restricted
+        // search must stop at the nearer, only moderately-low point
+        // instead (much smaller prominence). Reference values
+        // independently computed in scratchpad/peakcheck.py.
+        let signal = Array1::from_vec(vec![-10.0, 1.0, 2.0, 5.0, 2.0, 1.0, -10.0]);
+        let peaks = vec![3];
+
+        let unrestricted = peak_prominences(&signal, &peaks, None).expect("Operation failed");
+        assert!((unrestricted[0] - 15.0).abs() < 1e-10, "{unrestricted:?}");
+
+        let restricted = peak_prominences(&signal, &peaks, Some(3)).expect("Operation failed");
+        assert!((restricted[0] - 3.0).abs() < 1e-10, "{restricted:?}");
+    }
+
+    #[test]
+    fn test_peak_widths_real_values() {
+        // Symmetric triangular peak: both sides descend all the way to 0,
+        // so the prominence equals the full peak height (3.0).
+        let signal = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0]);
+        let peaks = vec![3];
+
+        let (widths_25, heights_25, left_25, right_25) =
+            peak_widths(&signal, &peaks, Some(0.25)).expect("Operation failed");
+        let (widths_75, heights_75, left_75, right_75) =
+            peak_widths(&signal, &peaks, Some(0.75)).expect("Operation failed");
+
+        // Reference values independently derived from SciPy's
+        // `_peak_widths` interpolated-crossing algorithm.
+        assert!((heights_25[0] - 2.25).abs() < 1e-10);
+        assert!((left_25[0] - 2.25).abs() < 1e-10);
+        assert!((right_25[0] - 3.75).abs() < 1e-10);
+        assert!((widths_25[0] - 1.5).abs() < 1e-10, "{:?}", widths_25);
+
+        assert!((heights_75[0] - 0.75).abs() < 1e-10);
+        assert!((left_75[0] - 0.75).abs() < 1e-10);
+        assert!((right_75[0] - 5.25).abs() < 1e-10);
+        assert!((widths_75[0] - 4.5).abs() < 1e-10, "{:?}", widths_75);
+
+        // Measuring nearer the base (higher rel_height) must give a wider
+        // slice than measuring nearer the peak's own height. A stub that
+        // always returns width=1.0 (the pre-fix behavior) would fail this.
+        assert!(widths_25[0] < widths_75[0]);
+    }
+
+    #[test]
+    fn test_peak_widths_rejects_bad_rel_height() {
+        let signal = Array1::from_vec(vec![0.0, 1.0, 0.0]);
+        assert!(peak_widths(&signal, &[1], Some(0.0)).is_err());
+        assert!(peak_widths(&signal, &[1], Some(1.0)).is_err());
     }
 }

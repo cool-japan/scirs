@@ -493,8 +493,14 @@ where
         let mut p_pred = Array2::<f64>::zeros((n_states, n_states));
         for j in 0..predicted_sigmas.len() {
             let diff = &predicted_sigmas[j] - &x_pred;
-            let diff_col = diff.clone().into_shape_with_order((diff.len(), 1)).expect("Operation failed");
-            let diff_row = diff.clone().into_shape_with_order((1, diff.len())).expect("Operation failed");
+            let diff_col = diff
+                .clone()
+                .into_shape_with_order((diff.len(), 1))
+                .expect("Operation failed");
+            let diff_row = diff
+                .clone()
+                .into_shape_with_order((1, diff.len()))
+                .expect("Operation failed");
             p_pred = &p_pred + &(weights_cov[j] * diff_col.dot(&diff_row));
         }
         p_pred = &p_pred + &q;
@@ -515,8 +521,14 @@ where
         let mut s = Array2::<f64>::zeros((n_measurements, n_measurements));
         for j in 0..measurement_sigmas.len() {
             let diff = &measurement_sigmas[j] - &z_pred;
-            let diff_col = diff.clone().into_shape_with_order((diff.len(), 1)).expect("Operation failed");
-            let diff_row = diff.clone().into_shape_with_order((1, diff.len())).expect("Operation failed");
+            let diff_col = diff
+                .clone()
+                .into_shape_with_order((diff.len(), 1))
+                .expect("Operation failed");
+            let diff_row = diff
+                .clone()
+                .into_shape_with_order((1, diff.len()))
+                .expect("Operation failed");
             s = &s + &(weights_cov[j] * diff_col.dot(&diff_row));
         }
         s = &s + &r;
@@ -772,8 +784,10 @@ where
                     let std_dev = config.measurement_noise_scale.sqrt();
                     let mut noise = Array1::<f64>::zeros(n_measurements);
                     let normal_dist = scirs2_core::random::RandNormal::new(0.0, std_dev)
-                        .unwrap_or_else(|_| scirs2_core::random::RandNormal::new(0.0, 1.0)
-                            .expect("Operation failed"));
+                        .unwrap_or_else(|_| {
+                            scirs2_core::random::RandNormal::new(0.0, 1.0)
+                                .expect("Operation failed")
+                        });
                     for nk in 0..n_measurements {
                         noise[nk] = rng.sample(normal_dist);
                     }

@@ -68,7 +68,7 @@ impl<F: Float> Op<F> for EmlElementWiseOp {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         // Symbolic derivative of the element-wise function w.r.t. Var(0).
         let g_op = Arc::new(sym_grad(&self.op, 0));
         let gy = ctx.output_grad();
@@ -146,7 +146,7 @@ impl<F: Float> Op<F> for EmlJacobianOp {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         // Jacobian is a leaf: no higher-order gradients flow through it.
         for i in 0..self.n_vars {
             ctx.append_input_grad(i, None);
@@ -211,7 +211,7 @@ impl<F: Float> Op<F> for EmlHessianOp {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         for i in 0..self.n_vars {
             ctx.append_input_grad(i, None);
         }

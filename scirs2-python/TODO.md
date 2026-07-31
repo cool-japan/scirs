@@ -1,8 +1,8 @@
 # scirs2-python TODO
 
-## Status: v0.6.3 (2026-07-27; fixes below verified 2026-07-07, re-confirmed in source + a fresh 39/39 `cargo nextest` run on 2026-07-15)
+## Status: v0.6.5 (2026-07-31; fixes below verified 2026-07-07, re-confirmed in source + a fresh 39/39 `cargo nextest` run on 2026-07-15)
 
-Untouched by this release's fix work (no python-specific changes shipped in 0.6.3); the fixes and re-verification recorded below remain accurate since the crate source is unchanged.
+Untouched by this release's fix work (no python-specific changes shipped in 0.6.3, 0.6.4, or 0.6.5); the fixes and re-verification recorded below remain accurate since the crate source is unchanged.
 
 ## v0.3.3 Completed
 

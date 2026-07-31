@@ -237,8 +237,14 @@ where
                     return Err(NotImplemented);
                 }
 
+                // Callers disagree on whether `args[1]` is boxed as
+                // `Box<dyn ArrayProtocol>` (the dispatcher in `operations.rs`) or
+                // as `Self` directly (some internal delegations) — see
+                // `super::downcast_array_function_arg`, which tries both.
+                let other = super::downcast_array_function_arg::<Self>(args[1].as_ref());
+
                 // Try to get the second argument as a GPU array first
-                if let Some(other) = args[1].downcast_ref::<Self>() {
+                if let Some(other) = other {
                     // Check shapes match
                     if self.shape() != other.shape() {
                         return Err(NotImplemented);
@@ -249,7 +255,7 @@ where
                         return Err(NotImplemented);
                     };
 
-                    return Ok(Box::new(result));
+                    return Ok(Box::new(Box::new(result) as Box<dyn ArrayProtocol>));
                 }
 
                 // If the other array is not a GPU array, we could potentially handle
@@ -262,8 +268,10 @@ where
                     return Err(NotImplemented);
                 }
 
+                let other = super::downcast_array_function_arg::<Self>(args[1].as_ref());
+
                 // Try to get the second argument as a GPU array
-                if let Some(other) = args[1].downcast_ref::<Self>() {
+                if let Some(other) = other {
                     // Check shapes match
                     if self.shape() != other.shape() {
                         return Err(NotImplemented);
@@ -274,7 +282,7 @@ where
                         return Err(NotImplemented);
                     };
 
-                    return Ok(Box::new(result));
+                    return Ok(Box::new(Box::new(result) as Box<dyn ArrayProtocol>));
                 }
 
                 // If the other array is not a GPU array, we could potentially handle
@@ -295,7 +303,8 @@ where
                 }
 
                 // Try to get the second argument as a GPU array with the same type
-                if let Some(other) = args[1].downcast_ref::<Self>() {
+                let matmul_other = super::downcast_array_function_arg::<Self>(args[1].as_ref());
+                if let Some(other) = matmul_other {
                     // For simplicity, we'll use the existing kernel function for the specific case
                     // of f64 arrays with 2 dimensions
                     if TypeId::of::<T>() == TypeId::of::<f64>()
@@ -315,7 +324,7 @@ where
                                 // We can't safely transmute between _types with different sizes
                                 // Since we're in a specific case where we know T is f64 and D is Ix2,
                                 // we can just return the f64 result directly
-                                return Ok(Box::new(result));
+                                return Ok(Box::new(Box::new(result) as Box<dyn ArrayProtocol>));
                             }
                             Err(_) => return Err(NotImplemented),
                         }
@@ -342,7 +351,7 @@ where
                 let transposed = self.host_data.t().to_owned();
                 let result = Self::new(transposed, self.config.clone());
 
-                Ok(Box::new(result))
+                Ok(Box::new(Box::new(result) as Box<dyn ArrayProtocol>))
             }
             "scirs2::array_protocol::operations::reshape" => {
                 // Reshape operation
@@ -353,7 +362,7 @@ where
                     match self.host_data.clone().into_shape_with_order(shape.clone()) {
                         Ok(reshaped) => {
                             let result = GPUNdarray::new(reshaped, self.config.clone());
-                            return Ok(Box::new(result));
+                            return Ok(Box::new(Box::new(result) as Box<dyn ArrayProtocol>));
                         }
                         Err(_) => return Err(NotImplemented),
                     }
@@ -604,13 +613,26 @@ pub mod kernels {
             ))));
         }
 
-        // This is a simplified implementation for a GPU array
-        // In a real implementation, this would use GPU-accelerated matrix multiplication
+        // In a real implementation, this would dispatch to a GPU-accelerated
+        // BLAS-style kernel (e.g. cuBLAS); host-side compute is used here as
+        // the CPU fallback path, but it must still compute the real product
+        // rather than a placeholder.
         let m = ashape[0];
+        let k = ashape[1];
         let p = bshape[1];
 
-        // Just create a default result (all zeros) for demonstration purposes
-        let result_data = Array::default((m, p));
+        let a_host = a.host_data();
+        let b_host = b.host_data();
+        let mut result_data = Array::<T, crate::ndarray::Ix2>::default((m, p));
+        for i in 0..m {
+            for j in 0..p {
+                let mut sum = T::zero();
+                for l in 0..k {
+                    sum = sum + a_host[[i, l]].clone() * b_host[[l, j]].clone();
+                }
+                result_data[[i, j]] = sum;
+            }
+        }
 
         // Create a new GPU array from the result - with explicit type
         Ok(GPUNdarray::<T, crate::ndarray::Ix2>::new(
@@ -686,5 +708,27 @@ mod tests {
         let result = kernels::multiply(&gpu_a, &gpu_b).expect("Operation failed");
         let expected = a * b;
         assert_eq!(result.host_data(), &expected);
+    }
+
+    /// Regression test for `kernels::matmul` always returning an all-zeros
+    /// "result" instead of the real product. Uses a non-square, non-constant
+    /// case (2x3 times 3x2) so a zeroed/transposed/wrong-dimension result
+    /// couldn't accidentally look correct.
+    #[test]
+    fn test_gpu_kernel_matmul_computes_real_product() {
+        let a = arr2(&[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]);
+        let b = arr2(&[[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]]);
+
+        let gpu_a = GPUNdarray::new(a.clone(), GPUConfig::default());
+        let gpu_b = GPUNdarray::new(b.clone(), GPUConfig::default());
+
+        let result = kernels::matmul(&gpu_a, &gpu_b).expect("matmul should succeed");
+        let expected = a.dot(&b);
+
+        assert_eq!(result.shape(), &[2, 2]);
+        assert_eq!(result.host_data(), &expected);
+        // A fabricated all-zeros result would trivially satisfy an
+        // all-zero-tolerant check; assert it isn't all zero outright.
+        assert!(result.host_data().iter().any(|&v| v != 0.0));
     }
 }

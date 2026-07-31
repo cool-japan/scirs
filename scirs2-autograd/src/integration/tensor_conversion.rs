@@ -104,22 +104,72 @@ impl TensorConverter {
         ))
     }
 
-    /// Convert between autograd tensors with different precision
-    pub fn convert_precision<'graph, F1: Float, F2: Float>(
+    /// Convert an autograd tensor to a different float precision by
+    /// evaluating it under `ctx` to obtain its real contents.
+    ///
+    /// Autograd tensors are *lazy*: a [`Tensor`] is only a handle into a
+    /// [`crate::Graph`] and carries no data of its own (see
+    /// [`Self::to_ndarray_with_context`] for the full explanation of why an
+    /// evaluation [`crate::Context`] must be threaded through explicitly).
+    /// This method evaluates `tensor` under `ctx`, converts every element to
+    /// the target precision `F2`, and builds a new tensor for `graph` from
+    /// the genuine converted values.
+    ///
+    /// Use [`Self::convert_precision`] only when no `Context` is reachable;
+    /// that variant cannot evaluate the source tensor and returns an honest
+    /// error rather than fabricated (all-zero) data.
+    pub fn convert_precision_with_context<'graph, F1: Float, F2: Float>(
         &self,
         tensor: &Tensor<F1>,
+        ctx: &crate::Context<F1>,
         graph: &'graph crate::Graph<F2>,
     ) -> Result<Tensor<'graph, F2>, IntegrationError> {
-        let shape = tensor.shape().to_vec();
-        let data = tensor.data();
+        let array_f1 = tensor.eval(ctx).map_err(|e| {
+            IntegrationError::TensorConversion(format!("Failed to evaluate tensor: {e:?}"))
+        })?;
 
-        // Convert data types
-        let converted_data: Vec<F2> = data
-            .iter()
-            .map(|&x| F2::from(x.to_f64().expect("Operation failed")).expect("Operation failed"))
-            .collect();
+        let shape = array_f1.shape().to_vec();
+        let mut converted_data = Vec::with_capacity(array_f1.len());
+        for &x in array_f1.iter() {
+            let as_f64 = x.to_f64().ok_or_else(|| {
+                IntegrationError::TensorConversion(
+                    "Failed to convert source value to f64 during precision conversion".to_string(),
+                )
+            })?;
+            let converted = F2::from(as_f64).ok_or_else(|| {
+                IntegrationError::TensorConversion(format!(
+                    "Value {as_f64} is not representable in the target precision"
+                ))
+            })?;
+            converted_data.push(converted);
+        }
 
         Ok(Tensor::from_vec(converted_data, shape, graph))
+    }
+
+    /// Convert between autograd tensors with different precision *without*
+    /// an evaluation context.
+    ///
+    /// An autograd [`Tensor`] holds no data of its own -- it is a lazy node
+    /// in a [`crate::Graph`] whose value is only realized by an evaluation
+    /// [`crate::Context`]. With no context this method genuinely cannot
+    /// recover the source tensor's real contents, so it returns an honest
+    /// [`IntegrationError`] rather than fabricating a shape-correct but
+    /// all-zero tensor.
+    ///
+    /// Call [`Self::convert_precision_with_context`] (passing the `ctx`/`g`
+    /// from [`crate::run`]) to obtain a real, correctly-converted tensor.
+    pub fn convert_precision<F1: Float, F2: Float>(
+        &self,
+        _tensor: &Tensor<F1>,
+        _graph: &crate::Graph<F2>,
+    ) -> Result<Tensor<'static, F2>, IntegrationError> {
+        Err(IntegrationError::TensorConversion(
+            "convert_precision requires an evaluation context to read a lazy autograd \
+             tensor's real data; call convert_precision_with_context(tensor, ctx, graph) \
+             with the Context from run() instead"
+                .to_string(),
+        ))
     }
 
     /// Create a view of tensor data without copying when possible
@@ -516,21 +566,59 @@ mod tests {
     }
 
     #[test]
-    fn test_precision_conversion() {
-        crate::run(|g| {
-            let converter = TensorConverter::new();
+    fn test_precision_conversion_with_context_round_trips_real_values() {
+        // The previous implementation read `tensor.data()` with no reachable
+        // Context, which is always empty by construction; that fed
+        // `Tensor::from_vec` a length-0 vec against a non-empty shape, which
+        // silently fell back to an all-zero tensor. Non-constant,
+        // non-integer values here so any such fallback (or a shape mixup)
+        // is caught rather than accidentally matching.
+        crate::run(|ctx_f32: &mut crate::Context<f32>| {
             let tensor_f32 = convert_to_tensor(
-                scirs2_core::ndarray::Array::from_shape_vec((2, 2), vec![1.0f32, 2.0, 3.0, 4.0])
-                    .expect("Failed to convert"),
+                scirs2_core::ndarray::Array::from_shape_vec(
+                    (2, 2),
+                    vec![1.5f32, -2.25, 100.75, 3.0],
+                )
+                .expect("Failed to convert"),
+                ctx_f32,
+            );
+            let converter = TensorConverter::new();
+
+            crate::run(|ctx_f64: &mut crate::Context<f64>| {
+                let tensor_f64 = converter
+                    .convert_precision_with_context(&tensor_f32, ctx_f32, ctx_f64)
+                    .expect("Operation failed");
+                assert_eq!(tensor_f64.shape(), vec![2, 2]);
+
+                let values = tensor_f64
+                    .data_with_context(ctx_f64)
+                    .expect("Operation failed");
+                assert_eq!(values, vec![1.5f64, -2.25, 100.75, 3.0]);
+                // Explicitly rule out the old silent-zero fabrication.
+                assert_ne!(values, vec![0.0f64, 0.0, 0.0, 0.0]);
+            });
+        });
+    }
+
+    #[test]
+    fn test_precision_conversion_without_context_is_honest_error() {
+        crate::run(|g: &mut crate::Context<f32>| {
+            let tensor = convert_to_tensor(
+                scirs2_core::ndarray::Array::from_shape_vec(
+                    (2, 2),
+                    vec![1.5f32, -2.25, 100.75, 3.0],
+                )
+                .expect("Failed to convert"),
                 g,
             );
-
-            let tensor_f64 = converter
-                .convert_precision(&tensor_f32, g)
-                .expect("Operation failed");
-            assert_eq!(tensor_f64.shape(), tensor_f32.shape());
-            // Just check the shape matches, avoid data access issues
-            assert_eq!(tensor_f64.shape(), vec![2, 2]);
+            let converter = TensorConverter::new();
+            // Target-precision graph is irrelevant here: the function always
+            // errors without ever reading it. No context for `tensor` -> must
+            // NOT fabricate a zeroed tensor; must error honestly.
+            let targetgraph: crate::Graph<f64> = crate::Graph::default();
+            let result: Result<Tensor<'_, f64>, _> =
+                converter.convert_precision(&tensor, &targetgraph);
+            assert!(result.is_err());
         });
     }
 
@@ -629,10 +717,17 @@ mod tests {
             let json_data = convert_tensor_to(&tensor, "json").expect("Operation failed");
             assert!(!json_data.is_empty());
 
-            // Test precision conversion (function returns () currently)
+            // Test precision conversion: `convert_tensor_precision` is a
+            // context-less entry point with NO successful path at all (see
+            // its definition above -- it unconditionally returns an error).
+            // Unlike `to_ndarray`/`to_ndarray_with_context`, there is no
+            // context-aware sibling free function for precision conversion,
+            // so there is no `tensor_f64` value to ever compare shapes
+            // against here. The commented-out assertion below was
+            // unreachable dead code and has been removed rather than
+            // restored.
             let _result = convert_tensor_precision::<f32, f64>(&tensor);
             assert!(_result.is_err()); // Should error with context requirement
-                                       // assert_eq!(tensor_f64.shape(), tensor.shape());
         });
     }
 }

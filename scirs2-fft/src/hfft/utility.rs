@@ -2,9 +2,111 @@
 //!
 //! This module contains helper functions for the Hermitian Fast Fourier Transform operations.
 
+use crate::error::{FFTError, FFTResult};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
+
+/// Parsed `norm` argument for the HFFT/IHFFT family, matching the three modes
+/// documented by NumPy/SciPy (`numpy.fft.hfft`/`numpy.fft.ihfft`):
+/// `"backward"` (default), `"forward"`, and `"ortho"`.
+///
+/// `hfft`/`hfft2`/`hfftn` play the role of the *forward*-type half of the
+/// pair (a Hermitian-symmetric input is transformed into a real output,
+/// analogous to how `rfft` transforms a real input into a complex output),
+/// while `ihfft`/`ihfft2`/`ihfftn` play the role of the matching
+/// *inverse*-type half. The two halves use opposite defaults for where the
+/// `1/n` scaling goes, exactly as NumPy documents:
+///
+/// * `"backward"`: no scaling on the forward-type transform, `1/n` on the
+///   inverse-type transform.
+/// * `"forward"`: `1/n` on the forward-type transform, no scaling on the
+///   inverse-type transform.
+/// * `"ortho"`: `1/sqrt(n)` on both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HfftNorm {
+    Backward,
+    Forward,
+    Ortho,
+}
+
+impl HfftNorm {
+    /// Parse a `norm` string, defaulting to `"backward"` when `None`.
+    ///
+    /// Returns an error for anything other than the three documented mode
+    /// strings, matching NumPy's own `ValueError` on an invalid `norm`.
+    pub(crate) fn parse(norm: Option<&str>) -> FFTResult<Self> {
+        match norm {
+            None | Some("backward") => Ok(HfftNorm::Backward),
+            Some("forward") => Ok(HfftNorm::Forward),
+            Some("ortho") => Ok(HfftNorm::Ortho),
+            Some(other) => Err(FFTError::ValueError(format!(
+                "Invalid norm value '{other}': expected \"backward\", \"forward\", or \"ortho\""
+            ))),
+        }
+    }
+
+    /// Absolute scale factor to apply to a *raw* (completely unnormalized)
+    /// forward-type transform of size `n`, i.e. the factor used by
+    /// `hfft`/`hfft2`/`hfftn`.
+    pub(crate) fn forward_scale(self, n: usize) -> FFTResult<f64> {
+        match self {
+            HfftNorm::Backward => Ok(1.0),
+            HfftNorm::Forward => Ok(1.0 / Self::checked_n(n)?),
+            HfftNorm::Ortho => Ok(1.0 / Self::checked_n(n)?.sqrt()),
+        }
+    }
+
+    /// Absolute scale factor to apply to a *raw* (completely unnormalized)
+    /// inverse-type transform of size `n`, i.e. the factor used by
+    /// `ihfft`/`ihfft2`/`ihfftn`.
+    pub(crate) fn inverse_scale(self, n: usize) -> FFTResult<f64> {
+        match self {
+            HfftNorm::Forward => Ok(1.0),
+            HfftNorm::Backward => Ok(1.0 / Self::checked_n(n)?),
+            HfftNorm::Ortho => Ok(1.0 / Self::checked_n(n)?.sqrt()),
+        }
+    }
+
+    fn checked_n(n: usize) -> FFTResult<f64> {
+        if n == 0 {
+            return Err(FFTError::ValueError(
+                "Cannot normalize a zero-length HFFT/IHFFT transform".to_string(),
+            ));
+        }
+        Ok(n as f64)
+    }
+}
+
+/// Enumerate every fixed combination of indices for all axes other than
+/// `axis`, as full `shape.len()`-length index vectors (the slot at `axis`
+/// is left at `0` as a placeholder; callers overwrite it while walking the
+/// fiber along that axis).
+///
+/// This is the standard "hold every axis but one fixed, sweep the
+/// remaining one" iteration needed to apply a 1-D transform along a single
+/// axis of an N-D array: for an `(n_rows, n_cols)` array transformed along
+/// axis 1, this yields one combination per row (`n_rows` combinations
+/// total), not just the single row at index 0.
+pub(crate) fn other_axis_index_combinations(shape: &[usize], axis: usize) -> Vec<Vec<usize>> {
+    let ndim = shape.len();
+    let mut combos: Vec<Vec<usize>> = vec![vec![0; ndim]];
+    for (dim, &size) in shape.iter().enumerate() {
+        if dim == axis {
+            continue;
+        }
+        let mut expanded = Vec::with_capacity(combos.len() * size.max(1));
+        for combo in &combos {
+            for v in 0..size {
+                let mut next = combo.clone();
+                next[dim] = v;
+                expanded.push(next);
+            }
+        }
+        combos = expanded;
+    }
+    combos
+}
 
 /// Try to convert a value to Complex64
 ///

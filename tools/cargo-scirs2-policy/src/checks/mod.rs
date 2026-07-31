@@ -14,10 +14,12 @@
 //! | [`unwrap_check`] | `.unwrap()` outside `#[cfg(test)]` blocks | `UNWRAP_001` |
 //! | [`semver_check`] | Deprecation policy enforcement | `DEPRECATION_001..004` |
 //! | [`api_compat`] | Public API surface compatibility | `API_COMPAT_001..003` |
+//! | [`ignore_audit`] | `#[ignore]` reason taxonomy + fake-passing test patterns | `IGNORE_AUDIT_001..004` |
 
 pub mod api_compat;
 pub mod banned_deps;
 pub mod banned_imports;
+pub mod ignore_audit;
 pub mod semver_check;
 pub mod unwrap_check;
 
@@ -39,6 +41,7 @@ pub fn run_all_checks(workspace: &WorkspaceInfo) -> Vec<PolicyViolation> {
     out.extend(banned_deps::BannedDepCheck.run(workspace));
     out.extend(unwrap_check::UnwrapCheck.run(workspace));
     out.extend(semver_check::SemVerCheck.run(workspace));
+    out.extend(ignore_audit::IgnoreAuditCheck.run(workspace));
     out
 }
 

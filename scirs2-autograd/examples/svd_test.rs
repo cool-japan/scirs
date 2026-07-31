@@ -7,8 +7,11 @@ fn main() {
     println!("Testing SVD with a simple matrix...");
 
     ag::run(|g| {
-        // Create a 3x2 matrix
-        let matrix = convert_to_tensor(array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], g);
+        // Create a 3x2 matrix. Differentiated later via `grad()`, so it must
+        // be `variable(...)`: `convert_to_tensor` marks the node
+        // non-differentiable, which used to make the gradient computed below
+        // silently all-zero instead of 2*matrix.
+        let matrix = variable(array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]], g);
         println!(
             "Original matrix shape: {:?}",
             matrix.eval(g).expect("Operation failed").shape()
@@ -115,13 +118,24 @@ fn main() {
         let grads = grad(&[squared_sum], &[&matrix]);
 
         println!("Gradient of squared sum with respect to matrix:");
-        match grads[0].eval(g) {
-            Ok(result) => {
-                println!("Shape: {:?}", result.shape());
-                println!("Values: {:?}", result);
-            }
-            Err(e) => println!("Error computing gradient: {:?}", e),
+        let grad_result = grads[0].eval(g).expect("Operation failed");
+        println!("Shape: {:?}", grad_result.shape());
+        println!("Values: {:?}", grad_result);
+
+        // d(sum(x^2))/dx = 2x -- this is the exact footgun this file used to
+        // hit: with `convert_to_tensor`, this printed [[0,0],[0,0],[0,0]]
+        // instead of 2*matrix.
+        let orig = matrix.eval(g).expect("Operation failed");
+        for (got, x) in grad_result.iter().zip(orig.iter()) {
+            let expected = 2.0 * x;
+            assert!(
+                (got - expected).abs() < 1e-9,
+                "d(sum(x^2))/dx must be 2x: got {}, expected {}",
+                got,
+                expected
+            );
         }
+        println!("Gradient verified: matches 2*matrix exactly.");
 
         // Since we don't have access to the reconstructed matrix across all patterns,
         // let's recompute it to check the error

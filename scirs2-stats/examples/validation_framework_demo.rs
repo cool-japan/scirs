@@ -270,21 +270,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
 
-    /*
-    #[test]
-    #[ignore = "timeout"]
-    fn test_validation_demo_components() {
-        // Test that our validation components can be created
-        let _benchmark_framework = ScipyBenchmarkFramework::default();
-        let _property_suite = ComprehensivePropertyTestSuite::new(PropertyTestConfig::default());
-        let _stability_analyzer = NumericalStabilityAnalyzer::default();
-        let _validation_suite = ComprehensiveValidationSuite::default();
-
-        // If we reach here, all components were created successfully
-        assert!(true);
-    }
-    */
-
     #[test]
     fn test_mean_basic_validation() {
         let testdata = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);

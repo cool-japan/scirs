@@ -179,6 +179,16 @@ where
 
 /// Find the moment of inertia tensor of an array
 ///
+/// Computes the `ndim x ndim` inertia tensor of the intensity-weighted point
+/// cloud described by `input`, generalizing the classical 3D rigid-body
+/// moment of inertia tensor to arbitrary dimensionality:
+///
+/// * Off-diagonal entries `I[j][k] = -mu_jk / mass` (the negative,
+///   mass-normalized second-order central moment mixing axes `j` and `k`).
+/// * Diagonal entries `I[i][i] = (sum_j mu_jj - mu_ii) / mass`, i.e. the
+///   inertia about axis `i` is the sum of the mass-weighted squared spread
+///   along every *other* axis (exactly like `I_xx = sum m*(y^2+z^2)` in 3D).
+///
 /// # Arguments
 ///
 /// * `input` - Input array
@@ -201,9 +211,65 @@ where
         ));
     }
 
-    // Placeholder implementation
-    let dim = input.ndim();
-    Ok(Array2::<T>::zeros((dim, dim)))
+    if input.is_empty() {
+        return Err(NdimageError::InvalidInput("Input array is empty".into()));
+    }
+
+    let ndim = input.ndim();
+    let total_mass = input.sum();
+
+    let mut tensor = Array2::<T>::zeros((ndim, ndim));
+    if total_mass == T::zero() {
+        // No mass to distribute: nothing meaningful can be computed, so
+        // fall back to the zero tensor rather than dividing by zero.
+        return Ok(tensor);
+    }
+
+    let center = center_of_mass(input)?;
+
+    // Second-order central moments mu_jk = sum_x (x_j - c_j)(x_k - c_k) I(x)
+    // for every axis pair (j, k), j <= k (the tensor is symmetric).
+    let mut mu = vec![T::zero(); ndim * ndim];
+    let input_dyn = input.clone().into_dyn();
+    let mut centered = vec![T::zero(); ndim];
+    for (idx, &value) in input_dyn.indexed_iter() {
+        if value == T::zero() {
+            continue;
+        }
+        let coords = idx.as_array_view();
+        for d in 0..ndim {
+            let coord_t = safe_usize_to_float::<T>(coords[d])?;
+            centered[d] = coord_t - center[d];
+        }
+        for j in 0..ndim {
+            for k in j..ndim {
+                mu[j * ndim + k] += centered[j] * centered[k] * value;
+            }
+        }
+    }
+    // Mirror the lower triangle from the upper triangle.
+    for j in 0..ndim {
+        for k in 0..j {
+            mu[j * ndim + k] = mu[k * ndim + j];
+        }
+    }
+
+    let mut trace = T::zero();
+    for j in 0..ndim {
+        trace += mu[j * ndim + j];
+    }
+
+    for i in 0..ndim {
+        for j in 0..ndim {
+            tensor[[i, j]] = if i == j {
+                (trace - mu[i * ndim + i]) / total_mass
+            } else {
+                -mu[i * ndim + j] / total_mass
+            };
+        }
+    }
+
+    Ok(tensor)
 }
 
 /// Calculate image moments
@@ -273,26 +339,58 @@ where
             .into_shape_with_order((total_moments,))
             .map_err(|_| NdimageError::ComputationError("Failed to reshape moments array".into()))
     } else {
-        // For nD case, return simplified implementation
-        // Calculate only the basic moments (total mass, first moments, etc.)
-        let mut moments_vec = Vec::new();
+        // General nD case: compute the full raw-moment tensor
+        //   M_{p_0,...,p_{ndim-1}} = sum_x (prod_d x_d^{p_d}) * I(x)
+        // for every multi-index with each p_d in 0..=order, flattened in
+        // row-major order (the last axis varies fastest), matching a
+        // `[(order+1); ndim]`-shaped tensor laid out as a flat `Ix1` array.
+        let radix = order + 1;
+        let expected_size = radix.pow(ndim as u32);
+        let mut moments_vec = vec![T::zero(); expected_size];
 
-        // M_00...0 = total mass
-        moments_vec.push(input.sum());
-
-        // First moments for each dimension
-        let center = center_of_mass(input)?;
-        let total_mass = input.sum();
-
-        for dim in 0..ndim {
-            // M_10...0, M_01...0, etc. = center * mass
-            moments_vec.push(center[dim] * total_mass);
+        // Cache `coord^power` per axis so it isn't recomputed for every
+        // multi-index combination.
+        let shape = input.shape().to_vec();
+        let mut axis_powers: Vec<Vec<T>> = Vec::with_capacity(ndim);
+        for &dim_len in &shape {
+            let mut table = vec![T::one(); dim_len * radix];
+            for coord in 0..dim_len {
+                let coord_t = safe_usize_to_float::<T>(coord)?;
+                let mut acc = T::one();
+                for p in 0..radix {
+                    table[coord * radix + p] = acc;
+                    if p + 1 < radix {
+                        acc = acc * coord_t;
+                    }
+                }
+            }
+            axis_powers.push(table);
         }
 
-        // Pad with zeros to match expected size
-        let expected_size = (order + 1).pow(ndim as u32);
-        while moments_vec.len() < expected_size {
-            moments_vec.push(T::zero());
+        let input_dyn = input.clone().into_dyn();
+        let mut powers = vec![0usize; ndim];
+        for (moment, slot) in moments_vec.iter_mut().enumerate() {
+            // Decode the flat moment index into per-axis powers (last axis
+            // fastest).
+            let mut rem = moment;
+            for d in (0..ndim).rev() {
+                powers[d] = rem % radix;
+                rem /= radix;
+            }
+
+            let mut acc = T::zero();
+            for (idx, &value) in input_dyn.indexed_iter() {
+                if value == T::zero() {
+                    continue;
+                }
+                let coords = idx.as_array_view();
+                let mut term = value;
+                for d in 0..ndim {
+                    term = term * axis_powers[d][coords[d] * radix + powers[d]];
+                }
+                acc += term;
+            }
+            *slot = acc;
         }
 
         Array1::<T>::from_vec(moments_vec)
@@ -572,7 +670,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::Array2;
+    use scirs2_core::ndarray::{Array1, Array2, Array3};
 
     #[test]
     fn test_center_of_mass() {
@@ -595,5 +693,101 @@ mod tests {
         let order = 2;
         let mom = moments(&input, order).expect("moments should succeed for test");
         assert!(!mom.is_empty());
+    }
+
+    #[test]
+    fn test_moments_inertia_tensor_line_2d() {
+        // A thin horizontal line (all mass at row=2, spread across columns)
+        // has a hand-computable inertia tensor: zero inertia about the
+        // column axis (no spread along rows) and nonzero inertia about the
+        // row axis (all the spread is along columns). A stub that always
+        // returns zeros (the pre-fix behavior) would fail this.
+        let mut input = Array2::<f64>::zeros((5, 5));
+        for col in 0..5 {
+            input[[2, col]] = 1.0;
+        }
+
+        let tensor = moments_inertia_tensor(&input).expect("Operation failed");
+        assert_eq!(tensor.shape(), &[2, 2]);
+        assert!((tensor[[0, 0]] - 2.0).abs() < 1e-10, "{tensor:?}");
+        assert!((tensor[[1, 1]] - 0.0).abs() < 1e-10, "{tensor:?}");
+        assert!((tensor[[0, 1]] - 0.0).abs() < 1e-10, "{tensor:?}");
+        assert!((tensor[[1, 0]] - 0.0).abs() < 1e-10, "{tensor:?}");
+    }
+
+    #[test]
+    fn test_moments_inertia_tensor_3d_asymmetric() {
+        // Distinct, non-constant, asymmetric intensity values: a stub
+        // returning all zeros, or one that mixed up axes, would fail this.
+        let input =
+            Array3::<f64>::from_shape_fn((2, 2, 3), |(i, j, k)| (i * 6 + j * 3 + k + 1) as f64);
+
+        let tensor = moments_inertia_tensor(&input).expect("Operation failed");
+        assert_eq!(tensor.shape(), &[3, 3]);
+
+        // Reference values independently computed via direct summation in
+        // exact rational arithmetic (see scratchpad/moments_check.py).
+        let expected = [
+            [1358.0 / 1521.0, 9.0 / 338.0, 4.0 / 169.0],
+            [9.0 / 338.0, 5189.0 / 6084.0, 2.0 / 169.0],
+            [4.0 / 169.0, 2.0 / 169.0, 293.0 / 676.0],
+        ];
+        for i in 0..3 {
+            for j in 0..3 {
+                assert!(
+                    (tensor[[i, j]] - expected[i][j]).abs() < 1e-9,
+                    "tensor[{},{}] = {} expected {}",
+                    i,
+                    j,
+                    tensor[[i, j]],
+                    expected[i][j]
+                );
+            }
+        }
+
+        // The tensor must be symmetric.
+        assert!((tensor[[0, 1]] - tensor[[1, 0]]).abs() < 1e-12);
+        assert!((tensor[[0, 2]] - tensor[[2, 0]]).abs() < 1e-12);
+        assert!((tensor[[1, 2]] - tensor[[2, 1]]).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_moments_inertia_tensor_empty_mass_is_zero() {
+        let input = Array2::<f64>::zeros((4, 4));
+        let tensor = moments_inertia_tensor(&input).expect("Operation failed");
+        for &v in tensor.iter() {
+            assert_eq!(v, 0.0);
+        }
+    }
+
+    #[test]
+    fn test_moments_nd_general_3d() {
+        // Distinct, non-constant per-voxel values; a stub that only fills
+        // in mass + first-order moments and zero-pads the rest (the pre-fix
+        // behavior) would fail every assertion below except the first.
+        let input =
+            Array3::<f64>::from_shape_fn((2, 2, 3), |(i, j, k)| (i * 6 + j * 3 + k + 1) as f64);
+
+        let order = 2;
+        let mom = moments(&input, order).expect("Operation failed");
+        assert_eq!(mom.len(), 27);
+
+        // Reference values independently computed via direct summation
+        // (see scratchpad/moments_check.py).
+        assert!((mom[0] - 78.0).abs() < 1e-9, "{mom:?}"); // M_000 = total mass
+        assert!((mom[1] - 86.0).abs() < 1e-9, "{mom:?}"); // M_001
+        assert!((mom[2] - 146.0).abs() < 1e-9, "{mom:?}"); // M_002
+        assert!((mom[9] - 57.0).abs() < 1e-9, "{mom:?}"); // M_100
+        assert!((mom[13] - 35.0).abs() < 1e-9, "{mom:?}"); // M_111
+        assert!((mom[26] - 59.0).abs() < 1e-9, "{mom:?}"); // M_222
+    }
+
+    #[test]
+    fn test_moments_nd_general_1d() {
+        let input = Array1::from_vec(vec![1.0, 2.0, 3.0]);
+        let mom = moments(&input, 1).expect("Operation failed");
+        assert_eq!(mom.len(), 2);
+        assert!((mom[0] - 6.0).abs() < 1e-12); // M_0 = total mass
+        assert!((mom[1] - 8.0).abs() < 1e-12); // M_1 = 0*1 + 1*2 + 2*3
     }
 }

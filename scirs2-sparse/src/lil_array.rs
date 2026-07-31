@@ -249,7 +249,7 @@ where
     }
 
     fn dtype(&self) -> &str {
-        "float" // Placeholder
+        std::any::type_name::<T>()
     }
 
     fn to_array(&self) -> Array2<T> {
@@ -673,6 +673,19 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
+    #[test]
+    fn test_lil_array_dtype_reflects_actual_element_type() {
+        let lil_f64 = LilArray::<f64>::new((2, 2));
+        let lil_f32 = LilArray::<f32>::new((2, 2));
+
+        // Previously `dtype()` always returned the literal string "float"
+        // regardless of the actual generic element type.
+        assert_eq!(lil_f64.dtype(), "f64");
+        assert_eq!(lil_f32.dtype(), "f32");
+        assert_ne!(lil_f64.dtype(), "float");
+        assert_ne!(lil_f32.dtype(), lil_f64.dtype());
+    }
 
     #[test]
     fn test_lil_array_construction() {

@@ -6,7 +6,7 @@ use scirs2_core::ndarray::s;
 use super::BssConfig;
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 
 #[allow(unused_imports)]
 /// Apply Non-negative Matrix Factorization (NMF) to separate mixed signals
@@ -39,7 +39,7 @@ pub fn nmf(
 
     // Initialize random W and H matrices
     let mut rng = if let Some(seed) = config.random_seed {
-        scirs2_core::random::rngs::StdRng::seed_from_u64([seed as u8; 32])
+        scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
     } else {
         {
             // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG

@@ -7,7 +7,9 @@
 
 **scirs2-spatial** is the spatial algorithms and computational geometry crate for the [SciRS2](https://github.com/cool-japan/scirs) scientific computing library. It provides spatial data structures, distance metrics, geometric algorithms, geospatial utilities, and path planning tools modeled after SciPy's `spatial` module.
 
-Tested: 854/854 tests passing with default features, 890/890 with `--all-features` (verified 2026-07-15).
+Tested: 854/854 tests passing with default features, 890/890 with `--all-features` (verified 2026-07-15; the 0.6.5 fixes below changed test assertions/logic, not test counts).
+
+**v0.6.5:** fixed an inverted `Ord` implementation on `octree`'s and `quadtree`'s k-nearest-neighbor `BinaryHeap` (`DistancePoint` in `src/octree.rs`/`src/quadtree.rs`) that evicted the *closest* candidate instead of the *farthest* once the result set grew beyond k, silently returning the farthest points instead of the nearest; also fixed `pathplanning::astar::AStarPlanner::reconstruct_path` (`src/pathplanning/astar.rs`), which reassigned `cost` from every node's g-value while walking backward from goal to start, so it always ended on the start node's own g-value of `0.0` regardless of the real path cost — `cost` is now captured once from the goal node before the backward walk.
 
 **v0.6.3:** fixed undefined behavior in `DistancePool::create_aligned_buffer`/`create_numa_aware_buffer` (`src/memory_pool.rs`) — both allocated cache-aligned memory via raw `System.alloc` then freed it through `Box<[f64]>`'s default-aligned `Drop`, an alloc/dealloc layout mismatch that corrupted the heap on Windows (`STATUS_HEAP_CORRUPTION`); both now allocate through plain `Vec`/`Box<[f64]>`.
 
@@ -24,7 +26,7 @@ Use scirs2-spatial when you need to:
 - Plan paths in continuous space (A*, RRT)
 - Apply 3D transformations (quaternions, rigid transforms, SLERP)
 
-## Features (v0.6.3)
+## Features (v0.6.5)
 
 ### Spatial Data Structures
 - **KD-Tree**: Efficient k-nearest neighbor and radius search in any dimension
@@ -121,14 +123,14 @@ Use scirs2-spatial when you need to:
 
 ```toml
 [dependencies]
-scirs2-spatial = "0.6.4"
+scirs2-spatial = "0.6.5"
 ```
 
 For parallel processing:
 
 ```toml
 [dependencies]
-scirs2-spatial = { version = "0.6.4", features = ["parallel"] }
+scirs2-spatial = { version = "0.6.5", features = ["parallel"] }
 ```
 
 ## Quick Start

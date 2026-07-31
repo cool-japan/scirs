@@ -958,7 +958,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Run with: cargo test --release -- --ignored test_generate_comparison_report
+    #[ignore = "bench: test_generate_comparison_report -- benches/*.rs auto-discovered target with its own criterion_group!/criterion_main!, unreachable via `cargo test`/nextest by construction; run with `cargo test --release -- --ignored test_generate_comparison_report`"]
     fn test_generate_comparison_report() {
         let result = generate_comparison_report();
         assert!(result.is_ok());

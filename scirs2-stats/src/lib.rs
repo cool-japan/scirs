@@ -46,7 +46,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-stats = "0.6.4"
+//! scirs2-stats = "0.6.5"
 //! ```
 //!
 //! ```rust
@@ -204,7 +204,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.6.4
+//! - **Version**: 0.6.5
 //! - **Release Date**: July 16, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-stats](https://docs.rs/scirs2-stats)
@@ -650,7 +650,7 @@ pub mod traits; // Trait definitions for distributions and statistical objects /
 pub mod variational; // Variational inference (ADVI, SVGD, Normalizing Flows)
 
 // Comprehensive validation and testing frameworks for v1.0.0
-// pub mod comprehensive_validation_suite;
+pub mod comprehensive_validation_suite;
 pub mod numerical_stability_analyzer; // Numerical stability analysis framework
                                       // pub mod propertybased_validation; // Property-based testing for mathematical invariants
 pub mod scipy_benchmark_framework; // SciPy comparison and benchmarking framework // Unified validation suite integrating all frameworks
@@ -748,6 +748,8 @@ pub mod property_based_validation;
 // pub mod intelligent_error_recovery_v2;     // compilation errors
 // pub mod numerical_stability_comprehensive; // compilation errors
 // pub mod parallel_enhanced_v5;             // compilation errors
+#[cfg(test)]
+pub mod property_based_tests_extended;
 pub mod property_based_tests_v2;
 pub mod property_based_tests_v2_impl;
 // pub mod simd_enhanced_v7;                 // compilation errors
@@ -890,7 +892,6 @@ pub use parallel_stats_enhanced::{
     kde_parallel, pairwise_distances_parallel, AdaptiveThreshold, ParallelCrossValidation,
     ParallelHistogram, ParallelMovingStats,
 };
-/*
 #[cfg(test)]
 pub use property_based_tests_extended::{
     BatchProcessingTester, CrossPlatformTester, ExtendedMathematicalTester, FuzzingTester,
@@ -898,7 +899,6 @@ pub use property_based_tests_extended::{
     NumericalStabilityTester, ParallelConsistencyTester, PerformanceRegressionTester,
     RobustnessTester, SimdConsistencyTester, StatisticalTestData,
 };
-*/
 pub use quantile_simd::{
     median_simd, percentile_simd, quantile_simd, quantiles_simd, quickselect_simd,
 };

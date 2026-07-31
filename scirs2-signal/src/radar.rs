@@ -16,9 +16,9 @@
 //! * Mahafza, B.R. (2013). *Radar Systems Analysis and Design Using MATLAB*, 3rd ed.
 //! * Skolnik, M.I. (2001). *Introduction to Radar Systems*, 3rd ed.
 
-use std::f64::consts::PI;
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::numeric::Complex64;
+use std::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
 // Internal FFT helpers (Cooley-Tukey, power-of-2 only; reused from zoom_fft)
@@ -132,7 +132,10 @@ fn next_pow2(n: usize) -> usize {
 /// ```
 /// use scirs2_signal::radar::matched_filter;
 ///
-/// let signal   = vec![0.0, 0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0];
+/// // Note: the signal is intentionally asymmetric around the template match so
+/// // that the correlation peak is unambiguous (a symmetric signal would tie
+/// // two adjacent lags and make the arg-max non-deterministic).
+/// let signal   = vec![0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0, 0.0];
 /// let template = vec![1.0, 2.0, 3.0];
 /// let mf = matched_filter(&signal, &template).expect("operation should succeed");
 /// // Peak at lag 2 (where template aligns)
@@ -143,10 +146,14 @@ fn next_pow2(n: usize) -> usize {
 /// ```
 pub fn matched_filter(signal: &[f64], template: &[f64]) -> SignalResult<Vec<f64>> {
     if signal.is_empty() {
-        return Err(SignalError::ValueError("signal must not be empty".to_string()));
+        return Err(SignalError::ValueError(
+            "signal must not be empty".to_string(),
+        ));
     }
     if template.is_empty() {
-        return Err(SignalError::ValueError("template must not be empty".to_string()));
+        return Err(SignalError::ValueError(
+            "template must not be empty".to_string(),
+        ));
     }
     if template.len() > signal.len() {
         return Err(SignalError::ValueError(
@@ -195,14 +202,24 @@ pub fn matched_filter(signal: &[f64], template: &[f64]) -> SignalResult<Vec<f64>
     // IFFT to get correlation
     fft_inplace(&mut product, true)?;
 
-    // The IFFT of (FFT(signal) * conj(FFT(template))) is the circular convolution
-    // of the signal with the time-reversed template, i.e., the matched filter output:
-    //   y[i] = sum_{j=0}^{m-1} h[m-1-j] * x[i-j]
-    // The peak appears at index (delay + m - 1) for a template injected at `delay`.
-    // Return the first `n` samples (linear portion of the circular convolution).
+    // `product[k] = sum_{j=0}^{m-1} signal[k+j] * template[j]` (valid, alias-free
+    // for `k < n` since `fft_len >= n+m-1`), i.e. `product` is the *cross-correlation*
+    // of signal with template, which peaks at `k = delay` when `template` is
+    // injected into `signal` starting at sample `delay`.
+    //
+    // A matched filter is the *causal* realization of that same correlation,
+    // i.e. convolution with the time-reversed template `h[j] = template[m-1-j]`:
+    //   y[i] = sum_{j=0}^{m-1} h[j] * signal[i-j] = product[i - (m - 1)]
+    // so the peak of `y` appears at index `delay + m - 1` (the sample at which
+    // the full template has just been received) rather than at `delay` itself.
     let output: Vec<f64> = (0..n)
         .map(|i| {
-            (product[i].re * product[i].re + product[i].im * product[i].im).sqrt()
+            if i + 1 >= m {
+                let k = i - (m - 1);
+                (product[k].re * product[k].re + product[k].im * product[k].im).sqrt()
+            } else {
+                0.0
+            }
         })
         .collect();
 
@@ -267,7 +284,12 @@ impl ChirpParams {
                 "start_freq and end_freq must differ (non-zero bandwidth required)".to_string(),
             ));
         }
-        Ok(Self { start_freq, end_freq, duration, sample_rate })
+        Ok(Self {
+            start_freq,
+            end_freq,
+            duration,
+            sample_rate,
+        })
     }
 
     /// Number of samples in the chirp waveform.
@@ -344,7 +366,9 @@ impl ChirpParams {
 /// ```
 pub fn pulse_compression(chirp: &ChirpParams, received: &[f64]) -> SignalResult<Vec<Complex64>> {
     if received.is_empty() {
-        return Err(SignalError::ValueError("received signal must not be empty".to_string()));
+        return Err(SignalError::ValueError(
+            "received signal must not be empty".to_string(),
+        ));
     }
 
     // Generate reference chirp
@@ -394,10 +418,18 @@ pub fn pulse_compression(chirp: &ChirpParams, received: &[f64]) -> SignalResult<
 
     fft_inplace(&mut product, true)?;
 
-    // Return the first `n` samples of the circular convolution.
-    // The peak lands at (delay + m - 1) for a chirp echo delayed by `delay` samples,
-    // which is approximately at `delay + m/2` when using the correlation peak convention.
-    let out: Vec<Complex64> = product[..n].to_vec();
+    // `product[k] = sum_{j=0}^{m-1} received[k+j] * ref_chirp[j]` (alias-free for
+    // `k < n`), the cross-correlation of the received signal with the reference
+    // chirp: for an echo of the reference chirp delayed by `delay` samples this
+    // peaks at `k = delay`. Pulse compression conventionally reports the
+    // compressed peak centered on the pulse rather than at its leading edge, so
+    // the output is shifted by half the chirp length: `out[i] = product[i - m/2]`,
+    // which puts the peak at `delay + m/2`.
+    let shift = m / 2;
+    let mut out: Vec<Complex64> = vec![Complex64::new(0.0, 0.0); n];
+    for i in shift..n {
+        out[i] = product[i - shift];
+    }
 
     Ok(out)
 }
@@ -452,7 +484,12 @@ impl CfarConfig {
                 "pfa must be in (0, 1), got {pfa}"
             )));
         }
-        Ok(Self { num_reference_cells, num_guard_cells, pfa, variant })
+        Ok(Self {
+            num_reference_cells,
+            num_guard_cells,
+            pfa,
+            variant,
+        })
     }
 
     /// CA-CFAR threshold multiplier α for exponential (Rayleigh power) noise.
@@ -546,9 +583,7 @@ pub fn cfar_detector(
         let lead_sum: f64 = power_spectrum[lead_start..lead_end].iter().sum();
 
         let noise_estimate = match config.variant {
-            CfarVariant::CellAveraging => {
-                (lag_sum + lead_sum) / (2 * refs) as f64
-            }
+            CfarVariant::CellAveraging => (lag_sum + lead_sum) / (2 * refs) as f64,
             CfarVariant::GreatestOf => {
                 let lag_avg = lag_sum / refs as f64;
                 let lead_avg = lead_sum / refs as f64;
@@ -842,7 +877,9 @@ pub fn beamform_power_map(
     sample_rate: f64,
 ) -> SignalResult<Vec<f64>> {
     if angles_rad.is_empty() {
-        return Err(SignalError::ValueError("angles_rad must not be empty".to_string()));
+        return Err(SignalError::ValueError(
+            "angles_rad must not be empty".to_string(),
+        ));
     }
 
     let mut power_map = Vec::with_capacity(angles_rad.len());
@@ -935,6 +972,7 @@ pub fn radar_pipeline(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_relative_eq;
     use std::f64::consts::PI;
 
     #[test]
@@ -964,7 +1002,8 @@ mod tests {
 
     #[test]
     fn test_chirp_generate_length() {
-        let params = ChirpParams::new(100.0, 1000.0, 0.01, 10_000.0).expect("should succeed in test");
+        let params =
+            ChirpParams::new(100.0, 1000.0, 0.01, 10_000.0).expect("should succeed in test");
         let samples = params.generate();
         assert_eq!(samples.len(), params.num_samples());
         assert_eq!(samples.len(), 100);
@@ -973,7 +1012,8 @@ mod tests {
     #[test]
     fn test_pulse_compression_peak() {
         // The compressed peak should appear at the delay sample
-        let params = ChirpParams::new(1_000.0, 9_000.0, 1e-3, 50_000.0).expect("should succeed in test");
+        let params =
+            ChirpParams::new(1_000.0, 9_000.0, 1e-3, 50_000.0).expect("should succeed in test");
         let chirp = params.generate();
         let delay = 10_usize;
         let n = chirp.len() + delay + 20;
@@ -1008,7 +1048,8 @@ mod tests {
     fn test_cfar_detector_detects_strong_target() {
         let mut power = vec![1.0_f64; 64];
         power[32] = 1000.0; // strong target
-        let cfg = CfarConfig::new(8, 2, 1e-3, CfarVariant::CellAveraging).expect("should succeed in test");
+        let cfg = CfarConfig::new(8, 2, 1e-3, CfarVariant::CellAveraging)
+            .expect("should succeed in test");
         let det = cfar_detector(&power, &cfg).expect("cfar failed");
         assert!(!det.is_empty(), "should detect the strong target");
         assert!(det.iter().any(|d| d.index == 32));
@@ -1018,7 +1059,8 @@ mod tests {
     fn test_cfar_go_cfar() {
         let mut power = vec![1.0_f64; 64];
         power[32] = 500.0;
-        let cfg = CfarConfig::new(8, 2, 1e-3, CfarVariant::GreatestOf).expect("should succeed in test");
+        let cfg =
+            CfarConfig::new(8, 2, 1e-3, CfarVariant::GreatestOf).expect("should succeed in test");
         let det = cfar_detector(&power, &cfg).expect("GO-CFAR failed");
         assert!(det.iter().any(|d| d.index == 32));
     }
@@ -1027,7 +1069,8 @@ mod tests {
     fn test_cfar_no_false_alarms_flat() {
         // Perfectly flat noise: no cell should exceed threshold
         let power = vec![1.0_f64; 64];
-        let cfg = CfarConfig::new(8, 2, 1e-6, CfarVariant::CellAveraging).expect("should succeed in test");
+        let cfg = CfarConfig::new(8, 2, 1e-6, CfarVariant::CellAveraging)
+            .expect("should succeed in test");
         let det = cfar_detector(&power, &cfg).expect("cfar failed");
         assert!(det.is_empty(), "flat noise should produce no detections");
     }
@@ -1061,15 +1104,35 @@ mod tests {
         let rdm = range_doppler_map(&data, pulses, bins).expect("rdm failed");
         // All range bins should have the same Doppler profile
         assert_eq!(rdm.len(), bins);
-        // After fftshift the DC bin maps to index pulses/2; freq_bin maps to pulses/2 + freq_bin
+
+        // A real-valued (single-quadrature) input has a Hermitian-symmetric
+        // spectrum, so a pure cosine at Doppler bin `freq_bin` necessarily
+        // produces two *exactly* equal-magnitude peaks: one at the
+        // "positive" frequency and one at its mirrored "negative" frequency
+        // (this is a fundamental property of the DFT of a real signal, not
+        // an implementation detail). After fftshift, the DC bin maps to
+        // `pulses/2`, and the pair lands at `pulses/2 + freq_bin` and
+        // `pulses/2 - freq_bin`. Which one of the two a naive `argmax` picks
+        // is an artifact of floating-point tie-breaking inside the FFT
+        // backend, not a meaningful property of `range_doppler_map` -- so
+        // assert on both bins that *must* carry the (equal) peak energy,
+        // and that every other bin is clearly below it.
         let expected_doppler_bin = pulses / 2 + freq_bin;
-        let peak_bin = rdm[0]
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).expect("NaN"))
-            .map(|(i, _)| i)
-            .expect("empty doppler");
-        assert_eq!(peak_bin, expected_doppler_bin, "Doppler peak at {peak_bin}");
+        let mirror_doppler_bin = pulses / 2 - freq_bin;
+        let profile = &rdm[0];
+        let peak_val = profile[expected_doppler_bin];
+        let mirror_val = profile[mirror_doppler_bin];
+        assert_relative_eq!(peak_val, mirror_val, epsilon = 1e-9);
+        assert!(peak_val > 0.0, "Doppler peak should be non-zero");
+
+        for (bin, &val) in profile.iter().enumerate() {
+            if bin != expected_doppler_bin && bin != mirror_doppler_bin {
+                assert!(
+                    val < peak_val - 1e-6,
+                    "bin {bin} (value {val}) should be well below the Doppler peak ({peak_val})"
+                );
+            }
+        }
     }
 
     #[test]
@@ -1083,8 +1146,7 @@ mod tests {
                 (2.0 * PI * 0.1 * samp as f64).cos()
             })
             .collect();
-        let out =
-            delay_and_sum_beamform(&data, m, n, 0.0, 0.5e-3, 1500.0, 100_000.0).expect("das");
+        let out = delay_and_sum_beamform(&data, m, n, 0.0, 0.5e-3, 1500.0, 100_000.0).expect("das");
         assert_eq!(out.len(), n);
         // At broadside, output should equal the average of identical channels (same as input)
         let max_val = out.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
@@ -1093,7 +1155,8 @@ mod tests {
 
     #[test]
     fn test_radar_pipeline() {
-        let params = ChirpParams::new(1_000.0, 9_000.0, 1e-3, 50_000.0).expect("should succeed in test");
+        let params =
+            ChirpParams::new(1_000.0, 9_000.0, 1e-3, 50_000.0).expect("should succeed in test");
         let chirp = params.generate();
         let n = chirp.len() + 50;
         let mut rx = vec![0.0_f64; n];
@@ -1102,7 +1165,8 @@ mod tests {
                 rx[i + 15] += c.re * 0.8;
             }
         }
-        let cfg = CfarConfig::new(8, 2, 1e-3, CfarVariant::CellAveraging).expect("should succeed in test");
+        let cfg = CfarConfig::new(8, 2, 1e-3, CfarVariant::CellAveraging)
+            .expect("should succeed in test");
         let result = radar_pipeline(&params, &rx, &cfg).expect("pipeline failed");
         assert_eq!(result.compressed_profile.len(), n);
         assert_eq!(result.power_spectrum.len(), n);

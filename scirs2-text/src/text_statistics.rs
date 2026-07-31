@@ -469,8 +469,18 @@ mod tests {
             .lexical_diversity(COMPLEX_TEXT)
             .expect("Operation failed");
 
-        // Complex text should have higher lexical diversity (commented out as it depends on specific tokenization)
-        // assert!(simple_diversity < complex_diversity);
+        // NOTE: we deliberately do NOT assert `simple_diversity < complex_diversity`
+        // here. Lexical diversity (unique words / total words) is highly sensitive
+        // to whether short, common function words happen to repeat, which has
+        // little to do with a text's conceptual complexity. Empirically:
+        // SIMPLE_TEXT has 12 words, all distinct (diversity = 12/12 = 1.0), while
+        // COMPLEX_TEXT has 24 words with "of" repeated once (diversity = 23/24
+        // ~= 0.9583) -- i.e. SIMPLE_TEXT actually has *higher* diversity despite
+        // being the "simple" text. This is a genuine property of the metric on
+        // these two fixed strings (verified by running this test with
+        // `--nocapture` and printing both values), not a bug in
+        // `lexical_diversity()`. See the dedicated repetition check below for a
+        // real verification of the intended monotonic relationship.
         assert!(simple_diversity > 0.0 && complex_diversity > 0.0);
 
         // Type-token ratio should be the same as lexical diversity
@@ -480,6 +490,23 @@ mod tests {
                 .expect("Operation failed"),
             simple_diversity
         );
+
+        // Directly verify the intended monotonic property -- repeating words
+        // lowers lexical diversity -- using text crafted so the outcome isn't
+        // accidentally confounded by which specific words happen to recur (unlike
+        // SIMPLE_TEXT/COMPLEX_TEXT above).
+        let all_unique_text = "Wolves gather quietly near frozen rivers during harsh winter storms";
+        let repetitive_text = "The cat sat on the mat and the cat saw the mat again";
+
+        let unique_diversity = stats
+            .lexical_diversity(all_unique_text)
+            .expect("Operation failed");
+        let repetitive_diversity = stats
+            .lexical_diversity(repetitive_text)
+            .expect("Operation failed");
+
+        assert_eq!(unique_diversity, 1.0);
+        assert!(repetitive_diversity < unique_diversity);
     }
 
     #[test]

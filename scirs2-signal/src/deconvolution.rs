@@ -1,9 +1,9 @@
 use crate::convolve;
 use crate::error::{SignalError, SignalResult};
+use oxifft::{Complex as OxiComplex, Direction, Flags, Plan};
 use scirs2_core::ndarray::s;
 use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::numeric::Complex64;
-use oxifft::{Complex as OxiComplex, Direction, Flags, Plan};
 
 // Signal deconvolution module
 //
@@ -120,13 +120,21 @@ pub fn wiener_deconvolution_1d(
     };
 
     // Compute FFT of signal and PSF using scirs2_fft
-    let signal_complex = scirs2_fft::fft(&filtered_signal, Some(pad_len))
+    let filtered_signal_slice = filtered_signal.as_slice().ok_or_else(|| {
+        SignalError::ComputationError("filtered_signal is not contiguous".to_string())
+    })?;
+    let padded_psf_slice = padded_psf
+        .as_slice()
+        .ok_or_else(|| SignalError::ComputationError("padded_psf is not contiguous".to_string()))?;
+    let signal_complex = scirs2_fft::fft(filtered_signal_slice, Some(pad_len))
         .map_err(|e| SignalError::ComputationError(format!("FFT failed: {}", e)))?;
-    let psf_complex = scirs2_fft::fft(&padded_psf, Some(pad_len))
+    let psf_complex = scirs2_fft::fft(padded_psf_slice, Some(pad_len))
         .map_err(|e| SignalError::ComputationError(format!("FFT failed: {}", e)))?;
 
     // Apply Wiener deconvolution in frequency domain
-    let result_complex: Vec<Complex64> = signal_complex.iter().zip(psf_complex.iter())
+    let result_complex: Vec<Complex64> = signal_complex
+        .iter()
+        .zip(psf_complex.iter())
         .map(|(&sig, &psf)| {
             let h_conj = psf.conj();
             let h_abs_sq = psf.norm_sqr();
@@ -1436,13 +1444,13 @@ pub fn blind_deconvolution_2d(
 /// Helper function to create a Gaussian kernel for a PSF
 #[allow(dead_code)]
 fn create_gaussian_kernel(size: usize) -> Array1<f64> {
-    let half_size = _size as isize / 2;
-    let mut kernel = Array1::<f64>::zeros(_size);
+    let half_size = size as isize / 2;
+    let mut kernel = Array1::<f64>::zeros(size);
 
-    let sigma = _size as f64 / 6.0; // Standard deviation
+    let sigma = size as f64 / 6.0; // Standard deviation
     let two_sigma_sq = 2.0 * sigma * sigma;
 
-    for i in 0.._size {
+    for i in 0..size {
         let x = (i as isize - half_size) as f64;
         kernel[i] = (-x * x / two_sigma_sq).exp();
     }
@@ -1459,16 +1467,16 @@ fn create_gaussian_kernel(size: usize) -> Array1<f64> {
 /// Helper function to create a 2D Gaussian kernel for a PSF
 #[allow(dead_code)]
 fn create_gaussian_kernel_2d(height: usize, width: usize) -> Array2<f64> {
-    let half_h = _height as isize / 2;
+    let half_h = height as isize / 2;
     let half_w = width as isize / 2;
-    let mut kernel = Array2::<f64>::zeros((_height, width));
+    let mut kernel = Array2::<f64>::zeros((height, width));
 
-    let sigma_h = _height as f64 / 6.0; // Standard deviation for _height
+    let sigma_h = height as f64 / 6.0; // Standard deviation for _height
     let sigma_w = width as f64 / 6.0; // Standard deviation for width
     let two_sigma_h_sq = 2.0 * sigma_h * sigma_h;
     let two_sigma_w_sq = 2.0 * sigma_w * sigma_w;
 
-    for i in 0.._height {
+    for i in 0..height {
         let y = (i as isize - half_h) as f64;
         for j in 0..width {
             let x = (j as isize - half_w) as f64;
@@ -1507,13 +1515,12 @@ fn gaussian_filter_1d(signal: &Array1<f64>, sigma: f64) -> Array1<f64> {
 /// Helper function to apply Gaussian filtering to a 2D image
 #[allow(dead_code)]
 fn gaussian_filter_2d(image: &Array2<f64>, sigma: f64) -> Array2<f64> {
-    let (_height_width) = image.dim();
     let kernel_size = (6.0 * sigma).ceil() as usize;
     let kernel_size = kernel_size + (1 - kernel_size % 2); // Ensure odd size
 
     let kernel = create_gaussian_kernel_2d(kernel_size, kernel_size);
 
-    match convolve::convolve2d(_image, &kernel, "same") {
+    match convolve::convolve2d(image, &kernel, "same") {
         Ok(filtered) => filtered,
         Err(_) => image.clone(),
     }
@@ -1660,7 +1667,7 @@ pub fn estimate_regularization_param(
     let mut best_param = min_param;
     let mut min_gcv = f64::INFINITY;
 
-    for &_param in &param_values {
+    for &param in &param_values {
         let mut result_complex = vec![Complex64::new(0.0, 0.0); n];
         let mut filter_diag = vec![0.0; n];
 

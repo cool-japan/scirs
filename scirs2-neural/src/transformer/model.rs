@@ -288,6 +288,52 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
     pub fn decoder_mut(&mut self) -> &mut TransformerDecoder<F> {
         &mut self.decoder
     }
+
+    /// Backpropagate through the encoder-decoder pass performed by
+    /// [`Transformer::forward_train`].
+    ///
+    /// # Arguments
+    /// * `src` - the source tensor passed to `forward_train`
+    /// * `tgt` - the target tensor passed to `forward_train`
+    /// * `grad_output` - gradient with respect to the decoder output
+    ///
+    /// # Returns
+    /// `(grad_src, grad_tgt)` - gradients with respect to both inputs. The
+    /// source gradient combines the encoder path with the decoder's
+    /// cross-attention contribution.
+    pub fn backward_train(
+        &self,
+        src: &Array<F, IxDyn>,
+        tgt: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
+    ) -> Result<(Array<F, IxDyn>, Array<F, IxDyn>)> {
+        // Presence of the cached encoder output proves a forward pass ran.
+        if self
+            .encoder_output_cache
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on the encoder output cache".to_string(),
+                )
+            })?
+            .is_none()
+        {
+            return Err(NeuralError::InferenceError(
+                "No cached encoder output. Call forward_train() first.".to_string(),
+            ));
+        }
+
+        let src_pos = self.pos_encoding.forward(src)?;
+        let tgt_pos = self.pos_encoding.forward(tgt)?;
+
+        let (grad_tgt_pos, grad_encoder_output) =
+            self.decoder.backward_with_encoder(&tgt_pos, grad_output)?;
+        let grad_src_pos = self.encoder.backward(&src_pos, &grad_encoder_output)?;
+
+        let grad_src = self.pos_encoding.backward(&grad_src_pos)?;
+        let grad_tgt = self.pos_encoding.backward(&grad_tgt_pos)?;
+        Ok((grad_src, grad_tgt))
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps + NumAssign> Layer<F>
@@ -330,19 +376,18 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         Ok(encoder_output)
     }
 
+    /// Backpropagate through the encoder-only pass performed by
+    /// [`Layer::forward`] (positional encoding followed by the encoder stack).
+    ///
+    /// Use [`Transformer::backward_train`] for the full encoder-decoder path.
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // In a complete implementation, this would compute gradients through all components
-        // For simplicity, this is just a placeholder that returns a gradient of the same shape
-
-        // Create a placeholder gradient for the input
-        let grad_input = Array::zeros(input.dim());
-
-        // Return gradient with respect to input
-        Ok(grad_input)
+        let input_pos = self.pos_encoding.forward(input)?;
+        let grad_input_pos = self.encoder.backward(&input_pos, grad_output)?;
+        self.pos_encoding.backward(&grad_input_pos)
     }
 
     fn update(&mut self, learning_rate: F) -> Result<()> {
@@ -352,6 +397,26 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         self.pos_encoding.update(learning_rate)?;
 
         Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        let mut params = self.encoder.params();
+        params.extend(self.decoder.params());
+        params
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        let mut grads = self.encoder.gradients();
+        grads.extend(self.decoder.gradients());
+        grads
+    }
+
+    fn layer_type(&self) -> &str {
+        "Transformer"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.encoder.parameter_count() + self.decoder.parameter_count()
     }
 }
 

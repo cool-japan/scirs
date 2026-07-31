@@ -515,6 +515,14 @@ impl AttentionHead {
 
     /// Forward pass through attention head
     pub fn forward(&self, input: &[f64]) -> Vec<f64> {
+        self.forward_with_score(input).0
+    }
+
+    /// Forward pass through attention head, also returning the real,
+    /// input-dependent attention weight computed for this call. Callers that
+    /// need a genuine attention measurement (e.g. reported processor
+    /// statistics) should use this instead of fabricating a constant.
+    pub fn forward_with_score(&self, input: &[f64]) -> (Vec<f64>, f64) {
         // Simplified attention mechanism
         let query = self.linear_transform(input, &self.query_weights);
         let key = self.linear_transform(input, &self.key_weights);
@@ -531,7 +539,10 @@ impl AttentionHead {
         }
 
         // Output projection
-        self.linear_transform(&attended_value, &self.output_weights)
+        (
+            self.linear_transform(&attended_value, &self.output_weights),
+            attention_weight,
+        )
     }
 
     /// Linear transformation

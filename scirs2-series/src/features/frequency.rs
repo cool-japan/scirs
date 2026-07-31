@@ -15,6 +15,15 @@ use super::utils::{
 use crate::error::Result;
 use crate::utils::autocorrelation;
 
+// Window analysis, confidence intervals, peak significance, bias
+// correction/variance reduction/smoothing, and zero-padding/interpolation
+// live in `periodogram_enhancement` (split out to keep this file under the
+// workspace's 2000-line guideline); re-exported here so existing callers of
+// `scirs2_series::features::frequency::calculate_window_effectiveness` (etc.)
+// keep working, and so `calculate_enhanced_periodogram_features` below can
+// keep calling them unqualified.
+pub use super::periodogram_enhancement::*;
+
 /// Comprehensive frequency domain features for time series analysis
 #[derive(Debug, Clone)]
 pub struct FrequencyFeatures<F> {
@@ -697,8 +706,14 @@ where
         );
     }
 
-    // Note: Interpolation functionality would be enabled based on config if available
-    // For now, using default values
+    if config.enable_interpolation {
+        features.interpolated_periodogram =
+            calculate_interpolated_periodogram(&features.welch_periodogram, config)?;
+        features.interpolation_effectiveness = calculate_interpolation_effectiveness(
+            &features.interpolated_periodogram,
+            &features.welch_periodogram,
+        );
+    }
 
     // Calculate quality and performance metrics (simplified for compatibility)
     // SNR estimation
@@ -1373,144 +1388,6 @@ where
     } else {
         geometric_mean / arithmetic_mean
     }
-}
-
-// Additional placeholder functions for completeness
-
-/// Calculate window analysis for enhanced periodogram
-#[allow(dead_code)]
-pub fn calculate_window_analysis<F>(
-    _ts: &Array1<F>,
-    config: &EnhancedPeriodogramConfig,
-) -> Result<WindowTypeInfo<F>>
-where
-    F: Float + FromPrimitive,
-{
-    Ok(WindowTypeInfo {
-        window_name: config.primary_window_type.clone(),
-        ..Default::default()
-    })
-}
-
-/// Calculate window effectiveness metrics
-#[allow(dead_code)]
-pub fn calculate_window_effectiveness<F>(_windowinfo: &WindowTypeInfo<F>) -> F
-where
-    F: Float + FromPrimitive,
-{
-    F::from(0.8).expect("Failed to convert constant to float") // Placeholder
-}
-
-/// Calculate spectral leakage measures
-#[allow(dead_code)]
-pub fn calculate_spectral_leakage<F>(_windowinfo: &WindowTypeInfo<F>) -> F
-where
-    F: Float + FromPrimitive,
-{
-    F::from(0.1).expect("Failed to convert constant to float") // Placeholder
-}
-
-/// Calculate confidence intervals for periodogram
-#[allow(dead_code)]
-pub fn calculate_periodogram_confidence_intervals<F>(
-    _periodogram: &[F],
-    _config: &EnhancedPeriodogramConfig,
-) -> Result<Vec<(F, F)>>
-where
-    F: Float + FromPrimitive,
-{
-    Ok(Vec::new()) // Placeholder
-}
-
-/// Calculate peak significance for periodogram
-#[allow(dead_code)]
-pub fn calculate_peak_significance<F>(
-    _periodogram: &[F],
-    _config: &EnhancedPeriodogramConfig,
-) -> Result<Vec<F>>
-where
-    F: Float + FromPrimitive,
-{
-    Ok(Vec::new()) // Placeholder
-}
-
-/// Calculate bias-corrected periodogram
-#[allow(dead_code)]
-pub fn calculate_bias_corrected_periodogram<F>(
-    periodogram: &[F],
-    _config: &EnhancedPeriodogramConfig,
-) -> Result<Vec<F>>
-where
-    F: Float + FromPrimitive,
-{
-    Ok(periodogram.to_vec()) // Placeholder
-}
-
-/// Calculate variance-reduced periodogram
-#[allow(dead_code)]
-pub fn calculate_variance_reduced_periodogram<F>(
-    periodogram: &[F],
-    _config: &EnhancedPeriodogramConfig,
-) -> Result<Vec<F>>
-where
-    F: Float + FromPrimitive,
-{
-    Ok(periodogram.to_vec()) // Placeholder
-}
-
-/// Calculate smoothed periodogram
-#[allow(dead_code)]
-pub fn calculate_smoothed_periodogram<F>(
-    periodogram: &[F],
-    _config: &EnhancedPeriodogramConfig,
-) -> Result<Vec<F>>
-where
-    F: Float + FromPrimitive,
-{
-    Ok(periodogram.to_vec()) // Placeholder
-}
-
-/// Calculate zero-padded periodogram
-#[allow(dead_code)]
-pub fn calculate_zero_padded_periodogram<F>(
-    ts: &Array1<F>,
-    _config: &EnhancedPeriodogramConfig,
-) -> Result<Vec<F>>
-where
-    F: Float + FromPrimitive + Debug + std::iter::Sum,
-    for<'a> F: std::iter::Sum<&'a F>,
-{
-    calculate_simple_periodogram(ts) // Placeholder
-}
-
-/// Calculate interpolated periodogram
-#[allow(dead_code)]
-pub fn calculate_interpolated_periodogram<F>(
-    periodogram: &[F],
-    _config: &EnhancedPeriodogramConfig,
-) -> Result<Vec<F>>
-where
-    F: Float + FromPrimitive,
-{
-    Ok(periodogram.to_vec()) // Placeholder
-}
-
-/// Calculate zero padding effectiveness
-#[allow(dead_code)]
-pub fn calculate_zero_padding_effectiveness<F>(_padded: &[F], original: &[F]) -> F
-where
-    F: Float + FromPrimitive,
-{
-    F::from(0.9).expect("Failed to convert constant to float") // Placeholder
-}
-
-/// Calculate interpolation effectiveness
-#[allow(dead_code)]
-pub fn calculate_interpolation_effectiveness<F>(_interpolated: &[F], original: &[F]) -> F
-where
-    F: Float + FromPrimitive,
-{
-    F::from(0.85).expect("Failed to convert constant to float") // Placeholder
 }
 
 /// Calculate signal-to-noise ratio from periodogram

@@ -5,8 +5,9 @@
 //! wavelet) and smoothness regularization.
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis, ScalarOperand};
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::fmt::Debug;
+use std::iter::Sum;
 
 use super::pca::{compute_covariance_matrix, compute_eigendecomposition};
 use crate::error::{Result, TimeSeriesError};
@@ -97,7 +98,16 @@ pub fn apply_functional_pca<F>(
     config: &FunctionalPCAConfig,
 ) -> Result<FunctionalPCAResult<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + ScalarOperand + 'static,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Clone
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + ScalarOperand
+        + 'static,
 {
     let (n_functions, n_points) = functional_data.dim();
 
@@ -419,7 +429,16 @@ impl FunctionalPCA {
     /// The returned array has shape `(n_observations, n_components)`.
     pub fn fit_transform<F>(&self, data: &Array2<F>) -> crate::error::Result<Array2<F>>
     where
-        F: Float + FromPrimitive + Debug + Clone + ScalarOperand + 'static,
+        F: Float
+            + FromPrimitive
+            + Debug
+            + Clone
+            + NumAssign
+            + Sum
+            + Send
+            + Sync
+            + ScalarOperand
+            + 'static,
     {
         let config = FunctionalPCAConfig {
             n_components: Some(self.n_components),

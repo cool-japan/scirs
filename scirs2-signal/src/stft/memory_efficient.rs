@@ -6,7 +6,7 @@
 use super::core::ShortTimeFft;
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
-use scirs2_core::ndarray::{Array2};
+use scirs2_core::ndarray::Array2;
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
@@ -270,10 +270,10 @@ impl MemoryEfficientStft {
         }
 
         // Implement parallel processing using scirs2_core::parallel_ops
-        use scirs2_core::parallel_ops::par_chunks;
+        use scirs2_core::parallel_ops::parallel_map;
 
         // Calculate chunk boundaries
-        let mut chunk_infos = Vec::with_capacity(actual_chunks);
+        let mut chunk_infos: Vec<(usize, usize, usize)> = Vec::with_capacity(actual_chunks);
         for i in 0..actual_chunks {
             let start = i * (chunk_size - overlap);
             let end = (start + chunk_size).min(signal.len());
@@ -284,12 +284,12 @@ impl MemoryEfficientStft {
         }
 
         // Process chunks in parallel
-        let chunk_results: Vec<_> = par_chunks(&chunk_infos, |chunk_info| {
-            let (start, end, _idx) = *chunk_info;
-            let chunk_data = &signal[start..end];
-            self.stft.stft(chunk_data)
-        })
-        .collect();
+        let chunk_results: Vec<SignalResult<Array2<Complex64>>> =
+            parallel_map(&chunk_infos, |chunk_info| {
+                let (start, end, _idx) = *chunk_info;
+                let chunk_data = &signal[start..end];
+                self.stft.stft(chunk_data)
+            });
 
         // Combine results
         let total_frames = self.stft.p_max(signal.len()) - self.stft.p_min();
@@ -345,6 +345,8 @@ impl Default for MemoryEfficientStftConfig {
             memory_limit: 512, // 512 MB default
             chunk_size: None,
             chunk_overlap: 0,
+            magnitude_only: false,
+            parallel: false,
         }
     }
 }

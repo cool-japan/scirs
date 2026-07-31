@@ -22,8 +22,19 @@ pub(super) fn stirling_approximation<F: Float + FromPrimitive + std::ops::AddAss
     // To avoid overflow, compute in log space then exponentiate
     let log_gamma = stirling_approximation_ln(x);
 
-    // Enhanced overflow threshold with safety margin
-    let overflow_threshold = F::from(std::f64::MAX.ln() * 0.8).expect("Operation failed"); // More conservative threshold
+    // Overflow threshold: the log of `F`'s own largest finite value, with a
+    // small safety margin subtracted.
+    //
+    // This previously used `f64::MAX.ln() * 0.8`, which was both hardcoded to
+    // f64 (wrong for other float types) and far too conservative: the 0.8
+    // multiplier rejected roughly 20% of the valid exponent range as
+    // "overflow" even though it wasn't. For example gamma(170.5_f64) has a
+    // true value of ~5.56e305 (comfortably within f64::MAX ~1.80e308,
+    // log ~704.0), yet the old threshold (~567.8) incorrectly classified it
+    // as overflowing and returned `infinity`. The `result.is_finite()` check
+    // below is the actual overflow guard; this pre-check only needs a small
+    // margin to skip `exp()` on inputs that are unambiguously too large.
+    let overflow_threshold = F::max_value().ln() - F::from(1.0).expect("Operation failed");
 
     // Only exponentiate if it won't overflow
     if log_gamma < overflow_threshold {

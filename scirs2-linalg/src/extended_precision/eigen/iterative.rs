@@ -103,269 +103,72 @@ where
         );
 
     if use_advanced_precision {
-        advanced_precision_solver_internal(a, max_iter, adaptive_tolerance)
+        advanced_precision_solver_internal::<A, I>(a, max_iter, adaptive_tolerance)
     } else {
         // Use standard extended precision for well-conditioned matrices
         extended_eigh(a, Some(max_iter), Some(adaptive_tolerance))
     }
 }
 
-/// Internal advanced-precision solver with advanced numerical techniques
+/// Internal advanced-precision solver with advanced numerical techniques.
+///
+/// The base eigendecomposition is delegated to [`extended_eigh`] (Householder
+/// tridiagonalization plus implicit-shift QL with deflation, already proven
+/// correct and convergence-checked) rather than a from-scratch
+/// Rayleigh-quotient-iteration pipeline: the previous from-scratch pipeline's
+/// QR step (`apply_qr_step_with_shift`) never updated the off-diagonal array
+/// or the eigenvector accumulator (only nudged two diagonal entries by a
+/// tiny fraction of the shift), so it never actually converged the
+/// tridiagonal form for non-trivial matrices. On top of that proven base,
+/// this function applies genuine additional advanced-precision refinement:
+/// Newton's method eigenvalue correction against the real characteristic
+/// polynomial (evaluated via a genuine LU-based determinant, not the
+/// previous placeholder that always returned `matrix[[0, 0]]` for `n > 2`
+/// and collapsed every eigenvalue estimate onto `A[[0, 0]]`), followed by
+/// re-orthogonalization and a genuine inverse-iteration eigenvector
+/// refinement pass.
 #[allow(dead_code)]
-fn advanced_precision_solver_internal<A>(
+fn advanced_precision_solver_internal<A, I>(
     a: &ArrayView2<A>,
     max_iter: usize,
     tolerance: A,
 ) -> LinalgResult<(Array1<A>, Array2<A>)>
 where
-    A: Float + Zero + One + Copy + std::fmt::Debug + std::ops::AddAssign,
+    A: Float
+        + Zero
+        + One
+        + PromotableTo<I>
+        + DemotableTo<A>
+        + Copy
+        + std::fmt::Debug
+        + std::ops::AddAssign,
+    I: Float
+        + Zero
+        + One
+        + DemotableTo<A>
+        + Copy
+        + std::fmt::Debug
+        + std::ops::AddAssign
+        + std::ops::SubAssign
+        + std::ops::DivAssign
+        + 'static,
 {
-    let _n = a.nrows();
-
-    // Convert to high precision for computation
     let a_work = a.to_owned();
 
-    // Step 1: Enhanced Householder tridiagonalization with Kahan summation
-    let (mut d, mut e, mut q) = enhanced_tridiagonalize_with_kahan(&a_work)?;
+    // Real, proven, convergence-checked base solver.
+    let (mut d, mut q) = extended_eigh::<A, I>(a, Some(max_iter), Some(tolerance))?;
 
-    // Step 2: Multiple-stage Rayleigh quotient iteration
-    for stage in 0..3 {
-        let stage_tolerance = tolerance * A::from(10.0).expect("Operation failed").powi(-stage);
-        rayleigh_quotient_iteration(&mut d, &mut e, &mut q, max_iter / 3, stage_tolerance)?;
-    }
-
-    // Step 3: Newton's method eigenvalue correction
+    // Newton's method eigenvalue correction using the real characteristic
+    // polynomial as an additional advanced-precision refinement pass.
     newton_eigenvalue_correction(&mut d, &a_work, tolerance)?;
 
-    // Step 4: Enhanced Gram-Schmidt orthogonalization with multiple passes
+    // Re-orthogonalize after the (small) Newton-driven eigenvalue nudge.
     enhanced_gram_schmidt_orthogonalization(&mut q, 3)?;
 
-    // Step 5: Final residual verification and correction
+    // Final residual verification and (real) inverse-iteration refinement.
     final_residual_verification(&mut d, &mut q, &a_work, tolerance)?;
 
     Ok((d, q))
-}
-
-/// Enhanced tridiagonalization with Kahan summation for numerical stability
-#[allow(dead_code)]
-fn enhanced_tridiagonalize_with_kahan<A>(
-    a: &Array2<A>,
-) -> LinalgResult<(Array1<A>, Array1<A>, Array2<A>)>
-where
-    A: Float + Zero + One + Copy + std::fmt::Debug + std::ops::AddAssign,
-{
-    let n = a.nrows();
-    let mut a_work = a.clone();
-    let mut q = Array2::eye(n);
-    let mut d = Array1::zeros(n);
-    let mut e = Array1::zeros(n - 1);
-
-    for k in 0..n - 2 {
-        // Kahan summation for computing the norm
-        let mut sum = A::zero();
-        let mut c = A::zero(); // Compensation for lost low-order bits
-
-        for i in k + 1..n {
-            let y = a_work[[i, k]] * a_work[[i, k]] - c;
-            let t = sum + y;
-            c = (t - sum) - y;
-            sum = t;
-        }
-
-        let norm = sum.sqrt();
-
-        if norm <= A::epsilon() {
-            continue;
-        }
-
-        // Enhanced Householder vector computation
-        let mut v = Array1::zeros(n - k - 1);
-        let alpha = if a_work[[k + 1, k]] >= A::zero() {
-            -norm
-        } else {
-            norm
-        };
-
-        v[0] = a_work[[k + 1, k]] - alpha;
-        for i in 1..v.len() {
-            v[i] = a_work[[i + k + 1, k]];
-        }
-
-        // Normalize with Kahan summation
-        let mut v_norm_sq = A::zero();
-        let mut c = A::zero();
-        for &val in v.iter() {
-            let y = val * val - c;
-            let t = v_norm_sq + y;
-            c = (t - v_norm_sq) - y;
-            v_norm_sq = t;
-        }
-
-        let v_norm = v_norm_sq.sqrt();
-        if v_norm > A::epsilon() {
-            for val in v.iter_mut() {
-                *val = *val / v_norm;
-            }
-        }
-
-        // Apply Householder transformation with enhanced precision
-        apply_householder_transformation(&mut a_work, &v, k);
-        apply_householder_to_q(&mut q, &v, k);
-    }
-
-    // Extract diagonal and super-diagonal elements
-    for i in 0..n {
-        d[i] = a_work[[i, i]];
-        if i < n - 1 {
-            e[i] = a_work[[i, i + 1]];
-        }
-    }
-
-    Ok((d, e, q))
-}
-
-/// Apply Householder transformation with enhanced numerical stability
-#[allow(dead_code)]
-fn apply_householder_transformation<A>(a: &mut Array2<A>, v: &Array1<A>, k: usize)
-where
-    A: Float + Zero + One + Copy + std::ops::AddAssign,
-{
-    let n = a.nrows();
-    let beta = A::from(2.0).expect("Operation failed");
-
-    // Apply transformation: A = (I - beta*v*v^T) * A * (I - beta*v*v^T)
-    for j in k + 1..n {
-        let mut sum = A::zero();
-        for i in 0..v.len() {
-            sum += v[i] * a[[i + k + 1, j]];
-        }
-        sum = sum * beta;
-
-        for i in 0..v.len() {
-            a[[i + k + 1, j]] = a[[i + k + 1, j]] - sum * v[i];
-        }
-    }
-
-    for i in 0..n {
-        let mut sum = A::zero();
-        for j in 0..v.len() {
-            sum += v[j] * a[[i, j + k + 1]];
-        }
-        sum = sum * beta;
-
-        for j in 0..v.len() {
-            a[[i, j + k + 1]] = a[[i, j + k + 1]] - sum * v[j];
-        }
-    }
-}
-
-/// Apply Householder transformation to orthogonal matrix Q
-#[allow(dead_code)]
-fn apply_householder_to_q<A>(q: &mut Array2<A>, v: &Array1<A>, k: usize)
-where
-    A: Float + Zero + One + Copy + std::ops::AddAssign,
-{
-    let n = q.nrows();
-    let beta = A::from(2.0).expect("Operation failed");
-
-    for i in 0..n {
-        let mut sum = A::zero();
-        for j in 0..v.len() {
-            sum += v[j] * q[[i, j + k + 1]];
-        }
-        sum = sum * beta;
-
-        for j in 0..v.len() {
-            q[[i, j + k + 1]] = q[[i, j + k + 1]] - sum * v[j];
-        }
-    }
-}
-
-/// Multiple-stage Rayleigh quotient iteration for enhanced precision
-#[allow(dead_code)]
-fn rayleigh_quotient_iteration<A>(
-    d: &mut Array1<A>,
-    e: &mut Array1<A>,
-    q: &mut Array2<A>,
-    max_iter: usize,
-    tolerance: A,
-) -> LinalgResult<()>
-where
-    A: Float + Zero + One + Copy,
-{
-    let n = d.len();
-
-    for _iter in 0..max_iter {
-        let mut converged = true;
-
-        // Check convergence of off-diagonal elements
-        for i in 0..e.len() {
-            if e[i].abs() > tolerance * (d[i].abs() + d[i + 1].abs()) {
-                converged = false;
-                break;
-            }
-        }
-
-        if converged {
-            break;
-        }
-
-        // Apply Rayleigh quotient shift strategy
-        for i in 0..n - 1 {
-            if e[i].abs() > tolerance {
-                let shift = compute_rayleigh_quotient_shift(d[i], d[i + 1], e[i]);
-                apply_qr_step_with_shift(d, e, q, i, shift)?;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Compute optimal Rayleigh quotient shift
-#[allow(dead_code)]
-fn compute_rayleigh_quotient_shift<A>(d1: A, d2: A, e: A) -> A
-where
-    A: Float + Zero + One + Copy,
-{
-    let trace = d1 + d2;
-    let det = d1 * d2 - e * e;
-    let discriminant = trace * trace * A::from(0.25).expect("Operation failed") - det;
-
-    if discriminant >= A::zero() {
-        let sqrt_disc = discriminant.sqrt();
-        let lambda1 = trace * A::from(0.5).expect("Operation failed") + sqrt_disc;
-        let lambda2 = trace * A::from(0.5).expect("Operation failed") - sqrt_disc;
-
-        // Choose the eigenvalue closer to d2
-        if (lambda1 - d2).abs() < (lambda2 - d2).abs() {
-            lambda1
-        } else {
-            lambda2
-        }
-    } else {
-        trace * A::from(0.5).expect("Operation failed")
-    }
-}
-
-/// Apply QR step with Wilkinson shift
-#[allow(dead_code)]
-fn apply_qr_step_with_shift<A>(
-    d: &mut Array1<A>,
-    _e: &mut Array1<A>,
-    _q: &mut Array2<A>,
-    start: usize,
-    shift: A,
-) -> LinalgResult<()>
-where
-    A: Float + Zero + One + Copy,
-{
-    // Simplified QR step implementation
-    // In a full implementation, this would be the Francis QR step
-    d[start] = d[start] - shift * A::from(0.1).expect("Operation failed");
-    d[start + 1] = d[start + 1] - shift * A::from(0.1).expect("Operation failed");
-
-    Ok(())
 }
 
 /// Newton's method eigenvalue correction for final accuracy verification
@@ -421,8 +224,7 @@ where
         a_shifted[[i, i]] = a_shifted[[i, i]] - lambda;
     }
 
-    // Compute determinant (simplified - in practice would use LU decomposition)
-    Ok(compute_determinant_simple(&a_shifted))
+    Ok(compute_determinant(&a_shifted))
 }
 
 /// Compute characteristic polynomial derivative at lambda
@@ -439,22 +241,119 @@ where
     Ok((f_plus - f_minus) / (A::from(2.0).expect("Operation failed") * h))
 }
 
-/// Simple determinant computation for small matrices
-#[allow(dead_code)]
-fn compute_determinant_simple<A>(matrix: &Array2<A>) -> A
+/// Determinant of a general square matrix via Gaussian elimination with
+/// partial pivoting (`O(n^3)`, real for every `n`, unlike the previous
+/// placeholder which returned `matrix[[0, 0]]` for any `n > 2`).
+// `A` only has `Copy` here (not `NumAssign`), so `x = x op y` (rather than
+// `x op= y`) is used deliberately throughout this function.
+#[allow(dead_code, clippy::assign_op_pattern)]
+fn compute_determinant<A>(matrix: &Array2<A>) -> A
 where
     A: Float + Zero + One + Copy,
 {
     let n = matrix.nrows();
+    let mut m = matrix.clone();
+    let mut det = A::one();
 
-    if n == 1 {
-        matrix[[0, 0]]
-    } else if n == 2 {
-        matrix[[0, 0]] * matrix[[1, 1]] - matrix[[0, 1]] * matrix[[1, 0]]
-    } else {
-        // For larger matrices, use cofactor expansion (simplified)
-        matrix[[0, 0]] // Placeholder - would implement full expansion
+    for col in 0..n {
+        // Partial pivoting: find the largest-magnitude entry in this column.
+        let mut pivot_row = col;
+        let mut pivot_val = m[[col, col]].abs();
+        for row in (col + 1)..n {
+            let val = m[[row, col]].abs();
+            if val > pivot_val {
+                pivot_val = val;
+                pivot_row = row;
+            }
+        }
+
+        if pivot_val <= A::epsilon() {
+            // Singular (or numerically singular): determinant is zero.
+            return A::zero();
+        }
+
+        if pivot_row != col {
+            for k in 0..n {
+                let tmp = m[[col, k]];
+                m[[col, k]] = m[[pivot_row, k]];
+                m[[pivot_row, k]] = tmp;
+            }
+            det = -det; // A row swap flips the sign of the determinant.
+        }
+
+        let pivot = m[[col, col]];
+        det = det * pivot;
+
+        for row in (col + 1)..n {
+            let factor = m[[row, col]] / pivot;
+            for k in col..n {
+                m[[row, k]] = m[[row, k]] - factor * m[[col, k]];
+            }
+        }
     }
+
+    det
+}
+
+/// Solve `a x = b` via Gaussian elimination with partial pivoting. Returns
+/// `None` if `a` is (numerically) singular.
+// `A` only has `Copy` here (not `NumAssign`), so `x = x op y` is used
+// deliberately throughout this function.
+#[allow(clippy::assign_op_pattern)]
+fn solve_linear_system_partial_pivot<A>(a: &Array2<A>, b: &Array1<A>) -> Option<Array1<A>>
+where
+    A: Float + Zero + One + Copy,
+{
+    let n = a.nrows();
+    let mut m = a.clone();
+    let mut rhs = b.clone();
+
+    for col in 0..n {
+        let mut pivot_row = col;
+        let mut pivot_val = m[[col, col]].abs();
+        for row in (col + 1)..n {
+            let val = m[[row, col]].abs();
+            if val > pivot_val {
+                pivot_val = val;
+                pivot_row = row;
+            }
+        }
+
+        if pivot_val <= A::epsilon() {
+            return None;
+        }
+
+        if pivot_row != col {
+            for k in 0..n {
+                let tmp = m[[col, k]];
+                m[[col, k]] = m[[pivot_row, k]];
+                m[[pivot_row, k]] = tmp;
+            }
+            let tmp = rhs[col];
+            rhs[col] = rhs[pivot_row];
+            rhs[pivot_row] = tmp;
+        }
+
+        let pivot = m[[col, col]];
+        for row in (col + 1)..n {
+            let factor = m[[row, col]] / pivot;
+            for k in col..n {
+                m[[row, k]] = m[[row, k]] - factor * m[[col, k]];
+            }
+            rhs[row] = rhs[row] - factor * rhs[col];
+        }
+    }
+
+    let mut x = Array1::<A>::zeros(n);
+    for i in (0..n).rev() {
+        let mut sum = rhs[i];
+        for j in (i + 1)..n {
+            sum = sum - m[[i, j]] * x[j];
+        }
+        x[i] = sum / m[[i, i]];
+    }
+
+    Some(x)
 }
 
 /// Enhanced Gram-Schmidt orthogonalization with multiple passes
@@ -549,22 +448,63 @@ where
     Ok(())
 }
 
-/// Inverse iteration for eigenvector refinement
-#[allow(dead_code)]
+/// Inverse iteration for eigenvector refinement: solves
+/// `(A - (lambda + eps) I) v_new = v_old` (via Gaussian elimination with
+/// partial pivoting) and normalizes, which is the standard technique for
+/// polishing an eigenvector once its eigenvalue is already an accurate
+/// estimate. The tiny `eps` shift keeps the system solvable in floating
+/// point while still concentrating the solve onto the eigenvector
+/// direction. Leaves `eigenvectors` untouched if the shifted system is
+/// (numerically) exactly singular, rather than corrupting the previous
+/// estimate.
+// `A` only has `Copy` here (not `NumAssign`), so `x = x op y` is used
+// deliberately throughout this function.
+#[allow(dead_code, clippy::assign_op_pattern)]
 fn inverse_iteration_refinement<A>(
     eigenvectors: &mut Array2<A>,
     matrix: &Array2<A>,
-    _eigenvalue: A,
+    eigenvalue: A,
     col_index: usize,
 ) -> LinalgResult<()>
 where
     A: Float + Zero + One + Copy,
 {
-    // Simplified inverse iteration - would implement full solver in practice
     let n = matrix.nrows();
+    let eps = A::epsilon() * (A::one() + eigenvalue.abs());
+    let shift = eigenvalue + eps;
+
+    let mut shifted = matrix.clone();
     for i in 0..n {
-        eigenvectors[[i, col_index]] =
-            eigenvectors[[i, col_index]] * A::from(1.001).expect("Operation failed");
+        shifted[[i, i]] = shifted[[i, i]] - shift;
+    }
+
+    let v_old: Array1<A> = eigenvectors.column(col_index).to_owned();
+
+    if let Some(mut v_new) = solve_linear_system_partial_pivot(&shifted, &v_old) {
+        let mut norm_sq = A::zero();
+        for &val in v_new.iter() {
+            norm_sq = norm_sq + val * val;
+        }
+        let norm = norm_sq.sqrt();
+        if norm > A::epsilon() {
+            for val in v_new.iter_mut() {
+                *val = *val / norm;
+            }
+
+            // Keep the orientation closest to the previous estimate so
+            // repeated refinement passes don't flip sign back and forth.
+            let mut dot = A::zero();
+            for i in 0..n {
+                dot = dot + v_new[i] * v_old[i];
+            }
+            if dot < A::zero() {
+                for val in v_new.iter_mut() {
+                    *val = -*val;
+                }
+            }
+
+            eigenvectors.column_mut(col_index).assign(&v_new);
+        }
     }
 
     Ok(())
@@ -747,6 +687,123 @@ where
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_compute_determinant_matches_known_value_3x3() {
+        // det([[1,2,3],[4,5,6],[7,8,10]]) = -3 (hand-computable via cofactor
+        // expansion). The old placeholder returned `matrix[[0,0]] == 1` for
+        // any n > 2, which is wrong here.
+        let m = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 10.0]];
+        let det = compute_determinant(&m);
+        assert!((det - (-3.0)).abs() < 1e-9, "expected det=-3, got {det}");
+        assert!(
+            (det - m[[0, 0]]).abs() > 1.0,
+            "must not collapse to matrix[[0,0]]"
+        );
+    }
+
+    #[test]
+    fn test_compute_determinant_matches_known_value_4x4_block_diagonal() {
+        // Block-diagonal 4x4: det = det(block1) * det(block2) = 5 * 18 = 90.
+        let m = array![
+            [2.0_f64, 1.0, 0.0, 0.0],
+            [1.0, 3.0, 0.0, 0.0],
+            [0.0, 0.0, 4.0, 2.0],
+            [0.0, 0.0, 1.0, 5.0]
+        ];
+        let det = compute_determinant(&m);
+        assert!((det - 90.0).abs() < 1e-9, "expected det=90, got {det}");
+        assert!(
+            (det - m[[0, 0]]).abs() > 1.0,
+            "must not collapse to matrix[[0,0]]"
+        );
+    }
+
+    #[test]
+    fn test_newton_eigenvalue_correction_does_not_collapse_eigenvalues() {
+        // Directly exercises the previously-critical bug: with the fake
+        // determinant, ANY starting eigenvalue estimate collapsed to
+        // `matrix[[0,0]]` after one Newton step. With a real determinant,
+        // eigenvalue estimates that are already close to the true spectrum
+        // {1, 2, 3} must stay close to it, not collapse onto matrix[[0,0]]=6.
+        let a = array![[6.0_f64, -11.0, 6.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        // NOTE: this matrix is non-symmetric; we only use it here to exercise
+        // `newton_eigenvalue_correction`'s own characteristic-polynomial
+        // machinery directly against a matrix whose eigenvalues (1, 2, 3)
+        // are hand-computable, independent of `advanced_precision_eigh`'s
+        // symmetric-only pipeline.
+        let mut eigenvalues = scirs2_core::ndarray::Array1::from(vec![1.01_f64, 1.99, 3.02]);
+        newton_eigenvalue_correction(&mut eigenvalues, &a, 1e-10).expect("Newton step failed");
+
+        let mut sorted: Vec<f64> = eigenvalues.iter().copied().collect();
+        sorted.sort_by(|x, y| x.partial_cmp(y).expect("no NaNs"));
+        assert!(
+            (sorted[0] - 1.0).abs() < 1e-6,
+            "expected ~1.0, got {}",
+            sorted[0]
+        );
+        assert!(
+            (sorted[1] - 2.0).abs() < 1e-6,
+            "expected ~2.0, got {}",
+            sorted[1]
+        );
+        assert!(
+            (sorted[2] - 3.0).abs() < 1e-6,
+            "expected ~3.0, got {}",
+            sorted[2]
+        );
+    }
+
+    #[test]
+    fn test_advanced_precision_eigh_nondiagonal_small_eigenvalues() {
+        // Genuinely non-diagonal symmetric matrix (scaled path-graph
+        // Laplacian) with known, well-separated, small analytic eigenvalues
+        // 0.01*(2 - 2*cos(k*pi/4)) for k=1,2,3: ~0.005858, 0.02, 0.034142.
+        // Small magnitudes keep the Newton-correction finite-difference step
+        // (h=1e-8) numerically meaningful in f32.
+        let a = array![
+            [0.02_f32, -0.01, 0.0],
+            [-0.01, 0.02, -0.01],
+            [0.0, -0.01, 0.02]
+        ];
+        let (eigenvalues, eigenvectors) =
+            advanced_precision_eigh::<_, f64>(&a.view(), None, None, true)
+                .expect("Operation failed");
+
+        let mut sorted: Vec<f32> = eigenvalues.iter().copied().collect();
+        sorted.sort_by(|x, y| x.partial_cmp(y).expect("no NaNs"));
+        assert!(
+            (sorted[0] - 0.005858).abs() < 1e-3,
+            "expected ~0.005858, got {}",
+            sorted[0]
+        );
+        assert!(
+            (sorted[1] - 0.02).abs() < 1e-3,
+            "expected ~0.02, got {}",
+            sorted[1]
+        );
+        assert!(
+            (sorted[2] - 0.034142).abs() < 1e-3,
+            "expected ~0.034142, got {}",
+            sorted[2]
+        );
+        // The three eigenvalues must be genuinely distinct (a collapse bug
+        // would drive them all toward the same value).
+        assert!((sorted[1] - sorted[0]).abs() > 1e-4);
+        assert!((sorted[2] - sorted[1]).abs() > 1e-4);
+
+        // A v ~= lambda v for every reported eigenpair.
+        for col in 0..3 {
+            let lambda = eigenvalues[col];
+            for row in 0..3 {
+                let av: f32 = (0..3).map(|k| a[[row, k]] * eigenvectors[[k, col]]).sum();
+                assert!(
+                    (av - lambda * eigenvectors[[row, col]]).abs() < 1e-3,
+                    "A*v != lambda*v at col {col} row {row}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn test_advanced_precision_eigh() {

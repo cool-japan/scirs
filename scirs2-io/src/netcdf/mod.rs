@@ -24,6 +24,8 @@ use std::path::Path;
 use crate::error::{IoError, Result};
 use crate::hdf5::{AttributeValue as HDF5AttributeValue, FileMode as HDF5FileMode, HDF5File};
 
+mod classic_backend;
+
 /// NetCDF data type mapping
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NetCDFDataType {
@@ -55,7 +57,6 @@ pub enum NetCDFFormat {
 /// NetCDF file containing dimensions, variables, and attributes
 pub struct NetCDFFile {
     /// File path
-    #[allow(dead_code)]
     path: String,
     /// File mode ('r' for read, 'w' for write)
     mode: String,
@@ -63,12 +64,26 @@ pub struct NetCDFFile {
     format: NetCDFFormat,
     /// Dimensions defined in the file
     dimensions: HashMap<String, Option<usize>>,
+    /// Order in which dimensions were declared. `HashMap` does not preserve
+    /// insertion order, but the Classic NetCDF3 on-disk format assigns each
+    /// dimension an implicit `dimid` from its declaration order, so this is
+    /// needed to serialize/deserialize Classic files deterministically.
+    dim_order: Vec<String>,
     /// Variables defined in the file
     variables: HashMap<String, VariableInfo>,
+    /// Order in which variables were declared (see `dim_order`).
+    var_order: Vec<String>,
     /// Global attributes
     attributes: HashMap<String, AttributeValue>,
+    /// Order in which global attributes were declared (see `dim_order`).
+    attr_order: Vec<String>,
     /// HDF5 backend (for NetCDF4 support)
     hdf5_backend: Option<HDF5File>,
+    /// Buffered/parsed variable data for Classic NetCDF3 format: populated by
+    /// `write_variable` (pending a flush to disk) and by `open` when reading
+    /// an existing Classic file. Unused for the NetCDF4/HDF5 backend, which
+    /// stores and reads data through `hdf5_backend` directly.
+    classic_data: HashMap<String, classic_backend::ClassicVarData>,
 }
 
 /// Information about a variable
@@ -83,6 +98,9 @@ struct VariableInfo {
     dimensions: Vec<String>,
     /// Attributes of the variable
     attributes: HashMap<String, AttributeValue>,
+    /// Order in which this variable's attributes were declared (see
+    /// `NetCDFFile::dim_order`).
+    attr_order: Vec<String>,
 }
 
 /// Value of an attribute
@@ -183,6 +201,12 @@ impl NetCDFFile {
             return Err(IoError::FileError(format!("File not found: {}", path_str)));
         }
 
+        // Classic NetCDF3 read mode: actually parse the on-disk file (magic, header,
+        // and data sections) rather than starting from an empty in-memory structure.
+        if opts.format == NetCDFFormat::Classic && opts.mode == "r" {
+            return classic_backend::open_classic(&path_str);
+        }
+
         // Initialize HDF5 backend for NetCDF4 formats
         let hdf5_backend = if opts.format == NetCDFFormat::NetCDF4
             || opts.format == NetCDFFormat::NetCDF4Classic
@@ -196,16 +220,20 @@ impl NetCDFFile {
             None
         };
 
-        // Create an empty NetCDF file structure
-        // In a real implementation, this would parse an actual NetCDF file
+        // Create an empty NetCDF file structure (write mode: data is buffered and
+        // flushed to disk by `sync`/`close`).
         Ok(Self {
             path: path_str,
             mode: opts.mode,
             format: opts.format,
             dimensions: HashMap::new(),
+            dim_order: Vec::new(),
             variables: HashMap::new(),
+            var_order: Vec::new(),
             attributes: HashMap::new(),
+            attr_order: Vec::new(),
             hdf5_backend,
+            classic_data: HashMap::new(),
         })
     }
 
@@ -263,9 +291,13 @@ impl NetCDFFile {
             mode: opts.mode,
             format: opts.format,
             dimensions: HashMap::new(),
+            dim_order: Vec::new(),
             variables: HashMap::new(),
+            var_order: Vec::new(),
             attributes: HashMap::new(),
+            attr_order: Vec::new(),
             hdf5_backend,
+            classic_data: HashMap::new(),
         })
     }
 
@@ -287,6 +319,9 @@ impl NetCDFFile {
         }
 
         self.dimensions.insert(name.to_string(), size);
+        if !self.dim_order.iter().any(|d| d == name) {
+            self.dim_order.push(name.to_string());
+        }
 
         // For NetCDF4/HDF5 backend, create dimension in HDF5 file
         if let Some(ref mut hdf5) = self.hdf5_backend {
@@ -342,9 +377,13 @@ impl NetCDFFile {
             data_type,
             dimensions: dimensions.iter().map(|&s| s.to_string()).collect(),
             attributes: HashMap::new(),
+            attr_order: Vec::new(),
         };
 
         self.variables.insert(name.to_string(), var_info);
+        if !self.var_order.iter().any(|v| v == name) {
+            self.var_order.push(name.to_string());
+        }
 
         // For NetCDF4/HDF5 backend, prepare variable metadata
         if let Some(ref mut hdf5) = self.hdf5_backend {
@@ -377,8 +416,11 @@ impl NetCDFFile {
     ///
     /// # Note
     ///
-    /// This is a placeholder implementation. In a real implementation,
-    /// this would read actual data from a NetCDF file.
+    /// For a variable that was declared (via `create_variable`) but never
+    /// written and never read back from an on-disk file, this returns an
+    /// array filled with the variable type's standard NetCDF fill value
+    /// (e.g. `NC_FILL_DOUBLE`), matching real NetCDF semantics for unwritten
+    /// data -- not zero.
     pub fn read_variable<T: Clone + Default + 'static>(&self, name: &str) -> Result<ArrayD<T>> {
         if self.mode != "r" {
             return Err(IoError::ValidationError(
@@ -415,10 +457,23 @@ impl NetCDFFile {
                 .map_err(|e| IoError::FormatError(format!("Failed to create array: {}", e)));
         }
 
-        // Create a default array (placeholder implementation for Classic NetCDF3)
-        let total_size = shape.iter().product();
-        let data = vec![T::default(); total_size];
+        // Classic NetCDF3: return the real, previously-written or parsed-from-disk data.
+        if let Some(buf) = self.classic_data.get(name) {
+            let array_f64 = Array::from_shape_vec(buf.shape.clone(), buf.values.clone())
+                .map_err(|e| IoError::FormatError(format!("Failed to create array: {}", e)))?;
+            let data: Vec<T> = self.convert_data_type(&array_f64)?;
+            return Array::from_shape_vec(buf.shape.clone(), data)
+                .map_err(|e| IoError::FormatError(format!("Failed to create array: {}", e)));
+        }
 
+        // Variable declared but never written: return the standard NetCDF fill value
+        // for its type (matches real NetCDF semantics for unwritten data; NOT zero).
+        let fill = classic_backend::fill_value_f64(var_info.data_type);
+        let total_size = shape.iter().product();
+        let fill_f64 = vec![fill; total_size];
+        let array_f64 = Array::from_shape_vec(shape.clone(), fill_f64)
+            .map_err(|e| IoError::FormatError(format!("Failed to create array: {}", e)))?;
+        let data: Vec<T> = self.convert_data_type(&array_f64)?;
         Array::from_shape_vec(shape, data)
             .map_err(|e| IoError::FormatError(format!("Failed to create array: {}", e)))
     }
@@ -488,11 +543,58 @@ impl NetCDFFile {
                     // In a full implementation, we'd add the compression attributes to the dataset
                 }
             }
-        } else {
-            // For Classic NetCDF3, this would write to NetCDF file
-            // Placeholder implementation - would write to actual file
+        } else if self.format == NetCDFFormat::Classic {
+            self.write_variable_classic(name, data)?;
         }
 
+        Ok(())
+    }
+
+    /// Buffers `data` for a Classic NetCDF3 variable, validating its shape
+    /// against the variable's declared (fixed-size) dimensions. The unlimited
+    /// dimension, if the variable uses one, accepts any size: that becomes
+    /// this write's contribution to the file's overall record count, computed
+    /// when the file is actually flushed to disk (see `sync`/`close`).
+    fn write_variable_classic<T: Clone + Into<f64>, D: Dimension>(
+        &mut self,
+        name: &str,
+        data: &Array<T, D>,
+    ) -> Result<()> {
+        let dim_names = self
+            .variables
+            .get(name)
+            .ok_or_else(|| IoError::ValidationError(format!("Variable '{}' not defined", name)))?
+            .dimensions
+            .clone();
+
+        let shape = data.shape().to_vec();
+        if shape.len() != dim_names.len() {
+            return Err(IoError::ValidationError(format!(
+                "Variable '{}' expects {} dimension(s), got {}",
+                name,
+                dim_names.len(),
+                shape.len()
+            )));
+        }
+        for (axis, dim_name) in dim_names.iter().enumerate() {
+            if let Some(fixed_size) = self.dimensions.get(dim_name).copied().flatten() {
+                if shape[axis] != fixed_size {
+                    return Err(IoError::ValidationError(format!(
+                        "Variable '{}' dimension '{}' expects size {}, got {}",
+                        name, dim_name, fixed_size, shape[axis]
+                    )));
+                }
+            }
+            // `None` means `dim_name` is the unlimited/record dimension: any size is
+            // accepted here (validated to be its own consistent dimension index by
+            // `netcdf3::DataSet::add_var` when the file is flushed).
+        }
+
+        let values: Vec<f64> = data.iter().cloned().map(Into::into).collect();
+        self.classic_data.insert(
+            name.to_string(),
+            classic_backend::ClassicVarData { values, shape },
+        );
         Ok(())
     }
 
@@ -527,6 +629,9 @@ impl NetCDFFile {
             attr_name.to_string(),
             AttributeValue::String(value.to_string()),
         );
+        if !var_info.attr_order.iter().any(|a| a == attr_name) {
+            var_info.attr_order.push(attr_name.to_string());
+        }
 
         Ok(())
     }
@@ -592,12 +697,22 @@ impl NetCDFFile {
                         Box::new(x)
                     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
                         Box::new(x as f32)
+                    } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<i64>() {
+                        Box::new(x as i64)
                     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<i32>() {
                         Box::new(x as i32)
                     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<i16>() {
                         Box::new(x as i16)
                     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<i8>() {
                         Box::new(x as i8)
+                    } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u64>() {
+                        Box::new(x as u64)
+                    } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u32>() {
+                        Box::new(x as u32)
+                    } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u16>() {
+                        Box::new(x as u16)
+                    } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u8>() {
+                        Box::new(x as u8)
                     } else {
                         // Fallback for unsupported types
                         return T::default();
@@ -711,6 +826,9 @@ impl NetCDFFile {
 
         self.attributes
             .insert(name.to_string(), AttributeValue::String(value.to_string()));
+        if !self.attr_order.iter().any(|a| a == name) {
+            self.attr_order.push(name.to_string());
+        }
 
         Ok(())
     }
@@ -876,8 +994,9 @@ impl NetCDFFile {
     pub fn sync(&mut self) -> Result<()> {
         if let Some(ref mut hdf5) = self.hdf5_backend {
             hdf5.write()?;
+        } else if self.format == NetCDFFormat::Classic && self.mode == "w" {
+            classic_backend::flush_classic(self)?;
         }
-        // For Classic NetCDF3, would sync to actual file
         Ok(())
     }
 
@@ -1141,7 +1260,12 @@ mod tests {
         let test_file = temp_dir.join(format!("test_read_write_{}.nc", std::process::id()));
         let test_path = test_file.to_str().expect("path should be valid UTF-8");
 
-        // Test writing functionality
+        // Non-constant data: an all-zero/all-same array could "round-trip correctly"
+        // even through a fabricating stub, so use distinct values everywhere.
+        let written =
+            Array2::<f32>::from_shape_vec((3, 2), vec![1.5, -2.25, 100.0, -0.125, 42.75, -7.0])
+                .expect("Operation failed");
+
         let mut file = NetCDFFile::create(test_path).expect("Operation failed");
         file.create_dimension("x", Some(3))
             .expect("Operation failed");
@@ -1149,50 +1273,378 @@ mod tests {
             .expect("Operation failed");
         file.create_variable("data", NetCDFDataType::Float, &["x", "y"])
             .expect("Operation failed");
-
-        // Test writing data (placeholder implementation just validates)
-        let data = Array2::<f32>::zeros((3, 2));
-        file.write_variable("data", &data)
+        file.write_variable("data", &written)
             .expect("Operation failed");
+        file.close().expect("Operation failed");
 
-        drop(file);
-        let _ = std::fs::remove_file(&test_file);
+        // Reopen the file completely fresh (a brand new `NetCDFFile`, parsed from the
+        // bytes on disk) and confirm both metadata and data survived the round trip.
+        let reopened = NetCDFFile::open(test_path, None).expect("Operation failed");
+        assert_eq!(
+            *reopened.dimensions().get("x").expect("Operation failed"),
+            Some(3)
+        );
+        assert_eq!(
+            *reopened.dimensions().get("y").expect("Operation failed"),
+            Some(2)
+        );
+        assert!(reopened.variables().contains(&"data".to_string()));
 
-        // Since this is a placeholder implementation that doesn't persist,
-        // we can't test actual reading from a written file.
-        // Instead, test reading functionality with a mock setup by creating
-        // a file in write mode and then changing its mode
-        let read_test_file_path = temp_dir.join(format!("test_read_{}.nc", std::process::id()));
-        let read_test_path = read_test_file_path
-            .to_str()
-            .expect("path should be valid UTF-8");
-
-        let mut read_test_file = NetCDFFile::create(read_test_path).expect("Operation failed");
-
-        // Change mode to read for testing
-        read_test_file.mode = "r".to_string();
-
-        // Manually set up the file structure for testing read
-        read_test_file.dimensions.insert("x".to_string(), Some(3));
-        read_test_file.dimensions.insert("y".to_string(), Some(2));
-        read_test_file.variables.insert(
-            "data".to_string(),
-            VariableInfo {
-                name: "data".to_string(),
-                data_type: NetCDFDataType::Float,
-                dimensions: vec!["x".to_string(), "y".to_string()],
-                attributes: HashMap::new(),
-            },
+        let read_data: ArrayD<f32> = reopened.read_variable("data").expect("Operation failed");
+        assert_eq!(read_data.shape(), &[3, 2]);
+        assert_eq!(
+            read_data.iter().copied().collect::<Vec<_>>(),
+            written.iter().copied().collect::<Vec<_>>()
         );
 
-        // Now test reading
-        let read_data: ArrayD<f32> = read_test_file
-            .read_variable("data")
-            .expect("Operation failed");
-        assert_eq!(read_data.shape(), &[3, 2]);
+        drop(reopened);
+        let _ = std::fs::remove_file(&test_file);
+    }
 
-        drop(read_test_file);
-        let _ = std::fs::remove_file(read_test_file_path);
+    #[test]
+    fn test_classic_roundtrip_multiple_types_and_attributes() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join(format!(
+            "test_multi_type_roundtrip_{}.nc",
+            std::process::id()
+        ));
+        let test_path = test_file.to_str().expect("path should be valid UTF-8");
+
+        let byte_data =
+            Array::from_shape_vec(vec![4], vec![-120i8, -5, 3, 119]).expect("Operation failed");
+        let short_data = Array::from_shape_vec(vec![4], vec![-30000i16, -1, 12345, 32000])
+            .expect("Operation failed");
+        let int_data = Array::from_shape_vec(
+            vec![4],
+            vec![-2_000_000_000i32, -1, 123_456_789, 2_000_000_000],
+        )
+        .expect("Operation failed");
+        let float_data = Array::from_shape_vec(vec![4], vec![-1.5f32, 0.25, 3.75, -100_000.125])
+            .expect("Operation failed");
+        let double_data = Array::from_shape_vec(
+            vec![4],
+            vec![-1.234_567_89e10_f64, 5.918_37, -0.000_123, 42.0],
+        )
+        .expect("Operation failed");
+
+        let mut file = NetCDFFile::create(test_path).expect("Operation failed");
+        file.create_dimension("n", Some(4))
+            .expect("Operation failed");
+        file.create_variable("b", NetCDFDataType::Byte, &["n"])
+            .expect("Operation failed");
+        file.create_variable("s", NetCDFDataType::Short, &["n"])
+            .expect("Operation failed");
+        file.create_variable("i", NetCDFDataType::Int, &["n"])
+            .expect("Operation failed");
+        file.create_variable("f", NetCDFDataType::Float, &["n"])
+            .expect("Operation failed");
+        file.create_variable("d", NetCDFDataType::Double, &["n"])
+            .expect("Operation failed");
+
+        file.add_global_attribute("title", "multi-type roundtrip")
+            .expect("Operation failed");
+        file.add_variable_attribute("d", "units", "meters")
+            .expect("Operation failed");
+
+        file.write_variable("b", &byte_data)
+            .expect("Operation failed");
+        file.write_variable("s", &short_data)
+            .expect("Operation failed");
+        file.write_variable("i", &int_data)
+            .expect("Operation failed");
+        file.write_variable("f", &float_data)
+            .expect("Operation failed");
+        file.write_variable("d", &double_data)
+            .expect("Operation failed");
+        file.close().expect("Operation failed");
+
+        let reopened = NetCDFFile::open(test_path, None).expect("Operation failed");
+
+        let read_b: ArrayD<i8> = reopened.read_variable("b").expect("Operation failed");
+        let read_s: ArrayD<i16> = reopened.read_variable("s").expect("Operation failed");
+        let read_i: ArrayD<i32> = reopened.read_variable("i").expect("Operation failed");
+        let read_f: ArrayD<f32> = reopened.read_variable("f").expect("Operation failed");
+        let read_d: ArrayD<f64> = reopened.read_variable("d").expect("Operation failed");
+
+        assert_eq!(
+            read_b.iter().copied().collect::<Vec<_>>(),
+            byte_data.iter().copied().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            read_s.iter().copied().collect::<Vec<_>>(),
+            short_data.iter().copied().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            read_i.iter().copied().collect::<Vec<_>>(),
+            int_data.iter().copied().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            read_f.iter().copied().collect::<Vec<_>>(),
+            float_data.iter().copied().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            read_d.iter().copied().collect::<Vec<_>>(),
+            double_data.iter().copied().collect::<Vec<_>>()
+        );
+
+        let global_attrs = reopened.global_attributes();
+        assert_eq!(
+            global_attrs.get("title"),
+            Some(&"multi-type roundtrip".to_string())
+        );
+
+        let (dtype, dims, var_attrs) = reopened.variable_info("d").expect("Operation failed");
+        assert_eq!(dtype, NetCDFDataType::Double);
+        assert_eq!(dims, vec!["n".to_string()]);
+        assert_eq!(var_attrs.get("units"), Some(&"meters".to_string()));
+
+        drop(reopened);
+        let _ = std::fs::remove_file(test_file);
+    }
+
+    #[test]
+    fn test_classic_roundtrip_record_variable() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join(format!(
+            "test_record_var_roundtrip_{}.nc",
+            std::process::id()
+        ));
+        let test_path = test_file.to_str().expect("path should be valid UTF-8");
+
+        let num_records = 4usize;
+        let per_record = 3usize;
+        let values: Vec<f64> = (0..num_records * per_record)
+            .map(|k| {
+                let i = (k / per_record) as f64;
+                let j = (k % per_record) as f64;
+                i * 10.5 - j * 0.25 + 1.0
+            })
+            .collect();
+        let written = Array::from_shape_vec(vec![num_records, per_record], values.clone())
+            .expect("Operation failed");
+
+        let mut file = NetCDFFile::create(test_path).expect("Operation failed");
+        file.create_dimension("time", None)
+            .expect("Operation failed");
+        file.create_dimension("loc", Some(per_record))
+            .expect("Operation failed");
+        file.create_variable("temp", NetCDFDataType::Double, &["time", "loc"])
+            .expect("Operation failed");
+        file.write_variable("temp", &written)
+            .expect("Operation failed");
+        file.close().expect("Operation failed");
+
+        let reopened = NetCDFFile::open(test_path, None).expect("Operation failed");
+        // The unlimited dimension is reported as `None` (its declared size), matching
+        // the public API convention; the concrete record count is only observable
+        // through the data shape.
+        assert_eq!(
+            *reopened.dimensions().get("time").expect("Operation failed"),
+            None
+        );
+
+        let read_temp: ArrayD<f64> = reopened.read_variable("temp").expect("Operation failed");
+        assert_eq!(read_temp.shape(), &[num_records, per_record]);
+        assert_eq!(read_temp.iter().copied().collect::<Vec<_>>(), values);
+
+        drop(reopened);
+        let _ = std::fs::remove_file(test_file);
+    }
+
+    #[test]
+    fn test_classic_mixed_fixed_and_record_vars_no_corruption() {
+        // Regression test: a fixed-size variable that is declared but never written,
+        // in a dataset that ALSO has a fully-written record variable, must not
+        // corrupt that record variable's data. `flush_classic` must always write
+        // fixed-size variables explicitly rather than leaving them for
+        // `netcdf3::FileWriter::close()`'s auto-fill -- verified empirically to
+        // otherwise fill them using the dataset's record stride instead of a single
+        // copy at their own offset, overwriting whatever data follows (see
+        // `classic_backend` module docs).
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join(format!("test_mixed_fixed_record_{}.nc", std::process::id()));
+        let test_path = test_file.to_str().expect("path should be valid UTF-8");
+
+        let time_values = vec![111.25_f64, -222.5, 333.75];
+
+        let mut file = NetCDFFile::create(test_path).expect("Operation failed");
+        file.create_dimension("time", None)
+            .expect("Operation failed");
+        file.create_dimension("loc", Some(2))
+            .expect("Operation failed");
+        // Declared but intentionally NEVER written:
+        file.create_variable("fixedvar", NetCDFDataType::Double, &["loc"])
+            .expect("Operation failed");
+        file.create_variable("timevar", NetCDFDataType::Double, &["time"])
+            .expect("Operation failed");
+
+        let written =
+            Array::from_shape_vec(vec![3], time_values.clone()).expect("Operation failed");
+        file.write_variable("timevar", &written)
+            .expect("Operation failed");
+        file.close().expect("Operation failed");
+
+        let reopened = NetCDFFile::open(test_path, None).expect("Operation failed");
+        let read_time: ArrayD<f64> = reopened.read_variable("timevar").expect("Operation failed");
+        assert_eq!(
+            read_time.iter().copied().collect::<Vec<_>>(),
+            time_values,
+            "fixedvar being left unwritten must not corrupt timevar's already-written data"
+        );
+
+        let read_fixed: ArrayD<f64> = reopened
+            .read_variable("fixedvar")
+            .expect("Operation failed");
+        assert_eq!(read_fixed.shape(), &[2]);
+        assert!(read_fixed.iter().all(|&x| x == netcdf3::NC_FILL_F64));
+
+        drop(reopened);
+        let _ = std::fs::remove_file(test_file);
+    }
+
+    #[test]
+    fn test_classic_header_golden_bytes() {
+        // Golden-byte test: verifies the exact on-disk NetCDF-3 classic byte layout
+        // (magic/version, tag constants, name/attribute/variable encoding, padding,
+        // and `begin` offset arithmetic) against an independently hand-derived
+        // expectation, rather than merely checking that our own reader agrees with
+        // our own writer (which a consistently-wrong implementation could still
+        // pass).
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join(format!("test_golden_bytes_{}.nc", std::process::id()));
+        let test_path = test_file.to_str().expect("path should be valid UTF-8");
+
+        let mut file = NetCDFFile::create(test_path).expect("Operation failed");
+        file.create_dimension("x", Some(2))
+            .expect("Operation failed");
+        file.create_variable("v", NetCDFDataType::Double, &["x"])
+            .expect("Operation failed");
+        let data =
+            Array::from_shape_vec(vec![2], vec![3.5_f64, -2.25_f64]).expect("Operation failed");
+        file.write_variable("v", &data).expect("Operation failed");
+        file.close().expect("Operation failed");
+
+        let bytes = std::fs::read(&test_file).expect("Operation failed");
+
+        #[rustfmt::skip]
+        let expected: Vec<u8> = vec![
+            // magic + version (CDF-1 classic)
+            0x43, 0x44, 0x46, 0x01,
+            // numrecs = 0 (no unlimited dimension in this dataset)
+            0x00, 0x00, 0x00, 0x00,
+            // dim_list: NC_DIMENSION tag, nelems=1
+            0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x01,
+            //   dim "x": name (len=1,'x',pad3), dim_length=2
+            0x00, 0x00, 0x00, 0x01, 0x78, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x02,
+            // gatt_list: ABSENT
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            // var_list: NC_VARIABLE tag, nelems=1
+            0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x01,
+            //   var "v": name (len=1,'v',pad3)
+            0x00, 0x00, 0x00, 0x01, 0x76, 0x00, 0x00, 0x00,
+            //   ndims=1, dimid=0
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+            //   vatt_list: ABSENT
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            //   nc_type=NC_DOUBLE(6), vsize=16, begin=80
+            0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x10,
+            0x00, 0x00, 0x00, 0x50,
+            // data: 3.5f64, -2.25f64 (big-endian)
+            0x40, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0xc0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+
+        assert_eq!(bytes, expected);
+
+        let _ = std::fs::remove_file(test_file);
+    }
+
+    #[test]
+    fn test_classic_read_invalid_file_errors() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join(format!("test_invalid_nc3_{}.nc", std::process::id()));
+        std::fs::write(&test_file, b"not a netcdf file at all, just garbage bytes")
+            .expect("Operation failed");
+
+        let result = NetCDFFile::open(&test_file, None);
+        assert!(result.is_err());
+
+        let _ = std::fs::remove_file(test_file);
+    }
+
+    #[test]
+    fn test_classic_scalar_variable_with_no_unlimited_dim() {
+        // Regression test for an edge case in the record/fixed-variable
+        // classification: a 0-dimensional (scalar) variable in a dataset that
+        // has NO unlimited dimension at all must still be written (a naive
+        // `record_dim_name == var's_first_dim_name` comparison sees `None ==
+        // None` for this case and wrongly treats the scalar as a record
+        // variable with zero records, silently dropping its data).
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join(format!("test_scalar_var_{}.nc", std::process::id()));
+        let test_path = test_file.to_str().expect("path should be valid UTF-8");
+
+        let mut file = NetCDFFile::create(test_path).expect("Operation failed");
+        file.create_dimension("x", Some(3))
+            .expect("Operation failed");
+        file.create_variable("scalar_var", NetCDFDataType::Double, &[])
+            .expect("Operation failed");
+        file.create_variable("arr", NetCDFDataType::Double, &["x"])
+            .expect("Operation failed");
+
+        let scalar_value = std::f64::consts::PI;
+        let scalar_data =
+            Array::from_shape_vec(vec![], vec![scalar_value]).expect("Operation failed");
+        file.write_variable("scalar_var", &scalar_data)
+            .expect("Operation failed");
+        let arr_values = vec![1.5_f64, -2.5, 3.5];
+        let arr_data =
+            Array::from_shape_vec(vec![3], arr_values.clone()).expect("Operation failed");
+        file.write_variable("arr", &arr_data)
+            .expect("Operation failed");
+        file.close().expect("Operation failed");
+
+        let reopened = NetCDFFile::open(test_path, None).expect("Operation failed");
+        let read_scalar: ArrayD<f64> = reopened
+            .read_variable("scalar_var")
+            .expect("Operation failed");
+        assert_eq!(read_scalar.shape(), &[] as &[usize]);
+        assert_eq!(
+            read_scalar.iter().copied().collect::<Vec<_>>(),
+            vec![scalar_value],
+            "scalar variable's data must not be silently dropped"
+        );
+
+        let read_arr: ArrayD<f64> = reopened.read_variable("arr").expect("Operation failed");
+        assert_eq!(read_arr.iter().copied().collect::<Vec<_>>(), arr_values);
+
+        drop(reopened);
+        let _ = std::fs::remove_file(test_file);
+    }
+
+    #[test]
+    fn test_classic_unwritten_variable_reads_fill_value_not_zero() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join(format!("test_fill_value_{}.nc", std::process::id()));
+        let test_path = test_file.to_str().expect("path should be valid UTF-8");
+
+        let mut file = NetCDFFile::create(test_path).expect("Operation failed");
+        file.create_dimension("x", Some(2))
+            .expect("Operation failed");
+        file.create_variable("v", NetCDFDataType::Double, &["x"])
+            .expect("Operation failed");
+        // Never call write_variable; flip to read mode in-process (without ever
+        // flushing to disk) purely to exercise the "declared but unwritten" fallback.
+        file.mode = "r".to_string();
+
+        let data: ArrayD<f64> = file.read_variable("v").expect("Operation failed");
+        assert_eq!(data.shape(), &[2]);
+        assert!(data.iter().all(|&x| x == netcdf3::NC_FILL_F64));
+        assert_ne!(netcdf3::NC_FILL_F64, 0.0);
+
+        drop(file);
+        let _ = std::fs::remove_file(test_file);
     }
 
     #[test]

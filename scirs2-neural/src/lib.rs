@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-neural = "0.6.4"
+//! scirs2-neural = "0.6.5"
 //! ```
 //!
 //! ### Building a Simple Neural Network
@@ -261,7 +261,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.6.4**
+//! Current version: **0.6.5**
 
 pub mod activations;
 pub mod activations_minimal;
@@ -327,6 +327,9 @@ pub mod on_device; // On-device model compression (model_compression only; other
 pub mod performance; // Performance profiling (fixed)
 pub mod reinforcement; // RL algorithms
 pub mod wasm; // WASM bindings (fixed)
+
+#[cfg(test)]
+mod test_fusion_implementations; // Tests for models::architectures::fusion (FeatureFusion::backward_multi)
 
 #[cfg(feature = "symbolic")]
 pub use activations::SymbolicActivation;

@@ -128,7 +128,7 @@ impl<F: Float> Op<F> for SimdElementwiseAdd {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         ctx.append_input_grad(0, Some(*gy));
         ctx.append_input_grad(1, Some(*gy));
@@ -175,7 +175,7 @@ impl<F: Float> Op<F> for SimdElementwiseSub {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         ctx.append_input_grad(0, Some(*gy));
         ctx.append_input_grad(1, Some(crate::tensor_ops::neg(*gy)));
@@ -222,7 +222,7 @@ impl<F: Float> Op<F> for SimdElementwiseMul {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let a = ctx.input(0);
         let b = ctx.input(1);
@@ -273,7 +273,7 @@ impl<F: Float> Op<F> for SimdElementwiseDiv {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let a = ctx.input(0);
         let b = ctx.input(1);
@@ -338,7 +338,7 @@ impl<F: Float> Op<F> for SimdGradientAccumulate {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         // Both inputs receive the upstream gradient as-is
         ctx.append_input_grad(0, Some(*gy));
@@ -392,7 +392,7 @@ impl<F: Float> Op<F> for SimdScaledGradientAccumulate<F> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let g = ctx.graph();
         // d(acc + scale * grad)/d(acc) = 1
@@ -456,7 +456,7 @@ impl<F: Float> Op<F> for SimdBroadcastAdd {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         // dx = dy (same shape)
         ctx.append_input_grad(0, Some(*gy));
@@ -511,7 +511,7 @@ impl<F: Float> Op<F> for SimdBroadcastMul {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
         let scale = ctx.input(1);
@@ -564,7 +564,7 @@ impl<F: Float> Op<F> for SimdReLU {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
         let g = ctx.graph();
@@ -617,7 +617,7 @@ impl<F: Float> Op<F> for SimdSigmoid {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let y = ctx.output();
         let g = ctx.graph();
@@ -664,7 +664,7 @@ impl<F: Float> Op<F> for SimdTanh {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let y = ctx.output();
         let g = ctx.graph();
@@ -731,7 +731,7 @@ impl<F: Float> Op<F> for SimdDotProduct {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let a = ctx.input(0);
         let b = ctx.input(1);
@@ -775,7 +775,7 @@ impl<F: Float> Op<F> for SimdReductionSum {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, ctx: &mut GradientContext<'a, 'g, F>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
         let g = ctx.graph();

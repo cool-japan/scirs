@@ -19,8 +19,8 @@
 - [x] Parallel Monte Carlo with work-stealing task distribution
 
 ### ODE Solvers (IVP)
-- [x] Euler, RK4 (fixed step), RK23 (Bogacki-Shampine), RK45 (Dormand-Prince)
-- [x] DOP853: Dormand-Prince 8(5,3) high-precision adaptive
+- [x] Euler, RK4 (fixed step), RK23 (Bogacki-Shampine), RK45 (Dormand-Prince) — RK23's embedded error estimator and step-size control were placeholder stepping until **fixed 2026-07-31** (0.6.5); see "Adaptive ODE step-control fix" below
+- [x] DOP853: Dormand-Prince 8(5,3) high-precision adaptive — embedded error estimator and step-size control were placeholder stepping until **fixed 2026-07-31** (0.6.5); see "Adaptive ODE step-control fix" below
 - [x] BDF (orders 1-5): enhanced Jacobian reuse and Broyden updates
 - [x] Radau IIA: L-stable implicit Runge-Kutta
 - [x] LSODA: automatic stiffness detection and method switching
@@ -189,6 +189,13 @@
   - Files: `src/specialized/finance/{advanced_monte_carlo_engine,realtime_risk_engine,exotic_options,risk_management}.rs`, `src/specialized/finance/mod.rs`, `src/specialized/mod.rs`, `src/lib.rs`.
   - See "Proposed follow-ups" below for the three items (`QuantumInspiredRNG`, `RainbowPayoffType`, `StressScenario`) intentionally deferred from this build-out pending a design decision — those remain not-done.
   - scirs2-integrate: 1,873 / 1,815 tests pass, 0 failed (all-features / default-features); re-verified 2026-07-15 via `cargo nextest run -p scirs2-integrate [--all-features]` — identical figures to the 2026-07-07 measurement. Both modes skip the same 4 tests (`#[ignore]`d PINN training tests in `src/pinn/high_level.rs`, reason "slow: PINN training exceeds test timeout"). The slowest passing tests in both modes are the finance Monte Carlo Greeks/parity tests (`specialized::finance::monte_carlo::tests::test_greeks_{delta_call_positive,delta_put_negative,vega_positive}`, `test_put_call_parity`), each 30-90s — expected, not hangs.
+
+## Adaptive ODE step-control fix (2026-07-31)
+
+- [x] **RK23 (Bogacki-Shampine) and DOP853 (Dormand-Prince 8(5,3)) now implement real embedded error estimators and step-size control**, replacing placeholder stepping in `src/ode/methods/adaptive.rs` and `src/ode/methods/enhanced_lsoda.rs`. `rk23_method` uses the Bogacki & Shampine (1989) 3(2) embedded pair (FSAL — the accepted step's last stage doubles as the next step's first, so the embedded error estimate costs only one extra function evaluation) with a WRMS-style error norm and a PI (proportional-integral) step-size controller; `dop853_method` uses the full 12-stage DOP853 tableau (`DOP853_A`/`DOP853_B`/`DOP853_C`) with its embedded 5th/3rd-order error estimator coefficients (`DOP853_E5`, `DOP853_E3_ADJUST`) for local error control and step acceptance/rejection.
+  - Files: `src/ode/methods/adaptive.rs`, `src/ode/methods/enhanced_lsoda.rs`.
+  - Tests: new `tests/integration_ode.rs` (16 tests), including `test_rk23_convergence_order_tolerance_halving`, `test_dop853_convergence_order_tolerance_halving`, `test_rk23_dop853_stiff_relaxation_step_control_sanity`, and `test_cross_method_agreement_nonlinear_pendulum`.
+  - See `CHANGELOG.md` `[0.6.5]` for full detail.
 
 ## Proposed follow-ups
 

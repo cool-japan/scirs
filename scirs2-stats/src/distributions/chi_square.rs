@@ -225,18 +225,7 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ChiSquare<F
         // For small sample sizes, use the serial implementation
         if size < 1000 {
             let mut rng = thread_rng();
-            let mut samples = Vec::with_capacity(size);
-
-            for _ in 0..size {
-                // Generate a standard chi-square random variable
-                let std_sample = self.rand_distr.sample(&mut rng);
-
-                // Scale and shift according to loc and scale parameters
-                let sample = const_f64::<F>(std_sample) * self.scale + self.loc;
-                samples.push(sample);
-            }
-
-            return Ok(samples);
+            return Ok(self.rvs_vec_serial(size, &mut rng));
         }
 
         // For larger sample sizes, use parallel implementation with scirs2-core's parallel module
@@ -259,6 +248,32 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ChiSquare<F
         });
 
         Ok(samples)
+    }
+
+    /// Like [`rvs_vec`](Self::rvs_vec), but seeds the RNG deterministically
+    /// and always uses the serial path, instead of drawing from the
+    /// thread-local RNG (and, at `size >= 1000`, splitting across worker
+    /// threads each with their own thread-local RNG).
+    ///
+    /// `rvs_vec`'s randomness means sample statistics vary from run to run;
+    /// use this when reproducibility matters (tests, debugging a reported
+    /// sampling issue).
+    #[allow(dead_code)]
+    pub fn rvs_vec_with_seed(&self, size: usize, seed: u64) -> Vec<F> {
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
+        self.rvs_vec_serial(size, &mut rng)
+    }
+
+    fn rvs_vec_serial<R: scirs2_core::Rng>(&self, size: usize, rng: &mut R) -> Vec<F> {
+        let mut samples = Vec::with_capacity(size);
+        for _ in 0..size {
+            // Generate a standard chi-square random variable
+            let std_sample = self.rand_distr.sample(rng);
+            // Scale and shift according to loc and scale parameters
+            let sample = const_f64::<F>(std_sample) * self.scale + self.loc;
+            samples.push(sample);
+        }
+        samples
     }
 }
 
@@ -723,12 +738,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Statistical test might fail due to randomness"]
     fn test_chi_square_rvs() {
         let chi2 = ChiSquare::new(2.0, 0.0, 1.0).expect("test/example should not fail");
 
-        // Generate samples using Vec method
-        let samples_vec = chi2.rvs_vec(1000).expect("test/example should not fail");
+        // Deterministic seed so the sample mean's distance from df=2.0 is
+        // reproducible rather than occasionally exceeding tolerance by pure
+        // statistical variability (see rvs_vec_with_seed).
+        let samples_vec = chi2.rvs_vec_with_seed(1000, 42);
         assert_eq!(samples_vec.len(), 1000);
 
         // Generate samples using Array1 method

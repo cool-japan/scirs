@@ -137,6 +137,23 @@ pub fn walk_rust_files(crate_path: &Path) -> Vec<PathBuf> {
     files
 }
 
+/// Walk **all** `*.rs` files anywhere under a crate directory — `src/`,
+/// `tests/`, `benches/`, and `examples/` alike — unlike [`walk_rust_files`],
+/// which is scoped to `src/` only.
+///
+/// This is used by checks whose subject matter (e.g. `#[test]`/`#[ignore]`
+/// hygiene) overwhelmingly lives in `tests/` and `benches/`, not `src/`.
+///
+/// Any directory named `target`, or whose name starts with `.` (e.g.
+/// `.git`), is skipped so build artifacts and VCS metadata are never
+/// scanned even if nested under `crate_path`.
+pub fn walk_all_rust_files(crate_path: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    walk_dir_for_rs_all(crate_path, &mut files);
+    files.sort();
+    files
+}
+
 // ---------------------------------------------------------------------------
 // Private helpers
 // ---------------------------------------------------------------------------
@@ -150,6 +167,28 @@ fn walk_dir_for_rs(dir: &Path, out: &mut Vec<PathBuf>) {
         let path = entry.path();
         if path.is_dir() {
             walk_dir_for_rs(&path, out);
+        } else if path.extension().is_some_and(|e| e == "rs") {
+            out.push(path);
+        }
+    }
+}
+
+fn walk_dir_for_rs_all(dir: &Path, out: &mut Vec<PathBuf>) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            if name == "target" || name.starts_with('.') {
+                continue;
+            }
+            walk_dir_for_rs_all(&path, out);
         } else if path.extension().is_some_and(|e| e == "rs") {
             out.push(path);
         }
@@ -516,6 +555,55 @@ mod tests {
         let dir = temp_dir("no_src");
         let files = walk_rust_files(&dir);
         assert!(files.is_empty(), "No src dir → empty list");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_walk_all_rust_files_covers_tests_benches_examples() {
+        let dir = temp_dir("walk_all");
+        fs::create_dir_all(dir.join("src")).expect("src dir");
+        fs::create_dir_all(dir.join("tests")).expect("tests dir");
+        fs::create_dir_all(dir.join("benches")).expect("benches dir");
+        fs::create_dir_all(dir.join("examples")).expect("examples dir");
+        fs::write(dir.join("src").join("lib.rs"), "").expect("lib.rs");
+        fs::write(dir.join("tests").join("it.rs"), "").expect("it.rs");
+        fs::write(dir.join("benches").join("b.rs"), "").expect("b.rs");
+        fs::write(dir.join("examples").join("e.rs"), "").expect("e.rs");
+
+        let files = walk_all_rust_files(&dir);
+        assert_eq!(
+            files.len(),
+            4,
+            "Should find src/tests/benches/examples .rs files, got: {:?}",
+            files
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_walk_all_rust_files_skips_target_and_hidden_dirs() {
+        let dir = temp_dir("walk_all_skip");
+        fs::create_dir_all(dir.join("src")).expect("src dir");
+        fs::create_dir_all(dir.join("target").join("debug")).expect("target dir");
+        fs::create_dir_all(dir.join(".git")).expect("hidden dir");
+        fs::write(dir.join("src").join("lib.rs"), "").expect("lib.rs");
+        fs::write(
+            dir.join("target").join("debug").join("build_artifact.rs"),
+            "",
+        )
+        .expect("build artifact");
+        fs::write(dir.join(".git").join("hook.rs"), "").expect("hidden file");
+
+        let files = walk_all_rust_files(&dir);
+        assert_eq!(
+            files.len(),
+            1,
+            "Should skip target/ and .git/, found: {:?}",
+            files
+        );
+        assert!(files[0].ends_with("lib.rs"));
+
         let _ = fs::remove_dir_all(&dir);
     }
 

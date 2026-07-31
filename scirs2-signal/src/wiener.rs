@@ -40,10 +40,10 @@ use scirs2_core::ndarray::s;
 // ```
 
 use crate::error::{SignalError, SignalResult};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::random::{Rng, RngExt};
-use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_fft;
 use statrs::statistics::Statistics;
 use std::cmp;
@@ -357,7 +357,7 @@ pub fn iterative_wiener_filter(
 /// # Arguments
 /// * `image` - 2D array representing a noisy image
 /// * `noise_power` - Estimated noise variance (None = auto-estimate)
-/// * `window_size` - Window size for local variance estimation (None = default [5,5])
+/// * `window_size` - Window size for local variance estimation (None = default `[5,5]`)
 ///
 /// # Returns
 /// * The denoised image
@@ -589,7 +589,7 @@ pub fn psd_wiener_filter(
 
     // Estimate signal PSD if not provided
     let s_psd = match signal_psd {
-        Some(_psd) => psd.clone(),
+        Some(psd) => psd.clone(),
         None => {
             // Simple periodogram estimate
             let half_n = n / 2 + 1;
@@ -605,7 +605,7 @@ pub fn psd_wiener_filter(
 
     // Estimate noise PSD if not provided
     let n_psd = match noise_psd {
-        Some(_psd) => psd.clone(),
+        Some(psd) => psd.clone(),
         None => {
             // Use noise estimation method
             let noise_var = estimate_noise_power(signal)?;
@@ -765,22 +765,22 @@ fn estimate_signal_power(signal: &Array1<f64>) -> SignalResult<f64> {
 
 /// Helper function to pad a signal for boundary handling
 #[allow(dead_code)]
-fn pad_signal(_signal: &Array1<f64>, padsize: usize) -> Array1<f64> {
+fn pad_signal(signal: &Array1<f64>, padsize: usize) -> Array1<f64> {
     let n = signal.len();
-    let mut padded = Array1::zeros(n + 2 * pad_size);
+    let mut padded = Array1::zeros(n + 2 * padsize);
 
     // Copy original _signal
     for i in 0..n {
-        padded[i + pad_size] = signal[i];
+        padded[i + padsize] = signal[i];
     }
 
     // Reflect boundaries
-    for i in 0..pad_size {
+    for i in 0..padsize {
         // Left boundary
-        padded[pad_size - 1 - i] = signal[i.min(n - 1)];
+        padded[padsize - 1 - i] = signal[i.min(n - 1)];
 
         // Right boundary
-        padded[n + pad_size + i] = signal[n - 1 - i.min(n - 1)];
+        padded[n + padsize + i] = signal[n - 1 - i.min(n - 1)];
     }
 
     padded

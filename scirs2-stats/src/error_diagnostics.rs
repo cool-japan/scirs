@@ -259,6 +259,13 @@ impl ErrorMonitor {
             .count();
         let recent_error_rate = recent_errors as f64 / 3600.0;
 
+        // NOTE: reuse the `history` guard already held above instead of calling
+        // `self.detect_active_patterns()` (which would try to re-lock the same
+        // non-reentrant `std::sync::Mutex` from this same thread and deadlock
+        // permanently -- this previously made every call to `get_statistics`
+        // (and therefore `generate_health_report`) hang forever).
+        let active_patterns = Self::scan_active_patterns(&self.patterns, &history, Instant::now());
+
         ErrorStatistics {
             total_errors,
             error_rate,
@@ -266,7 +273,7 @@ impl ErrorMonitor {
             uptime,
             error_distribution,
             top_errors: top_errors.into_iter().collect(),
-            active_patterns: self.detect_active_patterns(),
+            active_patterns,
         }
     }
 
@@ -274,9 +281,23 @@ impl ErrorMonitor {
     fn detect_active_patterns(&self) -> Vec<String> {
         let history = self.error_history.lock().expect("Operation failed");
         let now = Instant::now();
+        Self::scan_active_patterns(&self.patterns, &history, now)
+    }
+
+    /// Scan the given (already-locked) history for currently active patterns.
+    ///
+    /// Factored out of `detect_active_patterns` so that callers which already
+    /// hold the `error_history` lock (such as `get_statistics`) can reuse it
+    /// directly rather than re-locking the same non-reentrant `Mutex`, which
+    /// would deadlock.
+    fn scan_active_patterns(
+        patterns: &[ErrorPattern],
+        history: &VecDeque<ErrorOccurrence>,
+        now: Instant,
+    ) -> Vec<String> {
         let mut active_patterns = Vec::new();
 
-        for pattern in &self.patterns {
+        for pattern in patterns {
             let recent_errors: Vec<_> = history
                 .iter()
                 .filter(|err| {
@@ -776,7 +797,6 @@ mod tests {
     use std::thread;
 
     #[test]
-    #[ignore = "Real timeout - takes >120s, memory pressure issues"]
     fn test_error_monitor_basic() {
         let monitor = ErrorMonitor::new();
         monitor.record_error(ErrorCode::E3005, "test_operation");
@@ -787,7 +807,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Real timeout - takes >120s, memory pressure issues"]
     fn test_pattern_detection() {
         let monitor = ErrorMonitor::new();
 
@@ -798,12 +817,19 @@ mod tests {
         }
 
         let stats = monitor.get_statistics();
-        // Pattern detection should identify memory pressure
-        // (This would be more testable with dependency injection)
+        // Pattern detection should identify memory pressure: 5 >= the
+        // "memory_pressure" pattern's frequency_threshold of 3 within its 60s
+        // window (see initialize_default_patterns).
+        assert!(
+            stats
+                .active_patterns
+                .contains(&"memory_pressure".to_string()),
+            "expected memory_pressure pattern to be active, got {:?}",
+            stats.active_patterns
+        );
     }
 
     #[test]
-    #[ignore = "Real timeout - takes >120s, memory pressure issues"]
     fn test_health_score_calculation() {
         let monitor = ErrorMonitor::new();
 

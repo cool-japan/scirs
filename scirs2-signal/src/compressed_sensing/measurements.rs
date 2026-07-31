@@ -26,10 +26,10 @@
 //! Pure Rust, no unwrap(), snake_case naming throughout.
 
 use crate::error::{SignalError, SignalResult};
-use scirs2_core::numeric::Complex64;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
@@ -349,7 +349,7 @@ impl PartialDFT {
 
     /// Build the explicit real-valued sensing matrix of shape `(2m, n)`.
     ///
-    /// Row `2k` = Re(DFT_row_{row_indices[k]}), row `2k+1` = Im(…).
+    /// Row `2k` = `Re(DFT_row_{row_indices[k]})`, row `2k+1` = Im(…).
     pub fn to_real_matrix(&self) -> Array2<f64> {
         let m = self.m();
         let n = self.n;

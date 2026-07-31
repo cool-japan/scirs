@@ -849,10 +849,19 @@ where
     }
 }
 
-/// Convert a QuantizedMatrixFreeOp to a generic LinearOperator
+/// Convert a QuantizedMatrixFreeOp to a generic LinearOperator.
 ///
 /// This is useful when you want to use the quantized operator with
 /// algorithms that expect a LinearOperator.
+///
+/// [`LinearOperator`]'s closure signature (`Fn(&ArrayView1<F>) -> Array1<F>`)
+/// cannot express fallibility, but the wrapped [`QuantizedMatrixFreeOp::apply`]
+/// can fail (e.g. on a shape mismatch). Rather than silently returning a
+/// zero vector on failure -- which is indistinguishable from a legitimate
+/// null-space result to any downstream iterative solver (CG/GMRES/...) built
+/// on top of the returned operator -- this function also returns a shared
+/// flag that is set whenever `apply` fails internally, so callers can check
+/// it after running their solver.
 ///
 /// # Arguments
 ///
@@ -860,9 +869,13 @@ where
 ///
 /// # Returns
 ///
-/// A LinearOperator that wraps the quantized operator
+/// A tuple `(linear_operator, apply_failed)`: `linear_operator` wraps the
+/// quantized operator, and `apply_failed` is set to `true` (and the failure
+/// is also logged) the first time an internal `apply` call fails.
 #[allow(dead_code)]
-pub fn quantized_to_linear_operator<F>(op: &QuantizedMatrixFreeOp<F>) -> LinearOperator<F>
+pub fn quantized_to_linear_operator<F>(
+    op: &QuantizedMatrixFreeOp<F>,
+) -> (LinearOperator<F>, Arc<std::sync::atomic::AtomicBool>)
 where
     F: Float + NumAssign + Zero + Sum + One + ScalarOperand + Send + Sync + Debug + 'static,
 {
@@ -874,23 +887,42 @@ where
     // We need to clone op.op_fn, but can't directly due to the trait bound
     // So we create a new closure that delegates to the original
     let op_clone = op.clone();
+    let apply_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let failed_flag = Arc::clone(&apply_failed);
+    let failed_flag2 = Arc::clone(&apply_failed);
 
     let linear_op = if rows == cols {
         LinearOperator::new(rows, move |x: &ArrayView1<F>| match op_clone.apply(x) {
             Ok(result) => result,
-            Err(_) => Array1::zeros(rows),
+            Err(e) => {
+                eprintln!(
+                    "Warning: quantized_to_linear_operator: apply() failed ({e}); \
+                     returning a zero vector, which is NOT a valid result -- check the \
+                     `apply_failed` flag returned alongside this operator."
+                );
+                failed_flag.store(true, std::sync::atomic::Ordering::Relaxed);
+                Array1::zeros(rows)
+            }
         })
     } else {
         LinearOperator::new_rectangular(rows, cols, move |x: &ArrayView1<F>| {
             match op_clone.apply(x) {
                 Ok(result) => result,
-                Err(_) => Array1::zeros(rows),
+                Err(e) => {
+                    eprintln!(
+                        "Warning: quantized_to_linear_operator: apply() failed ({e}); \
+                         returning a zero vector, which is NOT a valid result -- check the \
+                         `apply_failed` flag returned alongside this operator."
+                    );
+                    failed_flag2.store(true, std::sync::atomic::Ordering::Relaxed);
+                    Array1::zeros(rows)
+                }
             }
         })
     };
 
     // Add flags if applicable
-    if is_symmetric {
+    let linear_op = if is_symmetric {
         let linear_op = linear_op.symmetric();
         if is_positive_definite {
             linear_op.positive_definite()
@@ -899,7 +931,9 @@ where
         }
     } else {
         linear_op
-    }
+    };
+
+    (linear_op, apply_failed)
 }
 
 // Add clone support to QuantizedMatrixFreeOp
@@ -1085,7 +1119,7 @@ mod tests {
                 .positive_definite();
 
         // Convert to a LinearOperator
-        let linear_op = quantized_to_linear_operator(&quantized_op);
+        let (linear_op, apply_failed) = quantized_to_linear_operator(&quantized_op);
 
         // Check that properties are preserved
         assert_eq!(linear_op.nrows(), quantized_op.nrows());
@@ -1105,5 +1139,43 @@ mod tests {
         for i in 0..y_quantized.len() {
             assert_relative_eq!(y_quantized[i], y_linear[i], epsilon = 1e-6);
         }
+        assert!(
+            !apply_failed.load(std::sync::atomic::Ordering::Relaxed),
+            "a well-formed apply() call must not trip the failure flag"
+        );
+    }
+
+    #[test]
+    fn test_quantized_to_linear_operator_flags_apply_failure() {
+        // Construct an operator whose `apply` deliberately fails (standing
+        // in for e.g. a dequantization error) even for a correctly-shaped
+        // input, so we exercise the *inner* operator's failure path rather
+        // than `LinearOperator::apply`'s own (redundant) shape check.
+        // Before this fix, such a failure was silently turned into a zero
+        // vector with no way for any caller to detect it at all.
+        let quantized_op = QuantizedMatrixFreeOp::<f32>::new(
+            2,
+            2,
+            8,
+            QuantizationMethod::Symmetric,
+            |_x: &ArrayView1<f32>| {
+                Err(LinalgError::ComputationError(
+                    "simulated dequantization failure".to_string(),
+                ))
+            },
+        )
+        .expect("Operation failed");
+
+        let (linear_op, apply_failed) = quantized_to_linear_operator(&quantized_op);
+
+        let x = array![1.0f32, 2.0];
+        let y = linear_op
+            .apply(&x.view())
+            .expect("LinearOperator::apply itself only checks shape, not the inner op");
+        assert_eq!(y, Array1::<f32>::zeros(2));
+        assert!(
+            apply_failed.load(std::sync::atomic::Ordering::Relaxed),
+            "apply_failed must be set after the wrapped operator's apply() call failed"
+        );
     }
 }

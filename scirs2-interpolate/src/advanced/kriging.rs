@@ -637,17 +637,39 @@ mod tests {
         assert!(se_cov < sigma_sq);
         assert!(se_cov > 0.0);
 
-        // Exponential decays faster than squared exponential
-        let _exp_cov = KrigingInterpolator::<f64>::covariance(
-            length_scale,
+        // Exponential decays faster than squared exponential for r < length_scale.
+        //
+        // This was previously checked AT r == length_scale, where
+        // `assert!(exp_cov < se_cov)` can never hold: both formulas evaluate
+        // to exactly the same value there. With scaled_dist = r/l = 1:
+        //   SquaredExponential(l) = sigma_sq * exp(-1^2) = sigma_sq * exp(-1)
+        //   Exponential(l)        = sigma_sq * exp(-1)   = sigma_sq * exp(-1)
+        // i.e. r == length_scale is exactly the crossover point, not a place
+        // where one decays "faster" than the other. For scaled_dist x < 1,
+        // x^2 < x, so exp(-x^2) > exp(-x), i.e. SquaredExponential > Exponential
+        // strictly -- so the comparison is only meaningful for r < length_scale
+        // (for r > length_scale the ordering flips the other way, since the
+        // quadratic exponent then dominates and SquaredExponential decays
+        // faster instead).
+        let r_near = length_scale / 2.0;
+        let exp_cov_near = KrigingInterpolator::<f64>::covariance(
+            r_near,
             sigma_sq,
             length_scale,
             CovarianceFunction::Exponential,
             alpha,
         );
-        // Our simplified implementation may not strictly satisfy this in all cases
-        // Comment out for now
-        // assert!(exp_cov < se_cov);
+        let se_cov_near = KrigingInterpolator::<f64>::covariance(
+            r_near,
+            sigma_sq,
+            length_scale,
+            CovarianceFunction::SquaredExponential,
+            alpha,
+        );
+        assert!(
+            exp_cov_near < se_cov_near,
+            "Exponential cov {exp_cov_near} should be < SquaredExponential cov {se_cov_near} for r={r_near} < length_scale={length_scale}"
+        );
     }
 
     #[test]

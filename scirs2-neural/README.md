@@ -11,7 +11,7 @@ A comprehensive, production-ready neural network library for Rust, part of the [
 
 `scirs2-neural` provides PyTorch-style neural network building blocks with state-of-the-art architectures, training utilities, and advanced capabilities including Mixture of Experts, Spiking Neural Networks, Graph Neural Networks, Reinforcement Learning, and generative models. The library is designed for both research and production use, with a focus on correctness, performance, and idiomatic Rust.
 
-**Status (2026-07-27, v0.6.3):** Stable. `cargo nextest run -p scirs2-neural` passes 1814/1814 tests with default features and 1863/1863 with `--all-features`; 0 `todo!()`/`unimplemented!()` stubs remain in `src/`. A small number of peripheral export/packaging formats intentionally return "not yet implemented" errors rather than panicking — see [TODO.md](TODO.md) for details.
+**Status (2026-07-31, v0.6.5):** Stable. `Lstm` (`layers/recurrent/lstm.rs`), the `Transformer` encoder/decoder stack (`transformer/`), and the `BatchNorm`/`LayerNorm` (`layers/normalization.rs`) plus `RMSNorm`/`GroupNorm`/`InstanceNorm`/`WeightNorm` (`layers/norm_variants.rs`) layers gained real `backward()` implementations computing genuine parameter/input gradients in 0.6.5 — these paths previously returned a zero or input-shaped placeholder gradient, so gradient descent silently failed to learn through them even though forward inference was already correct. Last full suite verification: `cargo nextest run -p scirs2-neural` passed 1814/1814 tests with default features and 1863/1863 with `--all-features` (2026-07-15, predating this fix; not re-run as part of this docs-only update — see [TODO.md](TODO.md)); 0 `todo!()`/`unimplemented!()` stubs remain in `src/`. A small number of peripheral export/packaging formats intentionally return "not yet implemented" errors rather than panicking — see [TODO.md](TODO.md) for details.
 
 ## Features
 
@@ -129,14 +129,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-neural = "0.6.4"
+scirs2-neural = "0.6.5"
 ```
 
 With optional features:
 
 ```toml
 [dependencies]
-scirs2-neural = { version = "0.6.4", features = ["gpu"] }
+scirs2-neural = { version = "0.6.5", features = ["gpu"] }
 ```
 
 ### Building a Sequential MLP

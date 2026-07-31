@@ -271,26 +271,18 @@ fn test_array_interoperability() {
         ) -> Result<Box<dyn ArrayProtocol>, NotImplemented> {
             // In a real implementation, this would dispatch to the appropriate implementation
             // based on the array types. For this test, we'll use a simplified implementation.
+            // `cpu_array` below is `Array2<f64>` (Ix2), so `a_wrapped`/`b_wrapped` are
+            // `NdarrayWrapper<f64, Ix2>` — matching against `IxDyn` here would never
+            // downcast successfully, silently reporting every call as unimplemented.
             let a_array = a
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::IxDyn>>();
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>();
             let b_array = b
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::IxDyn>>();
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>();
 
             if let (Some(a), Some(b)) = (a_array, b_array) {
-                // Cast to a specific dimension to avoid ambiguity
-                let a_arr = a
-                    .as_array()
-                    .to_owned()
-                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-                    .expect("Test: operation failed");
-                let b_arr = b
-                    .as_array()
-                    .to_owned()
-                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
-                    .expect("Test: operation failed");
-                let result = a_arr.dot(&b_arr);
+                let result = a.as_array().dot(b.as_array());
                 Ok(Box::new(NdarrayWrapper::new(result)))
             } else {
                 // In a real implementation, we would try other combinations here
@@ -331,18 +323,30 @@ fn test_array_interoperability() {
     let a_wrapped = NdarrayWrapper::new(cpu_array.clone());
     let b_wrapped = NdarrayWrapper::new(cpu_array.clone());
 
-    match dot_product(&a_wrapped, &b_wrapped) {
-        Ok(_) => {
-            // The test passes if the operation succeeds
-            println!("Dot product operation succeeded");
-        }
-        Err(e) => {
-            // If we get an error, mark the test as skipped rather than failing
-            println!("Skipping dot product test - operation failed: {e}");
-            // Add assert to make it pass even if the operation fails
-            // Test passed
-        }
-    }
+    let result = dot_product(&a_wrapped, &b_wrapped)
+        .expect("dot product of two NdarrayWrapper<f64, Ix2> operands should succeed");
+    let result_array = result
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
+        .expect("dot_product should return a NdarrayWrapper<f64, Ix2>");
+    // ones((3,3)).dot(ones((3,3))) == a 3x3 matrix filled with 3.0 (each entry
+    // sums 3 products of 1.0 * 1.0).
+    assert_eq!(
+        result_array.as_array(),
+        &scirs2_core::ndarray::Array2::<f64>::from_elem((3, 3), 3.0)
+    );
+
+    // `dot_product` only recognizes NdarrayWrapper<f64, Ix2> pairs (per its own
+    // `else` branch) — confirm it correctly reports a foreign array type as
+    // unimplemented rather than silently miscomputing something for it.
+    assert!(
+        dot_product(&a_wrapped, &gpu_array).is_err(),
+        "dot_product should report NotImplemented for a GPUNdarray operand"
+    );
+    assert!(
+        dot_product(&a_wrapped, &dist_array).is_err(),
+        "dot_product should report NotImplemented for a DistributedNdarray operand"
+    );
 }
 
 #[test]
@@ -362,86 +366,45 @@ fn test_array_operations() {
     // Test array operations from the operations module
 
     // Matrix multiplication
-    match array_protocol::matmul(&wrapped_a, &wrapped_b) {
-        Ok(result) => {
-            if let Some(result_array) = result
-                .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
-            {
-                assert_eq!(result_array.as_array(), &a.dot(&b));
-            } else {
-                println!("Skipping matrix multiplication assertion - unexpected result type");
-            }
-        }
-        Err(e) => {
-            println!("Skipping matrix multiplication test - operation failed: {e}");
-        }
-    }
+    let matmul_result =
+        array_protocol::matmul(&wrapped_a, &wrapped_b).expect("matmul should succeed");
+    let matmul_array = matmul_result
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
+        .expect("matmul should return a NdarrayWrapper<f64, Ix2>");
+    assert_eq!(matmul_array.as_array(), &a.dot(&b));
 
     // Addition
-    match array_protocol::add(&wrapped_a, &wrapped_b) {
-        Ok(result) => {
-            if let Some(result_array) = result
-                .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
-            {
-                assert_eq!(result_array.as_array(), &(a.clone() + b.clone()));
-            } else {
-                println!("Skipping addition assertion - unexpected result type");
-            }
-        }
-        Err(e) => {
-            println!("Skipping addition test - operation failed: {e}");
-        }
-    }
+    let add_result = array_protocol::add(&wrapped_a, &wrapped_b).expect("add should succeed");
+    let add_array = add_result
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
+        .expect("add should return a NdarrayWrapper<f64, Ix2>");
+    assert_eq!(add_array.as_array(), &(a.clone() + b.clone()));
 
     // Multiplication
-    match array_protocol::multiply(&wrapped_a, &wrapped_b) {
-        Ok(result) => {
-            if let Some(result_array) = result
-                .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
-            {
-                assert_eq!(result_array.as_array(), &(a.clone() * b.clone()));
-            } else {
-                println!("Skipping multiplication assertion - unexpected result type");
-            }
-        }
-        Err(e) => {
-            println!("Skipping multiplication test - operation failed: {e}");
-        }
-    }
+    let multiply_result =
+        array_protocol::multiply(&wrapped_a, &wrapped_b).expect("multiply should succeed");
+    let multiply_array = multiply_result
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
+        .expect("multiply should return a NdarrayWrapper<f64, Ix2>");
+    assert_eq!(multiply_array.as_array(), &(a.clone() * b.clone()));
 
     // Sum
-    match array_protocol::sum(&wrapped_a, None) {
-        Ok(result) => {
-            if let Some(sum_value) = result.downcast_ref::<f64>() {
-                assert_eq!(*sum_value, a.sum());
-            } else {
-                println!("Skipping sum assertion - unexpected result type");
-            }
-        }
-        Err(e) => {
-            println!("Skipping sum test - operation failed: {e}");
-        }
-    }
+    let sum_result = array_protocol::sum(&wrapped_a, None).expect("sum should succeed");
+    let sum_value = sum_result
+        .downcast_ref::<f64>()
+        .expect("sum should return an f64");
+    assert_eq!(*sum_value, a.sum());
 
     // Transpose
-    match array_protocol::transpose(&wrapped_a) {
-        Ok(result) => {
-            if let Some(result_array) = result
-                .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
-            {
-                assert_eq!(result_array.as_array(), &a.t().to_owned());
-            } else {
-                println!("Skipping transpose assertion - unexpected result type");
-            }
-        }
-        Err(e) => {
-            println!("Skipping transpose test - operation failed: {e}");
-        }
-    }
+    let transpose_result = array_protocol::transpose(&wrapped_a).expect("transpose should succeed");
+    let transpose_array = transpose_result
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
+        .expect("transpose should return a NdarrayWrapper<f64, Ix2>");
+    assert_eq!(transpose_array.as_array(), &a.t().to_owned());
 
     // Test with GPU arrays
     let gpu_config = GPUConfig {
@@ -456,46 +419,47 @@ fn test_array_operations() {
     let gpu_b = GPUNdarray::new(b.clone(), gpu_config);
 
     // Matrix multiplication with GPU arrays
-    match array_protocol::matmul(&gpu_a, &gpu_b) {
-        Ok(result) => {
-            assert!(
-                result
-                    .as_any()
-                    .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::IxDyn>>()
-                    .is_some()
-                    || result
-                        .as_any()
-                        .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::Ix2>>()
-                        .is_some()
-            );
-        }
-        Err(e) => {
-            println!("Skipping GPU matrix multiplication test - operation failed: {e}");
-        }
-    }
+    let gpu_matmul_result =
+        array_protocol::matmul(&gpu_a, &gpu_b).expect("GPU matmul should succeed");
+    assert!(
+        gpu_matmul_result
+            .as_any()
+            .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::IxDyn>>()
+            .is_some()
+            || gpu_matmul_result
+                .as_any()
+                .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::Ix2>>()
+                .is_some(),
+        "GPU matmul should return a GPUNdarray<f64, _>"
+    );
 
     // Addition with GPU arrays
-    match array_protocol::add(&gpu_a, &gpu_b) {
-        Ok(result) => {
-            assert!(
-                result
-                    .as_any()
-                    .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::IxDyn>>()
-                    .is_some()
-                    || result
-                        .as_any()
-                        .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::Ix2>>()
-                        .is_some()
-            );
-        }
-        Err(e) => {
-            println!("Skipping GPU addition test - operation failed: {e}");
-        }
-    }
+    let gpu_add_result = array_protocol::add(&gpu_a, &gpu_b).expect("GPU add should succeed");
+    assert!(
+        gpu_add_result
+            .as_any()
+            .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::IxDyn>>()
+            .is_some()
+            || gpu_add_result
+                .as_any()
+                .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::Ix2>>()
+                .is_some(),
+        "GPU add should return a GPUNdarray<f64, _>"
+    );
 }
 
 #[test]
 #[allow(dead_code)]
+#[ignore = "not-implemented: cross-backend operand-pair dispatch (Regular+GPU, \
+            GPU+Distributed, Regular+Distributed) is architecturally unimplemented — \
+            every ArrayProtocol::array_function impl in this crate only recognizes \
+            Self in args[1] and returns NotImplemented for any other concrete type, \
+            and the ArrayFunctionRegistry handler registered by this test is never \
+            consulted by operations::add's dispatch path (see get_implementing_args \
+            + array_ref.array_function in operations.rs, which never queries the \
+            registry). Naively trying the next implementing_args candidate would \
+            silently compute a self-op on the wrong operand (e.g. gpu_a + gpu_a \
+            instead of wrapped_a + gpu_a) rather than a real cross-backend result."]
 fn test_mixed_array_types() {
     // Initialize the array protocol system
     array_protocol::init();
@@ -577,8 +541,12 @@ fn test_mixed_array_types() {
             );
         }
         Err(e) => {
-            // If we get an error, print it but don't fail the test
-            println!("Skipping Regular + GPU add test: {e}");
+            // This ignored test documents a real, still-open gap (see the
+            // #[ignore] reason above): silently skipping here would let the
+            // test pass vacuously regardless of whether cross-backend
+            // dispatch actually works. Fail loudly instead so that running
+            // it with --ignored gives an honest signal.
+            panic!("Regular + GPU add: cross-backend dispatch not reached, got error: {e}");
         }
     }
 
@@ -609,8 +577,7 @@ fn test_mixed_array_types() {
             );
         }
         Err(e) => {
-            // If we get an error, print it but don't fail the test
-            println!("Skipping GPU + Distributed add test: {e}");
+            panic!("GPU + Distributed add: cross-backend dispatch not reached, got error: {e}");
         }
     }
 
@@ -641,8 +608,7 @@ fn test_mixed_array_types() {
             );
         }
         Err(e) => {
-            // If we get an error, print it but don't fail the test
-            println!("Skipping Regular + Distributed add test: {e}");
+            panic!("Regular + Distributed add: cross-backend dispatch not reached, got error: {e}");
         }
     }
 }

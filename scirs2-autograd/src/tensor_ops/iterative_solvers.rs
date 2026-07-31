@@ -1,8 +1,180 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
+use crate::tensor_ops::matrix_calculus;
 use crate::Float;
 use scirs2_core::ndarray::{Array1, Array2, Ix1, Ix2};
 use scirs2_core::numeric::FromPrimitive;
+
+/// Which iterative algorithm a solver node (and its backward node) runs.
+#[derive(Clone, Copy)]
+pub enum SolverKind {
+    /// Conjugate gradient (symmetric positive definite `A`).
+    ConjugateGradient,
+    /// Restarted GMRES (general `A`), carrying the restart length.
+    Gmres { restart: usize },
+    /// Biconjugate gradient stabilised (general `A`).
+    BiCgStab,
+    /// Preconditioned conjugate gradient, carrying the preconditioner choice.
+    Pcg { preconditioner: PreconditionerType },
+}
+
+impl SolverKind {
+    /// Runs the algorithm on `A x = b`.
+    fn solve<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+        self,
+        a: &scirs2_core::ndarray::ArrayView2<F>,
+        b: &scirs2_core::ndarray::ArrayView1<F>,
+        max_iter: usize,
+        tolerance: Option<f64>,
+    ) -> Result<Array1<F>, OpError> {
+        match self {
+            SolverKind::ConjugateGradient => conjugate_gradient(a, b, max_iter, tolerance),
+            SolverKind::Gmres { restart } => gmres(a, b, max_iter, restart, tolerance),
+            SolverKind::BiCgStab => bicgstab(a, b, max_iter, tolerance),
+            SolverKind::Pcg { preconditioner } => {
+                let m = build_preconditioner(a, preconditioner)?;
+                pcg(a, b, &m, max_iter, tolerance)
+            }
+        }
+    }
+}
+
+/// Backward node of a linear solve: `y = solve(Aᵀ, gy)`.
+///
+/// `x = A^-1 b` is defined implicitly by `A x = b`. Differentiating that relation gives
+/// `A dx = db - dA x`, so for an output cotangent `gy`
+///
+/// ```text
+///   b̄ = A^-ᵀ gy          (solve the transposed system)
+///   Ā = -b̄ xᵀ            (outer product)
+/// ```
+///
+/// This node computes `b̄` by running the *same* iterative algorithm on `Aᵀ`, which is
+/// what makes the rule exact for the solver actually used rather than for some idealised
+/// direct solve.
+pub struct SolveTransposeOp {
+    kind: SolverKind,
+    max_iter: usize,
+    tolerance: Option<f64>,
+}
+
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for SolveTransposeOp {
+    fn name(&self) -> &'static str {
+        "IterativeSolveTranspose"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a_in = ctx.input(0);
+        let gy_in = ctx.input(1);
+
+        let a_2d = a_in
+            .view()
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("solver backward: A is not 2-D".into()))?;
+        if a_2d.nrows() != a_2d.ncols() {
+            return Err(OpError::IncompatibleShape(
+                "solver backward: A is not square".into(),
+            ));
+        }
+        let gy_1d = gy_in.view().into_dimensionality::<Ix1>().map_err(|_| {
+            OpError::IncompatibleShape("solver backward: the cotangent is not 1-D".into())
+        })?;
+        if gy_1d.len() != a_2d.nrows() {
+            return Err(OpError::IncompatibleShape(
+                "solver backward: cotangent length does not match the system size".into(),
+            ));
+        }
+
+        let at = a_2d.t().to_owned();
+        let y = self
+            .kind
+            .solve(&at.view(), &gy_1d, self.max_iter, self.tolerance)?;
+        ctx.append_output(y.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        matrix_calculus::append_unsupported_grad(
+            ctx,
+            "iterative linear solve: second-order differentiation is not implemented (it \
+             requires differentiating through the transposed solve itself)."
+                .into(),
+        );
+    }
+}
+
+/// `-u vᵀ`, the outer product appearing in the linear-solve VJP.
+pub struct NegOuterProductOp;
+
+impl<F: Float> Op<F> for NegOuterProductOp {
+    fn name(&self) -> &'static str {
+        "NegOuterProduct"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let u_in = ctx.input(0);
+        let v_in = ctx.input(1);
+        let u = u_in.view().into_dimensionality::<Ix1>().map_err(|_| {
+            OpError::IncompatibleShape("outer product: the first operand is not 1-D".into())
+        })?;
+        let v = v_in.view().into_dimensionality::<Ix1>().map_err(|_| {
+            OpError::IncompatibleShape("outer product: the second operand is not 1-D".into())
+        })?;
+        let mut out = Array2::<F>::zeros((u.len(), v.len()));
+        for i in 0..u.len() {
+            for j in 0..v.len() {
+                out[[i, j]] = -(u[i] * v[j]);
+            }
+        }
+        ctx.append_output(out.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        // With `Y = -u vᵀ`: `ū = -G v` and `v̄ = -Gᵀ u`.  Both matrix-vector products are
+        // expressed as a broadcast multiply followed by a row sum so that the rule is
+        // built out of ops whose own VJPs are already covered.
+        let u = *ctx.input(0);
+        let v = *ctx.input(1);
+        let gy = *ctx.output_grad();
+        let neg_gy = crate::tensor_ops::neg(gy);
+        let neg_gy_t = crate::tensor_ops::transpose(neg_gy, &[1, 0]);
+        let grad_u = crate::tensor_ops::reduce_sum(crate::tensor_ops::mul(neg_gy, v), &[1], false);
+        let grad_v =
+            crate::tensor_ops::reduce_sum(crate::tensor_ops::mul(neg_gy_t, u), &[1], false);
+        ctx.append_input_grad(0, Some(grad_u));
+        ctx.append_input_grad(1, Some(grad_v));
+    }
+}
+
+/// Emits the implicit-function VJP of `x = solve(A, b)` for every solver in this module.
+fn append_linear_solve_grad<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    ctx: &mut GradientContext<F>,
+    kind: SolverKind,
+    max_iter: usize,
+    tolerance: Option<f64>,
+) {
+    let a = *ctx.input(0);
+    let x = *ctx.output();
+    let gy = *ctx.output_grad();
+    let g = ctx.graph();
+
+    let grad_b = Tensor::builder(g)
+        .append_input(a, false)
+        .append_input(gy, false)
+        .build(SolveTransposeOp {
+            kind,
+            max_iter,
+            tolerance,
+        });
+    let grad_a = Tensor::builder(g)
+        .append_input(grad_b, false)
+        .append_input(x, false)
+        .build(NegOuterProductOp);
+
+    ctx.append_input_grad(0, Some(grad_a));
+    ctx.append_input_grad(1, Some(grad_b));
+}
 
 /// Conjugate Gradient solver for symmetric positive definite systems
 pub struct ConjugateGradientOp {
@@ -51,84 +223,12 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for C
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let a = ctx.input(0);
-        let _b = ctx.input(1);
-        let x = ctx.output();
-        let g = ctx.graph();
-
-        // Gradient computation for iterative solver
-        // grad_b = solve(A^T, grad_x)
-        // grad_A = -outer(solve(A^T, grad_x), x)
-
-        let a_array = match a.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        let x_array = match x.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Solve A^T y = grad_x
-        let a_2d = match a_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        let grad_x_1d = match grad_output_array.view().into_dimensionality::<Ix1>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Solve A^T y = grad_x
-        let at = a_2d.t();
-        match conjugate_gradient(&at.view(), &grad_x_1d, self.max_iter, self.tolerance) {
-            Ok(y) => {
-                // grad_b = y
-                let grad_b_tensor = crate::tensor_ops::convert_to_tensor(y.clone().into_dyn(), g);
-                ctx.append_input_grad(1, Some(grad_b_tensor));
-
-                // grad_A = -y ⊗ x
-                let x_1d = x_array
-                    .view()
-                    .into_dimensionality::<Ix1>()
-                    .expect("Operation failed");
-                let grad_a = -outer_product(&y.view(), &x_1d);
-                let grad_a_tensor = crate::tensor_ops::convert_to_tensor(grad_a.into_dyn(), g);
-                ctx.append_input_grad(0, Some(grad_a_tensor));
-            }
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-            }
-        }
+        append_linear_solve_grad(
+            ctx,
+            SolverKind::ConjugateGradient,
+            self.max_iter,
+            self.tolerance,
+        );
     }
 }
 
@@ -180,10 +280,14 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for G
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        // Similar gradient computation as CG
-        let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
-        ctx.append_input_grad(1, Some(*grad_output));
+        append_linear_solve_grad(
+            ctx,
+            SolverKind::Gmres {
+                restart: self.restart,
+            },
+            self.max_iter,
+            self.tolerance,
+        );
     }
 }
 
@@ -234,9 +338,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for B
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
-        ctx.append_input_grad(1, Some(*grad_output));
+        append_linear_solve_grad(ctx, SolverKind::BiCgStab, self.max_iter, self.tolerance);
     }
 }
 
@@ -283,9 +385,14 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for P
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
-        ctx.append_input_grad(1, Some(*grad_output));
+        append_linear_solve_grad(
+            ctx,
+            SolverKind::Pcg {
+                preconditioner: self.preconditioner,
+            },
+            self.max_iter,
+            self.tolerance,
+        );
     }
 }
 

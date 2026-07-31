@@ -823,7 +823,13 @@ mod tests {
     #[test]
     fn test_rosenbrock_optimization() {
         // Test optimization on the Rosenbrock function
-        let config = presets::interactiveconfig();
+        let mut config = presets::interactiveconfig();
+        // Visualization writes real SVG/HTML files under `output_directory`
+        // (a relative path in this preset) — irrelevant to what this test
+        // verifies (numerical convergence), so disable it to keep the test
+        // hermetic rather than scattering files into the crate directory.
+        config.enable_visualization = false;
+        config.output_directory = None;
 
         let rosenbrock = |x: &ArrayView1<f64>| -> f64 {
             let x0 = x[0];
@@ -832,6 +838,7 @@ mod tests {
         };
 
         let initial_guess = array![-1.0, 1.0];
+        let initial_f = rosenbrock(&initial_guess.view());
 
         // Create optimizer without MPI for testing
         let mut optimizer: UnifiedOptimizer<crate::distributed::MockMPI> =
@@ -842,8 +849,23 @@ mod tests {
             .register_tunable_parameter("step_size", TunableParameter::new(0.01, 0.001, 0.1))
             .expect("Operation failed");
 
-        // This would run the actual optimization in a full test
-        // For now, just test that the setup works
-        assert!(true);
+        // Actually run the optimization (no analytic gradient available, so
+        // fall back to the optimizer's internal numerical differentiation).
+        let no_gradient: Option<fn(&ArrayView1<f64>) -> Array1<f64>> = None;
+        let result = optimizer
+            .optimize(rosenbrock, no_gradient, &initial_guess, None)
+            .expect("optimize should succeed");
+
+        assert!(
+            result.fun() < initial_f,
+            "optimizer should reduce the Rosenbrock objective: initial={}, final={}",
+            initial_f,
+            result.fun()
+        );
+        assert!(
+            (result.x()[0] - 1.0).abs() < 0.5 && (result.x()[1] - 1.0).abs() < 0.5,
+            "expected convergence near the Rosenbrock minimum (1, 1), got {:?}",
+            result.x()
+        );
     }
 }

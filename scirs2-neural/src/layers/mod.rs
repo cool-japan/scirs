@@ -142,6 +142,9 @@ pub struct LayerInfo {
 pub struct Sequential<F: Float + Debug + ScalarOperand + NumAssign> {
     layers: Vec<Box<dyn Layer<F> + Send + Sync>>,
     training: bool,
+    /// Output of every layer of the last forward pass, so that `backward` can
+    /// hand each layer the input it actually saw
+    layer_outputs: std::sync::RwLock<Vec<Array<F, scirs2_core::ndarray::IxDyn>>>,
 }
 
 impl<F: Float + Debug + ScalarOperand + NumAssign> std::fmt::Debug for Sequential<F> {
@@ -160,6 +163,7 @@ impl<F: Float + Debug + ScalarOperand + NumAssign + 'static> Clone for Sequentia
         Self {
             layers: Vec::new(),
             training: self.training,
+            layer_outputs: std::sync::RwLock::new(Vec::new()),
         }
     }
 }
@@ -176,6 +180,7 @@ impl<F: Float + Debug + ScalarOperand + NumAssign> Sequential<F> {
         Self {
             layers: Vec::new(),
             training: true,
+            layer_outputs: std::sync::RwLock::new(Vec::new()),
         }
     }
 
@@ -219,26 +224,57 @@ impl<F: Float + Debug + ScalarOperand + NumAssign> Sequential<F> {
     }
 }
 
-impl<F: Float + Debug + ScalarOperand + NumAssign> Layer<F> for Sequential<F> {
+impl<F: Float + Debug + ScalarOperand + NumAssign + Send + Sync> Layer<F> for Sequential<F> {
     fn forward(
         &self,
         input: &Array<F, scirs2_core::ndarray::IxDyn>,
     ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
+        let mut outputs = Vec::with_capacity(self.layers.len());
         let mut output = input.clone();
         for layer in &self.layers {
             output = layer.forward(&output)?;
+            outputs.push(output.clone());
+        }
+        if let Ok(mut cache) = self.layer_outputs.write() {
+            *cache = outputs;
         }
         Ok(output)
     }
 
+    /// Propagate the gradient through the stack in reverse, giving every layer
+    /// the input it received during the forward pass.
     fn backward(
         &self,
-        _input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
         grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
     ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
-        // For simplicity, we'll just return the grad_output as-is
-        // A real implementation would propagate through the layers in reverse
-        Ok(grad_output.clone())
+        if self.layers.is_empty() {
+            // An empty container is the identity, so is its gradient.
+            return Ok(grad_output.clone());
+        }
+        let outputs = self
+            .layer_outputs
+            .read()
+            .map_err(|_| {
+                crate::error::NeuralError::InferenceError(
+                    "Failed to acquire read lock on layer outputs".to_string(),
+                )
+            })?
+            .clone();
+        if outputs.len() != self.layers.len() {
+            return Err(crate::error::NeuralError::InferenceError(format!(
+                "Cached {} layer outputs for {} layers. Call forward() first.",
+                outputs.len(),
+                self.layers.len()
+            )));
+        }
+
+        let mut grad = grad_output.clone();
+        for (idx, layer) in self.layers.iter().enumerate().rev() {
+            let layer_input = if idx == 0 { input } else { &outputs[idx - 1] };
+            grad = layer.backward(layer_input, &grad)?;
+        }
+        Ok(grad)
     }
 
     fn update(&mut self, learningrate: F) -> Result<()> {
@@ -254,6 +290,14 @@ impl<F: Float + Debug + ScalarOperand + NumAssign> Layer<F> for Sequential<F> {
             params.extend(layer.params());
         }
         params
+    }
+
+    fn gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
+        let mut grads = Vec::new();
+        for layer in &self.layers {
+            grads.extend(layer.gradients());
+        }
+        grads
     }
 
     fn set_training(&mut self, training: bool) {
@@ -312,6 +356,7 @@ pub mod dense;
 pub mod dropout;
 pub mod graph_conv;
 pub mod layer_norm_2d;
+pub mod norm_variants;
 pub mod normalization;
 pub mod patch_embed;
 pub mod recurrent;
@@ -344,6 +389,7 @@ pub use grouped_query_attention::{
 };
 pub use layer_norm_2d::LayerNorm2D;
 pub use multi_query_attention::{KvCache, MultiQueryAttention, MultiQueryAttentionConfig};
+pub use norm_variants::{GroupNorm, InstanceNorm, RMSNorm, WeightNorm};
 pub use normalization::{BatchNorm, LayerNorm};
 pub use patch_embed::PatchEmbedding;
 pub use recurrent::rnn::{RNNConfig, RecurrentActivation as RecurrentActivationRNN};

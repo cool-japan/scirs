@@ -55,6 +55,10 @@ criterion = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
+# Additional scirs2-core features needed only by tests (unions with the
+# [dependencies] feature set above; see gpu_availability test helper usage
+# in tests/*_gpu_smoke.rs).
+scirs2-core = { path = "../scirs2-core", features = ["testing"] }
 
 [[bench]]
 name = "scipy_comparison_bench"

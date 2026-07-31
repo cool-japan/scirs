@@ -397,7 +397,7 @@ where
     }
 
     fn dtype(&self) -> &str {
-        "float" // Placeholder; ideally would return the actual type
+        std::any::type_name::<T>()
     }
 
     fn to_array(&self) -> Array2<T> {
@@ -1007,6 +1007,26 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_bsr_array_dtype_reflects_actual_element_type() {
+        let block_f64 = vec![vec![vec![1.0f64, 2.0], vec![3.0, 4.0]]];
+        let block_f32 = vec![vec![vec![1.0f32, 2.0], vec![3.0, 4.0]]];
+        let indices = vec![vec![0]];
+        let indptr = vec![0, 1];
+
+        let bsr_f64 = BsrArray::new(block_f64, indices.clone(), indptr.clone(), (2, 2), (2, 2))
+            .expect("Operation failed");
+        let bsr_f32 =
+            BsrArray::new(block_f32, indices, indptr, (2, 2), (2, 2)).expect("Operation failed");
+
+        // Previously `dtype()` always returned the literal string "float"
+        // regardless of the actual generic element type.
+        assert_eq!(bsr_f64.dtype(), "f64");
+        assert_eq!(bsr_f32.dtype(), "f32");
+        assert_ne!(bsr_f64.dtype(), "float");
+        assert_ne!(bsr_f32.dtype(), bsr_f64.dtype());
+    }
 
     #[test]
     fn test_bsr_array_create() {

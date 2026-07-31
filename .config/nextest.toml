@@ -92,14 +92,34 @@ slow-timeout = { period = "600s" }
 threads-required = 2
 
 [[profile.default.overrides]]
-# Property-based tests
-filter = 'test(property_)'
+# Property-based tests (quickcheck/proptest suites). `test(property_)` did
+# NOT match the tests this override exists for: `test()` matches against
+# test *names*, and the real quickcheck/proptest functions in
+# `tests/property_based_tests.rs` (scirs2-stats, scirs2-metrics) are named
+# things like `descriptive_stats_properties::mean_bounds_property` — no
+# `property_` substring anywhere. The old filter instead accidentally
+# matched unrelated `property_tests::*` modules in other crates (e.g.
+# scirs2-linalg/scirs2-cluster) that happen to contain that substring in
+# their module name. Verified against `cargo nextest list --run-ignored
+# all`: the real suites are auto-discovered as binaries named
+# `property_based_tests`, so this is a `binary()` filter, not `test()`.
+filter = 'binary(property_based_tests)'
 slow-timeout = { period = "300s" }
 
 [[profile.default.overrides]]
 # Stress tests
 filter = 'test(stress_)'
 slow-timeout = { period = "600s" }
+threads-required = 2
+
+[[profile.default.overrides]]
+# Wall-clock scaling assertions (test_performance_scaling compares timings
+# across four data sizes with a linear-scaling tolerance). Sub-millisecond
+# measurements are noise-sensitive when many other nextest test processes are
+# scheduled concurrently on the same cores; reserving extra slots reduces
+# (does not require avoiding entirely — see the in-test tolerance) that
+# contention. See scirs2-integration-tests/tests/integration/performance.rs.
+filter = 'test(test_performance_scaling)'
 threads-required = 2
 
 [[profile.default.overrides]]

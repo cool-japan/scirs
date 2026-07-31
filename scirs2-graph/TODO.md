@@ -1,10 +1,29 @@
 # scirs2-graph TODO
 
-## Status: v0.6.3 Released (July 27, 2026)
+## Status: v0.6.5 Released (July 31, 2026)
 
-Untouched by this release's fix work (no graph-specific changes shipped in 0.6.3); the audit below
-— last performed against source on 2026-07-15 — remains accurate since the crate source is
-unchanged.
+Several correctness bugs fixed this cycle, surfaced by a workspace-wide `#[ignore]`-legitimacy audit
+followed to ground rather than just re-read:
+
+- `spectral::spectral_clustering` / `spectral_graph::spectral_clustering` now compute a real
+  spectral embedding (smallest eigenvectors of the normalized Laplacian) followed by genuine
+  Lloyd's-algorithm k-means, instead of a random/stand-in result.
+- `algorithms::matching::hungarian_algorithm` now solves the assignment problem exactly via the
+  real O(n^3) Hungarian (Kuhn-Munkres) algorithm instead of a random/stand-in result; cross-checked
+  against a brute-force solver on random instances up to n=6
+  (`test_hungarian_matches_bruteforce_on_random_instances`).
+- `advanced::AdvancedProcessor` (`advanced/mod.rs`) now accumulates genuine wall-clock timing
+  (`SimplePerformanceMonitor`) and structural/RSS-sampled memory statistics (`execute` /
+  `execute_profiled`) instead of fabricated constants.
+- `generators::watts_strogatz_graph`'s rewiring step (`src/generators/mod.rs`) checked
+  `new_graph.has_node(...)` — always `true` once all `n` nodes are present — instead of
+  `has_edge(...)`, so the "already an edge / avoid duplicate" guard could never trigger and the
+  rewiring loop hung on ~99.8% of seeds at `p > 0`. Now checks `has_edge`.
+
+See `CHANGELOG.md` `[0.6.5]` for full detail.
+
+The audit below — last performed against source on 2026-07-15 — remains accurate for everything
+other than the four items above (the fixes did not add or remove any public API surface).
 
 Note: this file was last audited against `src/` on 2026-07-15. Almost all of the
 former "v0.4.0 Roadmap" below has since been implemented (verified by grepping

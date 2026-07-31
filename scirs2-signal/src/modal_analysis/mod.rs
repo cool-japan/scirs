@@ -12,6 +12,7 @@
 //! | [`fdd`] | Frequency Domain Decomposition (peak-picking from CPSD SVD) |
 //! | [`ssi`] | Stochastic Subspace Identification — covariance-driven |
 //! | [`mac`] | Modal Assurance Criterion for mode shape comparison |
+//! | [`free_vibration`] | Free-decay methods: RDT, NExT, Ibrahim Time Domain, ERA |
 //!
 //! ## Quick Start
 //!
@@ -44,12 +45,17 @@
 //! ```
 
 pub mod fdd;
+pub mod free_vibration;
 pub mod mac;
 pub mod ssi;
 pub mod types;
 
 // Re-export public API
 pub use fdd::fdd_identify;
+pub use free_vibration::{
+    era, natural_excitation_technique, next_era, random_decrement, ERAConfig, ERAResult, ITDResult,
+    IbrahimTimeDomain, NExTConfig, RDTConfig, RDTResult,
+};
 pub use mac::{
     average_off_diagonal_mac, diagonal_mac_all_above, mac_matrix, mac_value, pair_modes, ModePair,
 };

@@ -1,6 +1,16 @@
 # scirs2-core Development TODO
 
-## Status: v0.6.3 (released 2026-07-27)
+## Status: v0.6.5 (released 2026-07-31)
+
+**0.6.5:** no scirs2-core-specific fixes shipped this release — the 0.6.5 cycle's workspace-wide
+`#[ignore]`-legitimacy audit (132 → 59 ignored tests workspace-wide, every one now reason-tagged)
+and its bug-hunt fallout landed in `scirs2-autograd`, `scirs2-linalg`, `scirs2-stats`,
+`scirs2-graph`, `scirs2-io`, `scirs2-integrate`, `scirs2-series`, `scirs2-spatial`,
+`scirs2-ndimage`, and `scirs2-special` instead — see root `CHANGELOG.md` `[0.6.5]`. `scirs2-core`
+itself only picks up the version bump and the workspace dependency refresh (`oxicode` 0.2.4 →
+0.2.5, `oxiz` 0.3.0 → 0.3.1, `oxiarc-*` 0.3.6 → 0.4.0). The new `cargo-scirs2-policy` `ignore_audit`
+lint (`IGNORE_AUDIT_001..004`) that enforces the reason taxonomy going forward lives in
+`tools/cargo-scirs2-policy`, not in this crate.
 
 **0.6.3:** two Windows-only fixes — `profiling::memory_profiling` (`src/profiling/memory_profiling.rs`) gained a `K32GetProcessMemoryInfo` (kernel32)-backed real memory-profiling backend for Windows (previously an atomic-tracking estimate fallback), and `CrossPlatformValidator::validate_windows_path` (`src/validation/cross_platform.rs`) no longer flags the drive-letter colon in an absolute Windows path (e.g. `C:\Users\...`) as an invalid character — it now strips the leading `X:` drive specifier before scanning for `<>:"|?*`. Verified by code review and the (unchanged) test suite below; not exercised under Windows CI. See `CHANGELOG.md` `[0.6.3]` for full detail.
 

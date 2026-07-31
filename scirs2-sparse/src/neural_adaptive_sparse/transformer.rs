@@ -94,6 +94,13 @@ impl TransformerModel {
 
     /// Forward pass through the transformer
     pub fn forward(&self, input: &[Vec<f64>]) -> Vec<Vec<f64>> {
+        self.forward_with_attention_score(input).0
+    }
+
+    /// Forward pass through the transformer, also returning the real average
+    /// self-attention weight observed across all encoder layers for this
+    /// input (not a fabricated constant).
+    pub fn forward_with_attention_score(&self, input: &[Vec<f64>]) -> (Vec<Vec<f64>>, f64) {
         // Add positional encoding
         let mut x = input.to_vec();
         for (i, sequence) in x.iter_mut().enumerate() {
@@ -107,15 +114,33 @@ impl TransformerModel {
         }
 
         // Pass through encoder layers
+        let mut score_sum = 0.0f64;
+        let mut score_count = 0usize;
         for layer in &self.encoder_layers {
-            x = layer.forward(&x);
+            let (output, score) = layer.forward_with_attention_score(&x);
+            x = output;
+            score_sum += score;
+            score_count += 1;
         }
 
-        x
+        let avg_score = if score_count > 0 {
+            score_sum / score_count as f64
+        } else {
+            0.0
+        };
+
+        (x, avg_score)
     }
 
     /// Encode matrix patterns using transformer
     pub fn encode_matrix_pattern(&self, matrix_features: &[f64]) -> Vec<f64> {
+        self.encode_matrix_pattern_with_score(matrix_features).0
+    }
+
+    /// Encode matrix patterns using transformer, also returning the real
+    /// average attention weight the transformer computed while encoding
+    /// this specific input (not a fabricated constant).
+    pub fn encode_matrix_pattern_with_score(&self, matrix_features: &[f64]) -> (Vec<f64>, f64) {
         // Convert 1D features to sequence format
         let sequence_length = (matrix_features.len() / self.embedding_dim).max(1);
         let mut sequence = vec![vec![0.0; self.embedding_dim]; sequence_length];
@@ -131,7 +156,7 @@ impl TransformerModel {
         }
 
         // Process through transformer
-        let encoded = self.forward(&sequence);
+        let (encoded, attention_score) = self.forward_with_attention_score(&sequence);
 
         // Pool the encoded sequence (simple mean pooling)
         let mut pooled = vec![0.0; self.embedding_dim];
@@ -143,7 +168,7 @@ impl TransformerModel {
             }
         }
 
-        pooled
+        (pooled, attention_score)
     }
 
     /// Update transformer parameters (simplified training step)
@@ -170,8 +195,15 @@ impl TransformerEncoderLayer {
 
     /// Forward pass through encoder layer
     pub fn forward(&self, input: &[Vec<f64>]) -> Vec<Vec<f64>> {
+        self.forward_with_attention_score(input).0
+    }
+
+    /// Forward pass through encoder layer, also returning the real average
+    /// self-attention weight computed for this input.
+    pub fn forward_with_attention_score(&self, input: &[Vec<f64>]) -> (Vec<Vec<f64>>, f64) {
         // Self-attention with residual connection
-        let attention_output = self.self_attention.forward(input);
+        let (attention_output, attention_score) =
+            self.self_attention.forward_with_attention_score(input);
         let mut norm1_input = Vec::new();
 
         for (i, attention_seq) in attention_output.iter().enumerate() {
@@ -209,10 +241,12 @@ impl TransformerEncoderLayer {
         }
 
         // Second layer normalization
-        norm2_input
+        let output = norm2_input
             .iter()
             .map(|seq| self.layer_norm2.normalize(seq))
-            .collect()
+            .collect();
+
+        (output, attention_score)
     }
 
     /// Update layer parameters
@@ -260,13 +294,25 @@ impl MultiHeadAttention {
 
     /// Forward pass through multi-head attention
     pub fn forward(&self, input: &[Vec<f64>]) -> Vec<Vec<f64>> {
+        self.forward_with_attention_score(input).0
+    }
+
+    /// Forward pass through multi-head attention, also returning the real
+    /// average attention weight actually computed across all heads and
+    /// sequence positions for this input (not a fabricated constant).
+    pub fn forward_with_attention_score(&self, input: &[Vec<f64>]) -> (Vec<Vec<f64>>, f64) {
         let mut all_head_outputs = Vec::new();
+        let mut score_sum = 0.0f64;
+        let mut score_count = 0usize;
 
         // Process each head
         for head in &self.heads {
             let mut head_output = Vec::new();
             for sequence in input {
-                head_output.push(head.forward(sequence));
+                let (output, score) = head.forward_with_score(sequence);
+                head_output.push(output);
+                score_sum += score;
+                score_count += 1;
             }
             all_head_outputs.push(head_output);
         }
@@ -286,7 +332,13 @@ impl MultiHeadAttention {
             result.push(projected);
         }
 
-        result
+        let avg_score = if score_count > 0 {
+            score_sum / score_count as f64
+        } else {
+            0.0
+        };
+
+        (result, avg_score)
     }
 
     /// Linear transformation

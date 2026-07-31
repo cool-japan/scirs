@@ -4,7 +4,12 @@
 use crate::common::*;
 use crate::fixtures::TestDatasets;
 use proptest::prelude::*;
-use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
+use scirs2_optimize::distributed::{
+    algorithms::DistributedDifferentialEvolution, spawn_ranks, DistributedConfig,
+    DistributedOptimizationContext,
+};
+use scirs2_optimize::multiobjective::nsga2::{nsga2, Nsga2Config};
 use scirs2_optimize::{minimize, unconstrained::Method, unconstrained::Options};
 
 type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
@@ -472,19 +477,133 @@ fn test_simple_regression_convergence() -> TestResult<()> {
 }
 
 /// Test multi-objective optimization integration
+///
+/// Runs NSGA-II on Schaffer's F1 problem (`f1(x) = x^2`, `f2(x) = (x - 2)^2`),
+/// a classic two-objective benchmark whose Pareto-optimal set is the known
+/// interval `x in [0, 2]`. Verifies the algorithm returns a diverse,
+/// genuinely non-dominated front concentrated in that interval, rather than
+/// merely returning `Ok(())` without exercising the optimizer at all.
 #[test]
 fn test_multi_objective_optimization() -> TestResult<()> {
     println!("Testing multi-objective optimization integration");
 
+    let bounds = vec![(-10.0, 10.0)];
+    let config = Nsga2Config {
+        population_size: 40,
+        n_generations: 60,
+        seed: 42,
+        ..Nsga2Config::default()
+    };
+
+    let result = nsga2(
+        2,
+        &bounds,
+        |x: &[f64]| {
+            let f1 = x[0] * x[0];
+            let f2 = (x[0] - 2.0) * (x[0] - 2.0);
+            vec![f1, f2]
+        },
+        config,
+    )
+    .map_err(|e| format!("nsga2 failed: {}", e))?;
+
+    assert!(
+        !result.pareto_front.is_empty(),
+        "Pareto front should not be empty"
+    );
+    assert!(
+        result.pareto_front.len() > 1,
+        "expected a diverse Pareto front, got {} point(s)",
+        result.pareto_front.len()
+    );
+
+    for individual in &result.pareto_front {
+        let x = individual.genes[0];
+        assert!(
+            (-0.5..=2.5).contains(&x),
+            "Pareto-optimal x should lie near the known [0, 2] interval, got {}",
+            x
+        );
+        assert!(individual.objectives[0] >= 0.0);
+        assert!(individual.objectives[1] >= 0.0);
+    }
+
+    // Non-domination: no point in the front may dominate another (both
+    // objectives strictly better) — that would mean NSGA-II's own sorting
+    // left a dominated point in the first front.
+    for (i, a) in result.pareto_front.iter().enumerate() {
+        for (j, b) in result.pareto_front.iter().enumerate() {
+            if i == j {
+                continue;
+            }
+            let a_dominates_b = a.objectives[0] <= b.objectives[0]
+                && a.objectives[1] <= b.objectives[1]
+                && (a.objectives[0] < b.objectives[0] || a.objectives[1] < b.objectives[1]);
+            assert!(
+                !a_dominates_b,
+                "front point {:?} dominates {:?}: not a valid Pareto front",
+                a.objectives, b.objectives
+            );
+        }
+    }
+
+    println!(
+        "NSGA-II converged: {} Pareto-optimal points, {} generations, {} evaluations",
+        result.pareto_front.len(),
+        result.n_generations,
+        result.n_evaluations
+    );
     Ok(())
 }
 
 /// Test distributed training integration
+///
+/// Drives [`DistributedDifferentialEvolution`] across 4 simulated MPI ranks
+/// (real OS threads, via [`spawn_ranks`] / `ThreadRankMpi` — no MPI runtime
+/// or multi-process setup needed) on the sphere function, verifying that the
+/// distributed optimizer actually converges and that every rank agrees on
+/// the reduced global result.
 #[test]
-#[ignore] // Requires multi-process setup
 fn test_distributed_training_integration() -> TestResult<()> {
     println!("Testing distributed training integration");
 
+    let bounds = vec![(-5.0, 5.0), (-5.0, 5.0)];
+
+    let results = spawn_ranks(4, move |mpi| {
+        let context = DistributedOptimizationContext::new(mpi, DistributedConfig::default());
+        let mut de = DistributedDifferentialEvolution::new(context, 40, 300);
+        de.optimize(
+            |x: &ArrayView1<f64>| x.iter().map(|v| v * v).sum::<f64>(),
+            &bounds,
+        )
+        .expect("distributed DE optimize failed")
+    });
+
+    assert_eq!(results.len(), 4, "expected one result per simulated rank");
+    for result in &results {
+        assert!(result.success);
+        assert!(
+            result.fun < 1e-3,
+            "expected convergence near the sphere minimum, got fun={}",
+            result.fun
+        );
+    }
+    for result in &results[1..] {
+        assert_eq!(
+            result.fun, results[0].fun,
+            "all ranks must agree on the reduced global-best objective"
+        );
+        assert_eq!(
+            result.x, results[0].x,
+            "all ranks must agree on the reduced global-best point"
+        );
+    }
+
+    println!(
+        "Distributed training converged across {} ranks: fun={:.2e}",
+        results.len(),
+        results[0].fun
+    );
     Ok(())
 }
 

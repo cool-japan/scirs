@@ -31,14 +31,14 @@ pub struct FeedForward<F: Float + Debug + Send + Sync + SimdUnifiedOps + NumAssi
     w2: Array<F, IxDyn>,
     /// Second linear transformation biases
     b2: Array<F, IxDyn>,
-    /// Gradient of w1
-    dw1: Array<F, IxDyn>,
-    /// Gradient of b1
-    db1: Array<F, IxDyn>,
-    /// Gradient of w2
-    dw2: Array<F, IxDyn>,
-    /// Gradient of b2
-    db2: Array<F, IxDyn>,
+    /// Gradient of w1, written by `backward`
+    dw1: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of b1, written by `backward`
+    db1: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of w2, written by `backward`
+    dw2: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of b2, written by `backward`
+    db2: Arc<RwLock<Array<F, IxDyn>>>,
     /// Dropout rate (0 means no dropout)
     dropout: F,
     /// Input cache for backward pass
@@ -51,6 +51,10 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
     for FeedForward<F>
 {
     fn clone(&self) -> Self {
+        let read_grad = |cell: &Arc<RwLock<Array<F, IxDyn>>>| match cell.read() {
+            Ok(guard) => guard.clone(),
+            Err(poisoned) => poisoned.into_inner().clone(),
+        };
         Self {
             d_model: self.d_model,
             d_ff: self.d_ff,
@@ -58,10 +62,10 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
             b1: self.b1.clone(),
             w2: self.w2.clone(),
             b2: self.b2.clone(),
-            dw1: self.dw1.clone(),
-            db1: self.db1.clone(),
-            dw2: self.dw2.clone(),
-            db2: self.db2.clone(),
+            dw1: Arc::new(RwLock::new(read_grad(&self.dw1))),
+            db1: Arc::new(RwLock::new(read_grad(&self.db1))),
+            dw2: Arc::new(RwLock::new(read_grad(&self.dw2))),
+            db2: Arc::new(RwLock::new(read_grad(&self.db2))),
             dropout: self.dropout,
             input_cache: Arc::new(RwLock::new(
                 self.input_cache.read().expect("Operation failed").clone(),
@@ -121,10 +125,10 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         let b2 = Array::zeros(IxDyn(&[d_model]));
 
         // Initialize gradient arrays with zeros
-        let dw1 = Array::zeros(w1.dim());
-        let dw2 = Array::zeros(w2.dim());
-        let db1 = Array::zeros(b1.dim());
-        let db2 = Array::zeros(b2.dim());
+        let dw1 = Arc::new(RwLock::new(Array::zeros(w1.dim())));
+        let dw2 = Arc::new(RwLock::new(Array::zeros(w2.dim())));
+        let db1 = Arc::new(RwLock::new(Array::zeros(b1.dim())));
+        let db2 = Arc::new(RwLock::new(Array::zeros(b2.dim())));
 
         // Convert dropout rate
         let dropout = F::from(dropout).ok_or_else(|| {
@@ -251,28 +255,49 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         Ok(output_reshaped)
     }
 
+    /// Exact gradient of `FFN(x) = (relu(x W1 + b1) / keep_prob) W2 + b2`.
+    ///
+    /// Weight and bias gradients are accumulated over every position of the
+    /// (flattened) batch and stored for [`Layer::update`]; the returned array is
+    /// the gradient with respect to the layer input.
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
         grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
         // Retrieve cached values
-        let input_ref = self.input_cache.read().expect("Operation failed");
-        let hidden_ref = self.hidden_cache.read().expect("Operation failed");
+        let input_ref = self.input_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on input cache".to_string())
+        })?;
+        let hidden_ref = self.hidden_cache.read().map_err(|_| {
+            NeuralError::InferenceError("Failed to acquire read lock on hidden cache".to_string())
+        })?;
 
-        if input_ref.is_none() || hidden_ref.is_none() {
-            return Err(NeuralError::InferenceError(
+        let missing = || {
+            NeuralError::InferenceError(
                 "No cached values for backward pass. Call forward() first.".to_string(),
-            ));
-        }
-
-        let cached_input = input_ref.as_ref().expect("Operation failed");
-        let cached_hidden = hidden_ref.as_ref().expect("Operation failed");
+            )
+        };
+        let cached_input = input_ref.as_ref().ok_or_else(missing)?;
+        let cached_hidden = hidden_ref.as_ref().ok_or_else(missing)?;
 
         // Get input dimensions
         let input_shape = input.shape();
         let ndim = input.ndim();
+        if ndim < 2 || input_shape[ndim - 1] != self.d_model {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "FeedForward input must end in d_model ({}), got {:?}",
+                self.d_model, input_shape
+            )));
+        }
         let batch_size: usize = input_shape[..ndim - 1].iter().product();
+        if grad_output.shape() != input_shape {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "Output gradient shape {:?} must match the input shape {:?}",
+                grad_output.shape(),
+                input_shape
+            )));
+        }
 
         // Reshape cached values to 2D
         let cached_input_2d = cached_input
@@ -297,30 +322,65 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
                 NeuralError::InferenceError(format!("Failed to reshape grad_output: {}", e))
             })?;
 
+        // The forward pass rescales the post-ReLU hidden state by 1/keep_prob,
+        // so that same factor appears in the second layer's inputs.
+        let keep_prob = if self.dropout > F::zero() {
+            F::one() - self.dropout
+        } else {
+            F::one()
+        };
+        if keep_prob <= F::zero() {
+            return Err(NeuralError::InvalidArchitecture(
+                "Dropout rate must be below 1.0".to_string(),
+            ));
+        }
+        let inv_keep = keep_prob.recip();
+
+        let mut dw2 = Array::<F, IxDyn>::zeros(self.w2.dim());
+        let mut db2 = Array::<F, IxDyn>::zeros(self.b2.dim());
+        let mut dw1 = Array::<F, IxDyn>::zeros(self.w1.dim());
+        let mut db1 = Array::<F, IxDyn>::zeros(self.b1.dim());
+
         // Backward through second linear layer: grad_output -> grad_hidden
         let mut grad_hidden = Array::<F, _>::zeros((batch_size, self.d_ff));
         for i in 0..batch_size {
+            for j in 0..self.d_model {
+                let g = grad_output_2d[[i, j]];
+                db2[[j]] += g;
+                if g == F::zero() {
+                    continue;
+                }
+                for k in 0..self.d_ff {
+                    dw2[[k, j]] += cached_hidden_2d[[i, k]] * inv_keep * g;
+                }
+            }
             for k in 0..self.d_ff {
                 let mut sum = F::zero();
                 for j in 0..self.d_model {
                     sum += grad_output_2d[[i, j]] * self.w2[[k, j]];
                 }
-                grad_hidden[[i, k]] = sum;
-            }
-        }
-
-        // Backward through ReLU activation
-        for i in 0..batch_size {
-            for k in 0..self.d_ff {
-                if cached_hidden_2d[[i, k]] <= F::zero() {
-                    grad_hidden[[i, k]] = F::zero();
-                }
+                // Undo the 1/keep_prob rescaling, then the ReLU.
+                grad_hidden[[i, k]] = if cached_hidden_2d[[i, k]] > F::zero() {
+                    sum * inv_keep
+                } else {
+                    F::zero()
+                };
             }
         }
 
         // Backward through first linear layer: grad_hidden -> grad_input
         let mut grad_input_2d = Array::<F, _>::zeros((batch_size, self.d_model));
         for i in 0..batch_size {
+            for j in 0..self.d_ff {
+                let g = grad_hidden[[i, j]];
+                db1[[j]] += g;
+                if g == F::zero() {
+                    continue;
+                }
+                for k in 0..self.d_model {
+                    dw1[[k, j]] += cached_input_2d[[i, k]] * g;
+                }
+            }
             for k in 0..self.d_model {
                 let mut sum = F::zero();
                 for j in 0..self.d_ff {
@@ -329,6 +389,18 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
                 grad_input_2d[[i, k]] = sum;
             }
         }
+
+        let store = |cell: &Arc<RwLock<Array<F, IxDyn>>>, value: Array<F, IxDyn>| -> Result<()> {
+            let mut guard = cell.write().map_err(|_| {
+                NeuralError::InferenceError("Failed to acquire write lock on gradients".to_string())
+            })?;
+            *guard = value;
+            Ok(())
+        };
+        store(&self.dw1, dw1)?;
+        store(&self.db1, db1)?;
+        store(&self.dw2, dw2)?;
+        store(&self.db2, db2)?;
 
         // Reshape grad_input back to original shape
         let grad_input = grad_input_2d
@@ -341,23 +413,56 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
     }
 
     fn update(&mut self, learning_rate: F) -> Result<()> {
-        // Apply a small update
-        let small_change = F::from(0.001).expect("Failed to convert constant to float");
-        let lr = small_change * learning_rate;
+        let read = |cell: &Arc<RwLock<Array<F, IxDyn>>>| -> Result<Array<F, IxDyn>> {
+            let guard = cell.read().map_err(|_| {
+                NeuralError::InferenceError("Failed to acquire read lock on gradients".to_string())
+            })?;
+            Ok(guard.clone())
+        };
+        let dw1 = read(&self.dw1)?;
+        let db1 = read(&self.db1)?;
+        let dw2 = read(&self.dw2)?;
+        let db2 = read(&self.db2)?;
 
-        // Update all parameters
-        for w in [&mut self.w1, &mut self.w2] {
-            for elem in w.iter_mut() {
-                *elem -= lr;
+        for (param, grad) in [
+            (&mut self.w1, &dw1),
+            (&mut self.b1, &db1),
+            (&mut self.w2, &dw2),
+            (&mut self.b2, &db2),
+        ] {
+            if param.shape() != grad.shape() {
+                return Err(NeuralError::ShapeMismatch(format!(
+                    "Parameter shape {:?} does not match gradient shape {:?}",
+                    param.shape(),
+                    grad.shape()
+                )));
             }
-        }
-        for b in [&mut self.b1, &mut self.b2] {
-            for elem in b.iter_mut() {
-                *elem -= lr;
-            }
+            scirs2_core::ndarray::Zip::from(&mut *param)
+                .and(grad)
+                .for_each(|w, &g| *w -= learning_rate * g);
         }
 
         Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        ParamLayer::get_parameters(self)
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        ParamLayer::get_gradients(self)
+    }
+
+    fn set_params(&mut self, params: &[Array<F, IxDyn>]) -> Result<()> {
+        ParamLayer::set_parameters(self, params.to_vec())
+    }
+
+    fn layer_type(&self) -> &str {
+        "FeedForward"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.w1.len() + self.b1.len() + self.w2.len() + self.b2.len()
     }
 }
 
@@ -373,12 +478,17 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         ]
     }
 
+    /// Gradients of `[w1, b1, w2, b2]`; zero until `backward` has run.
     fn get_gradients(&self) -> Vec<Array<F, IxDyn>> {
+        let read = |cell: &Arc<RwLock<Array<F, IxDyn>>>| match cell.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => Array::zeros(IxDyn(&[0])),
+        };
         vec![
-            self.dw1.clone(),
-            self.db1.clone(),
-            self.dw2.clone(),
-            self.db2.clone(),
+            read(&self.dw1),
+            read(&self.db1),
+            read(&self.dw2),
+            read(&self.db2),
         ]
     }
 
@@ -388,6 +498,20 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
                 "Expected 4 parameters, got {}",
                 params.len()
             )));
+        }
+        for (existing, replacement) in [
+            (&self.w1, &params[0]),
+            (&self.b1, &params[1]),
+            (&self.w2, &params[2]),
+            (&self.b2, &params[3]),
+        ] {
+            if existing.shape() != replacement.shape() {
+                return Err(NeuralError::InvalidArchitecture(format!(
+                    "Parameter shape mismatch: expected {:?}, got {:?}",
+                    existing.shape(),
+                    replacement.shape()
+                )));
+            }
         }
         self.w1 = params[0].clone();
         self.b1 = params[1].clone();
@@ -422,6 +546,9 @@ pub struct TransformerEncoderLayer<F: Float + Debug + Send + Sync + SimdUnifiedO
     attn_output_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
     /// Normalized attention output cache for backward pass
     norm1_output_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
+    /// `norm1_output + feed_forward(norm1_output)` cache: the tensor fed into
+    /// `norm2`, needed by the backward pass
+    norm2_input_cache: Arc<RwLock<Option<Array<F, IxDyn>>>>,
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps + NumAssign> Clone
@@ -443,6 +570,12 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
             )),
             norm1_output_cache: Arc::new(RwLock::new(
                 self.norm1_output_cache
+                    .read()
+                    .expect("Operation failed")
+                    .clone(),
+            )),
+            norm2_input_cache: Arc::new(RwLock::new(
+                self.norm2_input_cache
                     .read()
                     .expect("Operation failed")
                     .clone(),
@@ -514,6 +647,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
             d_model,
             attn_output_cache: Arc::new(RwLock::new(None)),
             norm1_output_cache: Arc::new(RwLock::new(None)),
+            norm2_input_cache: Arc::new(RwLock::new(None)),
         })
     }
 }
@@ -561,6 +695,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         // 3. Feed-forward network with residual connection
         let ff_output = self.feed_forward.forward(&norm1_output)?;
         let output = &norm1_output + &ff_output;
+        *self.norm2_input_cache.write().expect("Operation failed") = Some(output.clone());
 
         // 4. Layer normalization after feed-forward
         let final_output = self.norm2.forward(&output)?;
@@ -568,15 +703,70 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         Ok(final_output)
     }
 
+    /// Backpropagate through the whole encoder block.
+    ///
+    /// The forward pass is
+    /// `y = norm2(n1 + FFN(n1))` with `n1 = norm1(x + SelfAttention(x))`,
+    /// so the gradient is chained back through `norm2`, the feed-forward
+    /// residual branch, `norm1` and finally the attention residual branch.
+    /// Every sub-layer records its own parameter gradients along the way.
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // In a complete implementation, this would compute gradients through all components
-        // For simplicity, this is just a placeholder that returns a gradient of the same shape
-        let grad_input = Array::zeros(input.dim());
-        Ok(grad_input)
+        let missing = || {
+            NeuralError::InferenceError(
+                "No cached values for backward pass. Call forward() first.".to_string(),
+            )
+        };
+        let norm1_output = self
+            .norm1_output_cache
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on norm1 cache".to_string(),
+                )
+            })?
+            .clone()
+            .ok_or_else(missing)?;
+        let norm2_input = self
+            .norm2_input_cache
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on norm2 cache".to_string(),
+                )
+            })?
+            .clone()
+            .ok_or_else(missing)?;
+        let attn_output = self
+            .attn_output_cache
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on attention cache".to_string(),
+                )
+            })?
+            .clone()
+            .ok_or_else(missing)?;
+
+        // 4. through the second layer normalization
+        let grad_norm2_input = self.norm2.backward(&norm2_input, grad_output)?;
+
+        // 3. through the feed-forward residual branch
+        let grad_ff = self
+            .feed_forward
+            .backward(&norm1_output, &grad_norm2_input)?;
+        let grad_norm1_output = &grad_norm2_input + &grad_ff;
+
+        // 2. through the first layer normalization
+        let residual_input = input + &attn_output;
+        let grad_residual = self.norm1.backward(&residual_input, &grad_norm1_output)?;
+
+        // 1. through the self-attention residual branch
+        let grad_attn_input = self.self_attn.backward(input, &grad_residual)?;
+        Ok(&grad_residual + &grad_attn_input)
     }
 
     fn update(&mut self, learning_rate: F) -> Result<()> {
@@ -586,6 +776,33 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         self.feed_forward.update(learning_rate)?;
         self.norm2.update(learning_rate)?;
         Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        let mut params = self.self_attn.params();
+        params.extend(self.norm1.params());
+        params.extend(self.feed_forward.params());
+        params.extend(self.norm2.params());
+        params
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        let mut grads = self.self_attn.gradients();
+        grads.extend(self.norm1.gradients());
+        grads.extend(self.feed_forward.gradients());
+        grads.extend(self.norm2.gradients());
+        grads
+    }
+
+    fn layer_type(&self) -> &str {
+        "TransformerEncoderLayer"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.self_attn.parameter_count()
+            + self.norm1.parameter_count()
+            + self.feed_forward.parameter_count()
+            + self.norm2.parameter_count()
     }
 }
 
@@ -688,14 +905,36 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
         Ok(output)
     }
 
+    /// Backpropagate through the stack, feeding each layer the input it saw
+    /// during the forward pass (the previous layer's cached output).
     fn backward(
         &self,
         input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // In a complete implementation, this would compute gradients through all layers
-        let grad_input = Array::zeros(input.dim());
-        Ok(grad_input)
+        let outputs = self
+            .layer_outputs
+            .read()
+            .map_err(|_| {
+                NeuralError::InferenceError(
+                    "Failed to acquire read lock on layer outputs".to_string(),
+                )
+            })?
+            .clone();
+        if outputs.len() != self.layers.len() {
+            return Err(NeuralError::InferenceError(format!(
+                "Cached {} layer outputs for {} encoder layers. Call forward() first.",
+                outputs.len(),
+                self.layers.len()
+            )));
+        }
+
+        let mut grad = grad_output.clone();
+        for (idx, layer) in self.layers.iter().enumerate().rev() {
+            let layer_input = if idx == 0 { input } else { &outputs[idx - 1] };
+            grad = layer.backward(layer_input, &grad)?;
+        }
+        Ok(grad)
     }
 
     fn update(&mut self, learning_rate: F) -> Result<()> {
@@ -704,6 +943,22 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps +
             layer.update(learning_rate)?;
         }
         Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        self.layers.iter().flat_map(|l| l.params()).collect()
+    }
+
+    fn gradients(&self) -> Vec<Array<F, IxDyn>> {
+        self.layers.iter().flat_map(|l| l.gradients()).collect()
+    }
+
+    fn layer_type(&self) -> &str {
+        "TransformerEncoder"
+    }
+
+    fn parameter_count(&self) -> usize {
+        self.layers.iter().map(|l| l.parameter_count()).sum()
     }
 }
 

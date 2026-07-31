@@ -17,12 +17,12 @@
 //!
 //! Pure Rust, no unwrap(), snake_case naming.
 
+use crate::compressed_sensing::reconstruct as compressive_sense;
 use crate::error::{SignalError, SignalResult};
-use crate::sparse_recovery::{CsAlgorithm, compressive_sense};
-use scirs2_core::num_complex::Complex64;
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::num_complex::Complex64;
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{RngExt, SeedableRng};
 use std::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
@@ -235,7 +235,8 @@ pub fn noncartesian_fft(
 /// Given compressive measurements `y = Φ Ψ x_sparse`, this function:
 /// 1. Forms the combined sensing-sparsity matrix `A = Φ Ψ`.
 /// 2. Recovers the sparse coefficients `x_sparse` via Orthogonal Matching
-///    Pursuit (or a specified algorithm via [`CsAlgorithm`]).
+///    Pursuit (see [`crate::compressed_sensing::reconstruct`] for other
+///    available algorithms).
 /// 3. Returns the signal in the original domain as `Ψ x_sparse`.
 ///
 /// # Arguments
@@ -285,7 +286,7 @@ pub fn compressed_sensing_reconstruct(
     let a = phi.dot(&psi.t()); // (m x n_signal)
 
     // Recover sparse coefficients in the signal domain
-    let x_sparse = compressive_sense(y, &a, sparsity, CsAlgorithm::OrthoMatchingPursuit, 0.1, 1e-6)?;
+    let x_sparse = compressive_sense(&a, y, "omp", sparsity, 0.1)?;
 
     Ok(x_sparse)
 }
@@ -412,7 +413,7 @@ pub fn partial_dft_matrix(n: usize, row_indices: &[usize]) -> SignalResult<Array
         let k = freq_idx as f64;
         for col in 0..n {
             let phase = 2.0 * PI * k * col as f64 / n as f64;
-            phi[[2 * row_pair, col]] = phase.cos();       // real part
+            phi[[2 * row_pair, col]] = phase.cos(); // real part
             phi[[2 * row_pair + 1, col]] = -phase.sin(); // imaginary part
         }
     }
@@ -488,7 +489,11 @@ mod tests {
         let times: Vec<f64> = (0..n).map(|i| i as f64 / n as f64).collect();
         let freqs = vec![0.0_f64];
         let y = noncartesian_fft(&signal, &times, &freqs).expect("NUFFT should succeed");
-        assert!((y[0].re - n as f64).abs() < 1e-8, "DC bin should be {n}, got {}", y[0].re);
+        assert!(
+            (y[0].re - n as f64).abs() < 1e-8,
+            "DC bin should be {n}, got {}",
+            y[0].re
+        );
         assert!(y[0].im.abs() < 1e-8, "DC bin imaginary part should be ~0");
     }
 
@@ -524,9 +529,13 @@ mod tests {
         x_true[1] = 3.0;
         x_true[4] = -2.0;
         let y = phi.dot(&x_true);
-        let x_hat =
-            compressed_sensing_reconstruct(&y, &phi, &psi, 2).expect("CS reconstruct should succeed");
-        let err: f64 = (&x_hat - &x_true).iter().map(|&v| v * v).sum::<f64>().sqrt();
+        let x_hat = compressed_sensing_reconstruct(&y, &phi, &psi, 2)
+            .expect("CS reconstruct should succeed");
+        let err: f64 = (&x_hat - &x_true)
+            .iter()
+            .map(|&v| v * v)
+            .sum::<f64>()
+            .sqrt();
         assert!(err < 1e-6, "CS reconstruct error: {err}");
     }
 
@@ -566,7 +575,10 @@ mod tests {
         let n = 8_usize;
         let phi = partial_dft_matrix(n, &[0]).expect("partial DFT should succeed");
         for col in 0..n {
-            assert!((phi[[0, col]] - 1.0).abs() < 1e-12, "DC real row should be 1");
+            assert!(
+                (phi[[0, col]] - 1.0).abs() < 1e-12,
+                "DC real row should be 1"
+            );
             assert!(phi[[1, col]].abs() < 1e-12, "DC imag row should be 0");
         }
     }

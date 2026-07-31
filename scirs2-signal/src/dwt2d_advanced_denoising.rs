@@ -7,16 +7,16 @@ use scirs2_core::ndarray::s;
 // quantum-inspired optimization algorithms.
 
 use crate::dwt::Wavelet;
-use crate::dwt2d::{dwt2d_decompose, dwt2d_reconstruct};
+use crate::dwt2d_advanced::{dwt2d_decompose, dwt2d_reconstruct, Dwt2DCoeffs, EdgeMode2D};
 use crate::dwt2d_boundary_enhanced::{dwt2d_decompose_enhanced, BoundaryMode2D};
 use crate::error::{SignalError, SignalResult};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use scirs2_core::numeric::Float;
-use scirs2_core::random::{Rng, RngExt};
 use scirs2_core::parallel_ops::*;
+use scirs2_core::random::{Rng, RngExt};
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use scirs2_core::Rng as CoreRng;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -338,9 +338,9 @@ fn standard_dwt2d_decompose(
     let mut current_image = image.to_owned();
 
     for _level in 0..levels {
-        let result = dwt2d_decompose(&current_image, wavelet, None)?;
-        decomposition.extend(vec![result.detail_h, result.detail_v, result.detail_d]);
-        current_image = result.approx;
+        let result = dwt2d_decompose(&current_image, wavelet, EdgeMode2D::Symmetric)?;
+        decomposition.extend(vec![result.lh, result.hl, result.hh]);
+        current_image = result.ll;
     }
 
     decomposition.insert(0, current_image);
@@ -350,7 +350,7 @@ fn standard_dwt2d_decompose(
 /// SIMD-optimized coefficient normalization
 #[allow(dead_code)]
 fn simd_normalize_coefficients(coeffs: &mut Array2<f64>) -> SignalResult<()> {
-    let data = _coeffs
+    let data = coeffs
         .as_slice_mut()
         .ok_or_else(|| SignalError::ComputationError("Cannot get mutable slice".to_string()))?;
 
@@ -371,7 +371,7 @@ fn simd_normalize_coefficients(coeffs: &mut Array2<f64>) -> SignalResult<()> {
 /// SIMD mean calculation
 #[allow(dead_code)]
 fn simd_calculate_mean(data: &[f64]) -> SignalResult<f64> {
-    let data_view = scirs2_core::ndarray::ArrayView1::from(_data);
+    let data_view = scirs2_core::ndarray::ArrayView1::from(data);
     let sum = f64::simd_sum(&data_view);
     Ok(sum / data.len() as f64)
 }
@@ -380,23 +380,23 @@ fn simd_calculate_mean(data: &[f64]) -> SignalResult<f64> {
 #[allow(dead_code)]
 fn simd_calculate_std_dev(data: &[f64], mean: f64) -> SignalResult<f64> {
     let mean_array = vec![mean; data.len()];
-    let data_view = scirs2_core::ndarray::ArrayView1::from(_data);
+    let data_view = scirs2_core::ndarray::ArrayView1::from(data);
     let mean_view = scirs2_core::ndarray::ArrayView1::from(&mean_array);
 
     let diff = f64::simd_sub(&data_view, &mean_view);
     let squared_diff = f64::simd_mul(&diff.view(), &diff.view());
     let sum_squared = f64::simd_sum(&squared_diff.view());
 
-    Ok((sum_squared / (_data.len() - 1) as f64).sqrt())
+    Ok((sum_squared / (data.len() - 1) as f64).sqrt())
 }
 
 /// SIMD normalization
 #[allow(dead_code)]
-fn simd_normalize_data(_data: &mut [f64], mean: f64, stddev: f64) -> SignalResult<()> {
+fn simd_normalize_data(data: &mut [f64], mean: f64, stddev: f64) -> SignalResult<()> {
     let mean_array = vec![mean; data.len()];
-    let std_array = vec![std_dev; data.len()];
+    let std_array = vec![stddev; data.len()];
 
-    let data_view = scirs2_core::ndarray::ArrayView1::from(&*_data);
+    let data_view = scirs2_core::ndarray::ArrayView1::from(&*data);
     let mean_view = scirs2_core::ndarray::ArrayView1::from(&mean_array);
     let std_view = scirs2_core::ndarray::ArrayView1::from(&std_array);
 
@@ -465,12 +465,12 @@ fn calculate_quantum_energy_states(coeffs: &Array2<f64>) -> SignalResult<Vec<f64
 /// Calculate quantum coherence factor
 #[allow(dead_code)]
 fn calculate_quantum_coherence_factor(_energystates: &[f64]) -> SignalResult<f64> {
-    let mean_energy = energy_states.iter().sum::<f64>() / energy_states.len() as f64;
-    let variance = _energy_states
+    let mean_energy = _energystates.iter().sum::<f64>() / _energystates.len() as f64;
+    let variance = _energystates
         .iter()
         .map(|&e| (e - mean_energy).powi(2))
         .sum::<f64>()
-        / energy_states.len() as f64;
+        / _energystates.len() as f64;
 
     // Coherence factor based on energy distribution
     let coherence = (-variance / (mean_energy + 1e-10)).exp();
@@ -521,14 +521,14 @@ fn quantum_annealing_optimization(
 
 /// Evaluate threshold energy for quantum optimization
 #[allow(dead_code)]
-fn evaluate_threshold_energy(_threshold: f64, energystates: &[f64]) -> SignalResult<f64> {
+fn evaluate_threshold_energy(threshold: f64, energystates: &[f64]) -> SignalResult<f64> {
     // Energy function balancing noise removal and signal preservation
-    let preserved_energy = energy_states
+    let preserved_energy = energystates
         .iter()
-        .map(|&e| if e > _threshold { e } else { 0.0 })
+        .map(|&e| if e > threshold { e } else { 0.0 })
         .sum::<f64>();
 
-    let total_energy = energy_states.iter().sum::<f64>();
+    let total_energy = energystates.iter().sum::<f64>();
     let preservation_ratio = preserved_energy / (total_energy + 1e-10);
 
     // Energy cost function (to minimize)
@@ -567,20 +567,20 @@ fn calculate_adaptive_thresholds(
 
 /// Calculate Bayes threshold
 #[allow(dead_code)]
-fn calculate_bayes_threshold(_coeffs: &Array2<f64>, noisevariance: f64) -> SignalResult<f64> {
-    let signal_variance = coeffs.mapv(|x| x * x).mean() - noise_variance;
+fn calculate_bayes_threshold(coeffs: &Array2<f64>, noisevariance: f64) -> SignalResult<f64> {
+    let signal_variance = coeffs.mapv(|x| x * x).mean() - noisevariance;
     let signal_variance = signal_variance.max(0.0);
 
     if signal_variance > 0.0 {
-        Ok(noise_variance / signal_variance.sqrt())
+        Ok(noisevariance / signal_variance.sqrt())
     } else {
-        Ok(noise_variance.sqrt() * (2.0 * (_coeffs.len() as f64).ln()).sqrt())
+        Ok(noisevariance.sqrt() * (2.0 * (coeffs.len() as f64).ln()).sqrt())
     }
 }
 
 /// Calculate SURE threshold
 #[allow(dead_code)]
-fn calculate_sure_threshold(_coeffs: &Array2<f64>, noisevariance: f64) -> SignalResult<f64> {
+fn calculate_sure_threshold(coeffs: &Array2<f64>, noisevariance: f64) -> SignalResult<f64> {
     let coeffs_vec: Vec<f64> = coeffs.iter().cloned().collect();
     let mut sorted_coeffs = coeffs_vec.clone();
     sorted_coeffs.sort_by(|a, b| a.abs().partial_cmp(&b.abs()).expect("Operation failed"));
@@ -591,7 +591,7 @@ fn calculate_sure_threshold(_coeffs: &Array2<f64>, noisevariance: f64) -> Signal
 
     for (i, &threshold) in sorted_coeffs.iter().enumerate() {
         let threshold = threshold.abs();
-        let risk = calculate_sure_risk(&coeffs_vec, threshold, noise_variance);
+        let risk = calculate_sure_risk(&coeffs_vec, threshold, noisevariance);
 
         if risk < min_risk {
             min_risk = risk;
@@ -604,14 +604,14 @@ fn calculate_sure_threshold(_coeffs: &Array2<f64>, noisevariance: f64) -> Signal
 
 /// Calculate SURE risk
 #[allow(dead_code)]
-fn calculate_sure_risk(_coeffs: &[f64], threshold: f64, noisevariance: f64) -> f64 {
+fn calculate_sure_risk(coeffs: &[f64], threshold: f64, noisevariance: f64) -> f64 {
     let n = coeffs.len() as f64;
-    let mut risk = n * noise_variance;
+    let mut risk = n * noisevariance;
 
-    for &coeff in _coeffs {
+    for &coeff in coeffs {
         let abs_coeff = coeff.abs();
         if abs_coeff > threshold {
-            risk += threshold * threshold - 2.0 * noise_variance;
+            risk += threshold * threshold - 2.0 * noisevariance;
         } else {
             risk += abs_coeff * abs_coeff;
         }
@@ -656,7 +656,7 @@ fn simd_soft_threshold(data: &mut [f64], threshold: f64) -> SignalResult<()> {
     let neg_threshold_vec = vec![-threshold; data.len()];
 
     // Vectorized soft thresholding
-    for i in 0.._data.len() {
+    for i in 0..data.len() {
         let val = data[i];
         if val > threshold {
             data[i] = val - threshold;
@@ -869,13 +869,17 @@ fn simd_dwt2d_reconstruct(
         let hh = &decomposition[detail_start + 2];
 
         // SIMD-optimized reconstruction
-        let dwt_result = crate::dwt2d::Dwt2dResult {
-            approx: current_image.clone(),
-            detail_h: lh.clone(),
-            detail_v: hl.clone(),
-            detail_d: hh.clone(),
+        let (approx_rows, approx_cols) = current_image.dim();
+        let dwt_result = Dwt2DCoeffs {
+            ll: current_image.clone(),
+            lh: lh.clone(),
+            hl: hl.clone(),
+            hh: hh.clone(),
+            wavelet,
+            edge_mode: EdgeMode2D::Symmetric,
+            original_shape: (approx_rows * 2, approx_cols * 2),
         };
-        let result = dwt2d_reconstruct(&dwt_result, wavelet, None)?;
+        let result = dwt2d_reconstruct(&dwt_result)?;
 
         current_image = result;
     }
@@ -918,11 +922,11 @@ fn estimate_noise_robust_mad_2d(image: &ArrayView2<f64>) -> SignalResult<f64> {
     for i in 1..rows - 1 {
         for j in 1..cols - 1 {
             filtered[[i - 1, j - 1]] =
-                -_image[[i - 1, j - 1]] - image[[i - 1, j]] - image[[i - 1, j + 1]]
-                    + -_image[[i, j - 1]]
+                -image[[i - 1, j - 1]] - image[[i - 1, j]] - image[[i - 1, j + 1]]
+                    + -image[[i, j - 1]]
                     + 8.0 * image[[i, j]]
                     - image[[i, j + 1]]
-                    + -_image[[i + 1, j - 1]]
+                    + -image[[i + 1, j - 1]]
                     - image[[i + 1, j]]
                     - image[[i + 1, j + 1]];
         }
@@ -945,10 +949,10 @@ fn estimate_noise_robust_mad_2d(image: &ArrayView2<f64>) -> SignalResult<f64> {
 #[allow(dead_code)]
 fn estimate_noise_wavelet_based_2d(image: &ArrayView2<f64>) -> SignalResult<f64> {
     // Single level DWT to estimate noise from HH coefficients
-    let result = dwt2d_decompose(&_image.to_owned(), Wavelet::DB(4), None)?;
+    let result = dwt2d_decompose(&image.to_owned(), Wavelet::DB(4), EdgeMode2D::Symmetric)?;
 
     // Estimate noise from HH (diagonal) coefficients
-    let hh_values: Vec<f64> = result.detail_d.iter().cloned().collect();
+    let hh_values: Vec<f64> = result.hh.iter().cloned().collect();
     let mut sorted_hh = hh_values;
     sorted_hh.sort_by(|a, b| a.partial_cmp(b).expect("Operation failed"));
 
@@ -1087,12 +1091,12 @@ fn calculate_ssim_2d(img1: &ArrayView2<f64>, img2: &ArrayView2<f64>) -> SignalRe
     let var1 = img1.mapv(|x| (x - mean1).powi(2)).mean();
     let var2 = img2.mapv(|x| (x - mean2).powi(2)).mean();
 
-    let cov = _img1
+    let cov = img1
         .iter()
         .zip(img2.iter())
         .map(|(&x1, &x2)| (x1 - mean1) * (x2 - mean2))
         .sum::<f64>()
-        / (_img1.len() - 1) as f64;
+        / (img1.len() - 1) as f64;
 
     let numerator = (2.0 * mean1 * mean2 + c1) * (2.0 * cov + c2);
     let denominator = (mean1.powi(2) + mean2.powi(2) + c1) * (var1 + var2 + c2);
@@ -1148,8 +1152,8 @@ fn calculate_smoothness_measure(image: &ArrayView2<f64>) -> SignalResult<f64> {
 
     for i in 0..rows - 1 {
         for j in 0..cols - 1 {
-            let h_diff = (_image[[i, j + 1]] - image[[i, j]]).abs();
-            let v_diff = (_image[[i + 1, j]] - image[[i, j]]).abs();
+            let h_diff = (image[[i, j + 1]] - image[[i, j]]).abs();
+            let v_diff = (image[[i + 1, j]] - image[[i, j]]).abs();
             smoothness += h_diff + v_diff;
             count += 2;
         }
@@ -1202,8 +1206,8 @@ pub fn context_adaptive_denoise(
 /// Calculate edge region ratio
 #[allow(dead_code)]
 fn calculate_edge_regions(image: &ArrayView2<f64>, mask: &ArrayView2<bool>) -> SignalResult<f64> {
-    let edge_map = calculate_edge_map(_image)?;
-    let threshold = edge_map.mean() * 2.0;
+    let edge_map = calculate_edge_map(image)?;
+    let threshold = (edge_map.iter().sum::<f64>() / edge_map.len() as f64) * 2.0;
 
     let total_masked = mask.iter().filter(|&&m| m).count();
     let edge_masked = edge_map
@@ -1219,7 +1223,7 @@ fn calculate_edge_regions(image: &ArrayView2<f64>, mask: &ArrayView2<bool>) -> S
 #[allow(dead_code)]
 fn calculatetexture_regions(image: &ArrayView2<f64>, mask: &ArrayView2<bool>) -> SignalResult<f64> {
     let texture_map = calculatetexture_map(image)?;
-    let threshold = texture_map.mean() * 1.5;
+    let threshold = (texture_map.iter().sum::<f64>() / texture_map.len() as f64) * 1.5;
 
     let total_masked = mask.iter().filter(|&&m| m).count();
     let texture_masked = texture_map

@@ -10,6 +10,7 @@ use crate::lombscargle_enhanced::WindowType;
 use crate::stft::{ShortTimeFft, StftConfig};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::{Float, NumCast};
+use std::f64::consts::PI;
 
 use std::fmt::Debug;
 
@@ -68,6 +69,7 @@ impl Default for PhaseVocoderConfig {
 ///
 /// ```
 /// use scirs2_signal::phase_vocoder::{phase_vocoder, PhaseVocoderConfig};
+/// use std::f64::consts::PI;
 ///
 /// // Generate a simple test signal (a sine wave)
 /// let n = 48000; // 1 second at 48kHz
@@ -105,7 +107,7 @@ where
     }
 
     // Convert input to f64
-    let signal_f64: Vec<f64> = _signal
+    let signal_f64: Vec<f64> = signal
         .iter()
         .map(|&val| {
             NumCast::from(val).ok_or_else(|| {
@@ -293,7 +295,7 @@ where
     let pitch_shift_semitones = match config.pitch_shift {
         Some(val) => val,
         None => {
-            return Ok(_signal
+            return Ok(signal
                 .iter()
                 .map(|&x| NumCast::from(x).unwrap_or(0.0))
                 .collect())
@@ -304,7 +306,7 @@ where
     let pitch_factor = 2.0_f64.powf(pitch_shift_semitones / 12.0);
 
     // Convert input to f64
-    let signal_f64: Vec<f64> = _signal
+    let signal_f64: Vec<f64> = signal
         .iter()
         .map(|&val| {
             NumCast::from(val).ok_or_else(|| {
@@ -625,7 +627,7 @@ fn create_window(windowtype: &str, length: usize) -> SignalResult<Vec<f64>> {
 
     let mut window = vec![0.0; length];
 
-    match window_type.to_lowercase().as_str() {
+    match windowtype.to_lowercase().as_str() {
         "hann" => {
             window.iter_mut().enumerate().for_each(|(n, w)| {
                 *w = 0.5 * (1.0 - (2.0 * PI * n as f64 / (length - 1) as f64).cos());
@@ -650,7 +652,7 @@ fn create_window(windowtype: &str, length: usize) -> SignalResult<Vec<f64>> {
         _ => {
             return Err(SignalError::ValueError(format!(
                 "Unknown window _type: {}",
-                window_type
+                windowtype
             )));
         }
     }

@@ -211,11 +211,19 @@ impl<T: Float> op::Op<T> for SubOp {
     fn compute(&self, ctx: &mut op::ComputeContext<T>) -> Result<(), op::OpError> {
         let x0 = &ctx.input(0);
         let x1 = &ctx.input(1);
-        let shape0: &[usize] = x0.shape();
-        let ret = if shape0.is_empty() {
-            // is scalar
-            let x0_elem = x0[scirs2_core::ndarray::IxDyn(&[])];
+        // A single-element left operand broadcasts over the right one, whatever its rank.
+        let ret = if x0.len() == 1 && x1.len() != 1 {
+            let x0_elem = match x0.iter().next() {
+                Some(&e) => e,
+                None => return Err(op::OpError::IncompatibleShape("sub: empty operand".into())),
+            };
             x1.map(move |&a| x0_elem - a)
+        } else if x1.len() == 1 && x0.len() != 1 {
+            let x1_elem = match x1.iter().next() {
+                Some(&e) => e,
+                None => return Err(op::OpError::IncompatibleShape("sub: empty operand".into())),
+            };
+            x0.map(move |&a| a - x1_elem)
         } else {
             x0 - x1
         };
@@ -271,17 +279,24 @@ impl<T: Float> op::Op<T> for DivOp {
     fn compute(&self, ctx: &mut op::ComputeContext<T>) -> Result<(), op::OpError> {
         let x0 = &ctx.input(0);
         let x1 = &ctx.input(1);
-        let shape0: &[usize] = x0.shape();
-        let shape1: &[usize] = x1.shape();
-        let is_scalar0 = shape0.is_empty() || shape0 == [0];
-        let is_scalar1 = shape1.is_empty() || shape1 == [1];
-        let ret = if is_scalar0 {
+        // "Scalar" means exactly one element, whatever the rank.  The old test used the
+        // *shapes* `[]`/`[0]`/`[1]` and then indexed with the 0-d index `IxDyn(&[])`,
+        // which panics for a rank-1 operand (`[1]`) and for an empty one (`[0]`).
+        let is_scalar0 = x0.len() == 1;
+        let is_scalar1 = x1.len() == 1;
+        let ret = if is_scalar0 && !is_scalar1 {
             // a is a scalar
-            let x0_elem = x0[scirs2_core::ndarray::IxDyn(&[])];
+            let x0_elem = match x0.iter().next() {
+                Some(&e) => e,
+                None => return Err(op::OpError::IncompatibleShape("div: empty operand".into())),
+            };
             x1.map(move |&a| x0_elem / a)
         } else if is_scalar1 {
             // b is a scalar
-            let x1_elem = x1[scirs2_core::ndarray::IxDyn(&[])];
+            let x1_elem = match x1.iter().next() {
+                Some(&e) => e,
+                None => return Err(op::OpError::IncompatibleShape("div: empty operand".into())),
+            };
             let rhs = T::one() / x1_elem;
             x0.mapv(|x0_elem| x0_elem * rhs)
         } else {
@@ -329,17 +344,28 @@ macro_rules! impl_bin_op_forward {
         {
             let shape0: &[usize] = x0.shape();
             let shape1: &[usize] = x1.shape();
-            let scalarshape: &[usize] = &[];
-            let scalarshape1 = &[0];
 
-            let x0_is_scalar = shape0 == scalarshape || shape0 == scalarshape1;
-            let x1_is_scalar = shape1 == scalarshape || shape1 == scalarshape1;
+            // "Scalar" means *exactly one element*, whatever the rank: `[]`, `[1]`,
+            // `[1, 1]`, ...  The previous test also accepted shape `[0]`, which is an
+            // EMPTY rank-1 array with no elements at all, and then indexed it with the
+            // 0-d index `IxDyn(&[])` -- an unconditional panic.  It also rejected `[1]`,
+            // so a shape-[1] operand fell through to ndarray's broadcast, which cannot
+            // broadcast the right-hand side up to a smaller left-hand shape and panicked
+            // as well.
+            let x0_is_scalar = x0.len() == 1;
+            let x1_is_scalar = x1.len() == 1;
 
             if x0_is_scalar && !x1_is_scalar {
-                let elem = x0[scirs2_core::ndarray::IxDyn(&[])];
+                let elem = match x0.iter().next() {
+                    Some(&e) => e,
+                    None => return x1.to_owned(),
+                };
                 x1.map(move |&a| a $bin_op elem)
             } else if x1_is_scalar && !x0_is_scalar {
-                let elem = x1[scirs2_core::ndarray::IxDyn(&[])];
+                let elem = match x1.iter().next() {
+                    Some(&e) => e,
+                    None => return x0.to_owned(),
+                };
                 x0.map(move |&a| a $bin_op elem )
             } else if !x0_is_scalar && !x1_is_scalar {
                 let len0: usize = shape0.iter().product();

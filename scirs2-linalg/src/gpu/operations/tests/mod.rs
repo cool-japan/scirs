@@ -37,15 +37,11 @@ fn test_cpu_fallback_operations() {
         .expect("Test: operation failed");
     assert_eq!(result, a);
 
-    // CPU methods are private - these tests should use the public GPU interface
-    // Test dot product - disabled due to private method access
-    // let y = array![2.0, 3.0];
-    // let dot_result = dispatcher.cpu_dot(&x.view(), &y.view());
-    // assert_eq!(dot_result, 8.0);
-
-    // Test norm - disabled due to private method access
-    // let norm_result = dispatcher.cpu_norm(&x.view());
-    // assert!((norm_result - (5.0_f64).sqrt()).abs() < 1e-10);
+    // Note: `cpu_dot`/`cpu_norm` are private to `dispatcher` (a sibling module
+    // of `tests`), so they cannot be called from here directly. Equivalent
+    // coverage is provided via the public `GpuLinalgOps::gpu_dot`/`gpu_norm`
+    // interface in `test_gpu_dispatch_returns_real_results` below, which
+    // exercises the same fallback code path (`cpu_dot_static`/`cpu_norm_static`).
 }
 
 #[test]
@@ -78,6 +74,19 @@ fn test_gpu_dispatch_returns_real_results() {
         .gpu_matmul(context.as_ref(), &a.view(), &b.view())
         .expect("Test: gpu_matmul failed");
     assert_eq!(c, array![[19.0, 22.0], [43.0, 50.0]]);
+
+    // Dot product: [1,2] . [2,3] = 1*2 + 2*3 = 8
+    let w = array![2.0, 3.0];
+    let dot_result = dispatcher
+        .gpu_dot(context.as_ref(), &x.view(), &w.view())
+        .expect("Test: gpu_dot failed");
+    assert_eq!(dot_result, 8.0);
+
+    // Norm: ||[1,2]|| = sqrt(1^2 + 2^2) = sqrt(5)
+    let norm_result = dispatcher
+        .gpu_norm(context.as_ref(), &x.view())
+        .expect("Test: gpu_norm failed");
+    assert!((norm_result - (5.0_f64).sqrt()).abs() < 1e-10);
 }
 
 #[test]
@@ -87,9 +96,11 @@ fn test_kernel_manager() {
     manager
         .load_kernel("test_kernel", "kernel void test() {}")
         .expect("Test: operation failed");
-    // get_kernel returns private type - these tests disabled
-    // assert!(manager.get_kernel("test_kernel").is_some());
-    // assert!(manager.get_kernel("nonexistent").is_none());
+    // `CompiledKernel` is a `pub struct` (only its fields are private), so
+    // `Option::is_some()`/`is_none()` are callable here without needing to
+    // name the type.
+    assert!(manager.get_kernel("test_kernel").is_some());
+    assert!(manager.get_kernel("nonexistent").is_none());
 
     let kernels = manager.list_kernels();
     assert!(kernels.contains(&"test_kernel".to_string()));

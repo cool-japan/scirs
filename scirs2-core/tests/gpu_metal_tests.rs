@@ -45,7 +45,6 @@ fn test_metal_device_detection() {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_metal_context_creation() {
     let result = GpuContext::new(GpuBackend::Metal);
@@ -67,7 +66,6 @@ fn test_metal_context_creation() {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_metal_buffer_creation() {
     let context = match GpuContext::new(GpuBackend::Metal) {
@@ -94,7 +92,6 @@ fn test_metal_buffer_creation() {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_metal_buffer_options() {
     use metal::MTLCPUCacheMode;
@@ -127,7 +124,6 @@ fn test_metal_buffer_options() {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_metal_kernel_compilation() {
     let context = match GpuContext::new(GpuBackend::Metal) {
@@ -148,7 +144,6 @@ fn test_metal_kernel_compilation() {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_metal_kernel_execution() {
     let context = match GpuContext::new(GpuBackend::Metal) {
@@ -199,7 +194,6 @@ fn test_metal_kernel_execution() {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_metal_complex_operations() {
     let context = match GpuContext::new(GpuBackend::Metal) {
@@ -292,7 +286,6 @@ fn test_metal_performance_shaders() {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_metal_unified_memory() {
     let context = match MetalContext::new() {
@@ -313,7 +306,6 @@ fn test_metal_unified_memory() {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_metalerror_handling() {
     let context = match GpuContext::new(GpuBackend::Metal) {
@@ -333,7 +325,6 @@ fn test_metalerror_handling() {
 }
 
 #[test]
-#[ignore]
 #[should_panic(expected = "Data size exceeds buffer size")]
 #[allow(dead_code)]
 fn test_metal_buffer_overflow() {
@@ -354,7 +345,6 @@ mod benchmarks {
     use std::time::Instant;
 
     #[test]
-    #[ignore] // Run with --ignored flag for benchmarks
     fn bench_metal_buffer_transfer() {
         let context = match GpuContext::new(GpuBackend::Metal) {
             Ok(c) => c,

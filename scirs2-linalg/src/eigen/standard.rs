@@ -1399,7 +1399,7 @@ where
 ///
 /// This function scans through the blocks and extracts the corresponding
 /// complex eigenvalues.
-fn extract_schur_eigenvalues<F>(schur: &Array2<F>, n: usize) -> Array1<Complex<F>>
+pub(crate) fn extract_schur_eigenvalues<F>(schur: &Array2<F>, n: usize) -> Array1<Complex<F>>
 where
     F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
 {

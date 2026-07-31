@@ -222,7 +222,7 @@ pub fn nearest_neighbor_interpolate_2d(image: &Array2<f64>) -> SignalResult<Arra
 
     for i in 0..n_rows {
         for j in 0..n_cols {
-            if !_image[[i, j]].is_nan() {
+            if !image[[i, j]].is_nan() {
                 valid_points.push(((i, j), image[[i, j]]));
             }
         }
@@ -230,7 +230,7 @@ pub fn nearest_neighbor_interpolate_2d(image: &Array2<f64>) -> SignalResult<Arra
 
     if valid_points.is_empty() {
         return Err(SignalError::ValueError(
-            "All values are missing in the input _image".to_string(),
+            "All values are missing in the input image".to_string(),
         ));
     }
 
@@ -292,7 +292,7 @@ pub fn smooth_signal(signal: &Array1<f64>, factor: f64) -> Array1<f64> {
         let end = (i + half_window + 1).min(n);
 
         for j in start..end {
-            if !_signal[j].is_nan() {
+            if !signal[j].is_nan() {
                 sum += signal[j];
                 count += 1;
             }
@@ -327,7 +327,7 @@ pub fn enforce_monotonicity(signal: &Array1<f64>) -> Array1<f64> {
     let mut valid_indices = Vec::new();
 
     for i in 0..n {
-        if !_signal[i].is_nan() {
+        if !signal[i].is_nan() {
             valid_indices.push(i);
         }
     }
@@ -390,7 +390,7 @@ pub fn enforce_monotonicity(signal: &Array1<f64>) -> Array1<f64> {
 ///
 /// * Index in valid_indices array of nearest valid point
 #[allow(dead_code)]
-pub fn find_nearest_valid_index(_idx: usize, validindices: &[usize]) -> usize {
+pub fn find_nearest_valid_index(idx: usize, valid_indices: &[usize]) -> usize {
     if valid_indices.is_empty() {
         return 0;
     }
@@ -399,10 +399,10 @@ pub fn find_nearest_valid_index(_idx: usize, validindices: &[usize]) -> usize {
     let mut min_dist = usize::MAX;
 
     for (i, &valid_idx) in valid_indices.iter().enumerate() {
-        let dist = if valid_idx > _idx {
-            valid_idx - _idx
+        let dist = if valid_idx > idx {
+            valid_idx - idx
         } else {
-            _idx - valid_idx
+            idx - valid_idx
         };
 
         if dist < min_dist {

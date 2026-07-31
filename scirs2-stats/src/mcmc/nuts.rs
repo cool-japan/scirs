@@ -19,6 +19,7 @@ use crate::error::{StatsError, StatsResult};
 use scirs2_core::ndarray::Array1;
 use scirs2_core::random::{Distribution, Normal, Uniform};
 use scirs2_core::Rng;
+use scirs2_core::SeedableRng;
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -247,6 +248,39 @@ impl NutsSampler {
     where
         F: Fn(&[f64]) -> (f64, Vec<f64>),
     {
+        self.sample_impl(log_prob_grad, initial, n_samples, None)
+    }
+
+    /// Like [`sample`](Self::sample), but seeds the RNG deterministically
+    /// instead of drawing from the thread-local RNG.
+    ///
+    /// `sample`'s randomness means summary statistics computed from its
+    /// output vary from run to run; use this when reproducibility matters
+    /// (tests, debugging a reported sampling issue).
+    #[allow(dead_code)]
+    pub fn sample_with_seed<F>(
+        &mut self,
+        log_prob_grad: F,
+        initial: &[f64],
+        n_samples: usize,
+        seed: u64,
+    ) -> StatsResult<Vec<NutsSample>>
+    where
+        F: Fn(&[f64]) -> (f64, Vec<f64>),
+    {
+        self.sample_impl(log_prob_grad, initial, n_samples, Some(seed))
+    }
+
+    fn sample_impl<F>(
+        &mut self,
+        log_prob_grad: F,
+        initial: &[f64],
+        n_samples: usize,
+        seed: Option<u64>,
+    ) -> StatsResult<Vec<NutsSample>>
+    where
+        F: Fn(&[f64]) -> (f64, Vec<f64>),
+    {
         if initial.is_empty() {
             return Err(StatsError::InvalidArgument(
                 "Initial position must be non-empty".to_string(),
@@ -264,7 +298,12 @@ impl NutsSampler {
             return Ok(Vec::new());
         }
 
-        let mut rng = scirs2_core::random::thread_rng();
+        let mut rng = match seed {
+            Some(s) => scirs2_core::random::rngs::StdRng::seed_from_u64(s),
+            None => {
+                scirs2_core::random::rngs::StdRng::from_rng(&mut scirs2_core::random::thread_rng())
+            }
+        };
         let dim = initial.len();
 
         // Evaluate at initial position
@@ -971,7 +1010,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "flaky: MCMC sampling with statistical variability may exceed tolerance"]
     fn test_nuts_higher_dimensional() {
         // 5-dimensional standard normal
         let config = NutsConfig {
@@ -984,8 +1022,11 @@ mod tests {
 
         let mut sampler = NutsSampler::new(config);
         let initial = vec![0.0; 5];
+        // Deterministic seed so the sample mean's distance from 0 is
+        // reproducible rather than occasionally exceeding the tolerance by
+        // pure statistical variability (see sample_with_seed).
         let samples = sampler
-            .sample(standard_normal_log_prob_grad, &initial, 1000)
+            .sample_with_seed(standard_normal_log_prob_grad, &initial, 1000, 42)
             .expect("5D sampling should succeed");
 
         let n = samples.len() as f64;

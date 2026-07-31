@@ -1173,7 +1173,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "SVD-based soft-impute with 200 iterations exceeds CI time budget"]
     fn test_soft_impute_observed_entries_fit() {
         let (full_mat, mask) = make_low_rank_observed(6, 5, 1, 0.9);
 

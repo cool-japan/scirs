@@ -344,7 +344,7 @@ impl AdvancedQMCGenerator {
 
     /// Initialize Niederreiter state
     fn init_niederreiter_state(dimension: usize, seed: Option<u64>) -> Result<NiederreiterState> {
-        let generating_matrices = Self::generate_niederreiter_matrices(dimension)?;
+        let generating_matrices = Self::generate_niederreiter_matrices(dimension, true)?;
         let polynomial_coefficients = Self::get_primitive_polynomials(dimension)?;
 
         Ok(NiederreiterState {
@@ -419,7 +419,12 @@ impl AdvancedQMCGenerator {
                 result = Self::apply_digital_shift(result, &matrices[dim]);
             }
 
-            point[dim] = result as f64 / (1u64 << 32) as f64;
+            // Direction numbers are packed with the top bit at 2^63 (see
+            // init_direction_numbers / load_joe_kuo_direction_numbers), so the
+            // accumulated word spans the full 64 bits and must be normalized
+            // by 2^64, not 2^32 — dividing by 2^32 left every sample scaled up
+            // by 2^31 (e.g. the second Gray-code point returned ~2.1e9).
+            point[dim] = result as f64 / 2.0_f64.powi(64);
         }
 
         Ok(point)
@@ -452,17 +457,47 @@ impl AdvancedQMCGenerator {
         current_index: usize,
         state: &NiederreiterState,
     ) -> Result<Array1<f64>> {
+        Ok(Self::niederreiter_point_from_matrices(
+            dimension,
+            current_index,
+            &state.generating_matrices,
+        ))
+    }
+
+    /// Compute a single point of a base-2 digital net from a set of
+    /// per-dimension 32x32 GF(2) generating matrices (as produced by
+    /// `generate_niederreiter_matrices`).
+    ///
+    /// `pub(crate)` so `qmc::enhanced_sequences`'s `Niederreiter` and
+    /// `DigitalNet` variants can reuse this real construction directly
+    /// instead of the per-dimension `radical_inverse` stand-in they used
+    /// before (which never looked at any generating matrix at all and was
+    /// mathematically a Halton sequence mislabeled as "Niederreiter").
+    pub(crate) fn niederreiter_point_from_matrices(
+        dimension: usize,
+        index: usize,
+        matrices: &[Array2<u32>],
+    ) -> Array1<f64> {
         let mut point = Array1::zeros(dimension);
 
-        for dim in 0..dimension {
-            let matrix = &state.generating_matrices[dim];
+        for (dim, matrix) in matrices.iter().enumerate().take(dimension) {
             let mut result = 0u32;
-            let mut _index = current_index;
+            let mut _index = index;
 
             for i in 0..32 {
                 if _index & 1 == 1 {
+                    // XOR in row i of the generating matrix as a bit-packed
+                    // word, not as 32 separate {0,1} scalars — XORing
+                    // unpacked scalars collapses to a single parity bit,
+                    // making every generated point 0 or 1. Column j maps to
+                    // output bit (31-j): low-order index bits (which flip
+                    // most often) must land on the *high* output bits or
+                    // consecutive points barely move (e.g. index 0..49 would
+                    // all map near 0.0 instead of spreading across [0,1)) —
+                    // the same digit-reversal every radical-inverse/Sobol
+                    // construction relies on for low discrepancy.
                     for j in 0..32 {
-                        result ^= matrix[[i, j]];
+                        result ^= matrix[[i, j]] << (31 - j);
                     }
                 }
                 _index >>= 1;
@@ -474,7 +509,7 @@ impl AdvancedQMCGenerator {
             point[dim] = result as f64 / (1u64 << 32) as f64;
         }
 
-        Ok(point)
+        point
     }
 
     /// Generate next Faure point
@@ -580,7 +615,12 @@ impl AdvancedQMCGenerator {
     }
 
     /// Load Joe-Kuo direction numbers (simplified version)
-    fn load_joe_kuo_direction_numbers(dimension: usize) -> Result<Vec<Vec<u64>>> {
+    ///
+    /// `pub(crate)` so `qmc::enhanced_sequences`'s "advanced" Sobol variant
+    /// can reuse these real, per-dimension direction numbers instead of
+    /// deriving a value from the index alone (which produced an identical,
+    /// degenerate value across every dimension).
+    pub(crate) fn load_joe_kuo_direction_numbers(dimension: usize) -> Result<Vec<Vec<u64>>> {
         let mut direction_numbers = vec![vec![0u64; 32]; dimension];
 
         // First dimension (standard powers of 2)
@@ -850,8 +890,19 @@ impl AdvancedQMCGenerator {
         }
     }
 
-    /// Generate proper Niederreiter generating matrices
-    fn generate_niederreiter_matrices(dimension: usize) -> Result<Vec<Array2<u32>>> {
+    /// Generate proper Niederreiter generating matrices.
+    ///
+    /// `pub(crate)` (with the "dimension-specific transformation for
+    /// better uniformity" step now parameterized via
+    /// `apply_uniformity_transform` rather than being unconditional) so
+    /// `qmc::enhanced_sequences`'s `Niederreiter`/`DigitalNet` variants can
+    /// reuse this real construction, with their own `matrix_optimization`
+    /// flag driving the same transformation this function has always
+    /// applied internally.
+    pub(crate) fn generate_niederreiter_matrices(
+        dimension: usize,
+        apply_uniformity_transform: bool,
+    ) -> Result<Vec<Array2<u32>>> {
         let mut matrices = Vec::with_capacity(dimension);
 
         // Get primitive polynomials for each dimension
@@ -899,10 +950,12 @@ impl AdvancedQMCGenerator {
                 }
 
                 // Apply dimension-specific transformations for better uniformity
-                for i in 0..32 {
-                    for j in 0..32 {
-                        if (i + j + dim) % 3 == 0 {
-                            matrix[[i, j]] ^= 1;
+                if apply_uniformity_transform {
+                    for i in 0..32 {
+                        for j in 0..32 {
+                            if (i + j + dim) % 3 == 0 {
+                                matrix[[i, j]] ^= 1;
+                            }
                         }
                     }
                 }
@@ -1147,7 +1200,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "Test failure - needs investigation"]
     fn test_advanced_qmc_sobol() {
         let mut generator = AdvancedQMCGenerator::new(QMCSequenceType::Sobol, 2, false, Some(42))
             .expect("Operation failed");
@@ -1185,7 +1237,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - needs investigation"]
     fn test_niederreiter_sequence() {
         let mut generator =
             AdvancedQMCGenerator::new(QMCSequenceType::Niederreiter, 3, false, Some(42))

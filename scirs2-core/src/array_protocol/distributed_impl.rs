@@ -15,7 +15,7 @@ use std::fmt::Debug;
 
 use crate::array_protocol::{ArrayFunction, ArrayProtocol, DistributedArray, NotImplemented};
 use crate::error::CoreResult;
-use ::ndarray::{Array, Dimension};
+use ::ndarray::{Array, Axis, Dimension, Slice};
 
 /// A configuration for distributed array operations
 #[derive(Debug, Clone, Default)]
@@ -148,33 +148,41 @@ where
     }
 
     /// Create a distributed array by splitting an existing array.
+    ///
+    /// Every chunk gets a genuinely disjoint slice of the original data,
+    /// split along axis 0 and recorded with its real starting offset in
+    /// `global_index`, so [`Self::to_array`] can reconstruct the original
+    /// array exactly. The communication backend (`config.backend`) is still
+    /// simulated (`nodeid` is a simple round-robin label, not a real network
+    /// destination) — only the actual data partitioning needed for correct
+    /// round-tripping is implemented here.
     #[must_use]
     pub fn from_array(array: &Array<T, D>, config: DistributedConfig) -> Self
     where
         T: Clone,
     {
-        // This is a simplified implementation - in a real system, this would
-        // actually distribute the array across multiple nodes or threads
-
         let shape = array.shape().to_vec();
-        let total_elements = array.len();
-        let _chunk_size = total_elements.div_ceil(config.chunks);
+        let num_chunks = config.chunks.max(1);
+        let axis0_len = shape.first().copied().unwrap_or(1).max(1);
+        let rows_per_chunk = axis0_len.div_ceil(num_chunks).max(1);
 
-        // Create the specified number of chunks (in a real implementation, these would be distributed)
         let mut chunks = Vec::new();
-
-        // For simplicity, create dummy chunks with the same data
-        // In a real implementation, we would need to properly split the array
-        for i in 0..config.chunks {
-            // Clone the array for each chunk
-            // In a real implementation, each chunk would contain a slice of the original array
-            let chunk_data = array.clone();
+        let mut start = 0usize;
+        let mut nodeid = 0usize;
+        while start < axis0_len {
+            let end = (start + rows_per_chunk).min(axis0_len);
+            let chunk_data = array
+                .slice_axis(Axis(0), Slice::from(start..end))
+                .to_owned();
 
             chunks.push(ArrayChunk {
                 data: chunk_data,
-                global_index: vec![0],
-                nodeid: i % 3, // Simulate distribution across 3 nodes
+                global_index: vec![start],
+                nodeid: nodeid % 3, // Simulate distribution across 3 nodes
             });
+
+            start = end;
+            nodeid += 1;
         }
 
         Self::new(chunks, shape, config)
@@ -200,23 +208,31 @@ where
 
     /// Convert this distributed array back to a regular array.
     ///
-    /// Note: This implementation is simplified to avoid complex trait bounds.
-    /// In a real implementation, this would involve proper communication between nodes.
+    /// Reconstructs the array by copying each chunk's real data back to the
+    /// axis-0 offset recorded in its `global_index` (set by
+    /// [`Self::from_array`]) — this only correctly inverts chunks produced by
+    /// `from_array`'s own axis-0 splitting; arbitrary externally-constructed
+    /// chunks (via [`Self::new`]) with different placement semantics are not
+    /// supported.
     ///
     /// # Errors
     /// Returns `CoreError` if array conversion fails.
-    pub fn to_array(&self) -> CoreResult<Array<T, crate::ndarray::IxDyn>>
-    where
-        T: Clone + Default + num_traits::One,
-    {
-        // Create a new array filled with ones (to match the original array in the test)
-        let result = Array::<T, crate::ndarray::IxDyn>::ones(crate::ndarray::IxDyn(&self.shape));
+    pub fn to_array(&self) -> CoreResult<Array<T, crate::ndarray::IxDyn>> {
+        // `T: Zero` is already guaranteed by this impl block's own bounds.
+        let mut result =
+            Array::<T, crate::ndarray::IxDyn>::zeros(crate::ndarray::IxDyn(&self.shape));
 
-        // This is a simplified version that doesn't actually copy data
-        // In a real implementation, we would need to properly handle copying data
-        // from the distributed chunks.
+        for chunk in &self.chunks {
+            let start = chunk.global_index.first().copied().unwrap_or(0);
+            let chunk_view = chunk.data.view().into_dyn();
+            let len = chunk_view.shape().first().copied().unwrap_or(0);
+            if len == 0 {
+                continue;
+            }
+            let mut dest = result.slice_axis_mut(Axis(0), Slice::from(start..start + len));
+            dest.assign(&chunk_view);
+        }
 
-        // Return the dummy result
         Ok(result)
     }
 
@@ -602,22 +618,24 @@ mod tests {
         assert_eq!(dist_array.num_chunks(), 3);
         assert_eq!(dist_array.shape(), &[10, 5]);
 
-        // Since our implementation clones the array for each chunk,
-        // we expect the total number of elements to be array.len() * num_chunks
-        let expected_total_elements = array.len() * dist_array.num_chunks();
-
-        // Check that the chunks cover the entire array
+        // Chunks are genuinely disjoint row-wise slices of the original
+        // array (see `from_array`), so their total element count must equal
+        // the original array's size exactly — not a multiple of it.
         let total_elements: usize = dist_array
             .chunks()
             .iter()
             .map(|chunk| chunk.data.len())
             .sum();
-        assert_eq!(total_elements, expected_total_elements);
+        assert_eq!(total_elements, array.len());
     }
 
     #[test]
     fn test_distributed_ndarray_to_array() {
-        let array = Array2::<f64>::ones((10, 5));
+        // Non-constant data (not all-ones): a stub that fabricates a
+        // plausible-looking placeholder (e.g. all-ones, matching a former
+        // version of this test) would fail this check, whereas an all-ones
+        // input would not have caught it.
+        let array = Array2::from_shape_fn((10, 5), |(i, j)| (i * 5 + j) as f64);
         let config = DistributedConfig {
             chunks: 3,
             ..Default::default()
@@ -628,13 +646,9 @@ mod tests {
         // Convert back to a regular array
         let result = dist_array.to_array().expect("Operation failed");
 
-        // Check that the result matches the original array's shape
+        // Check that the result matches the original array's shape and content.
         assert_eq!(result.shape(), array.shape());
-
-        // In a real implementation, we would also check the content,
-        // but our simplified implementation just returns default values
-        // instead of the actual data from chunks
-        // assert_eq!(result, array);
+        assert_eq!(result, array.into_dyn());
     }
 
     #[test]
@@ -647,14 +661,14 @@ mod tests {
 
         let dist_array = DistributedNdarray::from_array(&array, config);
 
-        // Since our modified implementation creates 3 copies of the same data,
-        // we need to account for that in the test
-        let expected_sum = array.sum() * (dist_array.num_chunks() as f64);
+        // Chunks are disjoint slices, so summing across all of them via
+        // map_reduce should reconstruct the original array's total sum
+        // exactly once — not a multiple of it.
+        let expected_sum = array.sum();
 
         // Calculate the sum using map_reduce
         let sum = dist_array.map_reduce(|chunk| chunk.data.sum(), |a, b| a + b);
 
-        // Check that the sum matches the expected value (50 * 3 = 150)
         assert_eq!(sum, expected_sum);
     }
 }

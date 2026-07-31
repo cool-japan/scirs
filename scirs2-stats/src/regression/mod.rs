@@ -268,5 +268,6 @@ mod linear;
 mod polynomial;
 mod regularized;
 mod robust;
+mod stat_tests;
 mod stepwise;
 mod utils;

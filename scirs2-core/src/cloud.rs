@@ -1584,10 +1584,10 @@ mod tests {
             key: Some("test-key-id".to_string()),
         };
 
-        match encryption.method {
-            EncryptionMethod::CustomerManaged => assert!(true),
-            _ => assert!(false),
-        }
+        assert!(matches!(
+            encryption.method,
+            EncryptionMethod::CustomerManaged
+        ));
         assert_eq!(encryption.key, Some("test-key-id".to_string()));
     }
 }

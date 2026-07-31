@@ -45,9 +45,8 @@ fn least_squares(a: &Array2<f64>, b: &Array1<f64>) -> SignalResult<Array1<f64>> 
         ));
     }
     // Use lstsq from scirs2-linalg
-    let result = lstsq(&a.view(), &b.view(), None).map_err(|e| {
-        SignalError::ComputationError(format!("lstsq failed: {e}"))
-    })?;
+    let result = lstsq(&a.view(), &b.view(), None)
+        .map_err(|e| SignalError::ComputationError(format!("lstsq failed: {e}")))?;
     Ok(result.x)
 }
 
@@ -66,7 +65,12 @@ fn abs_argmax_inner_products(phi: &Array2<f64>, r: &Array1<f64>) -> Option<usize
     let mut best_idx = 0usize;
     let mut best_val = f64::NEG_INFINITY;
     for j in 0..n {
-        let ip: f64 = phi.column(j).iter().zip(r.iter()).map(|(&a, &b)| a * b).sum();
+        let ip: f64 = phi
+            .column(j)
+            .iter()
+            .zip(r.iter())
+            .map(|(&a, &b)| a * b)
+            .sum();
         let abs_ip = ip.abs();
         if abs_ip > best_val {
             best_val = abs_ip;
@@ -169,7 +173,12 @@ pub fn mp(phi: &Array2<f64>, y: &Array1<f64>, sparsity: usize) -> SignalResult<A
         let mut best_idx = 0usize;
         let mut best_abs = f64::NEG_INFINITY;
         for j in 0..n {
-            let ip: f64 = phi.column(j).iter().zip(residual.iter()).map(|(&a, &b)| a * b).sum();
+            let ip: f64 = phi
+                .column(j)
+                .iter()
+                .zip(residual.iter())
+                .map(|(&a, &b)| a * b)
+                .sum();
             let abs_ip = ip.abs();
             if abs_ip > best_abs {
                 best_abs = abs_ip;
@@ -331,7 +340,11 @@ pub struct CoSaMP {
 impl CoSaMP {
     /// Create a new CoSaMP solver.
     pub fn new(sparsity: usize, max_iter: usize, tol: f64) -> Self {
-        Self { sparsity, max_iter, tol }
+        Self {
+            sparsity,
+            max_iter,
+            tol,
+        }
     }
 
     /// Recover the sparse signal from measurements `y = Φ x`.
@@ -367,8 +380,11 @@ impl CoSaMP {
                 .enumerate()
                 .map(|(i, &v)| (i, v.abs()))
                 .collect();
-            idx_vals.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-            let proxy_support: Vec<usize> = idx_vals[..k.min(n) * 2].iter().map(|&(i, _)| i).collect();
+            idx_vals.sort_unstable_by(|a, b| {
+                b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            let proxy_support: Vec<usize> =
+                idx_vals[..k.min(n) * 2].iter().map(|&(i, _)| i).collect();
 
             // Step 2: Merge with current support
             let mut merged: Vec<usize> = proxy_support.clone();
@@ -386,8 +402,11 @@ impl CoSaMP {
             let b = scatter(n, &merged, &c);
 
             // Step 4: Keep only k largest coefficients
-            let mut idx_b: Vec<(usize, f64)> = b.iter().enumerate().map(|(i, &v)| (i, v.abs())).collect();
-            idx_b.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            let mut idx_b: Vec<(usize, f64)> =
+                b.iter().enumerate().map(|(i, &v)| (i, v.abs())).collect();
+            idx_b.sort_unstable_by(|a, b| {
+                b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+            });
             x_est = Array1::zeros(n);
             for &(i, _) in idx_b[..k.min(n)].iter() {
                 x_est[i] = b[i];
@@ -504,7 +523,8 @@ pub fn subspace_pursuit(
             .enumerate()
             .map(|(i, &v)| (i, v.abs()))
             .collect();
-        idx_proxy.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        idx_proxy
+            .sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         let new_candidates: Vec<usize> = idx_proxy[..k.min(n)].iter().map(|&(i, _)| i).collect();
 
         // Merge support and new candidates
@@ -522,7 +542,8 @@ pub fn subspace_pursuit(
         let b = scatter(n, &merged, &c);
 
         // Prune to k largest
-        let mut idx_b: Vec<(usize, f64)> = b.iter().enumerate().map(|(i, &v)| (i, v.abs())).collect();
+        let mut idx_b: Vec<(usize, f64)> =
+            b.iter().enumerate().map(|(i, &v)| (i, v.abs())).collect();
         idx_b.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         x_est = Array1::zeros(n);
@@ -543,13 +564,18 @@ pub fn subspace_pursuit(
 
 /// Solve Basis Pursuit: min ‖x‖_1 subject to y = Φ x.
 ///
-/// Uses the Alternating Direction Method of Multipliers (ADMM) with the
-/// augmented Lagrangian decomposition.  The variable-splitting formulation
-/// introduces `z = x` with a consensus constraint, leading to:
+/// Uses the Alternating Direction Method of Multipliers (ADMM) applied to the
+/// equality-constrained L1 problem (Boyd et al. 2011, §6.2.1). The
+/// variable-splitting formulation introduces `z = x`, with the x-update
+/// projecting onto the affine feasible set `{x : Φx = y}` at every iteration:
 ///
-/// - x-update: (ρ Φ^T Φ + I) x = ρ Φ^T (y - u) + z - ρ Φ^T u  
-/// - z-update: soft_threshold(x + u, 1/ρ)  
-/// - u-update: u ← u + x - z  
+/// - x-update: `x ← (z − u) + Φᵀ(ΦΦᵀ)⁻¹ (y − Φ(z − u))`
+/// - z-update: `z ← soft_threshold(x + u, 1/ρ)`
+/// - u-update: `u ← u + x − z`
+///
+/// Because the x-update always re-projects onto the exact constraint
+/// `Φx = y`, the iterates converge to a feasible, sparsity-promoting
+/// solution regardless of `ρ` (which only affects the convergence rate).
 ///
 /// # Arguments
 ///
@@ -600,38 +626,34 @@ pub fn basis_pursuit(
         ));
     }
 
-    // Pre-factor the system matrix: A = ρ Φ^T Φ + I_n
-    // For the x-update we solve (ρ Φ^T Φ + I) x = rhs
-    // We use a Cholesky-like approach via the cached normal-equation matrix.
-    // To avoid full matrix inversion we solve the system iteratively using
-    // the augmented matrix directly.
-
+    // Gram matrix Φ Φ^T (m × m), regularized for numerical stability. The
+    // x-update solves against this matrix to project onto {x : Phi x = y}.
     let phi_t = phi.t().to_owned();
-    // Normal matrix: P = ρ (Φ^T Φ) + I_n
-    let mut p_mat = phi_t.dot(phi);
-    for i in 0..n {
-        p_mat[[i, i]] = p_mat[[i, i]] * rho + 1.0;
+    let mut gram = phi.dot(&phi_t);
+    for i in 0..m {
+        gram[[i, i]] += 1e-10;
     }
 
-    // Pre-compute ρ Φ^T y (constant RHS component)
-    let phi_t_y = phi_t.dot(y);
+    let threshold = 1.0 / rho;
 
-    let mut x = Array1::<f64>::zeros(n);
-    let mut z = Array1::<f64>::zeros(n);
+    // Initialize at the least-norm feasible point x0 = Φ^T (Φ Φ^T)^{-1} y.
+    let lam0 = solve_symmetric_positive_definite(&gram, y)?;
+    let mut x: Array1<f64> = phi_t.dot(&lam0);
+    let mut z = x.clone();
     let mut u = Array1::<f64>::zeros(n); // scaled dual variable
 
     for _ in 0..max_iter {
         let z_old = z.clone();
 
-        // x-update: solve P x_new = ρ Φ^T y + z - u
-        let rhs: Array1<f64> = phi_t_y.mapv(|v| v * rho) + &z - &u;
-        // Solve P x = rhs
-        x = solve_symmetric_positive_definite(&p_mat, &rhs)?;
+        // x-update: project (z - u) onto the affine set {x : Phi x = y}
+        let v: Array1<f64> = &z - &u;
+        let residual_y: Array1<f64> = y - &phi.dot(&v);
+        let lam = solve_symmetric_positive_definite(&gram, &residual_y)?;
+        x = &v + &phi_t.dot(&lam);
 
         // z-update: soft-threshold
         let x_plus_u = &x + &u;
-        let threshold = 1.0 / rho;
-        z = x_plus_u.mapv(|v| soft_threshold(v, threshold));
+        z = x_plus_u.mapv(|val| soft_threshold(val, threshold));
 
         // u-update
         u = u + &x - &z;
@@ -650,7 +672,10 @@ pub fn basis_pursuit(
 
 /// Solve a symmetric positive definite system A x = b using Cholesky
 /// decomposition via Gaussian elimination (pure Rust, no LAPACK).
-fn solve_symmetric_positive_definite(a: &Array2<f64>, b: &Array1<f64>) -> SignalResult<Array1<f64>> {
+fn solve_symmetric_positive_definite(
+    a: &Array2<f64>,
+    b: &Array1<f64>,
+) -> SignalResult<Array1<f64>> {
     let n = a.nrows();
     if n == 0 {
         return Ok(Array1::zeros(0));
@@ -781,11 +806,7 @@ impl Default for IrlsConfig {
 /// let x = irls(&phi, &y, &config).expect("operation should succeed");
 /// assert!((x[0] - 2.0).abs() < 1e-4);
 /// ```
-pub fn irls(
-    phi: &Array2<f64>,
-    y: &Array1<f64>,
-    config: &IrlsConfig,
-) -> SignalResult<Array1<f64>> {
+pub fn irls(phi: &Array2<f64>, y: &Array1<f64>, config: &IrlsConfig) -> SignalResult<Array1<f64>> {
     let (m, n) = phi.dim();
     if y.len() != m {
         return Err(SignalError::DimensionMismatch(format!(
@@ -881,14 +902,21 @@ pub fn irls(
                 for i in 0..m {
                     g_mat[[i, i]] += 1e-6;
                 }
-                solve_symmetric_positive_definite(&g_mat, y)
-                    .unwrap_or_else(|_| Array1::zeros(m))
+                solve_symmetric_positive_definite(&g_mat, y).unwrap_or_else(|_| Array1::zeros(m))
             }
         };
 
         // x = D Φ^T alpha
         let x_new: Array1<f64> = (0..n)
-            .map(|j| d_inv[j] * phi_t.column(j).iter().zip(alpha.iter()).map(|(&a, &b)| a * b).sum::<f64>())
+            .map(|j| {
+                d_inv[j]
+                    * phi_t
+                        .column(j)
+                        .iter()
+                        .zip(alpha.iter())
+                        .map(|(&a, &b)| a * b)
+                        .sum::<f64>()
+            })
             .collect::<Vec<f64>>()
             .into();
 
@@ -963,7 +991,11 @@ mod tests {
     fn test_irls_l1() {
         let phi = Array2::eye(4);
         let y = Array1::from_vec(vec![2.0, 0.0, -1.0, 0.0]);
-        let config = IrlsConfig { p: 1.0, max_iter: 100, ..Default::default() };
+        let config = IrlsConfig {
+            p: 1.0,
+            max_iter: 100,
+            ..Default::default()
+        };
         let x = irls(&phi, &y, &config).expect("irls should succeed");
         assert!((x[0] - 2.0).abs() < 1e-3);
     }

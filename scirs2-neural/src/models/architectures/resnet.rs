@@ -259,14 +259,14 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Basic
             .with_padding(PaddingMode::Same);
 
         let mut rng2 = scirs2_core::random::rngs::SmallRng::from_seed([43; 32]);
-        let bn1 = BatchNorm::new(out_channels, 1e-5, 0.1, &mut rng2)?;
+        let bn1 = BatchNorm::new(out_channels, 0.1, 1e-5, &mut rng2)?;
 
         let mut rng3 = scirs2_core::random::rngs::SmallRng::from_seed([44; 32]);
         let conv2 = Conv2D::new(out_channels, out_channels, (3, 3), (1, 1), None)?
             .with_padding(PaddingMode::Same);
 
         let mut rng4 = scirs2_core::random::rngs::SmallRng::from_seed([45; 32]);
-        let bn2 = BatchNorm::new(out_channels, 1e-5, 0.1, &mut rng4)?;
+        let bn2 = BatchNorm::new(out_channels, 0.1, 1e-5, &mut rng4)?;
 
         let downsample = if downsample {
             let mut rng5 = scirs2_core::random::rngs::SmallRng::from_seed([46; 32]);
@@ -274,7 +274,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Basic
                 .with_padding(PaddingMode::Valid);
 
             let mut rng6 = scirs2_core::random::rngs::SmallRng::from_seed([47; 32]);
-            let ds_bn = BatchNorm::new(out_channels, 1e-5, 0.1, &mut rng6)?;
+            let ds_bn = BatchNorm::new(out_channels, 0.1, 1e-5, &mut rng6)?;
             Some((ds_conv, ds_bn))
         } else {
             None
@@ -515,7 +515,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Bottl
             .with_padding(PaddingMode::Valid);
 
         let mut rng2 = scirs2_core::random::rngs::SmallRng::from_seed([49; 32]);
-        let bn1 = BatchNorm::new(bottleneck_channels, 1e-5, 0.1, &mut rng2)?;
+        let bn1 = BatchNorm::new(bottleneck_channels, 0.1, 1e-5, &mut rng2)?;
 
         // Second conv (3x3)
         let mut rng3 = scirs2_core::random::rngs::SmallRng::from_seed([50; 32]);
@@ -529,7 +529,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Bottl
         .with_padding(PaddingMode::Same);
 
         let mut rng4 = scirs2_core::random::rngs::SmallRng::from_seed([51; 32]);
-        let bn2 = BatchNorm::new(bottleneck_channels, 1e-5, 0.1, &mut rng4)?;
+        let bn2 = BatchNorm::new(bottleneck_channels, 0.1, 1e-5, &mut rng4)?;
 
         // Third conv (1x1 expand)
         let mut rng5 = scirs2_core::random::rngs::SmallRng::from_seed([52; 32]);
@@ -537,7 +537,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Bottl
             .with_padding(PaddingMode::Valid);
 
         let mut rng6 = scirs2_core::random::rngs::SmallRng::from_seed([53; 32]);
-        let bn3 = BatchNorm::new(out_channels, 1e-5, 0.1, &mut rng6)?;
+        let bn3 = BatchNorm::new(out_channels, 0.1, 1e-5, &mut rng6)?;
 
         // Downsample
         let downsample = if downsample {
@@ -546,7 +546,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Bottl
                 .with_padding(PaddingMode::Valid);
 
             let mut rng8 = scirs2_core::random::rngs::SmallRng::from_seed([55; 32]);
-            let ds_bn = BatchNorm::new(out_channels, 1e-5, 0.1, &mut rng8)?;
+            let ds_bn = BatchNorm::new(out_channels, 0.1, 1e-5, &mut rng8)?;
             Some((ds_conv, ds_bn))
         } else {
             None
@@ -778,7 +778,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> ResNe
             .with_padding(PaddingMode::Same);
 
         let mut rng2 = scirs2_core::random::rngs::SmallRng::from_seed([57; 32]);
-        let bn1 = BatchNorm::new(64, 1e-5, 0.1, &mut rng2)?;
+        let bn1 = BatchNorm::new(64, 0.1, 1e-5, &mut rng2)?;
 
         // For simplicity, create a single layer with blocks
         let layer1 = Vec::new();

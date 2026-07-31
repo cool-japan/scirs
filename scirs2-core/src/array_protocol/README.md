@@ -98,9 +98,15 @@ For more detailed information, see:
 This module is partially implemented with active development on the following components:
 
 - GPU arrays with multiple backends (CUDA, ROCm, Metal, WebGPU, OpenCL)
-  - CUDA backend is fully implemented
-  - ROCm, Metal, WebGPU, and OpenCL support is implemented as feature flags
-  - Basic operations (add, matmul, transpose, reshape) are implemented
+  - The default `GPUNdarray` type (backend-labeled CUDA/ROCm/Metal/OpenCL) is a
+    CPU-side mock: it never allocates real GPU memory and always computes on
+    the host (see `gpu_impl.rs`'s own "mock implementation" documentation) —
+    its operations are real CPU computations, not GPU-accelerated ones
+  - Real GPU dispatch (actual compute shaders on a `wgpu` device) is provided
+    separately by `GpuNdarray<f32>`, gated behind the `array_protocol_wgpu`
+    feature
+  - Basic operations (add, multiply, matmul, transpose, reshape) are implemented
+    on both
   
 - Distributed arrays with different distribution strategies
   - Basic infrastructure is implemented

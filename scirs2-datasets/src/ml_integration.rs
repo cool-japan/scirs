@@ -12,7 +12,6 @@ use std::collections::HashMap;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::SliceRandomExt;
-use scirs2_core::random::Uniform;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{DatasetsError, Result};
@@ -382,53 +381,24 @@ impl MLPipeline {
 
     // Private helper methods
 
+    /// Balances `dataset` according to `strategy`.
+    ///
+    /// All strategies (including [`BalancingStrategy::SMOTE`]) are delegated
+    /// to [`crate::utils::create_balanced_dataset`], which performs a real
+    /// k-nearest-neighbor synthetic interpolation for SMOTE rather than a
+    /// no-op passthrough. `self.config.random_state` is threaded through so
+    /// balancing is reproducible, matching the rest of the pipeline.
     fn apply_balancing(&self, dataset: &Dataset, strategy: &BalancingStrategy) -> Result<Dataset> {
-        // Simplified balancing implementation
-        // In a full implementation, you'd use the actual balancing utilities
-        match strategy {
-            BalancingStrategy::RandomUndersample => self.random_undersample(dataset, None),
-            BalancingStrategy::RandomOversample => self.random_oversample(dataset, None),
-            _ => Ok(dataset.clone()), // Placeholder for other strategies
-        }
-    }
-
-    fn random_undersample(&self, dataset: &Dataset, _randomstate: Option<u64>) -> Result<Dataset> {
         let target = dataset.target.as_ref().ok_or_else(|| {
             DatasetsError::InvalidFormat("Target required for balancing".to_string())
         })?;
 
-        // Find minority class size
-        let mut class_counts: HashMap<i64, usize> = HashMap::new();
-        for &value in target.iter() {
-            if !value.is_nan() {
-                *class_counts.entry(value as i64).or_insert(0) += 1;
-            }
-        }
-
-        let min_count = class_counts.values().min().copied().unwrap_or(0);
-
-        // Sample min_count samples from each class
-        let mut selected_indices = Vec::new();
-
-        for (class_, _count) in class_counts {
-            let class_indices: Vec<usize> = target
-                .iter()
-                .enumerate()
-                .filter(|(_, &val)| !val.is_nan() && val as i64 == class_)
-                .map(|(idx, _)| idx)
-                .collect();
-
-            let mut sampled_indices = class_indices;
-            if sampled_indices.len() > min_count {
-                // Simple random sampling (in a real implementation, use proper random sampling)
-                sampled_indices.truncate(min_count);
-            }
-
-            selected_indices.extend(sampled_indices);
-        }
-
-        let balanced_data = dataset.data.select(Axis(0), &selected_indices);
-        let balanced_target = target.select(Axis(0), &selected_indices);
+        let (balanced_data, balanced_target) = crate::utils::create_balanced_dataset(
+            &dataset.data,
+            target,
+            *strategy,
+            self.config.random_state,
+        )?;
 
         Ok(Dataset {
             data: balanced_data,
@@ -436,90 +406,7 @@ impl MLPipeline {
             featurenames: dataset.featurenames.clone(),
             targetnames: dataset.targetnames.clone(),
             feature_descriptions: dataset.feature_descriptions.clone(),
-            description: Some("Undersampled dataset".to_string()),
-            metadata: dataset.metadata.clone(),
-        })
-    }
-
-    fn random_oversample(&self, dataset: &Dataset, randomstate: Option<u64>) -> Result<Dataset> {
-        use scirs2_core::random::prelude::*;
-        use scirs2_core::random::{rngs::StdRng, RngExt, SeedableRng};
-        use std::collections::HashMap;
-
-        let target = dataset.target.as_ref().ok_or_else(|| {
-            DatasetsError::InvalidFormat("Random oversampling requires target labels".to_string())
-        })?;
-
-        if target.len() != dataset.data.nrows() {
-            return Err(DatasetsError::InvalidFormat(
-                "Target length must match number of samples".to_string(),
-            ));
-        }
-
-        // Count samples per class
-        let mut class_counts: HashMap<i32, usize> = HashMap::new();
-        let mut class_indices: HashMap<i32, Vec<usize>> = HashMap::new();
-
-        for (idx, &label) in target.iter().enumerate() {
-            let class = label as i32;
-            *class_counts.entry(class).or_insert(0) += 1;
-            class_indices.entry(class).or_default().push(idx);
-        }
-
-        // Find the majority class size (the maximum count)
-        let max_count = class_counts.values().max().copied().unwrap_or(0);
-
-        if max_count == 0 {
-            return Err(DatasetsError::InvalidFormat(
-                "No samples found in dataset".to_string(),
-            ));
-        }
-
-        // Create RNG
-        let mut rng: Box<dyn scirs2_core::random::Rng> = match randomstate {
-            Some(seed) => Box::new(StdRng::seed_from_u64(seed)),
-            None => Box::new(thread_rng()),
-        };
-
-        // Collect all indices for the oversampled dataset
-        let mut all_indices = Vec::new();
-
-        for indices in class_indices.values() {
-            let current_count = indices.len();
-
-            // Add all original samples
-            all_indices.extend(indices.iter().copied());
-
-            // Add additional samples by random oversampling with replacement
-            let samples_needed = max_count - current_count;
-
-            if samples_needed > 0 {
-                for _ in 0..samples_needed {
-                    let random_idx =
-                        rng.sample(Uniform::new(0, indices.len()).expect("Operation failed"));
-                    all_indices.push(indices[random_idx]);
-                }
-            }
-        }
-
-        // Shuffle the final indices to mix classes
-        all_indices.shuffle(&mut *rng);
-
-        // Create the oversampled dataset
-        let oversampled_data = dataset.data.select(Axis(0), &all_indices);
-        let oversampled_target = target.select(Axis(0), &all_indices);
-
-        Ok(Dataset {
-            data: oversampled_data,
-            target: Some(oversampled_target),
-            featurenames: dataset.featurenames.clone(),
-            targetnames: dataset.targetnames.clone(),
-            feature_descriptions: dataset.feature_descriptions.clone(),
-            description: Some(format!(
-                "Random oversampled dataset (original: {} samples, oversampled: {} samples)",
-                dataset.n_samples(),
-                all_indices.len()
-            )),
+            description: Some(format!("{strategy:?}-balanced dataset")),
             metadata: dataset.metadata.clone(),
         })
     }
@@ -972,5 +859,75 @@ mod tests {
         assert!(scaler_params.max.is_some());
         assert_eq!(scaler_params.min.expect("Test: min missing"), 1.0);
         assert_eq!(scaler_params.max.expect("Test: max missing"), 5.0);
+    }
+
+    #[test]
+    fn test_smote_balancing_actually_balances_and_interpolates() {
+        // Before the fix, `apply_balancing`'s SMOTE branch was a silent
+        // no-op (`_ => Ok(dataset.clone())`), so an imbalanced dataset would
+        // come out of `prepare_dataset` exactly as imbalanced as it went in.
+        //
+        // Minority class 0: 4 samples on the diagonal, feature values in [1.0, 2.5].
+        // Majority class 1: 8 samples on the diagonal, feature values in [10.0, 17.0].
+        let data = Array2::from_shape_vec(
+            (12, 2),
+            vec![
+                1.0, 1.0, 1.5, 1.5, 2.0, 2.0, 2.5, 2.5, // class 0 (minority, 4 samples)
+                10.0, 10.0, 11.0, 11.0, 12.0, 12.0, 13.0, 13.0, 14.0, 14.0, 15.0, 15.0, 16.0, 16.0,
+                17.0, 17.0, // class 1 (majority, 8 samples)
+            ],
+        )
+        .expect("Operation failed");
+        let target = Array1::from(vec![
+            0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        ]);
+        let dataset = Dataset::new(data, Some(target));
+
+        // Disable scaling so the balanced feature values stay directly
+        // inspectable (SMOTE runs before scaling in `prepare_dataset`).
+        let config = MLPipelineConfig {
+            balancing_strategy: Some(BalancingStrategy::SMOTE { k_neighbors: 2 }),
+            scaling_method: None,
+            ..MLPipelineConfig::default()
+        };
+
+        let mut pipeline = MLPipeline::new(config);
+        let balanced = pipeline
+            .prepare_dataset(&dataset)
+            .expect("Operation failed");
+
+        let balanced_target = balanced
+            .target
+            .as_ref()
+            .expect("balanced dataset must retain target labels");
+        let class_0_count = balanced_target.iter().filter(|&&t| t == 0.0).count();
+        let class_1_count = balanced_target.iter().filter(|&&t| t == 1.0).count();
+
+        assert_eq!(
+            class_0_count, class_1_count,
+            "SMOTE must actually balance class counts, not pass the data through unchanged"
+        );
+        assert_eq!(class_0_count, 8);
+        assert_eq!(balanced.n_samples(), 16);
+
+        // The newly-synthesized minority rows must be genuine convex
+        // combinations of real class-0 points (interpolated between a
+        // sample and one of its k nearest same-class neighbors), so every
+        // new row has to land within the class-0 bounding box [1.0, 2.5] --
+        // not fabricated zeros and not copies of the majority class.
+        let mut synthetic_values = Vec::new();
+        for row_idx in 12..balanced.n_samples() {
+            let row = balanced.data.row(row_idx);
+            for &value in row.iter() {
+                assert!(
+                    (1.0..=2.5).contains(&value),
+                    "synthetic sample {row_idx} feature value {value} outside the minority-class range"
+                );
+                synthetic_values.push(value);
+            }
+        }
+        // Guard against a degenerate stub that fills synthetic rows with a
+        // single constant value.
+        assert!(synthetic_values.iter().any(|&v| v != synthetic_values[0]));
     }
 }

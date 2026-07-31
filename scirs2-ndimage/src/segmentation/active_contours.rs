@@ -3,13 +3,12 @@
 //! This module implements active contour models for image segmentation,
 //! including parametric snakes and level set methods.
 
-use scirs2_core::ndarray::{arr2, Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
 use crate::filters::{gaussian_filter, sobel};
-use crate::interpolation::{map_coordinates, InterpolationOrder};
 
 /// Parameters for active contour evolution
 #[derive(Clone, Debug)]
@@ -117,6 +116,26 @@ where
     Ok((gx, gy))
 }
 
+/// Bilinearly sample a scalar field at continuous coordinates (x, y).
+///
+/// Caller must ensure `0.0 <= x <= field.dim().1 - 1` and
+/// `0.0 <= y <= field.dim().0 - 1` (the active-contour bounds check already
+/// guarantees this with strict margin), so the four neighboring indices are
+/// always in bounds.
+#[allow(dead_code)]
+fn bilinear_sample(field: &Array2<f64>, x: f64, y: f64) -> f64 {
+    let x0 = x.floor() as usize;
+    let y0 = y.floor() as usize;
+    let x1 = x0 + 1;
+    let y1 = y0 + 1;
+    let fx = x - x0 as f64;
+    let fy = y - y0 as f64;
+
+    let top = field[[y0, x0]] * (1.0 - fx) + field[[y0, x1]] * fx;
+    let bottom = field[[y1, x0]] * (1.0 - fx) + field[[y1, x1]] * fx;
+    top * (1.0 - fy) + bottom * fy
+}
+
 /// Active contour segmentation using parametric snakes
 ///
 /// # Arguments
@@ -210,26 +229,19 @@ where
             let (external_x, external_y) =
                 if x >= 0.0 && x < u.dim().1 as f64 - 1.0 && y >= 0.0 && y < u.dim().0 as f64 - 1.0
                 {
-                    // Bilinear interpolation of GVF field
-                    let coords = arr2(&[[y, x]]);
-                    let u_interp = map_coordinates(
-                        &u.to_owned(),
-                        &coords.to_owned().into_dyn(),
-                        Some(1), // order: 1 for linear
-                        None,
-                        None,
-                        None, // prefilter
-                    )?;
-                    let v_interp = map_coordinates(
-                        &v.to_owned(),
-                        &coords.to_owned().into_dyn(),
-                        Some(1), // order: 1 for linear
-                        None,
-                        None,
-                        None, // prefilter
-                    )?;
+                    // Bilinear interpolation of GVF field, sampled directly
+                    // instead of deep-copying the whole field (u.to_owned()/
+                    // v.to_owned()) through the general N-D map_coordinates
+                    // machinery for a single point on every contour vertex
+                    // of every iteration — that was ~160MB of memcpy per
+                    // ignored-test run and the reason it was too slow to
+                    // enable. The bounds check above guarantees x0/y0 >= 0
+                    // and x1/y1 within the field, so no further clamping is
+                    // needed here.
+                    let u_interp = bilinear_sample(&u, x, y);
+                    let v_interp = bilinear_sample(&v, x, y);
 
-                    (params.gamma * u_interp[[0]], params.gamma * v_interp[[0]])
+                    (params.gamma * u_interp, params.gamma * v_interp)
                 } else {
                     (0.0, 0.0)
                 };
@@ -501,7 +513,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Takes too long to run
     fn test_active_contour_simple() {
         // Create a simple test image with a circle
         let mut image = Array2::zeros((100, 100));

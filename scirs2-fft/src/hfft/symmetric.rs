@@ -6,7 +6,6 @@
 
 use scirs2_core::ndarray::{Array, Array2, Dimension, IxDyn};
 use scirs2_core::numeric::Complex64;
-use std::ops::Not;
 
 /// Enforce Hermitian symmetry on a 2D complex array.
 ///
@@ -32,14 +31,26 @@ pub fn enforce_hermitian_symmetry(array: &mut Array2<Complex64>) {
 
     // Ensure first row and column elements satisfy Hermitian constraints
     if rows > 1 && cols > 1 {
-        // First row, special case
-        for j in 1..cols / 2 + (cols % 2).not() {
+        // First row, special case. The upper bound is `cols/2 + cols%2`
+        // (i.e. `ceil(cols/2)`): for even `cols` this stops just before the
+        // self-conjugate Nyquist index `cols/2` (handled separately below);
+        // for odd `cols` there is no Nyquist index and it covers every
+        // "positive frequency" up to `cols/2`.
+        //
+        // NOTE: this was previously written as
+        // `cols / 2 + (cols % 2).not()`, using the bitwise-NOT operator on a
+        // `usize` (`0.not() == usize::MAX`, `1.not() == usize::MAX - 1`)
+        // where boolean-style "add 1 if odd" was clearly intended. That
+        // always overflowed the addition (panicking in debug builds, and
+        // silently producing an empty/no-op range in release builds), so
+        // this Hermitian-symmetry enforcement never actually ran.
+        for j in 1..cols / 2 + cols % 2 {
             let conj_val = array[[0, cols - j]].conj();
             array[[0, j]] = conj_val;
         }
 
-        // First column, special case
-        for i in 1..rows / 2 + (rows % 2).not() {
+        // First column, special case (same reasoning as above).
+        for i in 1..rows / 2 + rows % 2 {
             let conj_val = array[[rows - i, 0]].conj();
             array[[i, 0]] = conj_val;
         }

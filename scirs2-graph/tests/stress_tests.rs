@@ -9,7 +9,7 @@ use scirs2_graph::{algorithms, generators, measures, DiGraph, Graph};
 use std::time::Instant;
 
 #[test]
-#[ignore = "slow - generates up to 1M node graphs, run with --run-ignored all"]
+#[ignore = "slow: generators::erdos_renyi_graph is O(n^2) (one RNG draw per node-pair regardless of edge probability p); the smallest size tested here (100_000 nodes) did not complete within a 600s bounded retry, extrapolated hours for the 1_000_000-node case -- unfixed algorithmic gap as of the 0.6.5 ignore audit, not environment noise (confirmed identical in both debug and --release)"]
 #[allow(dead_code)]
 fn test_large_erdos_renyi_graph() -> CoreResult<()> {
     println!("\n=== Erdős-Rényi Graph Stress Test ===");
@@ -64,7 +64,7 @@ fn test_large_erdos_renyi_graph() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore = "slow - generates up to 1M node graphs, run with --run-ignored all"]
+#[ignore = "slow: generators::barabasi_albert_graph is O(n^2*m) (full linear scan over all existing node degrees per preferential-attachment pick); 100_000 nodes completed in ~109s but 500_000 did not finish within a 600s bounded retry (predicted ~2700s from measured scaling) -- unfixed algorithmic gap as of the 0.6.5 ignore audit. Note: an O(n*m) `random_graphs::barabasi_albert` implementation already exists in this crate but is not what this generator or the crate-root re-export use"]
 #[allow(dead_code)]
 fn test_large_barabasi_albert_graph() -> CoreResult<()> {
     println!("\n=== Barabási-Albert Graph Stress Test ===");
@@ -123,7 +123,6 @@ fn test_large_barabasi_albert_graph() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore = "slow - up to 1M node grids, takes >16s, run with --run-ignored all"]
 #[allow(dead_code)]
 fn test_large_grid_graph() -> CoreResult<()> {
     println!("\n=== Grid Graph Stress Test ===");
@@ -249,7 +248,7 @@ fn test_large_directed_graph_algorithms() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore = "slow - generates 1M node graph, run with --run-ignored all"]
+#[ignore = "slow: 1_000_000-node Barabasi-Albert generation alone (same O(n^2*m) generators::barabasi_albert_graph gap as test_large_barabasi_albert_graph, at 10x its reference size) did not complete within a 600s bounded retry; a second, not-yet-reached cost is stacked behind it (this test's 'sample-based' clustering coefficient actually first computes the full unsampled measures::clustering_coefficient over the whole graph) -- unfixed algorithmic gap as of the 0.6.5 ignore audit"]
 #[allow(dead_code)]
 fn test_memory_efficient_operations() -> CoreResult<()> {
     println!("\n=== Memory Efficient Operations Test ===");
@@ -323,7 +322,7 @@ fn test_memory_efficient_operations() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore = "slow - generates 500K node graph, run with --run-ignored all"]
+#[ignore = "slow: generators::erdos_renyi_graph's O(n^2) RNG-draw-per-pair loop does not complete for a 500_000-node graph within a 600s bounded retry in EITHER debug or --release (confirmed both, ruling out debug-build slowness) -- no efficient sparse-ER generator exists in this crate to substitute (the exact-edge-count variant would need ~2TB to materialize its candidate-pair Vec at this n); unfixed algorithmic gap as of the 0.6.5 ignore audit"]
 #[allow(dead_code)]
 fn test_parallel_algorithms_on_large_graphs() -> CoreResult<()> {
     println!("\n=== Parallel Algorithms on Large Graphs Test ===");
@@ -423,7 +422,7 @@ fn bfs_with_depth_limit(
 }
 
 #[test]
-#[ignore = "slow - generates 5M node graph, high memory usage, run with --run-ignored all"]
+#[ignore = "slow: generators::barabasi_albert_graph's O(n^2*m) cost makes a 5_000_000-node graph (50x the 100_000-node reference point) infeasible -- extrapolated on the order of tens of hours; unfixed algorithmic gap as of the 0.6.5 ignore audit"]
 #[allow(dead_code)]
 fn test_extreme_scale_graph() -> CoreResult<()> {
     println!("\n=== Extreme Scale Graph Test (5M nodes) ===");
@@ -483,7 +482,7 @@ fn estimate_memory_usage(nodes: usize, edges: usize) -> f64 {
 }
 
 #[test]
-#[ignore = "slow - tests graphs up to 200K nodes, run with --run-ignored all"]
+#[ignore = "slow: ~595s cumulative over Barabasi-Albert graphs at [10K,50K,100K,200K] nodes (same O(n^2*m) generators::barabasi_albert_graph as the other stress tests in this file) -- only ~5s under the 600s bound used to measure it, a hair's-breadth from timing out outright under any extra load"]
 #[allow(dead_code)]
 fn test_algorithm_scaling() -> CoreResult<()> {
     println!("\n=== Algorithm Scaling Analysis ===");

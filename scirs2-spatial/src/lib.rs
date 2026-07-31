@@ -49,7 +49,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-spatial = "0.6.4"
+//! scirs2-spatial = "0.6.5"
 //! ```
 //!
 //! ```rust
@@ -65,7 +65,7 @@
 //! let d = distance::euclidean(&[1.0, 2.0], &[4.0, 6.0]);
 //! ```
 //!
-//! ## 🔒 Version: 0.6.4 (July 22, 2026)
+//! ## 🔒 Version: 0.6.5 (July 22, 2026)
 //
 // ## Features
 //

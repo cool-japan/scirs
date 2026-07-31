@@ -2,9 +2,10 @@
 //!
 //! Implements VAR, VARMA, VECM and related multivariate time series models
 
-use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2, ScalarOperand};
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Axis, Data, Ix2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign, ToPrimitive};
 use std::fmt::{Debug, Display};
+use std::iter::Sum;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -23,6 +24,14 @@ pub struct VARModel<F> {
     pub covariance: Array2<F>,
     /// Whether the model has been fitted
     pub is_fitted: bool,
+    /// Training data supplied to the most recent [`VARModel::fit`] call.
+    ///
+    /// Retained so that [`VARModel::granger_causality`] can estimate the
+    /// restricted (causality-constrained) regression it needs for a genuine
+    /// nested F-test; a fitted model's coefficients/covariance alone are not
+    /// sufficient for that since the restricted model is a *different*
+    /// regression (with the candidate cause's lags dropped).
+    pub training_data: Option<Array2<F>>,
 }
 
 impl<F> VARModel<F>
@@ -53,6 +62,7 @@ where
             intercept,
             covariance,
             is_fitted: false,
+            training_data: None,
         })
     }
 
@@ -130,6 +140,10 @@ where
         let residuals = &y - &fitted;
         self.covariance = residuals.t().dot(&residuals)
             / F::from(n_obs - n_regressors).expect("Failed to convert to float");
+
+        // Retained for Granger-causality testing, which needs to re-estimate
+        // a restricted regression from the original (undifferenced) data.
+        self.training_data = Some(data.to_owned());
 
         self.is_fitted = true;
         Ok(())
@@ -271,7 +285,25 @@ where
         Ok(decomposition)
     }
 
-    /// Test for Granger causality
+    /// Test whether `cause_var` Granger-causes `effectvar`.
+    ///
+    /// This is the standard Granger F-test: the *unrestricted* regression of
+    /// `effectvar` on lags of every variable (the same regressors as the
+    /// already-fitted VAR equation for `effectvar`) is compared against a
+    /// *restricted* regression with `cause_var`'s lagged terms dropped. Under
+    /// H0 ("`cause_var` does not Granger-cause `effectvar`", i.e. all of
+    /// `cause_var`'s lag coefficients in the `effectvar` equation are jointly
+    /// zero):
+    ///
+    /// ```text
+    /// F = ((RSS_restricted - RSS_unrestricted) / q) / (RSS_unrestricted / (n - k))  ~  F(q, n - k)
+    /// ```
+    ///
+    /// where `q` is the number of restrictions (one per lag of `cause_var`,
+    /// so `q = self.order`), `n` is the number of effective observations, and
+    /// `k` is the number of regressors in the unrestricted model. A small
+    /// `p_value` is evidence against H0, i.e. evidence that `cause_var` does
+    /// Granger-cause `effectvar`.
     pub fn granger_causality(&self, cause_var: usize, effectvar: usize) -> Result<(F, F)> {
         if !self.is_fitted {
             return Err(TimeSeriesError::InvalidInput(
@@ -285,13 +317,99 @@ where
             ));
         }
 
-        // Placeholder implementation
-        // Would implement proper F-test for coefficient restrictions
-        let f_stat = F::from(2.5).expect("Failed to convert constant to float");
-        let p_value = F::from(0.05).expect("Failed to convert constant to float");
+        let data = self.training_data.as_ref().ok_or_else(|| {
+            TimeSeriesError::InvalidModel(
+                "VAR model has no stored training data (fit() must be called on this model \
+                 instance before Granger-causality testing can re-estimate the restricted \
+                 regression)"
+                    .to_string(),
+            )
+        })?;
+
+        let (t, _k) = data.dim();
+        let n_obs = t - self.order;
+        let n_regressors_unrestricted = self.order * self.n_vars + 1;
+        let n_regressors_restricted = n_regressors_unrestricted - self.order;
+
+        let mut y = Array1::zeros(n_obs);
+        let mut x_unrestricted = Array2::zeros((n_obs, n_regressors_unrestricted));
+        let mut x_restricted = Array2::zeros((n_obs, n_regressors_restricted));
+
+        for i in 0..n_obs {
+            y[i] = data[[i + self.order, effectvar]];
+
+            x_unrestricted[[i, 0]] = F::one();
+            x_restricted[[i, 0]] = F::one();
+
+            let mut restricted_col = 1;
+            for lag in 0..self.order {
+                for var in 0..self.n_vars {
+                    let value = data[[i + self.order - lag - 1, var]];
+                    x_unrestricted[[i, 1 + lag * self.n_vars + var]] = value;
+
+                    if var != cause_var {
+                        x_restricted[[i, restricted_col]] = value;
+                        restricted_col += 1;
+                    }
+                }
+            }
+        }
+
+        let rss_unrestricted = ols_residual_sum_of_squares(&x_unrestricted, &y)?;
+        let rss_restricted = ols_residual_sum_of_squares(&x_restricted, &y)?;
+
+        let df1 = self.order; // number of restrictions
+        if n_obs <= n_regressors_unrestricted {
+            return Err(TimeSeriesError::InsufficientData {
+                message: "Not enough observations for Granger-causality F-test".to_string(),
+                required: n_regressors_unrestricted + 1,
+                actual: n_obs,
+            });
+        }
+        let df2 = n_obs - n_regressors_unrestricted; // denominator degrees of freedom
+
+        let q = F::from(df1).expect("Failed to convert to float");
+        let df2_f = F::from(df2).expect("Failed to convert to float");
+        let denom = rss_unrestricted / df2_f;
+
+        let f_stat = if denom > F::zero() {
+            (((rss_restricted - rss_unrestricted) / q) / denom).max(F::zero())
+        } else {
+            F::zero()
+        };
+
+        // Reuse the crate's shared (pure-Rust, incomplete-beta-based)
+        // F-distribution tail probability rather than re-deriving one.
+        let f_stat_f64 = f_stat.to_f64().unwrap_or(0.0);
+        let p_value_f64 = crate::causality::f_distribution_p_value(f_stat_f64, df1, df2);
+        let p_value = F::from(p_value_f64).expect("Failed to convert to float");
 
         Ok((f_stat, p_value))
     }
+}
+
+/// Ordinary-least-squares residual sum of squares for regressing `y` on `x`.
+///
+/// Shared by [`VARModel::granger_causality`]'s restricted and unrestricted
+/// regressions; delegates to [`solve_normal_equations`] so both use the same
+/// (Cholesky-with-LU-fallback) numerical method as [`VARModel::fit`].
+fn ols_residual_sum_of_squares<F>(x: &Array2<F>, y: &Array1<F>) -> Result<F>
+where
+    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
+{
+    let xtx = x.t().dot(x);
+    let y_col = y.clone().insert_axis(Axis(1));
+    let xty = x.t().dot(&y_col);
+
+    let beta = solve_normal_equations(&xtx, &xty)?;
+    let fitted = x.dot(&beta);
+
+    let mut rss = F::zero();
+    for i in 0..y.len() {
+        let resid = y[i] - fitted[[i, 0]];
+        rss = rss + resid * resid;
+    }
+    Ok(rss)
 }
 
 /// Vector Moving Average (VMA) model
@@ -339,13 +457,27 @@ pub struct VECMModel<F> {
 
 impl<F> VECMModel<F>
 where
-    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Display
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + ScalarOperand
+        + 'static,
 {
     /// Create a new VECM model
     pub fn new(_n_vars: usize, rank: usize, lagorder: usize) -> Result<Self> {
         if rank >= _n_vars {
             return Err(TimeSeriesError::InvalidInput(
                 "Cointegration rank must be less than number of variables".to_string(),
+            ));
+        }
+        if lagorder == 0 {
+            return Err(TimeSeriesError::InvalidInput(
+                "VECM lag order must be at least 1 (the equivalent level-VAR order)".to_string(),
             ));
         }
 
@@ -366,20 +498,193 @@ where
         })
     }
 
-    /// Fit VECM using Johansen procedure
+    /// Fit VECM using the Johansen (1988, 1991) reduced-rank-regression procedure.
+    ///
+    /// Estimates the cointegrated VECM
+    ///
+    /// ```text
+    /// ΔY_t = α β' Y_{t-1} + Σ_{i=1}^{p} Γ_i ΔY_{t-i} + μ + ε_t     (p = lag_order - 1)
+    /// ```
+    ///
+    /// by:
+    /// 1. Regressing `ΔY_t` and `Y_{t-1}` each on the short-run regressors
+    ///    `Z_t = [1, ΔY_{t-1}, ..., ΔY_{t-p}]` (an *unrestricted constant*,
+    ///    i.e. Johansen's deterministic-trend "Case 3"; no linear trend term
+    ///    is estimated) to obtain residuals `R0`, `R1`.
+    /// 2. Forming the residual product-moment matrices `S00, S01, S11` and
+    ///    solving the generalized symmetric eigenvalue problem
+    ///    `S10 S00⁻¹ S01 v = λ S11 v` (via a Cholesky-whitening reduction to a
+    ///    standard symmetric eigenproblem, solved by `scirs2_linalg::eigh`).
+    /// 3. Taking `β` as the eigenvectors for the `self.rank` largest
+    ///    eigenvalues (S11-orthonormalized, so `α = S01 β` directly), then
+    ///    jointly re-estimating `α`, `Γ_i`, `μ` by OLS regression of `ΔY_t` on
+    ///    `[β'Y_{t-1}, Z_t]` (equivalent to the analytic `α` by the
+    ///    Frisch–Waugh–Lovell theorem, and additionally yields `Γ_i`, `μ`).
+    ///
+    /// Reference: S. Johansen, "Statistical Analysis of Cointegration
+    /// Vectors", Journal of Economic Dynamics and Control 12 (1988) 231-254.
     pub fn fit<S>(&mut self, data: &ArrayBase<S, Ix2>) -> Result<()>
     where
         S: Data<Elem = F>,
     {
         scirs2_core::validation::checkarray_finite(data, "data")?;
 
-        // Placeholder implementation
-        // Would implement full Johansen procedure
+        let (t, k) = data.dim();
+        let n = self.adjustment.nrows();
+        if k != n {
+            return Err(TimeSeriesError::InvalidInput(format!(
+                "Data must have {n} variables, got {k}"
+            )));
+        }
+
+        let lag_order = self.short_run.len() + 1;
+        let p = self.short_run.len(); // number of lagged-difference regressors
+        if t <= lag_order + n {
+            return Err(TimeSeriesError::InsufficientData {
+                message: "Time series too short for the Johansen procedure".to_string(),
+                required: lag_order + n + 1,
+                actual: t,
+            });
+        }
+
+        let n_obs = t - lag_order;
+        let n_short_run = 1 + p * n; // constant + p lagged-difference blocks
+
+        // Build ΔY_t (response), Y_{t-1} (cointegration regressor), and
+        // Z_t = [1, ΔY_{t-1}, ..., ΔY_{t-p}] (short-run regressors).
+        let mut dy = Array2::<F>::zeros((n_obs, n));
+        let mut y_lag = Array2::<F>::zeros((n_obs, n));
+        let mut z = Array2::<F>::zeros((n_obs, n_short_run));
+
+        for i in 0..n_obs {
+            let time = lag_order + i;
+            for var in 0..n {
+                dy[[i, var]] = data[[time, var]] - data[[time - 1, var]];
+                y_lag[[i, var]] = data[[time - 1, var]];
+            }
+            z[[i, 0]] = F::one();
+            for lag in 1..=p {
+                for var in 0..n {
+                    z[[i, 1 + (lag - 1) * n + var]] =
+                        data[[time - lag, var]] - data[[time - lag - 1, var]];
+                }
+            }
+        }
+
+        // Step 1: partial out the short-run dynamics.
+        let r0 = ols_residuals(&z, &dy)?;
+        let r1 = ols_residuals(&z, &y_lag)?;
+
+        // Step 2: residual product-moment matrices.
+        let n_obs_f = F::from(n_obs).expect("Failed to convert to float");
+        let s00 = r0.t().dot(&r0) / n_obs_f;
+        let s01 = r0.t().dot(&r1) / n_obs_f;
+        let s11 = r1.t().dot(&r1) / n_obs_f;
+
+        // A = S10 S00^{-1} S01 (symmetric): solve S00 X = S01, then A = S01' X.
+        let s00_inv_s01 = solve_normal_equations(&s00, &s01)?;
+        let mut a_mat = s01.t().dot(&s00_inv_s01);
+        symmetrize(&mut a_mat);
+
+        // Step 3: generalized eigenproblem A v = λ S11 v via Cholesky whitening:
+        // S11 = L L', M = L^{-1} A L^{-T}, eigh(M) = (λ, U), V = L^{-T} U.
+        // V is then S11-orthonormal (v_i' S11 v_j = δ_ij), matching Johansen's
+        // normalization, so α = S01 β holds directly for β = leading columns of V.
+        let l = cholesky_factor(&s11)?;
+        let l_inv = invert_lower_triangular(&l)?;
+        let mut m = l_inv.dot(&a_mat).dot(&l_inv.t());
+        symmetrize(&mut m);
+
+        let (eigenvalues, u) = scirs2_linalg::eigh(&m.view(), None).map_err(|e| {
+            TimeSeriesError::ComputationError(format!(
+                "Johansen procedure eigendecomposition failed: {e}"
+            ))
+        })?;
+        let v_all = l_inv.t().dot(&u);
+
+        // Sort by descending eigenvalue: the largest eigenvalues correspond to
+        // the strongest cointegrating relationships.
+        let mut order: Vec<usize> = (0..eigenvalues.len()).collect();
+        order.sort_by(|&i, &j| {
+            eigenvalues[j]
+                .partial_cmp(&eigenvalues[i])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let rank = self.rank;
+        let mut beta = Array2::<F>::zeros((n, rank));
+        for (new_col, &old_col) in order.iter().take(rank).enumerate() {
+            for row in 0..n {
+                beta[[row, new_col]] = v_all[[row, old_col]];
+            }
+        }
+
+        // Step 4: joint regression of ΔY_t on [β'Y_{t-1}, Z_t] gives (by
+        // Frisch–Waugh–Lovell) the same α as S01·β, plus Γ_i and μ.
+        let ect = y_lag.dot(&beta); // error-correction term(s), n_obs x rank
+        let mut w = Array2::<F>::zeros((n_obs, rank + n_short_run));
+        for i in 0..n_obs {
+            for j in 0..rank {
+                w[[i, j]] = ect[[i, j]];
+            }
+            for j in 0..n_short_run {
+                w[[i, rank + j]] = z[[i, j]];
+            }
+        }
+
+        let theta = solve_normal_equations(&w.t().dot(&w), &w.t().dot(&dy))?;
+
+        let mut alpha = Array2::<F>::zeros((n, rank));
+        for i in 0..n {
+            for j in 0..rank {
+                alpha[[i, j]] = theta[[j, i]];
+            }
+        }
+
+        let mut short_run = vec![Array2::<F>::zeros((n, n)); p];
+        for lag in 0..p {
+            let mut gamma = Array2::<F>::zeros((n, n));
+            for i in 0..n {
+                for var in 0..n {
+                    let row_idx = rank + 1 + lag * n + var;
+                    gamma[[i, var]] = theta[[row_idx, i]];
+                }
+            }
+            short_run[lag] = gamma;
+        }
+
+        let mut deterministic = Array2::<F>::zeros((n, 2));
+        for i in 0..n {
+            // Constant term (column 0); no linear trend is estimated (column 1
+            // stays zero — only Case 3, "unrestricted constant", is supported).
+            deterministic[[i, 0]] = theta[[rank, i]];
+        }
+
+        let fitted = w.dot(&theta);
+        let residuals = &dy - &fitted;
+        let dof = n_obs.saturating_sub(rank + n_short_run).max(1);
+        let covariance =
+            residuals.t().dot(&residuals) / F::from(dof).expect("Failed to convert to float");
+
+        self.adjustment = alpha;
+        self.cointegration = beta;
+        self.short_run = short_run;
+        self.deterministic = deterministic;
+        self.covariance = covariance;
         self.is_fitted = true;
         Ok(())
     }
 
-    /// Convert VECM to VAR representation
+    /// Convert the fitted VECM to its equivalent level-VAR(`lag_order`)
+    /// representation, using the standard algebraic identity
+    ///
+    /// ```text
+    /// Φ_1 = I + Π + Γ_1,      Φ_j = Γ_j - Γ_{j-1}  (2 ≤ j ≤ p),      Φ_{p+1} = -Γ_p
+    /// ```
+    ///
+    /// where `Π = α β'` and `p = lag_order - 1`, derived by substituting
+    /// `Y_t = Y_{t-1} + ΔY_t` into the fitted VECM equation and collecting
+    /// terms in `Y_{t-1}, ..., Y_{t-lag_order}`.
     pub fn to_var(&self) -> Result<VARModel<F>> {
         if !self.is_fitted {
             return Err(TimeSeriesError::InvalidInput(
@@ -387,10 +692,130 @@ where
             ));
         }
 
-        // Placeholder implementation
-        let var = VARModel::new(self.short_run.len() + 1, self.adjustment.nrows())?;
+        let n = self.adjustment.nrows();
+        let p = self.short_run.len();
+        let lag_order = p + 1;
+        let mut var = VARModel::new(lag_order, n)?;
+
+        let pi = self.adjustment.dot(&self.cointegration.t());
+        let identity: Array2<F> = Array2::eye(n);
+
+        var.coefficients[0] = match self.short_run.first() {
+            Some(gamma_1) => &identity + &pi + gamma_1,
+            None => &identity + &pi,
+        };
+
+        for j in 1..p {
+            var.coefficients[j] = &self.short_run[j] - &self.short_run[j - 1];
+        }
+
+        if let Some(gamma_p) = self.short_run.last() {
+            var.coefficients[lag_order - 1] = gamma_p.mapv(|x| -x);
+        }
+
+        var.intercept = self.deterministic.column(0).to_owned();
+        var.covariance = self.covariance.clone();
+        var.is_fitted = true;
+
         Ok(var)
     }
+}
+
+/// Multivariate OLS residuals of regressing each column of `y` on `x`.
+fn ols_residuals<F>(x: &Array2<F>, y: &Array2<F>) -> Result<Array2<F>>
+where
+    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
+{
+    let beta = solve_normal_equations(&x.t().dot(x), &x.t().dot(y))?;
+    Ok(y - &x.dot(&beta))
+}
+
+/// Symmetrize a square matrix in place: `a := (a + a') / 2`.
+///
+/// Used to absorb floating-point asymmetry (e.g. from summation order)
+/// before feeding a matrix that is symmetric in exact arithmetic to a
+/// symmetric eigensolver, which requires exact symmetry.
+fn symmetrize<F>(a: &mut Array2<F>)
+where
+    F: Float,
+{
+    let n = a.nrows();
+    let two = F::one() + F::one();
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let avg = (a[[i, j]] + a[[j, i]]) / two;
+            a[[i, j]] = avg;
+            a[[j, i]] = avg;
+        }
+    }
+}
+
+/// Lower-triangular Cholesky factor `L` such that `a = L L'`.
+///
+/// A small ridge is added to the diagonal for numerical robustness, since
+/// callers use this on residual product-moment matrices that are only
+/// positive semi-definite in exact arithmetic (e.g. `S11` in the Johansen
+/// procedure) and can be numerically singular for small samples.
+fn cholesky_factor<F>(a: &Array2<F>) -> Result<Array2<F>>
+where
+    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
+{
+    let n = a.nrows();
+    let ridge = F::from(1e-10).expect("Failed to convert constant to float");
+    let mut l = Array2::<F>::zeros((n, n));
+
+    for i in 0..n {
+        for j in 0..=i {
+            let mut sum = F::zero();
+            for m in 0..j {
+                sum = sum + l[[i, m]] * l[[j, m]];
+            }
+            if i == j {
+                let val = a[[j, j]] + ridge - sum;
+                if val <= F::zero() {
+                    return Err(TimeSeriesError::NumericalInstability(
+                        "Matrix is not positive definite in Cholesky factorization".to_string(),
+                    ));
+                }
+                l[[j, j]] = val.sqrt();
+            } else {
+                if l[[j, j]] == F::zero() {
+                    return Err(TimeSeriesError::NumericalInstability(
+                        "Zero pivot in Cholesky factorization".to_string(),
+                    ));
+                }
+                l[[i, j]] = (a[[i, j]] - sum) / l[[j, j]];
+            }
+        }
+    }
+
+    Ok(l)
+}
+
+/// Invert a lower-triangular matrix by forward substitution.
+fn invert_lower_triangular<F>(l: &Array2<F>) -> Result<Array2<F>>
+where
+    F: Float + FromPrimitive + Debug + Display + ScalarOperand,
+{
+    let n = l.nrows();
+    let mut inv = Array2::<F>::zeros((n, n));
+
+    for col in 0..n {
+        for i in 0..n {
+            let mut sum = if i == col { F::one() } else { F::zero() };
+            for j in 0..i {
+                sum = sum - l[[i, j]] * inv[[j, col]];
+            }
+            if l[[i, i]].abs() <= F::from(1e-14).expect("Failed to convert constant to float") {
+                return Err(TimeSeriesError::NumericalInstability(
+                    "Singular matrix while inverting Cholesky factor".to_string(),
+                ));
+            }
+            inv[[i, col]] = sum / l[[i, i]];
+        }
+    }
+
+    Ok(inv)
 }
 
 /// Helper function to solve normal equations (X'X)β = X'Y
@@ -820,5 +1245,196 @@ mod tests {
 
         let order = select_var_order(&data, 3, SelectionCriterion::AIC).expect("Operation failed");
         assert!((1..=3).contains(&order));
+    }
+
+    #[test]
+    fn test_granger_causality_detects_real_cause() {
+        // Variable 0 is an independent AR(1) process; variable 1 genuinely
+        // depends on variable 0's *lagged* value. So variable 0 should
+        // Granger-cause variable 1, but not vice versa.
+        //
+        // The former hardcoded stub (f_stat=2.5, p_value=0.05 for every call)
+        // would fail both assertions below (0.05 is neither < 0.01 nor > 0.05).
+        use scirs2_core::random::SeedableRng;
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(123);
+
+        let n = 300;
+        let mut data = Array2::<f64>::zeros((n, 2));
+        for t in 1..n {
+            let noise_x: f64 = scirs2_core::random::RngExt::random_range(&mut rng, -0.3..0.3);
+            let noise_y: f64 = scirs2_core::random::RngExt::random_range(&mut rng, -0.3..0.3);
+
+            data[[t, 0]] = 0.4 * data[[t - 1, 0]] + noise_x;
+            data[[t, 1]] = 0.3 * data[[t - 1, 1]] + 0.8 * data[[t - 1, 0]] + noise_y;
+        }
+
+        let mut model = VARModel::new(1, 2).expect("VAR model creation should succeed");
+        model.fit(&data).expect("VAR fit should succeed");
+
+        let (f_forward, p_forward) = model
+            .granger_causality(0, 1)
+            .expect("Granger test 0->1 should succeed");
+        assert!(
+            p_forward < 0.01,
+            "variable 0 genuinely drives variable 1: expected a small p-value, got f={f_forward}, p={p_forward}"
+        );
+
+        let (_, p_reverse) = model
+            .granger_causality(1, 0)
+            .expect("Granger test 1->0 should succeed");
+        assert!(
+            p_reverse > 0.05,
+            "variable 1 does not drive variable 0: expected a large p-value, got p={p_reverse}"
+        );
+    }
+
+    #[test]
+    fn test_granger_causality_rejects_independent_series() {
+        // Two independent AR(1) processes with independent noise: neither
+        // should show significant Granger causality on the other.
+        use scirs2_core::random::SeedableRng;
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(456);
+
+        let n = 300;
+        let mut data = Array2::<f64>::zeros((n, 2));
+        for t in 1..n {
+            let noise_x: f64 = scirs2_core::random::RngExt::random_range(&mut rng, -0.3..0.3);
+            let noise_y: f64 = scirs2_core::random::RngExt::random_range(&mut rng, -0.3..0.3);
+
+            data[[t, 0]] = 0.5 * data[[t - 1, 0]] + noise_x;
+            data[[t, 1]] = 0.5 * data[[t - 1, 1]] + noise_y;
+        }
+
+        let mut model = VARModel::new(1, 2).expect("VAR model creation should succeed");
+        model.fit(&data).expect("VAR fit should succeed");
+
+        let (_, p_value) = model
+            .granger_causality(0, 1)
+            .expect("Granger test should succeed");
+        assert!(
+            p_value > 0.05,
+            "independent series should not show significant Granger causality, got p={p_value}"
+        );
+    }
+
+    /// Build a bivariate series with a genuine, known cointegrating
+    /// relationship: a common stochastic trend `w` (a random walk) drives
+    /// both variables, so `y1 - 0.5*y2` is stationary (true cointegrating
+    /// vector `[1, -0.5]`) while `y1` and `y2` individually are unit-root
+    /// (non-stationary).
+    fn cointegrated_series(seed: u64, n: usize) -> Array2<f64> {
+        use scirs2_core::random::SeedableRng;
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
+
+        let mut w = 0.0_f64;
+        let mut data = Array2::<f64>::zeros((n, 2));
+        for t in 0..n {
+            let step: f64 = scirs2_core::random::RngExt::random_range(&mut rng, -1.0..1.0);
+            w += step;
+            let noise1: f64 = scirs2_core::random::RngExt::random_range(&mut rng, -0.5..0.5);
+            let noise2: f64 = scirs2_core::random::RngExt::random_range(&mut rng, -0.5..0.5);
+            data[[t, 0]] = w + noise1;
+            data[[t, 1]] = 2.0 * w + noise2;
+        }
+        data
+    }
+
+    #[test]
+    fn test_vecm_fit_recovers_known_cointegration() {
+        // Regression guard: the former stub left `cointegration` at its
+        // `new()`-time value of all zeros, which fails the `scale.abs() >
+        // 1e-8` sanity check below immediately.
+        let n = 300;
+        let data = cointegrated_series(7, n);
+
+        let mut model = VECMModel::new(2, 1, 2).expect("VECM creation should succeed");
+        model.fit(&data).expect("Johansen fit should succeed");
+        assert!(model.is_fitted);
+
+        // Normalize the estimated cointegrating vector so its first entry is
+        // 1, then compare against the analytically-known [1, -0.5].
+        let beta = &model.cointegration;
+        let scale = beta[[0, 0]];
+        assert!(
+            scale.abs() > 1e-8,
+            "degenerate cointegrating vector: {beta:?}"
+        );
+        let normalized = [beta[[0, 0]] / scale, beta[[1, 0]] / scale];
+
+        assert!(
+            (normalized[0] - 1.0).abs() < 1e-6,
+            "normalization should force the first entry to 1, got {normalized:?}"
+        );
+        assert!(
+            (normalized[1] - (-0.5)).abs() < 0.05,
+            "expected cointegrating vector close to [1, -0.5], got {normalized:?}"
+        );
+
+        // The recovered cointegrating combination should be near-stationary
+        // (much lower variance) unlike the raw, random-walk-driven series.
+        let mut combo_values = Vec::with_capacity(n);
+        for t in 0..n {
+            combo_values.push(data[[t, 0]] * normalized[0] + data[[t, 1]] * normalized[1]);
+        }
+        let combo_mean = combo_values.iter().sum::<f64>() / n as f64;
+        let combo_var = combo_values
+            .iter()
+            .map(|v| (v - combo_mean).powi(2))
+            .sum::<f64>()
+            / n as f64;
+
+        let y1_mean = (0..n).map(|t| data[[t, 0]]).sum::<f64>() / n as f64;
+        let y1_var = (0..n)
+            .map(|t| (data[[t, 0]] - y1_mean).powi(2))
+            .sum::<f64>()
+            / n as f64;
+
+        assert!(
+            combo_var < y1_var * 0.1,
+            "cointegrating combination should be far less volatile than the raw \
+             (unit-root) series: combo_var={combo_var}, y1_var={y1_var}"
+        );
+    }
+
+    #[test]
+    fn test_vecm_to_var_matches_algebraic_identity() {
+        // Regression guard: the former stub's `to_var()` built a fresh,
+        // all-zero `VARModel` regardless of the (also-stubbed, all-zero)
+        // VECM parameters, so `actual_sum` below was the zero matrix while
+        // `expected_sum` was the identity -- failing immediately.
+        let n = 300;
+        let data = cointegrated_series(99, n);
+
+        let mut vecm = VECMModel::new(2, 1, 2).expect("VECM creation should succeed");
+        vecm.fit(&data).expect("Johansen fit should succeed");
+
+        let var = vecm
+            .to_var()
+            .expect("VECM -> VAR conversion should succeed");
+        assert_eq!(var.order, 2);
+        assert!(var.is_fitted);
+
+        // Algebraic identity: summing all level-VAR coefficient matrices must
+        // reproduce I + Pi (this telescopes out of the correct Phi_j
+        // definitions used to convert a VECM to its level-VAR form).
+        let pi = vecm.adjustment.dot(&vecm.cointegration.t());
+        let identity = Array2::<f64>::eye(2);
+        let expected_sum = &identity + &pi;
+
+        let mut actual_sum = Array2::<f64>::zeros((2, 2));
+        for coef in &var.coefficients {
+            actual_sum = actual_sum + coef;
+        }
+
+        for i in 0..2 {
+            for j in 0..2 {
+                assert!(
+                    (actual_sum[[i, j]] - expected_sum[[i, j]]).abs() < 1e-8,
+                    "sum of VAR coefficients should equal I + Pi at [{i},{j}]: {} vs {}",
+                    actual_sum[[i, j]],
+                    expected_sum[[i, j]]
+                );
+            }
+        }
     }
 }

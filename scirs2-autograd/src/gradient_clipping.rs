@@ -68,6 +68,22 @@ impl<F: Float> Default for ClippingStats<F> {
     }
 }
 
+/// Evaluates the Frobenius norms of `gradients` when the graph can be evaluated.
+///
+/// Returns `None` when any gradient cannot be evaluated (unfed placeholders, or a
+/// variable that is only reachable through a `Context` the clipper does not hold). The
+/// clippers use this to report **measured** statistics instead of hard-coded ones; when
+/// it returns `None` they report "unknown" rather than claiming that nothing was clipped.
+fn measure_norms<F: Float>(gradients: &[Tensor<'_, F>]) -> Option<Vec<F>> {
+    let mut out = Vec::with_capacity(gradients.len());
+    for grad in gradients {
+        let norm = tensor_ops::frobenius_norm(grad);
+        let arr = norm.eval(grad.graph()).ok()?;
+        out.push(arr.iter().copied().next()?);
+    }
+    Some(out)
+}
+
 /// Clip gradients by value
 ///
 /// Clips each element of each gradient tensor to be within the range [min_value, max_value].
@@ -208,9 +224,6 @@ impl<F: Float> ClipByNorm<F> {
 
 impl<F: Float> GradientClipper<F> for ClipByNorm<F> {
     fn clip_gradients<'g>(&mut self, gradients: &[Tensor<'g, F>]) -> Vec<Tensor<'g, F>> {
-        let any_clipped = false;
-        let num_clipped = 0;
-
         let clipped: Vec<_> = gradients
             .iter()
             .map(|grad| {
@@ -225,19 +238,54 @@ impl<F: Float> GradientClipper<F> for ClipByNorm<F> {
                 let ratio = max_norm_tensor / grad_norm;
                 let clipping_factor = tensor_ops::minimum(one_tensor, ratio);
 
-                // Note: In a full implementation, we'd track whether clipping actually occurred
-                // For simplicity, we assume clipping may have occurred
                 (*grad) * clipping_factor
             })
             .collect();
 
-        self.last_clipped.set(any_clipped);
+        // Measure whether clipping actually bites.  These fields used to be hard-coded to
+        // `false`/`0` no matter what the gradients were, which made the monitoring API
+        // report "never clipped" even while it was clipping every step.
+        let mut stats = ClippingStats::<F> {
+            total_gradients: gradients.len(),
+            ..Default::default()
+        };
+        match measure_norms(gradients) {
+            Some(norms) => {
+                let over: Vec<F> = norms
+                    .iter()
+                    .copied()
+                    .filter(|n| *n > self.max_norm)
+                    .collect();
+                stats.num_clipped = over.len();
+                stats.was_clipped = !over.is_empty();
+                stats.original_norm = norms.iter().copied().fold(None, |acc: Option<F>, n| {
+                    Some(match acc {
+                        Some(a) if a >= n => a,
+                        _ => n,
+                    })
+                });
+                stats.clipped_norm =
+                    stats
+                        .original_norm
+                        .map(|n| if n > self.max_norm { self.max_norm } else { n });
+                stats.clipping_factor = stats.original_norm.map(|n| {
+                    if n > F::zero() && n > self.max_norm {
+                        self.max_norm / n
+                    } else {
+                        F::one()
+                    }
+                });
+            }
+            None => {
+                // Norms are not measurable from a bare graph handle (unfed placeholders /
+                // variables outside this scope): report "unknown" (all `None`) rather than
+                // asserting that no clipping happened.
+                stats.was_clipped = false;
+            }
+        }
 
-        // Update stats
-        let mut stats = self.last_stats.borrow_mut();
-        stats.was_clipped = any_clipped;
-        stats.num_clipped = num_clipped;
-        stats.total_gradients = gradients.len();
+        self.last_clipped.set(stats.was_clipped);
+        *self.last_stats.borrow_mut() = stats;
 
         clipped
     }
@@ -338,16 +386,34 @@ impl<F: Float> GradientClipper<F> for ClipByGlobalNorm<F> {
             .map(|grad| (*grad) * clipping_factor)
             .collect();
 
-        // Note: In a full implementation, we'd evaluate global_norm and check if clipping occurred
-        let was_clipped = false; // Placeholder - would need evaluation to determine
+        // Measure the actual global norm so the monitoring API reports reality instead of
+        // a hard-coded `false`.
+        let mut stats = ClippingStats::<F> {
+            total_gradients: gradients.len(),
+            ..Default::default()
+        };
+        match measure_norms(gradients) {
+            Some(norms) => {
+                let sum_sq = norms.iter().fold(F::zero(), |acc, n| acc + (*n) * (*n));
+                let measured = sum_sq.sqrt();
+                let was_clipped = measured > self.max_norm;
+                stats.was_clipped = was_clipped;
+                stats.num_clipped = if was_clipped { gradients.len() } else { 0 };
+                stats.original_norm = Some(measured);
+                stats.clipped_norm = Some(if was_clipped { self.max_norm } else { measured });
+                stats.clipping_factor = Some(if was_clipped && measured > F::zero() {
+                    self.max_norm / measured
+                } else {
+                    F::one()
+                });
+            }
+            None => {
+                stats.was_clipped = false;
+            }
+        }
 
-        self.last_clipped.set(was_clipped);
-
-        // Update stats
-        let mut stats = self.last_stats.borrow_mut();
-        stats.was_clipped = was_clipped;
-        stats.total_gradients = gradients.len();
-        stats.num_clipped = if was_clipped { gradients.len() } else { 0 };
+        self.last_clipped.set(stats.was_clipped);
+        *self.last_stats.borrow_mut() = stats;
 
         clipped
     }
@@ -367,9 +433,11 @@ impl<F: Float> GradientClipper<F> for ClipByGlobalNorm<F> {
 /// This can help automatically tune the clipping threshold during training.
 pub struct AdaptiveClipByNorm<F: Float> {
     base_clipper: ClipByNorm<F>,
-    #[allow(dead_code)]
     adaptation_rate: F,
     current_threshold: std::cell::Cell<F>,
+    /// Exponential moving average of the observed gradient norms, or `None` until the
+    /// first measurable batch of gradients has been seen.
+    norm_ema: std::cell::Cell<Option<F>>,
 }
 
 impl<F: Float> AdaptiveClipByNorm<F> {
@@ -388,7 +456,15 @@ impl<F: Float> AdaptiveClipByNorm<F> {
             base_clipper: ClipByNorm::new(initial_max_norm),
             adaptation_rate,
             current_threshold: std::cell::Cell::new(initial_max_norm),
+            norm_ema: std::cell::Cell::new(None),
         }
+    }
+
+    /// Exponential moving average of the gradient norms observed so far.
+    ///
+    /// `None` until at least one call to `clip_gradients` has seen evaluable gradients.
+    pub fn observed_norm_ema(&self) -> Option<F> {
+        self.norm_ema.get()
     }
 
     /// Get the current adaptive threshold
@@ -412,9 +488,28 @@ impl<F: Float> GradientClipper<F> for AdaptiveClipByNorm<F> {
         // Apply clipping with current threshold
         let result = self.base_clipper.clip_gradients(gradients);
 
-        // Note: In a full implementation, we'd compute actual gradient norms
-        // and adapt the threshold based on recent history
-        // For now, this is a placeholder for the adaptation logic
+        // Adapt: track an exponential moving average of the observed *global* gradient
+        // norm and move the threshold towards it at `adaptation_rate`.  Without this the
+        // type did no adaptation at all -- the threshold only ever moved when the caller
+        // invoked `set_threshold` by hand, which is precisely what an *adaptive* clipper
+        // is supposed to remove the need for.
+        if let Some(norms) = measure_norms(gradients) {
+            let sum_sq = norms.iter().fold(F::zero(), |acc, n| acc + (*n) * (*n));
+            let observed = sum_sq.sqrt();
+
+            let ema = match self.norm_ema.get() {
+                Some(prev) => prev + self.adaptation_rate * (observed - prev),
+                None => observed,
+            };
+            self.norm_ema.set(Some(ema));
+
+            // Move the threshold towards the running average, keeping it strictly
+            // positive (a non-positive threshold would make the clipper degenerate).
+            let next = current_threshold + self.adaptation_rate * (ema - current_threshold);
+            if next > F::zero() && next.is_finite() {
+                self.current_threshold.set(next);
+            }
+        }
 
         result
     }

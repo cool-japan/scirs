@@ -84,7 +84,7 @@ impl<F: Float> Op<F> for EmlOp {
     /// Gradient is computed in `gradient.rs::compute_grad_for_input` via
     /// `as_any()` downcasting; this method body is never invoked by the
     /// current gradient engine but is kept for API completeness.
-    fn grad<'a>(&self, _ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad<'a, 'g>(&self, _ctx: &mut GradientContext<'a, 'g, F>) {
         // No-op: the gradient engine dispatches EmlOp gradients via
         // gradient.rs::compute_grad_for_input using as_any() downcasting.
     }

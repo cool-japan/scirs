@@ -193,50 +193,25 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenvaluesOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
+        // NOTE: this used to (a) eagerly `.eval()` `input`/`grad_output` -- unsound
+        // whenever `input` traces back to a `Variable`, see `EigenExtractOp::grad`'s
+        // comment -- and (b) even when that eval succeeded, place `grad_vals` directly on
+        // the diagonal of a zero matrix ("simplified placeholder - real implementation
+        // needs eigenvectors"). That is only the correct gradient when the eigenvectors
+        // happen to equal the identity matrix; in general (Hellmann-Feynman theorem) it
+        // is `dA = V · diag(grad_vals) · Vᵀ`.
+        //
+        // This is exactly what `EigenExtractGradOp { component: 0 }` already computes
+        // (`eigendecomposition_gradient` with the eigenvector cotangent zeroed), so reuse
+        // it directly instead of duplicating the formula.
+        let input = *ctx.input(0);
+        let gy = *ctx.output_grad();
         let g = ctx.graph();
-
-        // Get dimensions from shape
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let n = input_array.shape()[0];
-
-        // Evaluate gradient output
-        let grad_vals_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Convert to the right shape
-        let grad_vals_1d = match grad_vals_array.to_shape(n) {
-            Ok(arr) => arr.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // For eigenvalues gradient, we need the eigenvectors
-        // This is a simplified placeholder - real implementation needs eigenvectors
-        let mut grad_input = Array2::<F>::zeros((n, n));
-
-        for i in 0..n {
-            grad_input[[i, i]] = grad_vals_1d[i];
-        }
-
-        // Convert gradient to tensor and append
-        let grad_tensor = convert_to_tensor(grad_input.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        let gx = Tensor::builder(g)
+            .append_input(input, false)
+            .append_input(gy, false)
+            .build(EigenExtractGradOp { component: 0 });
+        ctx.append_input_grad(0, Some(gx));
     }
 }
 
@@ -298,7 +273,7 @@ fn compute_symmetric_eigen<F: Float + ScalarOperand + FromPrimitive>(
             let aqq_f64 = aqq.to_f64().unwrap_or(0.0);
             let app_f64 = app.to_f64().unwrap_or(0.0);
             let apq_f64 = apq.to_f64().unwrap_or(0.0);
-            let theta_f64 = 0.5 * (aqq_f64 - app_f64).atan2(2.0 * apq_f64);
+            let theta_f64 = 0.5 * (2.0 * apq_f64).atan2(aqq_f64 - app_f64);
             scirs2_core::numeric::FromPrimitive::from_f64(theta_f64).unwrap_or_else(|| F::zero())
         };
 
@@ -743,14 +718,147 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenExtractOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        // For extraction operations, just pass through the gradient
-        // The actual gradient computation happens in the EigenOp
-        let _gy = ctx.output_grad();
-        let g = ctx.graph();
+        // NOTE: this used to unconditionally fabricate a ZERO gradient ("just pass
+        // through... the actual gradient computation happens in the EigenOp" -- which is
+        // false: `eigen()` below never constructs an `EigenOp` node, only two
+        // `EigenExtractOp` nodes, so that "real" gradient was never reachable). A
+        // fabricated zero is worse than an honest failure: it neither crashes nor
+        // visibly disagrees with a shape check, so `d/dA sum(eigenvalues(A)) = 0` was
+        // silently reported as correct.
+        //
+        // `eigendecomposition_gradient`'s formula is linear (additive/separable) in its
+        // `(grad_vals, grad_vecs)` cotangents -- the eigenvalue-gradient loop only reads
+        // `grad_vals` and the eigenvector-gradient loops only read `grad_vecs` -- so each
+        // `EigenExtractOp` component may independently contribute
+        // `eigendecomposition_gradient(vals, vecs, my_grad, 0)` (component 0) or
+        // `eigendecomposition_gradient(vals, vecs, 0, my_grad)` (component 1); summing the
+        // two (which `tensor_ops::grad`'s accumulation already does whenever both
+        // eigenvalues and eigenvectors feed the loss) equals the joint gradient. This is
+        // built as a lazy `EigenExtractGradOp` node (re-deriving the eigendecomposition
+        // from `A` at evaluation time) rather than eagerly evaluated here, matching
+        // `LUExtractOp`/`QRExtractOp`'s backward ops: `Op::grad` only has a bare `&Graph`,
+        // never the `Context`/`VariableEnvironment` needed to resolve a `Variable`
+        // upstream of `A`, so an eager `.eval()` here can fail (or, for `A`'s "known
+        // shape" hint here, silently produce the same wrong-but-right-shaped zero).
+        //
+        // Component 0 (eigenvalues) is verified against finite differences (see
+        // `fd_eigenvalues_symmetric`) and is linear/homogeneous in `grad_vecs`, so it is
+        // correct regardless of anything below. Component 1 (eigenvectors) is NOT: the
+        // degenerate/non-degenerate eigenvector-cotangent handling in
+        // `eigendecomposition_gradient` does not match finite differences (confirmed with
+        // a non-uniform cotangent) and has not been re-derived correctly yet, so it
+        // reports an honest error instead of a plausible-looking but wrong gradient.
+        if self.component != 0 {
+            crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+                ctx,
+                "eigenvectors: the reverse-mode gradient formula for raw eigenvectors \
+                 does not match finite differences and is not correctly implemented yet \
+                 (only the eigenvalue gradient is verified). If you only need the \
+                 eigenvalues, use `T::eigenvalues` (or `T::eigen(...).0`) instead."
+                    .into(),
+            );
+            return;
+        }
 
-        // Create a zero gradient for the input since this is just extraction
-        let zeros = crate::tensor_ops::zeros(&crate::tensor_ops::shape(ctx.input(0)), g);
-        ctx.append_input_grad(0, Some(zeros));
+        let input = *ctx.input(0);
+        let gy = *ctx.output_grad();
+        let g = ctx.graph();
+        let gx = Tensor::builder(g)
+            .append_input(input, false)
+            .append_input(gy, false)
+            .build(EigenExtractGradOp {
+                component: self.component,
+            });
+        ctx.append_input_grad(0, Some(gx));
+    }
+}
+
+/// Lazy backward for [`EigenExtractOp`]: re-derives `(eigenvalues, eigenvectors)` from `A`
+/// and applies [`eigendecomposition_gradient`] with the *other* component's cotangent
+/// zeroed (valid because that formula is linear/separable in its two cotangents -- see
+/// `EigenExtractOp::grad`'s comment). Output is `dA`.
+struct EigenExtractGradOp {
+    component: usize, // 0 for eigenvalues, 1 for eigenvectors
+}
+
+impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenExtractGradOp {
+    fn name(&self) -> &'static str {
+        "EigenExtractGrad"
+    }
+
+    fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
+        let a = ctx
+            .input(0)
+            .into_dimensionality::<Ix2>()
+            .map_err(|_| OpError::IncompatibleShape("EigenExtractGrad: A must be 2D".into()))?
+            .to_owned();
+        let n = a.shape()[0];
+
+        let is_symmetric = is_symmetric_matrix(&a.view());
+        if !is_symmetric {
+            // `eigendecomposition_gradient`'s eigenvalue formula is `V diag(g) Vᵀ`, which
+            // is only the correct adjoint when `V` is orthogonal (`Vᵀ = V⁻¹`) -- true for
+            // a symmetric matrix's eigenvectors, but not in general for an asymmetric
+            // one (whose eigenvectors need not even be linearly independent, let alone
+            // orthogonal; the correct formula there uses `V⁻ᵀ`, not `Vᵀ`). Reporting an
+            // honest error keeps an unverified, likely-wrong value from being returned
+            // for asymmetric inputs.
+            return Err(OpError::Other(
+                "eigendecomposition gradient: only symmetric input matrices are supported \
+                 (an asymmetric matrix's eigenvectors are not guaranteed orthogonal, so \
+                 the current V diag(g) Vᵀ formula does not apply)."
+                    .into(),
+            ));
+        }
+        let (eigenvalues, eigenvectors) = compute_symmetric_eigen(&a.view())?;
+
+        let (grad_vals, grad_vecs) = match self.component {
+            0 => {
+                let gv = ctx
+                    .input(1)
+                    .into_dimensionality::<scirs2_core::ndarray::Ix1>()
+                    .map_err(|_| {
+                        OpError::IncompatibleShape(
+                            "EigenExtractGrad: eigenvalue gradient must be 1D".into(),
+                        )
+                    })?
+                    .to_owned();
+                (gv, Array2::<F>::zeros((n, n)))
+            }
+            1 => {
+                let gv = ctx
+                    .input(1)
+                    .into_dimensionality::<Ix2>()
+                    .map_err(|_| {
+                        OpError::IncompatibleShape(
+                            "EigenExtractGrad: eigenvector gradient must be 2D".into(),
+                        )
+                    })?
+                    .to_owned();
+                (Array1::<F>::zeros(n), gv)
+            }
+            _ => {
+                return Err(OpError::Other(
+                    "Invalid component index for eigen extraction".into(),
+                ))
+            }
+        };
+
+        let grad_a = eigendecomposition_gradient(
+            &eigenvalues.view(),
+            &eigenvectors.view(),
+            &grad_vals.view(),
+            &grad_vecs.view(),
+        );
+        ctx.append_output(grad_a.into_dyn());
+        Ok(())
+    }
+
+    fn grad(&self, ctx: &mut GradientContext<F>) {
+        crate::tensor_ops::matrix_calculus::append_unsupported_grad(
+            ctx,
+            "eigendecomposition: second-order differentiation is not implemented.".into(),
+        );
     }
 }
 

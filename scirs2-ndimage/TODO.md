@@ -1,6 +1,19 @@
 # scirs2-ndimage TODO
 
-## Status: v0.6.3 (2026-07-27)
+## Status: v0.6.5 (2026-07-31)
+
+**0.6.5:** fixed a real header-parsing bug in `mmap_io.rs`'s `load_regular_array` (the plain,
+non-memory-mapped array loader, sibling to `loadimage_mmap`): it hand-parsed the file at raw byte
+offset 0 with a hand-rolled little-endian f32/f64-only decode loop, ignoring the variable-length
+header that `saveimage_mmap`/`create_mmap` actually prepend before the array data — silently
+shifting every loaded element back by the header size instead of failing loudly. `loadimage_mmap`
+itself carried the identical bug and was fixed the same way earlier in this cycle. Both now delegate
+to the already header-aware `open_mmap` + `MemoryMappedArray::as_array`, which also removes the old
+f32/f64-only restriction (works for any `T: Float`). New regression tests in `src/mmap_io.rs`:
+`test_load_regular_array_respects_header`, `test_load_regular_array_rejects_shape_mismatch`,
+`test_smart_loadimage_small_file_uses_regular_array` — all use per-cell distinct values (not a
+constant fill) so a misaligned/corrupted round trip would actually be detected. See `CHANGELOG.md`
+`[0.6.5]` for full detail.
 
 **0.6.3:** Untouched by this release's fix work — no ndimage-specific changes shipped; the survey,
 real gaps, and known issues below (re-verified against `src/` 2026-07-15, last reviewed for the

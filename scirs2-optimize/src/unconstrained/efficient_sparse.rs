@@ -747,18 +747,25 @@ fn sparse_matrix_vector_product(
     Ok(matrix_dense.dot(&vector_dense))
 }
 
+/// Solves the dense-converted linear system `matrix * x = rhs`.
+///
+/// The sparse matrix is densified (this module's Hessians/Jacobians are
+/// small enough for the dense conversion already used throughout the file,
+/// e.g. in [`dense_bfgs_update`] and [`solve_sparse_newton_system`]) and
+/// solved via [`scirs2_linalg::solve`]. A
+/// previous version of this function converted to dense and then discarded
+/// that result entirely, unconditionally returning `-rhs` regardless of
+/// `matrix` -- correct only in the special case `matrix == -I`.
 #[allow(dead_code)]
 fn solve_sparse_linear_system(
     matrix: &CsrArray<f64>,
     rhs: &Array1<f64>,
 ) -> Result<Array1<f64>, OptimizeError> {
-    // Simplified linear system solver - convert to dense
-    // A real implementation would use sparse linear algebra libraries
-    let _matrix_dense = sparse_to_dense_matrix(matrix);
+    let matrix_dense = sparse_to_dense_matrix(matrix);
 
-    // Use simple Gauss elimination or other methods
-    // For now, return a placeholder solution
-    Ok(-rhs.clone()) // Negative gradient as fallback
+    scirs2_linalg::solve(&matrix_dense.view(), &rhs.view(), None).map_err(|e| {
+        OptimizeError::ComputationError(format!("Sparse linear system solve failed: {e}"))
+    })
 }
 
 #[cfg(test)]
@@ -839,5 +846,37 @@ mod tests {
                 assert!(e.to_string().contains("Singular matrix"));
             }
         }
+    }
+
+    #[test]
+    fn test_solve_sparse_linear_system_solves_real_system() {
+        // A previous version of `solve_sparse_linear_system` densified the
+        // matrix and then discarded that conversion entirely, unconditionally
+        // returning `-rhs` -- correct only in the degenerate case where
+        // `matrix == -I`. This matrix is emphatically not `-I` (nor even
+        // diagonal), so the old stub would fail the reconstruction check
+        // below.
+        //
+        // matrix = [[4, 1, 0], [1, 3, 1], [0, 1, 2]], rhs = [1, 2, 3]
+        let rows = vec![0, 0, 1, 1, 1, 2, 2];
+        let cols = vec![0, 1, 0, 1, 2, 1, 2];
+        let data = vec![4.0, 1.0, 1.0, 3.0, 1.0, 1.0, 2.0];
+        let matrix = CsrArray::from_triplets(&rows, &cols, &data, (3, 3), false)
+            .expect("Test: failed to build sparse matrix");
+        let rhs = Array1::from_vec(vec![1.0, 2.0, 3.0]);
+
+        let x = solve_sparse_linear_system(&matrix, &rhs).expect("Operation failed");
+
+        // The defining property of a linear solve: matrix @ x == rhs.
+        let dense = sparse_to_dense_matrix(&matrix);
+        let reconstructed = dense.dot(&x);
+        for i in 0..3 {
+            assert_abs_diff_eq!(reconstructed[i], rhs[i], epsilon = 1e-8);
+        }
+
+        // Guard against a stub that just returns -rhs regardless of matrix:
+        // for this non-diagonal, non-identity matrix, the true solution is
+        // not simply the negated right-hand side.
+        assert!((x[0] - (-rhs[0])).abs() > 1e-3);
     }
 }

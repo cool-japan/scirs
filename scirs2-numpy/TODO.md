@@ -1,10 +1,10 @@
 # scirs2-numpy TODO
 
-## Status: v0.6.3 (2026-07-27)
+## Status: v0.6.5 (2026-07-31)
 
-Untouched by this release's fix work (no numpy-specific changes shipped in 0.6.3); the quality
+Untouched by this release's fix work (no numpy-specific changes shipped in 0.6.5); the quality
 gate below (performed for 0.6.1, carried forward unchanged through 0.6.2) remains accurate for
-0.6.3 since the crate source is unchanged.
+0.6.5 since the crate source is unchanged.
 
 ## v0.6.1 Quality Gate (verified 2026-07-15)
 

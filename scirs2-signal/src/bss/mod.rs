@@ -106,7 +106,7 @@ pub fn whiten_signals(signals: &Array2<f64>) -> SignalResult<(Array2<f64>, Array
     let (n_signals, n_samples) = signals.dim();
 
     // Compute covariance matrix
-    let cov = signals.dot(&_signals.t()) / (n_samples as f64 - 1.0);
+    let cov = signals.dot(&signals.t()) / (n_samples as f64 - 1.0);
 
     // Perform eigendecomposition
     let (eigvals, eigvecs) = match eigh(&cov.view(), None) {
@@ -130,7 +130,7 @@ pub fn whiten_signals(signals: &Array2<f64>) -> SignalResult<(Array2<f64>, Array
     let whitening_matrix = d_inv_sqrt.dot(&eigvecs.t());
 
     // Apply whitening
-    let whitened = whitening_matrix.dot(_signals);
+    let whitened = whitening_matrix.dot(signals);
 
     Ok((whitened, whitening_matrix))
 }
@@ -194,8 +194,8 @@ pub fn sort_components(
 pub fn calculate_correlation_matrix(signals: &Array2<f64>) -> SignalResult<Array2<f64>> {
     let (n_signals, n_samples) = signals.dim();
 
-    // Center and normalize _signals
-    let mut normalized = Array2::<f64>::zeros(_signals.dim());
+    // Center and normalize signals
+    let mut normalized = Array2::<f64>::zeros(signals.dim());
 
     for i in 0..n_signals {
         let signal = signals.slice(s![i, ..]);
@@ -204,7 +204,7 @@ pub fn calculate_correlation_matrix(signals: &Array2<f64>) -> SignalResult<Array
 
         if std_dev > 1e-10 {
             for j in 0..n_samples {
-                normalized[[i, j]] = (_signals[[i, j]] - mean) / std_dev;
+                normalized[[i, j]] = (signals[[i, j]] - mean) / std_dev;
             }
         }
     }
@@ -243,7 +243,7 @@ pub fn calculate_mutual_information(
             let x = signals.slice(s![i, ..]);
             let y = signals.slice(s![j, ..]);
 
-            // Find min and max for each signal to define histogram _bins
+            // Find min and max for each signal to define histogram bins
             let x_min = x.iter().fold(f64::INFINITY, |a: f64, &b| a.min(b));
             let x_max = x.iter().fold(f64::NEG_INFINITY, |a: f64, &b| a.max(b));
             let y_min = y.iter().fold(f64::INFINITY, |a: f64, &b| a.min(b));
@@ -309,7 +309,7 @@ pub fn calculate_mutual_information(
 pub fn estimate_source_count(signals: &Array2<f64>, threshold: f64) -> SignalResult<usize> {
     let (n_signals, n_samples) = signals.dim();
 
-    // Center the _signals
+    // Center the signals
     let means = signals.mean_axis(Axis(1)).expect("Operation failed");
     let mut centered = signals.clone();
 
@@ -374,8 +374,8 @@ mod memd;
 mod nmf;
 pub mod nmf_audio;
 mod pca;
-mod sparse;
 pub mod sobi;
+mod sparse;
 
 // Re-export public functions
 pub use ica::ica;

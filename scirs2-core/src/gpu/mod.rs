@@ -2,9 +2,10 @@
 //!
 //! This module provides hardware acceleration support across different GPU backends.
 
+use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub mod async_execution;
 pub mod async_transfer;
@@ -561,14 +562,25 @@ impl GpuCompiler {
         Ok(GpuKernelHandle::new(kernel))
     }
 
-    /// Compile a kernel for the specified input and output types
-    pub fn compile_kernel<I: GpuDataType, O: GpuDataType>(&self, name: &str) -> GpuKernelHandle {
+    /// Compile a kernel for the specified input and output types.
+    ///
+    /// Unlike [`Self::compile`], this has no source to compile — it can
+    /// only succeed for the small set of kernels a backend genuinely knows
+    /// how to generate for the requested `name`/types (currently a real
+    /// `f32` `vector_add` on every backend; see each backend's
+    /// `compile_typed` for details). For anything else this returns
+    /// `Err(GpuError::KernelCompilationError)` rather than a handle that
+    /// would silently no-op on every dispatch.
+    pub fn compile_kernel<I: GpuDataType, O: GpuDataType>(
+        &self,
+        name: &str,
+    ) -> Result<GpuKernelHandle, GpuError> {
         let kernel = self.inner.compile_typed(
             name,
             std::any::TypeId::of::<I>(),
             std::any::TypeId::of::<O>(),
-        );
-        GpuKernelHandle::new(kernel)
+        )?;
+        Ok(GpuKernelHandle::new(kernel))
     }
 }
 
@@ -1148,13 +1160,17 @@ pub(crate) trait GpuCompilerImpl: Send + Sync {
     /// Compile a kernel from source
     fn compile(&self, source: &str) -> Result<Arc<dyn GpuKernelImpl>, GpuError>;
 
-    /// Compile a typed kernel
+    /// Compile a typed kernel by name (no source provided).
+    ///
+    /// Implementors must return `Err` rather than a handle that silently
+    /// does nothing on dispatch when they cannot genuinely resolve `name`
+    /// (with the given types) to real, executable kernel logic.
     fn compile_typed(
         &self,
         name: &str,
         input_type: std::any::TypeId,
         output_type: std::any::TypeId,
-    ) -> Arc<dyn GpuKernelImpl>;
+    ) -> Result<Arc<dyn GpuKernelImpl>, GpuError>;
 }
 
 /// GPU context implementation trait
@@ -1268,13 +1284,28 @@ impl GpuCompilerImpl for CpuCompiler {
 
     fn compile_typed(
         &self,
-        _name: &str,
-        _input_type: std::any::TypeId,
-        _output_type: std::any::TypeId,
-    ) -> Arc<dyn GpuKernelImpl> {
-        // In a real implementation, we would select an appropriate implementation
-        // For now, just return a dummy implementation
-        Arc::new(CpuKernel)
+        name: &str,
+        input_type: std::any::TypeId,
+        output_type: std::any::TypeId,
+    ) -> Result<Arc<dyn GpuKernelImpl>, GpuError> {
+        // There is no source to compile here, only a name and a pair of
+        // types, so this can only genuinely succeed for the small set of
+        // kernels this backend actually implements in real Rust. Right now
+        // that is a real elementwise `f32` `vector_add` (see
+        // `CpuVectorAddKernel`); anything else honestly fails rather than
+        // handing back a handle whose `dispatch` silently does nothing.
+        let is_f32 = input_type == std::any::TypeId::of::<f32>()
+            && output_type == std::any::TypeId::of::<f32>();
+        if name == "vector_add" && is_f32 {
+            return Ok(Arc::new(CpuVectorAddKernel::new()));
+        }
+
+        Err(GpuError::KernelCompilationError(format!(
+            "no CPU fallback implementation is registered for kernel '{name}' with the \
+             requested types; only a real f32 'vector_add' kernel is available on the \
+             pure-Rust CPU backend without a compiled GPU shader. Use GpuCompiler::compile \
+             with real kernel source for other kernels."
+        )))
     }
 }
 
@@ -1304,6 +1335,94 @@ impl GpuKernelImpl for CpuKernel {
 
     fn dispatch(&self, workgroups: [u32; 3]) {
         // In a real implementation, we would execute the kernel
+    }
+}
+
+/// A genuinely-executed CPU `vector_add` kernel: `result[i] = a[i] + b[i]`.
+///
+/// This is the one kernel [`CpuCompiler::compile_typed`] can produce for
+/// real without any GPU hardware or a compiled shader — it just does the
+/// addition directly on the buffers' host-side bytes, which is exactly
+/// what the CPU backend's [`CpuBuffer`] already stores.
+struct CpuVectorAddKernel {
+    buffers: Mutex<HashMap<String, Arc<dyn GpuBufferImpl>>>,
+}
+
+impl CpuVectorAddKernel {
+    fn new() -> Self {
+        Self {
+            buffers: Mutex::new(HashMap::new()),
+        }
+    }
+}
+
+impl GpuKernelImpl for CpuVectorAddKernel {
+    fn set_buffer(&self, name: &str, buffer: &Arc<dyn GpuBufferImpl>) {
+        if let Ok(mut buffers) = self.buffers.lock() {
+            buffers.insert(name.to_string(), Arc::clone(buffer));
+        }
+    }
+
+    fn set_u32(&self, _name: &str, _value: u32) {}
+    fn set_i32(&self, _name: &str, _value: i32) {}
+    fn set_f32(&self, _name: &str, _value: f32) {}
+    fn set_f64(&self, _name: &str, _value: f64) {}
+
+    fn dispatch(&self, _workgroups: [u32; 3]) {
+        let Ok(buffers) = self.buffers.lock() else {
+            eprintln!("Warning: CPU vector_add dispatch: buffer registry lock poisoned");
+            return;
+        };
+        let (Some(a), Some(b), Some(result)) =
+            (buffers.get("a"), buffers.get("b"), buffers.get("result"))
+        else {
+            eprintln!(
+                "Warning: CPU vector_add dispatch requires buffers named 'a', 'b', and \
+                 'result' (set via set_buffer); dispatch skipped"
+            );
+            return;
+        };
+
+        let byte_len = result.size();
+        if a.size() < byte_len || b.size() < byte_len {
+            eprintln!(
+                "Warning: CPU vector_add dispatch: input buffers ({}, {} bytes) are smaller \
+                 than the output buffer ({byte_len} bytes); dispatch skipped",
+                a.size(),
+                b.size()
+            );
+            return;
+        }
+
+        let mut a_bytes = vec![0u8; byte_len];
+        let mut b_bytes = vec![0u8; byte_len];
+        // SAFETY: `byte_len` does not exceed either source buffer's own
+        // reported size (checked above), and both destination `Vec`s are
+        // freshly allocated with exactly `byte_len` bytes.
+        unsafe {
+            a.copy_to_host(a_bytes.as_mut_ptr(), byte_len);
+            b.copy_to_host(b_bytes.as_mut_ptr(), byte_len);
+        }
+
+        let read_f32 = |bytes: &[u8]| -> Vec<f32> {
+            bytes
+                .chunks_exact(4)
+                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                .collect()
+        };
+        let a_vals = read_f32(&a_bytes);
+        let b_vals = read_f32(&b_bytes);
+
+        let result_bytes: Vec<u8> = a_vals
+            .iter()
+            .zip(b_vals.iter())
+            .flat_map(|(x, y)| (x + y).to_le_bytes())
+            .collect();
+
+        // SAFETY: `result_bytes.len() <= byte_len == result.size()`.
+        unsafe {
+            result.copy_from_host(result_bytes.as_ptr(), result_bytes.len());
+        }
     }
 }
 
@@ -1550,10 +1669,50 @@ mod tests {
             .compile("dummy kernel source")
             .expect("Operation failed");
         kernel.dispatch([1, 1, 1]);
+    }
 
-        // Test typed compilation
-        let typed_kernel = compiler.compile_kernel::<f32, f32>("vector_add");
-        typed_kernel.dispatch([32, 1, 1]);
+    /// Regression test: `compile_kernel::<f32, f32>("vector_add")` must
+    /// perform a *real* computation, not silently no-op. Previously this
+    /// always returned a stub `CpuKernel` whose `dispatch` did nothing, so
+    /// `result` would have stayed all-zero regardless of the inputs; the
+    /// old test never inspected the output buffer and so never caught it.
+    #[test]
+    fn test_gpu_compiler_typed_vector_add_computes_real_result() {
+        let compiler = GpuCompiler::new(Arc::new(CpuCompiler));
+        let context = GpuContext::new(GpuBackend::Cpu).expect("Operation failed");
+
+        let a_data = [1.0f32, 2.0, 3.0, 4.0];
+        let b_data = [10.0f32, 20.0, 30.0, 40.0];
+        let a = context.create_buffer_from_slice(&a_data);
+        let b = context.create_buffer_from_slice(&b_data);
+        let result = context.create_buffer::<f32>(a_data.len());
+
+        let typed_kernel = compiler
+            .compile_kernel::<f32, f32>("vector_add")
+            .expect("a real f32 vector_add kernel should compile on the CPU backend");
+        typed_kernel.set_buffer("a", &a);
+        typed_kernel.set_buffer("b", &b);
+        typed_kernel.set_buffer("result", &result);
+        typed_kernel.dispatch([1, 1, 1]);
+
+        let computed = result.to_vec();
+        assert_eq!(
+            computed,
+            vec![11.0, 22.0, 33.0, 44.0],
+            "vector_add must actually compute a + b, not leave the output untouched"
+        );
+    }
+
+    /// A kernel name/type combination this backend cannot genuinely
+    /// compile must fail loudly, never hand back a silently-no-op handle.
+    #[test]
+    fn test_gpu_compiler_typed_unknown_kernel_returns_honest_error() {
+        let compiler = GpuCompiler::new(Arc::new(CpuCompiler));
+        let result = compiler.compile_kernel::<f32, f32>("totally_unknown_kernel_name");
+        assert!(
+            result.is_err(),
+            "an unrecognized kernel name must return an error, not a fabricated success"
+        );
     }
 
     #[test]

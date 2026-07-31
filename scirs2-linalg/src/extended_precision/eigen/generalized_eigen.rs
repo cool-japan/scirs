@@ -486,45 +486,50 @@ where
         }
     }
 
-    // Apply QR algorithm specialized for symmetric tridiagonal matrices
-    for _ in 0..max_iter {
-        // Check for convergence
-        let mut converged = true;
-        for i in 0..n - 1 {
-            if e[i].abs() > tol * (d[i].abs() + d[i + 1].abs()) {
-                converged = false;
-                break;
-            }
-        }
+    // Apply QR algorithm specialized for symmetric tridiagonal matrices.
+    //
+    // `p` is the (persistent) exclusive upper boundary of the still-active
+    // region: positions [p, n) are already individually converged
+    // eigenvalues. Each pass searches for `l`, the start of the innermost
+    // unreduced block [l, p) (or l = 0 if the whole active region is one
+    // unreduced block), and applies one implicit-shift Givens sweep to it.
+    //
+    // (The previous version searched for a *fresh* deflation boundary `m`
+    // every iteration but, when NO negligible off-diagonal entry existed
+    // anywhere in the active region, its search loop exited at `m = 0`
+    // purely because its `while m > 0` guard ran out -- indistinguishable,
+    // in that code, from `m = 0` meaning "a genuine boundary was found at
+    // index 0". The subsequent `l` search then started at that same
+    // (spurious) `m` and immediately re-found the *same* non-existent
+    // boundary, producing an empty `l..m` range every single iteration --
+    // silently performing zero QR sweeps and returning the untouched
+    // tridiagonal diagonal as the "eigenvalues" for any input whose
+    // required tolerance was tight enough that no early deflation point
+    // existed.)
+    let mut p = n;
+    let mut iterations = 0usize;
 
-        if converged {
-            break;
-        }
-
-        // Find indices for the submatrix to work on
-        let mut m = n - 1;
-        while m > 0 {
-            if e[m - 1].abs() <= tol * (d[m - 1].abs() + d[m].abs()) {
-                break;
-            }
-            m -= 1;
-        }
-
-        if m == n - 1 {
-            continue; // Already converged for this block
-        }
-
-        // Find the extent of the unreduced submatrix
-        let mut l = m;
+    while p > 1 && iterations < max_iter {
+        let mut l = p - 1;
         while l > 0 {
             if e[l - 1].abs() <= tol * (d[l - 1].abs() + d[l].abs()) {
+                e[l - 1] = I::zero();
                 break;
             }
             l -= 1;
         }
 
-        // Apply implicit QR step to the submatrix
-        for i in l..m {
+        if l == p - 1 {
+            // Position p-1 is already decoupled from the rest: it is a
+            // converged eigenvalue on its own.
+            p -= 1;
+            continue;
+        }
+
+        iterations += 1;
+
+        // Apply one implicit-shift Givens sweep across the unreduced block [l, p).
+        for i in l..p - 1 {
             let h = d[i + 1] - d[i];
             let t = if h.abs() < tol {
                 I::one()
@@ -557,7 +562,7 @@ where
                 s2 * temp_i + c2 * temp_ip1 + I::from(2.0).expect("Operation failed") * cs * e[i];
 
             // Update off-diagonal elements
-            if i < m - 1 {
+            if i < p - 2 {
                 let temp = e[i + 1];
                 e[i + 1] = oldc * temp;
                 e[i] = olds * temp;

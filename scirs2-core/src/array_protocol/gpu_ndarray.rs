@@ -34,8 +34,6 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, OnceLock};
 
-use ndarray::{Array1, Array2, IxDyn};
-
 use crate::array_protocol::{
     ArrayFunction, ArrayProtocol, GPUArray, NdarrayWrapper, NotImplemented,
 };
@@ -1715,43 +1713,64 @@ impl ArrayProtocol for GpuNdarray<f32> {
                 Ok(Box::new(Box::new(result) as Box<dyn ArrayProtocol>) as Box<dyn Any>)
             }
 
-            // ── svd — CPU fallback ──────────────────────────────────────────
+            // ── svd — CPU fallback (download, run a real decomposition,
+            // re-upload) ─────────────────────────────────────────────────
             "scirs2::array_protocol::operations::svd" => {
                 let a = gpu_arg!(0);
-                // Download to CPU, create placeholder SVD (identity / ones)
                 let arr = a.to_ndarray().map_err(|_| NotImplemented)?;
                 if arr.ndim() != 2 {
                     return Err(NotImplemented);
                 }
-                let (m, n_cols) = (arr.shape()[0], arr.shape()[1]);
-                let k = m.min(n_cols);
+                let arr2 = arr
+                    .into_dimensionality::<ndarray::Ix2>()
+                    .map_err(|_| NotImplemented)?;
                 let ctx = Arc::clone(&a.context);
 
-                let u_data: Vec<f32> = Array2::<f32>::eye(m).into_iter().collect();
-                let s_data: Vec<f32> = Array1::<f32>::ones(k).into_iter().collect();
-                let vt_data: Vec<f32> = Array2::<f32>::eye(n_cols).into_iter().collect();
+                #[cfg(feature = "linalg")]
+                {
+                    let svd_result =
+                        crate::linalg::svd_ndarray(&arr2).map_err(|_| NotImplemented)?;
+                    let (u_rows, u_cols) = svd_result.u.dim();
+                    let (vt_rows, vt_cols) = svd_result.vt.dim();
+                    let s_len = svd_result.s.len();
+                    let u_data: Vec<f32> = svd_result.u.into_iter().collect();
+                    let s_data: Vec<f32> = svd_result.s.into_iter().collect();
+                    let vt_data: Vec<f32> = svd_result.vt.into_iter().collect();
 
-                let u_gpu =
-                    GpuNdarray::<f32>::from_ndarray_data(&u_data, vec![m, m], Arc::clone(&ctx))
-                        .map_err(|_| NotImplemented)?;
-                let s_gpu =
-                    GpuNdarray::<f32>::from_ndarray_data(&s_data, vec![k], Arc::clone(&ctx))
-                        .map_err(|_| NotImplemented)?;
-                let vt_gpu = GpuNdarray::<f32>::from_ndarray_data(
-                    &vt_data,
-                    vec![n_cols, n_cols],
-                    Arc::clone(&ctx),
-                )
-                .map_err(|_| NotImplemented)?;
+                    let u_gpu = GpuNdarray::<f32>::from_ndarray_data(
+                        &u_data,
+                        vec![u_rows, u_cols],
+                        Arc::clone(&ctx),
+                    )
+                    .map_err(|_| NotImplemented)?;
+                    let s_gpu = GpuNdarray::<f32>::from_ndarray_data(
+                        &s_data,
+                        vec![s_len],
+                        Arc::clone(&ctx),
+                    )
+                    .map_err(|_| NotImplemented)?;
+                    let vt_gpu =
+                        GpuNdarray::<f32>::from_ndarray_data(&vt_data, vec![vt_rows, vt_cols], ctx)
+                            .map_err(|_| NotImplemented)?;
 
-                Ok(Box::new((
-                    Box::new(u_gpu) as Box<dyn ArrayProtocol>,
-                    Box::new(s_gpu) as Box<dyn ArrayProtocol>,
-                    Box::new(vt_gpu) as Box<dyn ArrayProtocol>,
-                )) as Box<dyn Any>)
+                    Ok(Box::new((
+                        Box::new(u_gpu) as Box<dyn ArrayProtocol>,
+                        Box::new(s_gpu) as Box<dyn ArrayProtocol>,
+                        Box::new(vt_gpu) as Box<dyn ArrayProtocol>,
+                    )) as Box<dyn Any>)
+                }
+                #[cfg(not(feature = "linalg"))]
+                {
+                    // Without the `linalg` feature there is no in-crate real
+                    // decomposition available — an honest `NotImplemented`
+                    // rather than a fabricated identity/ones placeholder.
+                    let _ = (arr2, ctx);
+                    Err(NotImplemented)
+                }
             }
 
-            // ── inverse — CPU fallback (identity placeholder) ───────────────
+            // ── inverse — CPU fallback (download, invert for real,
+            // re-upload) ─────────────────────────────────────────────────
             "scirs2::array_protocol::operations::inverse" => {
                 let a = gpu_arg!(0);
                 let arr = a.to_ndarray().map_err(|_| NotImplemented)?;
@@ -1759,11 +1778,27 @@ impl ArrayProtocol for GpuNdarray<f32> {
                     return Err(NotImplemented);
                 }
                 let m = arr.shape()[0];
-                let ctx = Arc::clone(&a.context);
-                let inv_data: Vec<f32> = Array2::<f32>::eye(m).into_iter().collect();
-                let result = GpuNdarray::<f32>::from_ndarray_data(&inv_data, vec![m, m], ctx)
+                let arr2 = arr
+                    .into_dimensionality::<ndarray::Ix2>()
                     .map_err(|_| NotImplemented)?;
-                Ok(Box::new(Box::new(result) as Box<dyn ArrayProtocol>) as Box<dyn Any>)
+                let ctx = Arc::clone(&a.context);
+
+                #[cfg(feature = "linalg")]
+                {
+                    let inv = crate::linalg::inv_ndarray(&arr2).map_err(|_| NotImplemented)?;
+                    let inv_data: Vec<f32> = inv.into_iter().collect();
+                    let result = GpuNdarray::<f32>::from_ndarray_data(&inv_data, vec![m, m], ctx)
+                        .map_err(|_| NotImplemented)?;
+                    Ok(Box::new(Box::new(result) as Box<dyn ArrayProtocol>) as Box<dyn Any>)
+                }
+                #[cfg(not(feature = "linalg"))]
+                {
+                    // Without the `linalg` feature there is no in-crate real
+                    // matrix inversion available — an honest `NotImplemented`
+                    // rather than a fabricated identity placeholder.
+                    let _ = (arr2, ctx, m);
+                    Err(NotImplemented)
+                }
             }
 
             _ => Err(NotImplemented),
@@ -1824,3 +1859,12 @@ use super::gpu_ndarray_shaders::{
     CONCAT_AXISN_WGSL, ELEMENTWISE_ADD_WGSL, ELEMENTWISE_MUL_WGSL, ELEMENTWISE_SUB_WGSL,
     MATMUL_WGSL, REDUCE_SUM_AXIS_WGSL, SCALAR_MUL_WGSL, SUM_REDUCE_WGSL, TRANSPOSE_WGSL,
 };
+
+// ──────────────────────────────────────────────────────────────────────
+// 8. Tests — value-correctness for the svd/inverse CPU-fallback dispatch
+// (split out to keep gpu_ndarray.rs under the workspace's 2000-line-per-file
+// limit — see neural.rs/neural_backward_tests.rs for the same pattern).
+// ──────────────────────────────────────────────────────────────────────
+#[cfg(all(test, feature = "linalg"))]
+#[path = "gpu_ndarray_dispatch_tests.rs"]
+mod dispatch_correctness_tests;

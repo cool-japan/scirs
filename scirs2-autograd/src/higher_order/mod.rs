@@ -320,10 +320,24 @@ mod tests {
             // ∂²f / ∂x ∂y = 1
             let mixed = mixed_partial(&f, &x, &y, ctx).expect("Should compute mixed partial");
 
-            let result = mixed.eval(ctx).expect("Should evaluate");
-            let result_val = result.first().copied().unwrap_or(0.0);
+            // The placeholders must be fed: the gradient graph still references them,
+            // even though the mixed partial of `x * y` is the constant 1.  (This used to
+            // "work" unfed only because the evaluator silently substituted a dummy
+            // scalar for any input it had failed to compute.)
+            let xy_val = scirs2_core::ndarray::arr0(3.0);
+            let result = ctx
+                .evaluator()
+                .push(&mixed)
+                .feed(x, xy_val.view().into_dyn())
+                .feed(y, xy_val.view().into_dyn())
+                .run();
+            let result_arr = result[0].as_ref().expect("Should evaluate");
+            let result_val = result_arr.first().copied().unwrap_or(0.0);
 
-            assert!((result_val - 1.0).abs() < 1e-6);
+            assert!(
+                (result_val - 1.0).abs() < 1e-6,
+                "d2(x*y)/dxdy must be 1, got {result_val}"
+            );
         });
     }
 

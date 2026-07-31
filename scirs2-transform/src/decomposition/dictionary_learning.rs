@@ -441,7 +441,6 @@ mod tests {
     use scirs2_core::ndarray::Array;
 
     #[test]
-    #[ignore] // Slow test - dictionary learning takes ~60s
     fn test_dictionary_learning_basic() {
         // Create synthetic data as sum of sinusoids
         let n_samples = 100;

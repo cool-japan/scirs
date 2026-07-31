@@ -1,10 +1,10 @@
 # scirs2-optimize TODO
 
-## Status: v0.6.3 (last updated 2026-07-27)
+## Status: v0.6.5 (last updated 2026-07-31)
 
-Untouched by this release's fix work (no optimize-specific changes shipped in 0.6.3); the
+Untouched by this release's fix work (no optimize-specific changes shipped in 0.6.3, 0.6.4, or 0.6.5); the
 test-suite results and verification notes below (from the 0.6.2 release) remain accurate for
-0.6.3 since the crate source is unchanged.
+0.6.3, 0.6.4, and 0.6.5 since the crate source is unchanged.
 
 `scirs2-optimize` test suite: 2003/2003 tests pass with default features; 2037/2037 tests pass with `--all-features` (both measured 2026-07-15). 0 `todo!()`/`unimplemented!()` stubs in `src/`. Most items below are verified directly against source; a small number of previously-claimed items were not found and are now marked `[ ]` with a citation of where they were checked (see Metaheuristics, MIP, Proximal & Convex Methods, Game Theory & Equilibrium, Minimax & Robust Optimization, Least Squares, Numerical Differentiation, Combinatorial Optimization, and Multi-Objective Optimization sections).
 

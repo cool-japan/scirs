@@ -116,7 +116,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-core = { version = "0.6.4", features = ["simd", "parallel"] }
+//! scirs2-core = { version = "0.6.5", features = ["simd", "parallel"] }
 //! ```
 //!
 //! ### SIMD Operations
@@ -360,7 +360,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.6.4**
+//! Current version: **0.6.5**
 //!
 //! ## 📚 Examples
 //!
@@ -441,6 +441,11 @@ pub mod performance_optimization;
 pub mod profiling;
 #[cfg(feature = "python")]
 pub mod python;
+// Pure-Rust statevector quantum circuit simulator (gates, circuits, qubits);
+// previously an orphaned directory with no `mod` declaration anywhere,
+// so it never compiled as part of this crate despite being complete and
+// documented — see `quantum::mod`'s module docs for worked examples.
+pub mod quantum;
 #[cfg(feature = "random")]
 pub mod random;
 pub mod resource;

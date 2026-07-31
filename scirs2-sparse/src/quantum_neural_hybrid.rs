@@ -773,7 +773,7 @@ mod tests {
     use approx::assert_relative_eq;
 
     #[test]
-    #[ignore = "Slow test (~80s) - quantum neural hybrid initialization"]
+    #[ignore = "slow: (~80s) quantum neural hybrid initialization"]
     fn test_quantum_neural_hybrid_creation() {
         let config = QuantumNeuralConfig::default();
         let processor = QuantumNeuralHybridProcessor::new(config);
@@ -784,7 +784,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Slow test (>2min) - hybrid spmv computation"]
+    #[ignore = "slow: still running/not yet complete at 600.8s in a bounded 600s retry (0.6.5 ignore \
+                audit, up from the prior >120s TIMEOUT measurement) -- ps-confirmed genuinely CPU-bound \
+                and progressing (not deadlocked) throughout; hybrid sparse-quantum SpMV over the \
+                default QuantumSparseProcessor/NeuralAdaptiveSparseProcessor config (qubit_count=32, \
+                logical_qubits=16, error_correction=true) is markedly more expensive than the original \
+                '>2min' label suggested -- true cost not yet bounded above 600s"]
     fn test_hybrid_spmv() {
         let config = QuantumNeuralConfig::default();
         let mut processor = QuantumNeuralHybridProcessor::new(config);
@@ -806,7 +811,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Slow test (~80s) - hybrid processor stats"]
+    #[ignore = "slow: (~80s) hybrid processor stats"]
     fn test_hybrid_stats() {
         let config = QuantumNeuralConfig::default();
         let processor = QuantumNeuralHybridProcessor::new(config);
