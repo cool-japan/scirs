@@ -145,7 +145,7 @@ oxiblas-blas = { version = "0.2.1" }
 oxiblas-lapack = { version = "0.2.1" }
 
 # OxiZ - Pure Rust SMT solver (powers scirs2-symbolic SMT-pruned regression in v0.4.5+)
-oxiz = { version = "0.3.1" }
+oxiz = { version = "0.3.2" }
 
 # OxiEML - Pure Rust EML expression/machine-learning library (used by scirs2-symbolic dev)
 oxieml = { version = "0.1.3" }
