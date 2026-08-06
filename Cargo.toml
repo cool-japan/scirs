@@ -176,11 +176,11 @@ byteorder = "1.5"
 rmp-serde = "1.3"
 sha2 = "0.11"
 crc32fast = "1.5"
-oxiarc-archive = "0.4.0"  # Pure Rust archive support (COOLJAPAN Policy)
-oxiarc-lz4 = "0.4.0"  # Pure Rust LZ4 compression (COOLJAPAN Policy)
-oxiarc-bzip2 = "0.4.0"  # Pure Rust BZIP2 compression (COOLJAPAN Policy)
-oxiarc-zstd = "0.4.0"  # Pure Rust Zstandard compression (COOLJAPAN Policy)
-oxiarc-deflate = "0.4.0"  # Pure Rust DEFLATE/GZIP compression (COOLJAPAN Policy)
+oxiarc-archive = "0.4.1"  # Pure Rust archive support (COOLJAPAN Policy)
+oxiarc-lz4 = "0.4.1"  # Pure Rust LZ4 compression (COOLJAPAN Policy)
+oxiarc-bzip2 = "0.4.1"  # Pure Rust BZIP2 compression (COOLJAPAN Policy)
+oxiarc-zstd = "0.4.1"  # Pure Rust Zstandard compression (COOLJAPAN Policy)
+oxiarc-deflate = "0.4.1"  # Pure Rust DEFLATE/GZIP compression (COOLJAPAN Policy)
 url = "2.5.8"
 cron = "0.17"
 
@@ -203,8 +203,8 @@ crossbeam-deque = { version = "0.8.6" }
 crossbeam-channel = { version = "0.5.15" }
 memmap2 = { version = "0.9.11" }
 bytemuck = { version = "1.25", features = ["derive"] }
-oxiarc-snappy = "0.4.0"  # Pure Rust Snappy compression (COOLJAPAN Policy)
-oxiarc-brotli = "0.4.0"  # Pure Rust Brotli compression (COOLJAPAN Policy)
+oxiarc-snappy = "0.4.1"  # Pure Rust Snappy compression (COOLJAPAN Policy)
+oxiarc-brotli = "0.4.1"  # Pure Rust Brotli compression (COOLJAPAN Policy)
 plotly = { version = "0.14.1" }
 plotters = { version = "0.3.7", default-features = false, features = ["bitmap_backend", "bitmap_encoder", "svg_backend", "all_series", "all_elements", "full_palette", "colormaps", "ab_glyph"] }
 printpdf = { version = "0.11.1", default-features = false }
