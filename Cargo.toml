@@ -261,11 +261,11 @@ ciborium = "0.2.2"
 num-bigint = "0.4.6"
 num-rational = "0.4.2"
 # oxinum-* Pure Rust arbitrary precision (GMP/MPFR-free); replaces rug entirely.
-oxinum-core     = "0.1.3"
-oxinum-int      = "0.1.3"
-oxinum-float    = "0.1.3"
-oxinum-rational = "0.1.3"
-oxinum-complex  = "0.1.3"
+oxinum-core     = "0.1.4"
+oxinum-int      = "0.1.4"
+oxinum-float    = "0.1.4"
+oxinum-rational = "0.1.4"
+oxinum-complex  = "0.1.4"
 
 # There were compatibility issues with chrono
 arrow = "59.0.0"
