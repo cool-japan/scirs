@@ -230,8 +230,8 @@ netcdf3 = "0.6.1"
 ordered-float = "5.3.0"
 kamadak-exif = "0.6"
 # Pure-Rust HDF5 (COOLJAPAN Pure Rust Policy — replaces the C-linked `hdf5` crate).
-oxih5 = "0.2.2"
-oxih5-core = "0.2.2"
+oxih5 = "0.2.3"
+oxih5-core = "0.2.3"
 ureq = { version = "3.3", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots", "gzip"] }
 # PURE RUST BLOCKER (ureq): ureq's default "rustls" feature activates "_ring" (= rustls/ring, C/ASM crypto).
 # Changed to "rustls-no-provider" + "gzip" to remove ring from the default closure, plus
