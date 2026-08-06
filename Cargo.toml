@@ -121,7 +121,7 @@ cc = "1.2.65"  # Build-time C/C++/Objective-C compiler (used only when mpsgraph 
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 # OxiCode - Modern successor to bin-code with SIMD optimization
-oxicode = { version = "0.2.5", features = ["serde", "simd"] }
+oxicode = { version = "0.2.6", features = ["serde", "simd"] }
 chrono = "0.4.45"
 
 # Python bindings (optional)
