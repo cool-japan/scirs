@@ -136,7 +136,7 @@ scirs2-numpy = { version = "0.6.6", path = "./scirs2-numpy" }  # SciRS2 fork wit
 nalgebra = { version = "0.35.0", default-features = false }
 
 # OxiFFT - Pure Rust high-performance FFT (FFTW-compatible algorithms)
-oxifft = { version = "0.4.1" }
+oxifft = { version = "0.4.2" }
 
 # OxiBLAS - Pure Rust BLAS/LAPACK implementation (replaces OpenBLAS)
 # Using crates.io 0.2 series for stable releases
