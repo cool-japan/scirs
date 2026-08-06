@@ -319,8 +319,8 @@ ahash = { version = "0.8" }
 
 # Database drivers
 # Pure-Rust SQLite-compatible backend (Limbo engine, alpha; ROLLBACK/savepoints incomplete)
-oxisql-core = "0.4.0"
-oxisql-sqlite-compat = "0.4.0"
+oxisql-core = "0.4.1"
+oxisql-sqlite-compat = "0.4.1"
 # sqlx removed - not used (postgres/mysql implementations are stubs)
 # mongodb removed - stub only, not actually used
 # redis removed - stub only, not actually used
