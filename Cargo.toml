@@ -251,7 +251,7 @@ ureq = { version = "3.3", default-features = false, features = ["rustls-no-provi
 # each crate installs OxiTLS as the process-default provider on first eager HTTP-client
 # construction unless the application already installed a provider of its own.
 rustls = { version = "0.23.42", default-features = false, features = ["std", "tls12"] }
-rustls-rustcrypto = { package = "oxitls-rustcrypto-provider", version = "0.2.1", default-features = false, features = ["std", "tls12"] }
+rustls-rustcrypto = { package = "oxitls-rustcrypto-provider", version = "0.3.0", default-features = false, features = ["std", "tls12"] }
 parking_lot = "0.12.5"
 serde_yaml = "0.9"
 toml = "1.1"
