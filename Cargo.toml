@@ -418,16 +418,16 @@ scirs2-symbolic-macros = { version = "0.6.6", path = "./scirs2-symbolic-macros" 
 # OxiCUDA pure-Rust CUDA crates — used by scirs2-fft's optional, off-by-default `cuda` feature.
 # oxicuda 0.4.0 is now published on crates.io; pinned via version (no local path pin needed).
 # Only the three crates scirs2-fft names directly are declared here; oxicuda-launch/-ptx/-blas are pulled transitively.
-oxicuda-driver = "0.5.4"
-oxicuda-memory = "0.5.4"
-oxicuda-fft = "0.5.4"
-oxicuda-ptx = "0.5.4"
-oxicuda-launch = "0.5.4"
-oxicuda-blas = "0.5.4"
-oxicuda-solver = "0.5.4"
-oxicuda-sparse = "0.5.4"
-oxicuda-dnn = "0.5.4"
-oxicuda-nvrtc = "0.5.4"
+oxicuda-driver = "0.5.5"
+oxicuda-memory = "0.5.5"
+oxicuda-fft = "0.5.5"
+oxicuda-ptx = "0.5.5"
+oxicuda-launch = "0.5.5"
+oxicuda-blas = "0.5.5"
+oxicuda-solver = "0.5.5"
+oxicuda-sparse = "0.5.5"
+oxicuda-dnn = "0.5.5"
+oxicuda-nvrtc = "0.5.5"
 
 
 [profile.release]
