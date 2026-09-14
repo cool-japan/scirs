@@ -7,6 +7,7 @@ use crate::sampling::SampleableDistribution;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::{Distribution, FisherF as RandFisherF};
+use statrs::function::beta::beta_reg;
 use std::f64::consts::PI;
 
 /// Helper to convert f64 constants to generic Float type
@@ -176,6 +177,34 @@ impl<T: Float + NumCast> F<T> {
 
         // Calculate the incomplete beta function
         regularized_beta(z, dfn_half, dfd_half)
+    }
+
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: T) -> T {
+        let x_std = (x - self.loc) / self.scale;
+        if x_std <= T::zero() {
+            return T::one();
+        }
+        let (Some(x_f64), Some(dfn), Some(dfd)) = (
+            <f64 as NumCast>::from(x_std),
+            <f64 as NumCast>::from(self.dfn),
+            <f64 as NumCast>::from(self.dfd),
+        ) else {
+            return T::nan();
+        };
+        if x_f64.is_nan() || dfn.is_nan() || dfd.is_nan() || dfn <= 0.0 || dfd <= 0.0 {
+            return T::nan();
+        }
+        if x_f64.is_infinite() {
+            return T::zero();
+        }
+        // P(F > x) = I_{dfd/(dfd + dfn*x)}(dfd/2, dfn/2)
+        let z = (dfd / (dfd + dfn * x_f64)).clamp(0.0, 1.0);
+        T::from(beta_reg(dfd / 2.0, dfn / 2.0, z).clamp(0.0, 1.0)).unwrap_or_else(T::nan)
     }
 
     /// Generate random samples from the distribution

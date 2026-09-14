@@ -8,6 +8,7 @@ use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution as Scirs
 use scirs2_core::ndarray::Array1;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::{Beta as RandBeta, Distribution};
+use statrs::function::beta::beta_reg;
 use std::fmt::Debug;
 
 /// Helper to convert f64 constants to generic Float type
@@ -127,15 +128,33 @@ impl<F: Float + NumCast + Debug + std::fmt::Display> Beta<F> {
         }
 
         // PDF = (x^(α-1) * (1-x)^(β-1)) / B(α,β)
-        // where B(α,β) is the beta function
+        // where B(α,β) is the beta function, evaluated in log space:
+        // ln PDF = (α-1)*ln(x) + (β-1)*ln(1-x) - ln B(α,β) - ln(scale)
+        //
+        // `B(α,β) = Γ(α)Γ(β)/Γ(α+β)` cannot be formed directly for ordinary
+        // parameters: `Γ(α+β)` overflows to `inf` once `α+β` passes ~142, so
+        // the beta function became 0 and the density `inf`; a little further
+        // out `Γ(α)Γ(β)` overflows too and the density became `NaN`. A
+        // Beta(100, 100) posterior -- 200 observations -- was already past
+        // that point. Same defect class as cool-japan/scirs#131.
         let one = F::one();
 
-        // Calculate the terms of the formula
-        let numerator = x_adj.powf(self.alpha - one) * (one - x_adj).powf(self.beta - one);
-        let denominator = beta_function(self.alpha, self.beta);
+        // `exponent * ln(base)` with the `0 * ln(0) = 0` convention of
+        // `powf`, so the densities at x = 0 and x = 1 keep their old values
+        // (0, a finite constant, or +inf depending on the exponent).
+        let ln_pow = |exponent: F, base: F| -> F {
+            if exponent == F::zero() {
+                F::zero()
+            } else {
+                exponent * base.ln()
+            }
+        };
 
-        // Adjust for the scale parameter
-        numerator / (denominator * self.scale)
+        let ln_pdf = ln_pow(self.alpha - one, x_adj) + ln_pow(self.beta - one, one - x_adj)
+            - ln_beta_fn(self.alpha, self.beta)
+            - self.scale.ln();
+
+        ln_pdf.exp()
     }
 
     /// Calculate the cumulative distribution function (CDF) at a given point
@@ -195,6 +214,33 @@ impl<F: Float + NumCast + Debug + std::fmt::Display> Beta<F> {
         }
 
         regularized_incomplete_beta(x_adj, self.alpha, self.beta)
+    }
+
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let x_adj = (x - self.loc) / self.scale;
+        if x_adj <= F::zero() {
+            return F::one();
+        }
+        if x_adj >= F::one() {
+            return F::zero();
+        }
+        let (Some(y), Some(a), Some(b)) = (
+            <f64 as NumCast>::from(F::one() - x_adj),
+            <f64 as NumCast>::from(self.alpha),
+            <f64 as NumCast>::from(self.beta),
+        ) else {
+            return F::nan();
+        };
+        if y.is_nan() || a.is_nan() || b.is_nan() {
+            return F::nan();
+        }
+        // P(X > x) = 1 - I_x(a, b) = I_{1-x}(b, a)
+        F::from(beta_reg(b, a, y.clamp(0.0, 1.0)).clamp(0.0, 1.0)).unwrap_or_else(F::nan)
     }
 
     /// Inverse of the cumulative distribution function (quantile function)
@@ -322,6 +368,10 @@ impl<F: Float + NumCast + Debug + std::fmt::Display> Beta<F> {
 }
 
 // Calculate the beta function B(a,b) = Γ(a)Γ(b)/Γ(a+b)
+//
+// Only usable for small parameters: `gamma_fn` overflows to `inf` above ~142,
+// so this returns 0 (then `NaN`) for `a + b` beyond that. Anything that may
+// see large parameters must use `ln_beta_fn` and stay in log space.
 #[allow(dead_code)]
 fn beta_function<F: Float + NumCast>(a: F, b: F) -> F {
     let ga = gamma_fn(a);
@@ -649,9 +699,12 @@ impl<F: Float + NumCast + Debug + std::fmt::Display> ScirsDist<F> for Beta<F> {
         // log(B(a,b)) - (a-1)*(psi(a) - psi(a+b)) - (b-1)*(psi(b) - psi(a+b))
         // where psi is the digamma function
         //
-        // For simplicity, we'll return a basic approximation using the beta function
-        let bf = beta_function(self.alpha, self.beta);
-        bf.ln() + (self.scale.ln())
+        // For simplicity, we'll return a basic approximation using the beta
+        // function -- `ln B(a,b)` taken straight from log-gamma, since
+        // `beta_function(a, b).ln()` overflowed to `-inf`/`NaN` for
+        // `a + b` above ~142 (defect class of cool-japan/scirs#131). The
+        // digamma terms of the exact formula above are still omitted.
+        ln_beta_fn(self.alpha, self.beta) + self.scale.ln()
     }
 }
 
@@ -674,7 +727,10 @@ impl<F: Float + NumCast + Debug + std::fmt::Display> ContinuousDistribution<F> f
 }
 
 impl<F: Float + NumCast + Debug + std::fmt::Display> ContinuousCDF<F> for Beta<F> {
-    // Default implementations from trait are sufficient
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        Beta::sf(self, x)
+    }
 }
 
 #[cfg(test)]
@@ -883,5 +939,104 @@ mod tests {
             std::f64::consts::PI,
             epsilon = 1e-6
         );
+    }
+
+    /// Regression test for the numerical-stability defect class of
+    /// cool-japan/scirs#131. The density used to divide by
+    /// `beta_function(a, b) = Γ(a)Γ(b)/Γ(a+b)` built from a Lanczos gamma
+    /// approximation: `Γ(a+b)` overflows above ~142, so the beta function
+    /// became 0 and the density `inf` (e.g. Beta(80, 80)), and once `Γ(a)Γ(b)`
+    /// overflowed as well the density became `NaN` (e.g. Beta(100, 100) -- an
+    /// everyday posterior after 200 observations). Reference values computed
+    /// independently with mpmath at 50 digits, NOT derived from this crate.
+    #[test]
+    fn test_beta_pdf_matches_reference_values_for_large_parameters() {
+        let cases: &[(f64, f64, f64, f64)] = &[
+            (0.5, 2.0, 3.0, 1.5),
+            (0.7, 5.0, 2.0, 2.1608999999999998),
+            (0.3, 0.5, 0.5, 0.69460911804285661),
+            (0.01, 2.0, 50.0, 15.583489608088065),
+            (0.5, 80.0, 80.0, 10.07677292588831),
+            (0.5, 100.0, 100.0, 11.269695801851284),
+            (0.4, 200.0, 300.0, 18.199532673567943),
+            (0.5, 1000.0, 1000.0, 35.678022291708641),
+        ];
+
+        for &(x, alpha, beta_param, expected) in cases {
+            let dist =
+                Beta::new(alpha, beta_param, 0.0, 1.0).expect("test/example should not fail");
+            let pdf = dist.pdf(x);
+            assert!(
+                pdf.is_finite(),
+                "pdf({x}) for Beta({alpha}, {beta_param}) is {pdf}"
+            );
+            let relative = ((pdf - expected) / expected).abs();
+            assert!(
+                relative < 1e-10,
+                "pdf({x}) for Beta({alpha}, {beta_param}): got {pdf:e}, want {expected:e} \
+                 (relative {relative:e})"
+            );
+        }
+    }
+
+    /// The boundary values of the density must survive the move to log space:
+    /// `0^0 = 1` (α = 1), `0^positive = 0` (α > 1) and `0^negative = +inf`
+    /// (α < 1), and likewise at x = 1 for β.
+    #[test]
+    fn test_beta_pdf_boundary_exponents() {
+        // α = 1: the density at x = 0 is 1/B(1, β) = β.
+        let flat_left = Beta::new(1.0_f64, 3.0, 0.0, 1.0).expect("test/example should not fail");
+        assert_relative_eq!(flat_left.pdf(0.0), 3.0, epsilon = 1e-12);
+
+        // α > 1: the density vanishes at x = 0.
+        let vanishing = Beta::new(2.0_f64, 3.0, 0.0, 1.0).expect("test/example should not fail");
+        assert_eq!(vanishing.pdf(0.0), 0.0);
+
+        // α < 1: the density diverges at x = 0.
+        let diverging = Beta::new(0.5_f64, 0.5, 0.0, 1.0).expect("test/example should not fail");
+        assert!(diverging.pdf(0.0).is_infinite());
+
+        // β = 1: mirror image at x = 1.
+        let flat_right = Beta::new(3.0_f64, 1.0, 0.0, 1.0).expect("test/example should not fail");
+        assert_relative_eq!(flat_right.pdf(1.0), 3.0, epsilon = 1e-12);
+        assert_eq!(vanishing.pdf(1.0), 0.0);
+        assert!(diverging.pdf(1.0).is_infinite());
+
+        // Outside the support, and with a scale factor.
+        assert_eq!(vanishing.pdf(-0.1), 0.0);
+        assert_eq!(vanishing.pdf(1.1), 0.0);
+        let scaled = Beta::new(100.0_f64, 100.0, 0.0, 2.0).expect("test/example should not fail");
+        let standard = Beta::new(100.0_f64, 100.0, 0.0, 1.0).expect("test/example should not fail");
+        assert_relative_eq!(scaled.pdf(1.0), standard.pdf(0.5) / 2.0, epsilon = 1e-12);
+    }
+
+    /// `entropy` returns `ln B(a, b) + ln(scale)`; it used to go through
+    /// `beta_function(a, b).ln()`, i.e. `-inf` for `a + b >= ~142` and `NaN`
+    /// beyond. Reference `ln B(a,b)` values from mpmath at 50 digits.
+    #[test]
+    fn test_beta_entropy_finite_for_large_parameters() {
+        let cases: &[(f64, f64, f64)] = &[
+            (2.0, 3.0, -2.4849066497880003),
+            (0.5, 0.5, 1.1447298858494002),
+            (80.0, 80.0, -111.82748759361559),
+            (100.0, 100.0, -139.66525908670664),
+            (1000.0, 1000.0, -1388.4826016359023),
+        ];
+
+        for &(alpha, beta_param, expected) in cases {
+            let dist =
+                Beta::new(alpha, beta_param, 0.0, 1.0).expect("test/example should not fail");
+            let entropy = ScirsDist::entropy(&dist);
+            assert!(
+                entropy.is_finite(),
+                "entropy for Beta({alpha}, {beta_param}) is {entropy}"
+            );
+            let relative = ((entropy - expected) / expected).abs();
+            assert!(
+                relative < 1e-12,
+                "entropy for Beta({alpha}, {beta_param}): got {entropy}, want {expected} \
+                 (relative {relative:e})"
+            );
+        }
     }
 }

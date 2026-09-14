@@ -266,13 +266,32 @@ mod correlation_properties {
 
     #[quickcheck]
     fn perfect_correlation_property(data: Vec<f64>, a: f64, b: f64) -> TestResult {
+        perfect_correlation_holds(data, a, b)
+    }
+
+    /// `y = a*x + b` must correlate with `x` at exactly +-1, provided `y`
+    /// actually carries the linear signal in floating point.
+    ///
+    /// The previous guards only bounded `a` and `b` separately, so the
+    /// generator could build a numerically degenerate `y` and the property
+    /// failed (or `pearson_r` rejected `y` as constant and the `.expect`
+    /// panicked) depending on the random seed:
+    /// * `|a|` as small as 1e-10 gives `y` a sum of squared deviations
+    ///   below `pearson_r`'s zero-variance threshold (`F::epsilon()`);
+    /// * a large `|b|` next to a small `a * x` rounds `y` to a handful of
+    ///   representable values, so it is no longer a linear function of `x`.
+    ///
+    /// Both cases are now discarded by checking `y` itself -- its variance
+    /// and its spread relative to its magnitude -- rather than loosening the
+    /// +-1 tolerance.
+    fn perfect_correlation_holds(data: Vec<f64>, a: f64, b: f64) -> TestResult {
         // Guard against extreme values for numerical stability
         if data.len() < 2 || !has_valid_magnitude(&data) {
             return TestResult::discard();
         }
 
         // Ensure a and b are reasonable values
-        if !a.is_finite() || !b.is_finite() || a.abs() < 1e-10 || a.abs() > 1e6 || b.abs() > 1e50 {
+        if !a.is_finite() || !b.is_finite() || a == 0.0 || a.abs() > 1e6 || b.abs() > 1e50 {
             return TestResult::discard();
         }
 
@@ -290,11 +309,43 @@ mod correlation_properties {
             return TestResult::discard();
         }
 
+        // `y` must itself be non-degenerate: the same variance floor as `x`,
+        // and a spread `|a| * sd(x)` that is resolved at y's magnitude (at
+        // least 1e-6 of max|y|, so rounding perturbs y by < ~1e-10 of its
+        // spread and cannot move r away from +-1 by more than the tolerance).
+        let y_var = var(&y.view(), 0, None).expect("Test: operation failed");
+        let y_max = y.iter().fold(0.0_f64, |acc, &v| acc.max(v.abs()));
+        if y_var < 1e-10 || a.abs() * x_var.sqrt() < 1e-6 * y_max {
+            return TestResult::discard();
+        }
+
         let correlation = pearson_r(&x.view(), &y.view()).expect("Test: operation failed");
         let expected = if a > 0.0 { 1.0 } else { -1.0 };
 
         // Use relative tolerance for the correlation
         TestResult::from_bool(approx_eq_rel(correlation, expected, 1e-9, 1e-10))
+    }
+
+    /// Deterministic regressions for the inputs that made the property flaky.
+    #[test]
+    fn perfect_correlation_property_discards_degenerate_y() {
+        let outcome =
+            |data: Vec<f64>, a: f64, b: f64| format!("{:?}", perfect_correlation_holds(data, a, b));
+
+        // |a| = 1e-10: y's squared deviations fall below pearson_r's
+        // zero-variance threshold (this used to panic in the `.expect`).
+        let tiny_slope = outcome(vec![0.0, 1.0, 2.0, 3.0], 1e-10, 0.0);
+        assert!(tiny_slope.contains("Discard"), "{tiny_slope}");
+
+        // A huge intercept swamps a*x: y rounds to a constant.
+        let swamped = outcome(vec![0.0, 1.0, 2.0, 3.0], 1.0, 1e30);
+        assert!(swamped.contains("Discard"), "{swamped}");
+
+        // Well-conditioned inputs must still be checked, and hold.
+        let normal = outcome(vec![0.0, 1.0, 2.0, 3.0], -2.5, 7.0);
+        assert!(normal.contains("Pass"), "{normal}");
+        let small_but_resolved = outcome(vec![0.0, 1.0, 2.0, 3.0], 1e-4, 0.0);
+        assert!(small_but_resolved.contains("Pass"), "{small_but_resolved}");
     }
 
     #[quickcheck]

@@ -8,6 +8,8 @@
 use crate::error::{StatsError, StatsResult};
 use scirs2_core::ndarray::ArrayView1;
 use scirs2_core::numeric::{Float, NumCast};
+use statrs::function::beta::beta_reg;
+use statrs::function::gamma::gamma_ur;
 use std::cmp::Ordering;
 
 /// Performs Levene's test for homogeneity of variance.
@@ -222,144 +224,48 @@ where
 }
 
 // Helper function: F-distribution survival function (1 - CDF)
+//
+// `P(F >= f) = I_x(df2/2, df1/2)` with `x = df2 / (df2 + df1 * f)`, evaluated
+// through `statrs::function::beta::beta_reg` (log-gamma prefactor + modified
+// Lentz continued fraction). The previous version built the Beta function from
+// a Lanczos *gamma* approximation, `Gamma(a) * Gamma(b) / Gamma(a + b)`, which
+// overflows to `inf` above ~142: with `a = df2/2` that made the quotient
+// `inf / inf = NaN`, so every Levene / Brown-Forsythe p-value with
+// `df2 = n_total - k >= 284` (i.e. ~286 observations) came back `inf` or `NaN`.
+// Same defect class as cool-japan/scirs#131.
+//
+// The guards are required: `beta_reg` panics outside its domain (`a > 0`,
+// `b > 0`, `0 <= x <= 1`) and the tail is evaluated straight from `x`, so no
+// `1 - CDF` cancellation can flush small p-values to zero.
 #[allow(dead_code)]
 fn f_distribution_sf<F: Float + NumCast>(f: F, df1: F, df2: F) -> F {
     let f_f64 = <f64 as NumCast>::from(f).expect("Operation failed");
     let df1_f64 = <f64 as NumCast>::from(df1).expect("Operation failed");
     let df2_f64 = <f64 as NumCast>::from(df2).expect("Operation failed");
 
-    // Approximation using beta distribution relationship
-    // P(F > f) = I_x(df2/2, df1/2) where x = df2/(df2 + df1*f)
-    let x = df2_f64 / (df2_f64 + df1_f64 * f_f64);
+    if f_f64.is_nan() || df1_f64.is_nan() || df2_f64.is_nan() {
+        return F::nan();
+    }
 
-    // Use the regularized incomplete beta function
-    let p = beta_cdf(x, df2_f64 / 2.0, df1_f64 / 2.0);
+    // Without positive degrees of freedom there is no F test to speak of.
+    if df1_f64 <= 0.0 || df2_f64 <= 0.0 {
+        return F::one();
+    }
+
+    // The statistic is a ratio of variances: non-positive values carry no
+    // evidence against the null, and an infinite statistic exhausts the tail.
+    if f_f64 <= 0.0 {
+        return F::one();
+    }
+    if f_f64.is_infinite() {
+        return F::zero();
+    }
+
+    // P(F >= f) = I_x(df2/2, df1/2) where x = df2/(df2 + df1*f)
+    let x = (df2_f64 / (df2_f64 + df1_f64 * f_f64)).clamp(0.0, 1.0);
+    let p = beta_reg(df2_f64 / 2.0, df1_f64 / 2.0, x).clamp(0.0, 1.0);
 
     F::from(p).expect("Failed to convert to float")
-}
-
-// Regularized incomplete beta function (approximation)
-#[allow(dead_code)]
-fn beta_cdf(x: f64, a: f64, b: f64) -> f64 {
-    if x <= 0.0 {
-        return 0.0;
-    }
-    if x >= 1.0 {
-        return 1.0;
-    }
-
-    // Use continued fraction expansion for a simple approximation
-    // This is not the most accurate method but provides a reasonable approximation
-    // For a more accurate implementation, numerical libraries should be used
-    let max_iter = 100;
-    let eps = 1e-10;
-
-    // For x in the first half of the range, use the continued fraction directly
-    if x <= (a / (a + b)) {
-        let bt = beta_continued_fraction(x, a, b, max_iter, eps);
-        bt / beta_function(a, b)
-    } else {
-        // For x in the second half, use the symmetry relation I_x(a,b) = 1 - I_(1-x)(b,a)
-        let bt = beta_continued_fraction(1.0 - x, b, a, max_iter, eps);
-        1.0 - bt / beta_function(b, a)
-    }
-}
-
-// Continued fraction expansion for the incomplete beta function
-#[allow(dead_code)]
-fn beta_continued_fraction(x: f64, a: f64, b: f64, maxiter: usize, eps: f64) -> f64 {
-    let qab = a + b;
-    let qap = a + 1.0;
-    let qam = a - 1.0;
-
-    let mut c = 1.0;
-    let mut d = 1.0 - qab * x / qap;
-    if d.abs() < eps {
-        d = eps;
-    }
-    d = 1.0 / d;
-    let mut h = d;
-
-    for m in 1..maxiter {
-        let m2 = 2 * m;
-
-        // Even step
-        let aa = m as f64 * (b - m as f64) * x / ((qam + m2 as f64) * (a + m2 as f64));
-        d = 1.0 + aa * d;
-        if d.abs() < eps {
-            d = eps;
-        }
-        c = 1.0 + aa / c;
-        if c.abs() < eps {
-            c = eps;
-        }
-        d = 1.0 / d;
-        h *= d * c;
-
-        // Odd step
-        let aa = -(a + m as f64) * (qab + m as f64) * x / ((a + m2 as f64) * (qap + m2 as f64));
-        d = 1.0 + aa * d;
-        if d.abs() < eps {
-            d = eps;
-        }
-        c = 1.0 + aa / c;
-        if c.abs() < eps {
-            c = eps;
-        }
-        d = 1.0 / d;
-        h *= d * c;
-
-        // Check for convergence
-        if (d * c - 1.0).abs() < eps {
-            break;
-        }
-    }
-
-    x.powf(a) * (1.0 - x).powf(b) * h / a
-}
-
-// Beta function
-#[allow(dead_code)]
-fn beta_function(a: f64, b: f64) -> f64 {
-    // Use the relationship with the gamma function: B(a,b) = Γ(a)Γ(b)/Γ(a+b)
-    gamma_function(a) * gamma_function(b) / gamma_function(a + b)
-}
-
-// Gamma function approximation
-#[allow(dead_code)]
-fn gamma_function(x: f64) -> f64 {
-    if x <= 0.0 {
-        panic!("Gamma function not defined for non-positive values");
-    }
-
-    // For small values, use the reflection formula
-    if x < 0.5 {
-        return std::f64::consts::PI / ((std::f64::consts::PI * x).sin() * gamma_function(1.0 - x));
-    }
-
-    // Lanczos approximation for gamma function
-    let p = [
-        676.5203681218851,
-        -1259.1392167224028,
-        771.323428777653,
-        -176.61502916214,
-        12.507343278687,
-        -0.1385710952657,
-        9.984369578019e-6,
-        1.50563273515e-7,
-    ];
-
-    let z = x - 1.0;
-    let mut result = 0.9999999999998;
-
-    for (i, &value) in p.iter().enumerate() {
-        result += value / (z + (i + 1) as f64);
-    }
-
-    let t = z + p.len() as f64 - 0.5;
-
-    // sqrt(2*pi) = 2.506628274631000502415765284811
-    2.506628274631 * t.powf(z + 0.5) * (-t).exp() * result
 }
 
 /// Performs Bartlett's test for homogeneity of variance.
@@ -487,124 +393,39 @@ where
 }
 
 // Helper function: Chi-square survival function (1 - CDF)
+//
+// `P(X^2 >= x) = Q(df/2, x/2)`, the regularized *upper* incomplete gamma
+// function, taken from `statrs::function::gamma::gamma_ur`. The previous
+// version formed `1 - P(df/2, x/2)` with `P` divided by a Lanczos
+// `gamma_function(df/2)` (overflowing to `inf` above ~142, hence `NaN` for
+// 285+ groups) and lost every tail probability below ~1e-16 to the `1 - CDF`
+// cancellation -- a highly significant Bartlett statistic reported p = 0
+// exactly instead of its true value.
 #[allow(dead_code)]
 fn chi_square_sf<F: Float + NumCast>(x: F, df: F) -> F {
     let x_f64 = <f64 as NumCast>::from(x).expect("Operation failed");
     let df_f64 = <f64 as NumCast>::from(df).expect("Operation failed");
+
+    if x_f64.is_nan() || df_f64.is_nan() {
+        return F::nan();
+    }
 
     // Ensure non-negative values
     if x_f64 <= 0.0 {
         return F::one();
     }
 
-    // Approximation for the chi-square upper tail probability
-    let p_value = 1.0 - chi_square_cdf(x_f64, df_f64);
+    // `gamma_ur` requires both arguments in (0, +inf).
+    if df_f64 <= 0.0 {
+        return F::zero();
+    }
+    if x_f64.is_infinite() {
+        return F::zero();
+    }
+
+    let p_value = gamma_ur(df_f64 / 2.0, x_f64 / 2.0).clamp(0.0, 1.0);
 
     F::from(p_value).expect("Failed to convert to float")
-}
-
-// Chi-square cumulative distribution function approximation
-#[allow(dead_code)]
-fn chi_square_cdf(x: f64, df: f64) -> f64 {
-    if x <= 0.0 {
-        return 0.0;
-    }
-
-    // The chi-square CDF is related to the regularized lower incomplete gamma function
-    let a = df / 2.0; // Shape parameter
-    let x_half = x / 2.0; // Scale parameter
-
-    // Use the regularized gamma function: P(a, x) = gamma(a, x) / Gamma(a)
-    gamma_p(a, x_half)
-}
-
-// Regularized lower incomplete gamma function P(a,x) = gamma(a,x)/Gamma(a)
-#[allow(dead_code)]
-fn gamma_p(a: f64, x: f64) -> f64 {
-    if x <= 0.0 {
-        return 0.0;
-    }
-    if x > 200.0 * a {
-        return 1.0; // For large x/a, the result is effectively 1
-    }
-
-    // Different computation methods depending on a and x values
-    if a < 1.0 {
-        // For a < 1, use the series representation
-        let series_sum = gamma_series(a, x);
-        let gamma_a = gamma_function(a);
-        series_sum / gamma_a
-    } else {
-        // For a >= 1, use a more stable approach
-        if x < a + 1.0 {
-            // Series expansion is more accurate for x < a+1
-            let series_sum = gamma_series(a, x);
-            let gamma_a = gamma_function(a);
-            series_sum / gamma_a
-        } else {
-            // Continued fraction is more accurate for x >= a+1
-            let cf = gamma_continued_fraction(a, x);
-            let gamma_a = gamma_function(a);
-            1.0 - cf / gamma_a
-        }
-    }
-}
-
-// Series expansion for the lower incomplete gamma function
-#[allow(dead_code)]
-fn gamma_series(a: f64, x: f64) -> f64 {
-    if x <= 0.0 {
-        return 0.0;
-    }
-
-    let max_iter = 100;
-    let epsilon = 1e-10;
-
-    let mut term = 1.0 / a;
-    let mut sum = term;
-
-    for n in 1..max_iter {
-        term *= x / (a + n as f64);
-        sum += term;
-        if term < epsilon * sum {
-            break;
-        }
-    }
-
-    sum * (-x).exp() * x.powf(a)
-}
-
-// Continued fraction for the upper incomplete gamma function
-#[allow(dead_code)]
-fn gamma_continued_fraction(a: f64, x: f64) -> f64 {
-    if x <= 0.0 {
-        return gamma_function(a);
-    }
-
-    let max_iter = 100;
-    let epsilon = 1e-10;
-
-    let mut b = x + 1.0 - a;
-    let mut c = 1.0 / 1e-30; // A very small value to start
-    let mut d = 1.0 / b;
-    let mut h = d;
-
-    for i in 1..max_iter {
-        let i_f64 = i as f64;
-        let a_i = -i_f64 * (i_f64 - a);
-        b += 2.0;
-
-        d = 1.0 / (b + a_i * d);
-        c = b + a_i / c;
-        let del = c * d;
-        h *= del;
-
-        if (del - 1.0).abs() < epsilon {
-            break;
-        }
-    }
-
-    h * (-x).exp() * x.powf(a)
 }
 
 /// Performs the Brown-Forsythe test for homogeneity of variance.
@@ -657,4 +478,119 @@ where
         "median",
         F::from(0.05).expect("Failed to convert constant to float"),
     )
+}
+
+#[cfg(test)]
+mod tail_function_tests {
+    use super::{chi_square_sf, f_distribution_sf};
+
+    /// Relative-error assertion. `approx`'s absolute epsilon would make the
+    /// deep-tail comparisons below vacuous (every value under 1e-16 is within
+    /// `f64::EPSILON` of every other), so compare the relative error directly.
+    fn assert_close(got: f64, want: f64, max_relative: f64) {
+        let relative = ((got - want) / want).abs();
+        assert!(
+            relative <= max_relative,
+            "got {got:e}, want {want:e}, relative error {relative:e} > {max_relative:e}"
+        );
+    }
+
+    /// `(f, df1, df2, P(F >= f))`. Reference values computed independently with
+    /// mpmath at 50 digits as `I_x(df2/2, df1/2)`, NOT derived from this crate.
+    /// The `df2 >= 284` rows are the ones the old Lanczos-gamma Beta function
+    /// returned `inf`/`NaN` for.
+    #[test]
+    fn test_f_distribution_sf_matches_high_precision_references() {
+        let cases: &[(f64, f64, f64, f64)] = &[
+            (0.5, 2.0, 20.0, 0.61391325354075937),
+            (4.0, 1.0, 20.0, 0.059265535446570473),
+            (6.95, 2.0, 27.0, 0.0036740592697746691),
+            (4.0, 1.0, 100.0, 0.04821217873113368),
+            (4.0, 1.0, 298.0, 0.046407579083436458),
+            (2.5, 2.0, 597.0, 0.082944043189037088),
+            (1.0, 3.0, 9996.0, 0.39167144232237937),
+            (10.0, 4.0, 995.0, 6.1672458931248406e-8),
+            (20.0, 2.0, 597.0, 3.9148695031064882e-9),
+            (100.0, 1.0, 298.0, 1.7212431183421242e-20),
+        ];
+
+        for &(f, df1, df2, expected) in cases {
+            assert_close(f_distribution_sf(f, df1, df2), expected, 1e-9);
+        }
+    }
+
+    /// The regression: the F tail must stay a probability for every residual
+    /// degrees of freedom, especially across the old `df2 = 284` cliff.
+    #[test]
+    fn test_f_distribution_sf_finite_across_residual_df() {
+        for &df2 in &[
+            1.0_f64, 2.0, 20.0, 283.0, 284.0, 285.0, 286.0, 600.0, 10_000.0,
+        ] {
+            for &df1 in &[1.0_f64, 2.0, 5.0, 50.0] {
+                for &f in &[1e-6_f64, 0.5, 1.0, 4.0, 100.0, 1e6] {
+                    let p = f_distribution_sf(f, df1, df2);
+                    assert!(
+                        p.is_finite() && (0.0..=1.0).contains(&p),
+                        "f_distribution_sf({f}, {df1}, {df2}) = {p} is not a probability"
+                    );
+                }
+            }
+        }
+
+        // Degenerate and non-finite inputs must not reach `beta_reg`, which
+        // panics outside its domain.
+        assert_eq!(f_distribution_sf(4.0, 0.0, 100.0), 1.0);
+        assert_eq!(f_distribution_sf(4.0, 1.0, 0.0), 1.0);
+        assert_eq!(f_distribution_sf(0.0, 1.0, 100.0), 1.0);
+        assert_eq!(f_distribution_sf(-1.0, 1.0, 100.0), 1.0);
+        assert_eq!(f_distribution_sf(f64::INFINITY, 1.0, 100.0), 0.0);
+        assert!(f_distribution_sf(f64::NAN, 1.0, 100.0).is_nan());
+    }
+
+    /// `(x, df, P(X^2 >= x))`, mpmath references for the regularized upper
+    /// incomplete gamma function. The small values are the ones the old
+    /// `1 - CDF` formulation flushed to exactly 0.
+    #[test]
+    fn test_chi_square_sf_matches_high_precision_references() {
+        let cases: &[(f64, f64, f64)] = &[
+            (1.0, 1.0, 0.3173105078629141),
+            (3.84, 1.0, 0.050043521248705103),
+            (6.95, 2.0, 0.03096183382317688),
+            (10.0, 3.0, 0.018566135463043233),
+            (100.0, 5.0, 5.2851483609432401e-20),
+            (200.0, 2.0, 3.720075976020836e-44),
+            (300.0, 299.0, 0.47285048381716997),
+            (400.0, 299.0, 8.2880241042477431e-5),
+            (1000.0, 299.0, 2.0346381131558599e-76),
+            (350.0, 300.0, 0.024730797264387422),
+            (500.0, 300.0, 3.3592224575795494e-12),
+            (1000.0, 600.0, 1.6933836864708698e-22),
+        ];
+
+        for &(x, df, expected) in cases {
+            assert_close(chi_square_sf(x, df), expected, 1e-9);
+        }
+    }
+
+    #[test]
+    fn test_chi_square_sf_finite_across_df_and_edges() {
+        for &df in &[1.0_f64, 2.0, 283.0, 284.0, 299.0, 600.0, 10_000.0] {
+            for &x in &[1e-6_f64, 1.0, 100.0, 1000.0, 1e6] {
+                let p = chi_square_sf(x, df);
+                assert!(
+                    p.is_finite() && (0.0..=1.0).contains(&p),
+                    "chi_square_sf({x}, {df}) = {p} is not a probability"
+                );
+            }
+        }
+
+        // A statistic far below the mean leaves essentially the whole mass in
+        // the upper tail.
+        assert_close(chi_square_sf(2.0, 400.0), 1.0, 1e-12);
+        assert_eq!(chi_square_sf(0.0, 4.0), 1.0);
+        assert_eq!(chi_square_sf(-1.0, 4.0), 1.0);
+        assert_eq!(chi_square_sf(f64::INFINITY, 4.0), 0.0);
+        assert_eq!(chi_square_sf(10.0, 0.0), 0.0);
+        assert!(chi_square_sf(f64::NAN, 4.0).is_nan());
+    }
 }

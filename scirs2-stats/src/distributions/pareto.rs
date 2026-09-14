@@ -143,6 +143,19 @@ impl<F: Float + NumCast + std::fmt::Display> Pareto<F> {
         F::one() - ratio.powf(self.shape)
     }
 
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let x_adjusted = x - self.loc;
+        if x_adjusted <= self.scale {
+            return F::one();
+        }
+        (self.scale / x_adjusted).powf(self.shape)
+    }
+
     /// Inverse of the cumulative distribution function (quantile function)
     ///
     /// # Arguments

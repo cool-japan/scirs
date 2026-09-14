@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::tests::homogeneity::bartlett;
-    use scirs2_core::ndarray::array;
+    use scirs2_core::ndarray::{array, Array1};
 
     // Test data from SciPy documentation
     const A: [f64; 10] = [8.88, 9.12, 9.04, 8.98, 9.00, 9.08, 9.01, 8.85, 9.06, 8.99];
@@ -134,6 +134,77 @@ mod tests {
             p_value >= 0.0 && p_value <= 1.0,
             "Expected p_value in [0,1], got {}",
             p_value
+        );
+    }
+
+    /// Regression test for the numerical-stability defect class of
+    /// cool-japan/scirs#131. Bartlett's chi-square tail used to be computed as
+    /// `1 - CDF`, with the CDF divided by a Lanczos `gamma_function(df/2)`:
+    /// the cancellation flushed every p-value below ~1e-16 to exactly 0. It is
+    /// now the regularized upper incomplete gamma function, evaluated
+    /// directly. Reference values from mpmath at 50 digits.
+    #[test]
+    fn test_bartlett_deep_tail_pvalue_is_not_flushed_to_zero() {
+        // Three groups of 100 whose variances differ by an order of magnitude.
+        let a: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 17) as f64 * 0.1));
+        let b: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 23) as f64 * 0.25));
+        let c: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 11) as f64 * 0.5));
+        let samples = vec![a.view(), b.view(), c.view()];
+
+        let (statistic, p_value) = bartlett(&samples).expect("Test: operation failed");
+
+        assert!(
+            (statistic - 133.46061094433585).abs() < 1e-8,
+            "got statistic {}",
+            statistic
+        );
+        assert!(
+            p_value > 0.0,
+            "a chi-square statistic of {} on 2 df has p ~ 1e-29, not 0",
+            statistic
+        );
+        let expected = 1.0456745971571383e-29;
+        let relative = ((p_value - expected) / expected).abs();
+        assert!(
+            relative < 1e-9,
+            "got {:e}, want {:e} (relative error {:e})",
+            p_value,
+            expected,
+            relative
+        );
+    }
+
+    /// With 300 groups the chi-square tail is evaluated at df = 299, where the
+    /// old `gamma_function(df/2)` overflowed to `inf` and turned a p-value of
+    /// ~1e-72 into 1.0 (i.e. "perfectly homogeneous variances").
+    #[test]
+    fn test_bartlett_many_groups_pvalue_is_finite() {
+        let groups: Vec<Array1<f64>> = (0..300)
+            .map(|i| Array1::from_iter((0..5).map(|j| j as f64 * (1.0 + i as f64))))
+            .collect();
+        let samples: Vec<_> = groups.iter().map(|g| g.view()).collect();
+
+        let (statistic, p_value) = bartlett(&samples).expect("Test: operation failed");
+
+        assert!(
+            (statistic - 975.8926109777179).abs() < 1e-6,
+            "got statistic {}",
+            statistic
+        );
+        assert!(!p_value.is_nan(), "p-value evaluates to NaN");
+        assert!(
+            p_value < 1e-60,
+            "variances spanning three orders of magnitude must be rejected, got p = {:e}",
+            p_value
+        );
+        let expected = 9.4202124512540691e-73;
+        let relative = ((p_value - expected) / expected).abs();
+        assert!(
+            relative < 1e-9,
+            "got {:e}, want {:e} (relative error {:e})",
+            p_value,
+            expected,
+            relative
         );
     }
 }

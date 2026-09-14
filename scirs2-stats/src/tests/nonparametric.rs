@@ -6,6 +6,7 @@
 use crate::error::{StatsError, StatsResult};
 use scirs2_core::ndarray::ArrayView1;
 use scirs2_core::numeric::{Float, NumCast};
+use statrs::function::gamma::gamma_ur;
 use std::cmp::Ordering;
 
 /// Performs the Wilcoxon signed-rank test for paired samples.
@@ -694,38 +695,101 @@ fn normal_cdf<F: Float + NumCast>(x: F) -> F {
 }
 
 // Helper function: Chi-square survival function (1 - CDF)
+//
+// `P(X^2 >= x) = Q(df/2, x/2)`, the regularized upper incomplete gamma
+// function from `statrs::function::gamma::gamma_ur`, evaluated directly (no
+// `1 - CDF` cancellation). Used by `kruskal_wallis` and `friedman`.
+//
+// The previous version was a normal approximation: for 1 < df <= 100 it used
+// `z = (x/df - 1) * sqrt(df/2)`, which is not the Wilson-Hilferty transform at
+// all (chi2 = 5.99 on 2 df, the textbook 5% critical value, gave p = 0.023),
+// and the df > 100 branch divided by `1/sqrt(3*df)` instead of multiplying by
+// `sqrt(9*df/2)`. Its `1 - normal_cdf` step also floored every p-value at the
+// ~1e-7 accuracy of the Abramowitz-Stegun normal CDF approximation.
 #[allow(dead_code)]
 fn chi_square_sf<F: Float + NumCast>(x: F, df: F) -> F {
     let x_f64 = <f64 as NumCast>::from(x).expect("Operation failed");
     let df_f64 = <f64 as NumCast>::from(df).expect("Operation failed");
 
+    if x_f64.is_nan() || df_f64.is_nan() {
+        return F::nan();
+    }
+
     if x_f64 <= 0.0 {
         return F::one();
     }
 
-    // Degree of freedom must be positive
+    // Degree of freedom must be positive (`gamma_ur` panics otherwise)
     if df_f64 <= 0.0 {
         return F::zero();
     }
-
-    // Approximation for the chi-square upper tail probability
-    // Wilson-Hilferty transformation
-    let z;
-
-    if df_f64 > 100.0 {
-        // For large df, use normal approximation with Wilson-Hilferty transformation
-        z = (x_f64 / df_f64).powf(1.0 / 3.0)
-            - (1.0 - 2.0 / (9.0 * df_f64)) / (1.0 / (3.0 * df_f64).sqrt());
-    } else if df_f64 > 1.0 {
-        // For moderate df
-        z = (x_f64 / df_f64 - 1.0) * (0.5 * df_f64).sqrt();
-    } else {
-        // For df = 1 (special case)
-        z = (x_f64 * 0.5).sqrt();
+    if x_f64.is_infinite() {
+        return F::zero();
     }
 
-    // Convert to p-value using standard normal survival function
-    let p = 1.0 - normal_cdf::<f64>(z);
+    let p = gamma_ur(df_f64 / 2.0, x_f64 / 2.0).clamp(0.0, 1.0);
 
     F::from(p).expect("Failed to convert to float")
+}
+
+#[cfg(test)]
+mod chi_square_sf_tests {
+    use super::{chi_square_sf, friedman, kruskal_wallis};
+    use scirs2_core::ndarray::{array, Array1};
+
+    fn assert_close(got: f64, want: f64, max_relative: f64) {
+        let relative = ((got - want) / want).abs();
+        assert!(
+            relative <= max_relative,
+            "got {got:e}, want {want:e}, relative error {relative:e} > {max_relative:e}"
+        );
+    }
+
+    /// `(x, df, P(X^2 >= x))`, mpmath references (50 digits). The old normal
+    /// approximation gave 0.023 for the textbook 5% critical value 5.99 on 2 df.
+    #[test]
+    fn test_nonparametric_chi_square_sf_matches_high_precision_references() {
+        let cases: &[(f64, f64, f64)] = &[
+            (1.0, 1.0, 0.3173105078629141),
+            (3.84, 1.0, 0.050043521248705103),
+            (5.991464547107979, 2.0, 0.05),
+            (6.95, 2.0, 0.03096183382317688),
+            (10.0, 3.0, 0.018566135463043233),
+            (100.0, 5.0, 5.2851483609432401e-20),
+            (350.0, 300.0, 0.024730797264387422),
+            (1000.0, 600.0, 1.6933836864708698e-22),
+        ];
+        for &(x, df, expected) in cases {
+            assert_close(chi_square_sf(x, df), expected, 1e-9);
+        }
+        assert_eq!(chi_square_sf(0.0, 3.0), 1.0);
+        assert_eq!(chi_square_sf(f64::INFINITY, 3.0), 0.0);
+        assert_eq!(chi_square_sf(4.0, 0.0), 0.0);
+        assert!(chi_square_sf(f64::NAN, 3.0).is_nan());
+    }
+
+    /// Both callers must now report the exact chi-square tail of their own
+    /// statistic (checked against the mpmath value for that statistic).
+    #[test]
+    fn test_kruskal_wallis_and_friedman_use_exact_chi_square_tail() {
+        let a: Array1<f64> = array![2.9, 3.0, 2.5, 2.6, 3.2];
+        let b: Array1<f64> = array![3.8, 2.7, 4.0, 2.4];
+        let c: Array1<f64> = array![2.8, 3.4, 3.7, 2.2, 2.0];
+        let (h, p) = kruskal_wallis(&[a.view(), b.view(), c.view()]).expect("kruskal failed");
+        // H = 0.7714285714285722 on 2 df; scipy.stats.kruskal gives the same.
+        assert!((h - 0.771_428_571_428_571_4).abs() < 1e-9, "H = {h}");
+        assert_close(p, (-h / 2.0).exp(), 1e-12);
+
+        let data = array![
+            [1.0, 2.0, 3.0],
+            [1.0, 3.0, 2.0],
+            [1.0, 2.0, 3.0],
+            [1.0, 2.0, 3.0],
+            [2.0, 1.0, 3.0],
+            [1.0, 2.0, 3.0]
+        ];
+        let (chi2, p) = friedman(&data.view()).expect("friedman failed");
+        // chi2 on 2 df: the survival function is exactly exp(-chi2/2).
+        assert_close(p, (-chi2 / 2.0).exp(), 1e-12);
+    }
 }

@@ -557,6 +557,11 @@ pub trait ContinuousCDF<F: Float>: ContinuousDistribution<F> {
     /// # Returns
     ///
     /// The survival probability at x (1 - CDF(x))
+    ///
+    /// This default is `1 - cdf(x)` and therefore returns 0 as soon as the CDF
+    /// rounds to 1. Implementors with a closed-form or regularized-function
+    /// upper tail should override it (all continuous distributions in this
+    /// crate do).
     fn sf(&self, x: F) -> F {
         F::one() - self.cdf(x)
     }
@@ -606,6 +611,9 @@ pub trait ContinuousCDF<F: Float>: ContinuousDistribution<F> {
     /// # Returns
     ///
     /// The value x such that SF(x) = q (equivalent to PPF(1 - q))
+    ///
+    /// The default rounds `1 - q` to 1 for `q` below ~1e-16; distributions
+    /// with a cheap direct inverse upper tail override it.
     fn isf(&self, q: F) -> StatsResult<F> {
         if q < F::zero() || q > F::one() {
             return Err(crate::error::StatsError::InvalidArgument(

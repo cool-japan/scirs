@@ -32,8 +32,15 @@ pub mod conversion;
 pub mod traits;
 pub mod zero_copy;
 
-// Mobile FFI bindings (v0.2.0)
-#[cfg(any(target_os = "ios", target_os = "android"))]
+// Mobile FFI bindings (v0.2.0). The bindings are backed by the ARM NEON
+// kernels in `crate::simd::neon`, which only exist with the `simd` feature on
+// aarch64/arm, so the module is gated on all three (x86_64 Android emulators
+// and default-feature builds simply do not get the FFI symbols).
+#[cfg(all(
+    feature = "simd",
+    any(target_os = "ios", target_os = "android"),
+    any(target_arch = "aarch64", target_arch = "arm")
+))]
 pub mod mobile_ffi;
 
 // Re-export primary types

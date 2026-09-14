@@ -5,7 +5,7 @@
 use crate::error::{StatsError, StatsResult};
 use crate::error_messages::{helpers, validation};
 use crate::sampling::SampleableDistribution;
-use crate::traits::{ContinuousDistribution, Distribution};
+use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution};
 use scirs2_core::ndarray::Array1;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::{Distribution as RandDistribution, Normal as RandNormal};
@@ -118,13 +118,38 @@ impl<F: Float + NumCast + std::fmt::Display> Normal<F> {
             return F::from(0.5).unwrap_or_else(|| F::zero());
         }
 
-        // Use a standard implementation of the error function
-        // CDF = 0.5 * (1 + erf(z / sqrt(2)))
-        let two = F::from(2.0).unwrap_or_else(|| F::zero());
-        let one = F::one();
-        let half = F::from(0.5).unwrap_or_else(|| F::zero());
+        // CDF = erfc(-z / sqrt(2)) / 2, from `libm` (~1 ulp). The previous local
+        // Abramowitz-Stegun 7.1.26 `erf` was only accurate to ~1.5e-7
+        // absolute and computed the lower tail as `0.5 * (1 + erf)`, i.e.
+        // with cancellation, so e.g. cdf(-10) came back as 0 instead of 7.6e-24.
+        let z_f64 = match <f64 as NumCast>::from(z) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        F::from(0.5 * libm::erfc(-z_f64 / std::f64::consts::SQRT_2)).unwrap_or_else(F::nan)
+    }
 
-        half * (one + erf(z / two.sqrt()))
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let z = match <f64 as NumCast>::from((x - self.loc) / self.scale) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        // P(Z > z) = erfc(z / sqrt(2)) / 2
+        F::from(0.5 * libm::erfc(z / std::f64::consts::SQRT_2)).unwrap_or_else(F::nan)
+    }
+
+    /// Inverse survival function: the `x` with `sf(x) = q`.
+    ///
+    /// By symmetry `isf(q) = 2*loc - ppf(q)`, which keeps full precision for
+    /// small `q` where `ppf(1 - q)` would round `1 - q` to 1.
+    pub fn isf(&self, q: F) -> StatsResult<F> {
+        let lower = self.ppf(q)?;
+        Ok(self.loc + self.loc - lower)
     }
 
     /// Inverse of the cumulative distribution function (quantile function)
@@ -248,31 +273,6 @@ impl<F: Float + NumCast + std::fmt::Display> Normal<F> {
     }
 }
 
-/// Calculate the error function (erf)
-#[allow(dead_code)]
-fn erf<F: Float>(x: F) -> F {
-    // Approximation based on Abramowitz and Stegun
-    let zero = F::zero();
-    let one = F::one();
-
-    // Handle negative values using erf(-x) = -erf(x)
-    if x < zero {
-        return -erf(-x);
-    }
-
-    // Constants for the approximation
-    let a1 = F::from(0.254829592).expect("Failed to convert constant to float");
-    let a2 = F::from(-0.284496736).expect("Failed to convert constant to float");
-    let a3 = F::from(1.421413741).expect("Failed to convert constant to float");
-    let a4 = F::from(-1.453152027).expect("Failed to convert constant to float");
-    let a5 = F::from(1.061405429).expect("Failed to convert constant to float");
-    let p = F::from(0.3275911).expect("Failed to convert constant to float");
-
-    // Calculate the approximation
-    let t = one / (one + p * x);
-    one - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * (-x * x).exp()
-}
-
 // The inverse_erf function has been replaced with a more accurate
 // approximation directly in the ppf method
 
@@ -316,6 +316,20 @@ impl<F: Float + NumCast + std::fmt::Display> ContinuousDistribution<F> for Norma
 
     fn ppf(&self, p: F) -> StatsResult<F> {
         Normal::ppf(self, p)
+    }
+}
+
+/// Tail-accurate survival functions for the `ContinuousCDF` helpers
+/// (`sf`, `isf`, `hazard`, `cumhazard`).
+impl<F: Float + NumCast + std::fmt::Display> ContinuousCDF<F> for Normal<F> {
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        Normal::sf(self, x)
+    }
+
+    /// Tail-accurate inverse survival function (see the inherent `isf`).
+    fn isf(&self, q: F) -> StatsResult<F> {
+        Normal::isf(self, q)
     }
 }
 

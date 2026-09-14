@@ -2,7 +2,7 @@
 mod tests {
     use crate::tests::homogeneity::levene;
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::array;
+    use scirs2_core::ndarray::{array, Array1};
 
     // Test data from SciPy documentation
     const A: [f64; 10] = [8.88, 9.12, 9.04, 8.98, 9.00, 9.08, 9.01, 8.85, 9.06, 8.99];
@@ -147,5 +147,65 @@ mod tests {
 
         let result = levene(&samples, "median", 0.05);
         assert!(result.is_err());
+    }
+
+    /// Regression test for the numerical-stability defect class of
+    /// cool-japan/scirs#131. Levene's p-value used to be built from a Lanczos
+    /// *gamma* approximation of `B(df2/2, df1/2)`, which overflows to `inf`
+    /// above ~142: every test with `df2 = n_total - k >= 284` (about 286
+    /// observations) returned `inf` or `NaN`. The statistic and p-value below
+    /// were computed independently with mpmath at 50 digits, NOT derived from
+    /// this crate.
+    #[test]
+    fn test_levene_large_sample_pvalue_is_finite() {
+        // Three groups of 100 with clearly different spreads:
+        // n_total = 300, k = 3, so df1 = 2 and df2 = 297.
+        let a: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 17) as f64 * 0.1));
+        let b: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 23) as f64 * 0.25));
+        let c: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 11) as f64 * 0.5));
+        let samples = vec![a.view(), b.view(), c.view()];
+
+        let (statistic, p_value) =
+            levene(&samples, "median", 0.05).expect("Test: operation failed");
+
+        assert_abs_diff_eq!(statistic, 71.17399631112818, epsilon = 1e-8);
+        assert!(!p_value.is_nan(), "p-value evaluates to NaN");
+        assert!(
+            p_value.is_finite() && (0.0..=1.0).contains(&p_value),
+            "expected a probability, got {}",
+            p_value
+        );
+        let expected = 5.5879012840629727e-26;
+        let relative = ((p_value - expected) / expected).abs();
+        assert!(
+            relative < 1e-9,
+            "got {:e}, want {:e} (relative error {:e})",
+            p_value,
+            expected,
+            relative
+        );
+    }
+
+    /// Two groups of 150 observations, i.e. df2 = 298 -- one past the cliff
+    /// where the old Beta function returned exactly 0 and the p-value `inf`.
+    #[test]
+    fn test_levene_two_large_groups_pvalue_matches_reference() {
+        let a: Array1<f64> = Array1::from_iter((0..150).map(|i| (i % 19) as f64 * 0.2));
+        let b: Array1<f64> = Array1::from_iter((0..150).map(|i| (i % 29) as f64 * 0.45));
+        let samples = vec![a.view(), b.view()];
+
+        let (statistic, p_value) =
+            levene(&samples, "median", 0.05).expect("Test: operation failed");
+
+        assert_abs_diff_eq!(statistic, 220.55876676712205, epsilon = 1e-8);
+        let expected = 1.0034461323451784e-37;
+        let relative = ((p_value - expected) / expected).abs();
+        assert!(
+            relative < 1e-9,
+            "got {:e}, want {:e} (relative error {:e})",
+            p_value,
+            expected,
+            relative
+        );
     }
 }

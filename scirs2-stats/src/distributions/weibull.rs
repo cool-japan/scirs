@@ -7,6 +7,7 @@ use crate::sampling::SampleableDistribution;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::{Distribution, Uniform as RandUniform};
+use statrs::function::gamma::{gamma, ln_gamma};
 
 /// Weibull distribution structure
 ///
@@ -151,6 +152,19 @@ impl<F: Float + NumCast + std::fmt::Display> Weibull<F> {
         F::one() - (-x_powshape).exp()
     }
 
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        if x <= self.loc {
+            return F::one();
+        }
+        let x_scaled = (x - self.loc) / self.scale;
+        (-x_scaled.powf(self.shape)).exp()
+    }
+
     /// Inverse of the cumulative distribution function (quantile function)
     ///
     /// # Arguments
@@ -244,13 +258,16 @@ impl<F: Float + NumCast + std::fmt::Display> Weibull<F> {
     ///
     /// let weibull = Weibull::new(2.0f64, 1.0, 0.0).expect("Operation failed");
     /// let mean = weibull.mean();
-    /// assert!((mean - 0.8794998845873004).abs() < 1e-7);
+    /// // Gamma(1.5) = sqrt(pi)/2
+    /// assert!((mean - 0.886_226_925_452_758).abs() < 1e-12);
     /// ```
     pub fn mean(&self) -> F {
         // Mean = scale * Gamma(1 + 1/shape) + loc
         let one = F::one();
         let gamma_arg = one + one / self.shape;
-        self.scale * gamma_function(gamma_arg) + self.loc
+        // exp(ln Gamma) rather than Gamma itself, so the product with `scale`
+        // is formed in log space and only overflows when the mean really does.
+        (ln_gamma_function(gamma_arg) + self.scale.ln()).exp() + self.loc
     }
 
     /// Calculate the variance of the distribution
@@ -266,22 +283,25 @@ impl<F: Float + NumCast + std::fmt::Display> Weibull<F> {
     ///
     /// let weibull = Weibull::new(2.0f64, 1.0, 0.0).expect("Operation failed");
     /// let var = weibull.var();
-    /// assert!((var - 0.2138408798844169).abs() < 1e-7);
+    /// // 1 - pi/4
+    /// assert!((var - 0.214_601_836_602_551_7).abs() < 1e-12);
     /// ```
     pub fn var(&self) -> F {
         let one = F::one();
         let two = F::from(2.0).expect("Failed to convert constant to float");
 
-        // Calculate Gamma(1 + 2/shape)
-        let gamma_arg_2 = one + two / self.shape;
-        let gamma_2 = gamma_function(gamma_arg_2);
-
-        // Calculate Gamma(1 + 1/shape)
-        let gamma_arg_1 = one + one / self.shape;
-        let gamma_1 = gamma_function(gamma_arg_1);
-
         // Variance = scale^2 * [Gamma(1 + 2/shape) - (Gamma(1 + 1/shape))^2]
-        self.scale * self.scale * (gamma_2 - gamma_1 * gamma_1)
+        //          = scale^2 * Gamma(1 + 2/shape) * (1 - exp(2 ln G1 - ln G2)),
+        // evaluated with log-gammas so small shapes (large gamma arguments)
+        // stay finite as long as the variance itself is representable.
+        let ln_gamma_2 = ln_gamma_function(one + two / self.shape);
+        let ln_gamma_1 = ln_gamma_function(one + one / self.shape);
+        let ratio_ln = two * ln_gamma_1 - ln_gamma_2;
+        let ln_scale_sq_gamma_2 = two * self.scale.ln() + ln_gamma_2;
+
+        // 1 - exp(r) = -expm1(r); `exp_m1` keeps precision for large shapes,
+        // where the two gamma terms nearly cancel.
+        -ratio_ln.exp_m1() * ln_scale_sq_gamma_2.exp()
     }
 
     /// Calculate the median of the distribution
@@ -336,10 +356,14 @@ impl<F: Float + NumCast + std::fmt::Display> Weibull<F> {
     }
 }
 
-/// Gamma function approximation for positive real arguments
+/// Gamma function for positive real arguments.
 ///
-/// This function provides an approximation of the gamma function for
-/// positive real arguments using the Lanczos approximation.
+/// Delegates to `statrs::function::gamma::gamma`. The previous in-file
+/// Lanczos implementation started its series accumulator at 0 instead of the
+/// leading coefficient `0.99999999999980993`, so every value was off by up to
+/// ~2.5% (`gamma_function(1.0)` returned 0.9962, `gamma_function(1.5)`
+/// 0.8795 instead of sqrt(pi)/2 = 0.8862), and with it the Weibull mean and
+/// variance.
 ///
 /// # Arguments
 ///
@@ -347,41 +371,20 @@ impl<F: Float + NumCast + std::fmt::Display> Weibull<F> {
 ///
 /// # Returns
 ///
-/// * The value of the gamma function at x
+/// * The value of the gamma function at x (`NaN` if `x` cannot be converted)
 #[allow(dead_code)]
 fn gamma_function<F: Float + NumCast>(x: F) -> F {
-    // Lanczos approximation coefficients
-    let p = [
-        F::from(676.520_368_121_885_1).expect("Failed to convert to float"),
-        F::from(-1_259.139_216_722_402_8).expect("Failed to convert to float"),
-        F::from(771.323_428_777_653_1).expect("Failed to convert to float"),
-        F::from(-176.615_029_162_140_6).expect("Failed to convert to float"),
-        F::from(12.507_343_278_686_905).expect("Failed to convert to float"),
-        F::from(-0.138_571_095_265_720_12).expect("Failed to convert to float"),
-        F::from(9.984_369_578_019_572e-6).expect("Failed to convert to float"),
-        F::from(1.505_632_735_149_311_6e-7).expect("Failed to convert to float"),
-    ];
+    match <f64 as NumCast>::from(x) {
+        Some(value) => F::from(gamma(value)).unwrap_or_else(F::nan),
+        None => F::nan(),
+    }
+}
 
-    if x < F::from(0.5).expect("Failed to convert constant to float") {
-        // Reflection formula: Gamma(x) = pi / (sin(pi*x) * Gamma(1-x))
-        let pi = F::from(std::f64::consts::PI).expect("Failed to convert to float");
-        let sin_pi_x = (pi * x).sin();
-        pi / (sin_pi_x * gamma_function(F::one() - x))
-    } else {
-        let one = F::one();
-        let half = F::from(0.5).expect("Failed to convert constant to float");
-        let z = x - one;
-        let y = z + F::from(7.5).expect("Failed to convert constant to float"); // g+0.5, where g=7
-
-        // Accumulate the sum
-        let mut sum = F::zero();
-        for (i, &coef) in p.iter().enumerate() {
-            sum = sum + coef / (z + F::from(i as f64 + 1.0).expect("Failed to convert to float"));
-        }
-
-        // Calculate the result
-        let sqrt_2pi = F::from(2.506_628_274_631_001).expect("Failed to convert to float"); // sqrt(2*pi)
-        sqrt_2pi * sum * y.powf(z + half) * (-y).exp()
+/// Natural logarithm of the gamma function, via `statrs`.
+fn ln_gamma_function<F: Float + NumCast>(x: F) -> F {
+    match <f64 as NumCast>::from(x) {
+        Some(value) => F::from(ln_gamma(value)).unwrap_or_else(F::nan),
+        None => F::nan(),
     }
 }
 
@@ -553,11 +556,11 @@ mod tests {
 
         // Mean should be Gamma(1 + 1/1) = Gamma(2) = 1.0
         let mean1 = weibull1.mean();
-        assert_relative_eq!(mean1, 0.9873609268734918, epsilon = 1e-7);
+        assert_relative_eq!(mean1, 1.0, epsilon = 1e-12);
 
         // Variance should be Gamma(1 + 2/1) - Gamma(1 + 1/1)^2 = Gamma(3) - Gamma(2)^2 = 2 - 1^2 = 1.0
         let var1 = weibull1.var();
-        assert_relative_eq!(var1, 1.0, epsilon = 1e-1);
+        assert_relative_eq!(var1, 1.0, epsilon = 1e-12);
 
         // Median should be ln(2)^(1/1) = ln(2) = 0.6931472
         let median1 = weibull1.median();
@@ -572,11 +575,11 @@ mod tests {
 
         // Mean should be Gamma(1 + 1/2) * 1.0 = Gamma(1.5) * 1.0 = sqrt(π)/2 = 0.8862269
         let mean2 = weibull2.mean();
-        assert_relative_eq!(mean2, 0.8794998845873004, epsilon = 1e-7);
+        assert_relative_eq!(mean2, 0.886_226_925_452_758, epsilon = 1e-12);
 
-        // Variance is more complex, using the formula from the implementation
+        // Variance = Gamma(2) - Gamma(1.5)^2 = 1 - pi/4
         let var2 = weibull2.var();
-        assert_relative_eq!(var2, 0.2138408798844169, epsilon = 1e-7);
+        assert_relative_eq!(var2, 0.214_601_836_602_551_7, epsilon = 1e-12);
 
         // Median should be ln(2)^(1/2) = sqrt(ln(2)) = 0.8325546
         let median2 = weibull2.median();
@@ -638,24 +641,60 @@ mod tests {
         // Test values for the gamma function
 
         // Gamma(1) = 0! = 1
-        assert_relative_eq!(gamma_function(1.0), 0.9962032504372738, epsilon = 1e-7);
+        assert_relative_eq!(gamma_function(1.0), 1.0, epsilon = 1e-12);
 
         // Gamma(2) = 1! = 1
-        assert_relative_eq!(gamma_function(2.0), 0.9873609268734918, epsilon = 1e-7);
+        assert_relative_eq!(gamma_function(2.0), 1.0, epsilon = 1e-12);
 
         // Gamma(3) = 2! = 2
-        assert_relative_eq!(gamma_function(3.0), 1.9478083088575522, epsilon = 1e-7);
+        assert_relative_eq!(gamma_function(3.0), 2.0, epsilon = 1e-12);
 
         // Gamma(4) = 3! = 6
-        assert_relative_eq!(gamma_function(4.0), 5.741083086675296, epsilon = 1e-7);
+        assert_relative_eq!(gamma_function(4.0), 6.0, epsilon = 1e-11);
 
         // Gamma(5) = 4! = 24
-        assert_relative_eq!(gamma_function(5.0), 22.49393514574339, epsilon = 1e-7);
+        assert_relative_eq!(gamma_function(5.0), 24.0, epsilon = 1e-10);
 
         // Gamma(1.5) = sqrt(π)/2 = 0.8862269
-        assert_relative_eq!(gamma_function(1.5), 0.8794998845873004, epsilon = 1e-7);
+        assert_relative_eq!(gamma_function(1.5), 0.886_226_925_452_758, epsilon = 1e-12);
 
         // Gamma(0.5) = sqrt(π) = 1.7724538
-        assert_relative_eq!(gamma_function(0.5), 1.770168101787532, epsilon = 1e-7);
+        assert_relative_eq!(gamma_function(0.5), 1.772_453_850_905_516, epsilon = 1e-12);
+    }
+
+    /// Regression test: the in-file Lanczos gamma dropped its leading
+    /// coefficient, so the Weibull mean/variance were ~0.4-2.5% off (and the
+    /// old tests enshrined the wrong values). References: mpmath at 40 digits,
+    /// mean = scale*Gamma(1+1/k), var = scale^2*(Gamma(1+2/k) - Gamma(1+1/k)^2).
+    #[test]
+    fn test_weibull_mean_var_match_reference_values() {
+        let cases: &[(f64, f64, f64, f64)] = &[
+            (0.5, 1.0, 2.0, 20.0),
+            (1.0, 1.0, 1.0, 1.0),
+            (2.0, 1.0, 0.886_226_925_452_758, 0.214_601_836_602_551_7),
+            (3.0, 2.5, 2.232_448_778_923_123, 0.658_330_530_427_992),
+            (10.0, 3.0, 2.854_052_309_600_619_6, 0.117_904_095_661_214_78),
+            (
+                0.02,
+                1.0,
+                3.041_409_320_171_325_4e64,
+                9.332_621_544_394_325_7e157,
+            ),
+        ];
+        for &(shape, scale, mean, var) in cases {
+            let w = Weibull::new(shape, scale, 0.0).expect("Operation failed");
+            let got_mean = w.mean();
+            let got_var = w.var();
+            let rel_mean = ((got_mean - mean) / mean).abs();
+            let rel_var = ((got_var - var) / var).abs();
+            assert!(
+                rel_mean < 1e-10,
+                "mean for shape {shape}: got {got_mean:e}, want {mean:e}"
+            );
+            assert!(
+                rel_var < 1e-9,
+                "var for shape {shape}: got {got_var:e}, want {var:e}"
+            );
+        }
     }
 }

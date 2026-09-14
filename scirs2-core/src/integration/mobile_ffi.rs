@@ -12,8 +12,10 @@
 //! - Buffer sizes are correct
 //! - Memory is not freed while in use
 
+use std::alloc::{alloc, dealloc, Layout};
 use std::ffi::CStr;
-use std::os::raw::{c_char, c_float, c_int, c_void};
+use std::os::raw::{c_char, c_float, c_int};
+use std::ptr::NonNull;
 use std::slice;
 
 /// C-compatible error code
@@ -46,6 +48,11 @@ pub struct SciFfiMatrix {
 }
 
 /// Initialize SciRS2 library (must be called first)
+///
+/// # Safety
+///
+/// No preconditions; the function is `unsafe` only for symmetry with the
+/// rest of the C ABI.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_init() -> SciFfiError {
     // Initialize logging, thread pools, etc.
@@ -53,9 +60,55 @@ pub unsafe extern "C" fn scirs2_init() -> SciFfiError {
 }
 
 /// Shutdown SciRS2 library (cleanup resources)
+///
+/// # Safety
+///
+/// No preconditions; the function is `unsafe` only for symmetry with the
+/// rest of the C ABI.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_shutdown() -> SciFfiError {
     SciFfiError::Success
+}
+
+// ============================================================================
+// Buffer management
+// ============================================================================
+
+/// Layout of an `f32` buffer with `len` elements, or `None` on overflow.
+fn float_buffer_layout(len: usize) -> Option<Layout> {
+    Layout::array::<c_float>(len).ok()
+}
+
+/// Allocate an uninitialised `f32` buffer of `len` elements from Rust's
+/// global allocator.
+///
+/// Buffers created here are only ever released by [`free_float_buffer`] with
+/// the same length (the create/destroy pairs below), so the global allocator
+/// is the right owner. This keeps the module free of the C allocator (the
+/// previous `malloc`/`free` calls needed a `libc` crate that scirs2-core does
+/// not declare for mobile targets, so the module failed to build). A zero
+/// length yields a dangling, well-aligned pointer that is never dereferenced
+/// or freed. Returns null if the size overflows or the allocation fails.
+unsafe fn alloc_float_buffer(len: usize) -> *mut c_float {
+    let Some(layout) = float_buffer_layout(len) else {
+        return std::ptr::null_mut();
+    };
+    if layout.size() == 0 {
+        return NonNull::<c_float>::dangling().as_ptr();
+    }
+    alloc(layout) as *mut c_float
+}
+
+/// Release a buffer obtained from [`alloc_float_buffer`] with the same `len`.
+unsafe fn free_float_buffer(data: *mut c_float, len: usize) {
+    if data.is_null() {
+        return;
+    }
+    if let Some(layout) = float_buffer_layout(len) {
+        if layout.size() != 0 {
+            dealloc(data as *mut u8, layout);
+        }
+    }
 }
 
 // ============================================================================
@@ -63,9 +116,14 @@ pub unsafe extern "C" fn scirs2_shutdown() -> SciFfiError {
 // ============================================================================
 
 /// Create a new vector with specified capacity
+///
+/// # Safety
+///
+/// The returned pointer (null on allocation failure) must be released exactly
+/// once with the matching `*_destroy` function; the buffer is uninitialised.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_vector_create(capacity: usize) -> *mut SciFfiVector {
-    let data = libc::malloc(capacity * std::mem::size_of::<c_float>()) as *mut c_float;
+    let data = alloc_float_buffer(capacity);
     if data.is_null() {
         return std::ptr::null_mut();
     }
@@ -80,17 +138,27 @@ pub unsafe extern "C" fn scirs2_vector_create(capacity: usize) -> *mut SciFfiVec
 }
 
 /// Destroy a vector and free its memory
+///
+/// # Safety
+///
+/// `vec` must be null or a pointer returned by [`scirs2_vector_create`] that
+/// has not been destroyed yet; it is invalid after this call.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_vector_destroy(vec: *mut SciFfiVector) {
     if !vec.is_null() {
         let vec = Box::from_raw(vec);
-        if !vec.data.is_null() {
-            libc::free(vec.data as *mut c_void);
-        }
+        free_float_buffer(vec.data, vec.capacity);
     }
 }
 
 /// Vector dot product: result = a · b
+///
+/// # Safety
+///
+/// Every pointer argument must be null (reported as
+/// [`SciFfiError::NullPointer`]) or valid, properly aligned and live for the
+/// element counts implied by the other arguments; output buffers must be
+/// writable and must not overlap the inputs.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_vector_dot(
     a: *const c_float,
@@ -112,6 +180,13 @@ pub unsafe extern "C" fn scirs2_vector_dot(
 }
 
 /// Vector addition: out = a + b
+///
+/// # Safety
+///
+/// Every pointer argument must be null (reported as
+/// [`SciFfiError::NullPointer`]) or valid, properly aligned and live for the
+/// element counts implied by the other arguments; output buffers must be
+/// writable and must not overlap the inputs.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_vector_add(
     a: *const c_float,
@@ -133,6 +208,13 @@ pub unsafe extern "C" fn scirs2_vector_add(
 }
 
 /// Vector multiplication: out = a * b (element-wise)
+///
+/// # Safety
+///
+/// Every pointer argument must be null (reported as
+/// [`SciFfiError::NullPointer`]) or valid, properly aligned and live for the
+/// element counts implied by the other arguments; output buffers must be
+/// writable and must not overlap the inputs.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_vector_mul(
     a: *const c_float,
@@ -158,10 +240,17 @@ pub unsafe extern "C" fn scirs2_vector_mul(
 // ============================================================================
 
 /// Create a new matrix with specified dimensions
+///
+/// # Safety
+///
+/// The returned pointer (null on allocation failure) must be released exactly
+/// once with the matching `*_destroy` function; the buffer is uninitialised.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_matrix_create(rows: usize, cols: usize) -> *mut SciFfiMatrix {
-    let size = rows * cols;
-    let data = libc::malloc(size * std::mem::size_of::<c_float>()) as *mut c_float;
+    let Some(size) = rows.checked_mul(cols) else {
+        return std::ptr::null_mut();
+    };
+    let data = alloc_float_buffer(size);
     if data.is_null() {
         return std::ptr::null_mut();
     }
@@ -177,17 +266,27 @@ pub unsafe extern "C" fn scirs2_matrix_create(rows: usize, cols: usize) -> *mut 
 }
 
 /// Destroy a matrix and free its memory
+///
+/// # Safety
+///
+/// `mat` must be null or a pointer returned by [`scirs2_matrix_create`] that
+/// has not been destroyed yet; it is invalid after this call.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_matrix_destroy(mat: *mut SciFfiMatrix) {
     if !mat.is_null() {
         let mat = Box::from_raw(mat);
-        if !mat.data.is_null() {
-            libc::free(mat.data as *mut c_void);
-        }
+        free_float_buffer(mat.data, mat.rows * mat.stride);
     }
 }
 
 /// Matrix-vector multiplication: y = A * x
+///
+/// # Safety
+///
+/// Every pointer argument must be null (reported as
+/// [`SciFfiError::NullPointer`]) or valid, properly aligned and live for the
+/// element counts implied by the other arguments; output buffers must be
+/// writable and must not overlap the inputs.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_matrix_vector_mul(
     a_data: *const c_float,
@@ -210,6 +309,13 @@ pub unsafe extern "C" fn scirs2_matrix_vector_mul(
 }
 
 /// Matrix-matrix multiplication: C = A * B
+///
+/// # Safety
+///
+/// Every pointer argument must be null (reported as
+/// [`SciFfiError::NullPointer`]) or valid, properly aligned and live for the
+/// element counts implied by the other arguments; output buffers must be
+/// writable and must not overlap the inputs.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_matrix_mul(
     a_data: *const c_float,
@@ -242,6 +348,13 @@ pub unsafe extern "C" fn scirs2_matrix_mul(
 // ============================================================================
 
 /// ReLU activation: out = max(0, x)
+///
+/// # Safety
+///
+/// Every pointer argument must be null (reported as
+/// [`SciFfiError::NullPointer`]) or valid, properly aligned and live for the
+/// element counts implied by the other arguments; output buffers must be
+/// writable and must not overlap the inputs.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_relu(
     x: *const c_float,
@@ -261,6 +374,13 @@ pub unsafe extern "C" fn scirs2_relu(
 }
 
 /// Sigmoid activation
+///
+/// # Safety
+///
+/// Every pointer argument must be null (reported as
+/// [`SciFfiError::NullPointer`]) or valid, properly aligned and live for the
+/// element counts implied by the other arguments; output buffers must be
+/// writable and must not overlap the inputs.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_sigmoid(
     x: *const c_float,
@@ -300,13 +420,18 @@ pub enum SciThermalState {
     Critical = 3,
 }
 
-/// Global mobile optimizer (thread-local)
+// Global mobile optimizer (thread-local)
 thread_local! {
     static MOBILE_OPTIMIZER: std::cell::RefCell<crate::simd::neon::MobileOptimizer> =
         std::cell::RefCell::new(crate::simd::neon::MobileOptimizer::new());
 }
 
 /// Configure battery optimization mode
+///
+/// # Safety
+///
+/// No preconditions; the function is `unsafe` only for symmetry with the
+/// rest of the C ABI.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_set_battery_mode(mode: SciBatteryMode) -> SciFfiError {
     let battery_mode = match mode {
@@ -323,6 +448,11 @@ pub unsafe extern "C" fn scirs2_set_battery_mode(mode: SciBatteryMode) -> SciFfi
 }
 
 /// Update thermal state
+///
+/// # Safety
+///
+/// No preconditions; the function is `unsafe` only for symmetry with the
+/// rest of the C ABI.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_set_thermal_state(state: SciThermalState) -> SciFfiError {
     let thermal_state = match state {
@@ -340,6 +470,13 @@ pub unsafe extern "C" fn scirs2_set_thermal_state(state: SciThermalState) -> Sci
 }
 
 /// Battery-optimized dot product
+///
+/// # Safety
+///
+/// Every pointer argument must be null (reported as
+/// [`SciFfiError::NullPointer`]) or valid, properly aligned and live for the
+/// element counts implied by the other arguments; output buffers must be
+/// writable and must not overlap the inputs.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_vector_dot_battery_optimized(
     a: *const c_float,
@@ -367,12 +504,22 @@ pub unsafe extern "C" fn scirs2_vector_dot_battery_optimized(
 // ============================================================================
 
 /// Get SciRS2 version string
+///
+/// # Safety
+///
+/// No preconditions. The returned pointer refers to a static, NUL-terminated
+/// string and must not be freed or written through.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_version() -> *const c_char {
-    "0.2.0-mobile\0".as_ptr() as *const c_char
+    c"0.2.0-mobile".as_ptr()
 }
 
 /// Check if NEON is available
+///
+/// # Safety
+///
+/// No preconditions; the function is `unsafe` only for symmetry with the
+/// rest of the C ABI.
 #[no_mangle]
 pub unsafe extern "C" fn scirs2_has_neon() -> c_int {
     if crate::simd::neon::is_neon_available() {

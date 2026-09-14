@@ -35,6 +35,8 @@ oxicuda-ptx = { workspace = true, optional = true }
 
 # Statistics specific dependencies
 statrs = { workspace = true }
+# Pure-Rust (musl-derived) erfc with ~1 ulp accuracy; statrs 0.18's erf/erfc are only ~1e-11
+libm = { workspace = true }
 num_cpus = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -119,6 +119,16 @@ impl<F: Float + NumCast + std::fmt::Display> Logistic<F> {
         F::one() / (F::one() + (-z).exp())
     }
 
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let z = (x - self.loc) / self.scale;
+        F::one() / (F::one() + z.exp())
+    }
+
     /// Inverse of the cumulative distribution function (quantile function)
     ///
     /// # Arguments

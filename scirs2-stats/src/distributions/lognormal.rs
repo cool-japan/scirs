@@ -136,6 +136,18 @@ impl<F: Float + NumCast + std::fmt::Display> Lognormal<F> {
         self.norm.cdf(ln_x)
     }
 
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        if x <= self.loc {
+            return F::one();
+        }
+        self.norm.sf((x - self.loc).ln())
+    }
+
     /// Inverse of the cumulative distribution function (quantile function)
     ///
     /// # Arguments

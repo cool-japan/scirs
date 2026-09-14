@@ -8,6 +8,7 @@ pub mod multinomial;
 pub mod multivariate_lognormal;
 pub mod normal;
 pub mod student_t;
+pub mod von_mises_fisher;
 pub mod wishart;
 
 pub use dirichlet::Dirichlet;
@@ -16,6 +17,7 @@ pub use multinomial::Multinomial;
 pub use multivariate_lognormal::MultivariateLognormal;
 pub use normal::MultivariateNormal;
 pub use student_t::MultivariateT;
+pub use von_mises_fisher::VonMisesFisher;
 pub use wishart::Wishart;
 
 // Re-export convenience functions

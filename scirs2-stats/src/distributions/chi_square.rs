@@ -9,6 +9,8 @@ use scirs2_core::ndarray::Array1;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::{ChiSquared as RandChiSquared, Distribution};
+use statrs::function::gamma::gamma_ur;
+use statrs::function::gamma::{digamma, ln_gamma};
 use std::f64::consts::PI;
 
 /// Helper to convert f64 constants to generic Float type
@@ -110,23 +112,30 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ChiSquare<F
 
         // Calculate PDF using the formula:
         // PDF = (1 / (2^(k/2) * Gamma(k/2))) * x^(k/2 - 1) * exp(-x/2)
-        // where k is the degrees of freedom
-
+        // where k is the degrees of freedom, evaluated in log space:
+        // ln PDF = (k/2 - 1)*ln(x) - x/2 - (k/2)*ln(2) - ln Gamma(k/2) - ln(scale)
+        //
+        // Every factor of the direct form overflows on ordinary inputs: the
+        // Lanczos `gamma_function(k/2)` becomes `inf` for k >= 284 (making the
+        // normalization 0, so the density silently vanished for every x),
+        // `2^(k/2)` overflows for k >= 2048, and `x^(k/2 - 1)` overflows long
+        // before that, leaving `inf * 0 = NaN`. Same defect class as
+        // cool-japan/scirs#131.
         let half = const_f64::<F>(0.5);
         let one = F::one();
         let two = const_f64::<F>(2.0);
 
         let df_half = self.df * half;
-        let pow_term = x_std.powf(df_half - one);
-        let exp_term = (-x_std * half).exp();
 
-        // Calculate the normalization factor
-        let gamma_df_half = gamma_function(df_half);
-        let power_of_two = two.powf(df_half);
-        let normalization = one / (power_of_two * gamma_df_half);
+        // `x_std > 0` here, so `ln` is finite; for k = 2 the first term is
+        // exactly `0 * ln(x) = 0`, reproducing the exponential density.
+        let ln_pdf = (df_half - one) * x_std.ln()
+            - x_std * half
+            - df_half * two.ln()
+            - ln_gamma_chi(df_half)
+            - self.scale.ln();
 
-        // Return the PDF value, scaled appropriately
-        normalization * pow_term * exp_term / self.scale
+        ln_pdf.exp()
     }
 
     /// Calculate the cumulative distribution function (CDF) at a given point
@@ -174,6 +183,31 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ChiSquare<F
         // For general case, use the regularized lower incomplete gamma function
         // CDF(x; k) = P(k/2, x/2) where P is the regularized lower incomplete gamma
         lower_incomplete_gamma(df_half, x_std * half)
+    }
+
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let (Some(x_std), Some(df)) = (
+            <f64 as NumCast>::from((x - self.loc) / self.scale),
+            <f64 as NumCast>::from(self.df),
+        ) else {
+            return F::nan();
+        };
+        if x_std.is_nan() || df.is_nan() {
+            return F::nan();
+        }
+        if x_std <= 0.0 {
+            return F::one();
+        }
+        if x_std.is_infinite() || df <= 0.0 {
+            return F::zero();
+        }
+        // P(X > x) = Q(df/2, x/2), the regularized upper incomplete gamma.
+        F::from(gamma_ur(df / 2.0, x_std / 2.0).clamp(0.0, 1.0)).unwrap_or_else(F::nan)
     }
 
     /// Generate random samples from the distribution as an Array1
@@ -457,6 +491,11 @@ fn ln_gamma_chi<F: Float>(x: F) -> F {
 }
 
 /// Approximation of the gamma function for floating point types
+///
+/// Only usable for small arguments: the recurrence below reaches the f64
+/// overflow threshold at x ~ 171 (and this Lanczos form already returns `inf`
+/// above ~142). Anything that may see a large `df/2` must use
+/// [`ln_gamma_chi`] and stay in log space -- see the note on `pdf`.
 #[inline]
 #[allow(dead_code)]
 fn gamma_function<F: Float>(x: F) -> F {
@@ -523,32 +562,35 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ScirsDist<F
     fn entropy(&self) -> F {
         // Entropy of chi-square distribution with df = k
         // is k/2 + ln(2*Gamma(k/2)) + (1-k/2)*digamma(k/2)
-        let half = const_f64::<F>(0.5);
-        let one = F::one();
-        let two = const_f64::<F>(2.0);
-
-        let k_half = self.df * half;
-
-        // Special case for known values
-        if self.df == two {
-            // For 2 degrees of freedom, entropy is 1 + gamma
-            let gamma = const_f64::<F>(0.5772156649015329); // Euler-Mascheroni constant
-            return one + gamma + self.scale.ln();
-        }
-
-        // Approximate the digamma function using lgamma's derivative
-        let digamma_k_half = if k_half > one {
-            // For x > 1, digamma(x) ≈ ln(x) - 1/(2x)
-            k_half.ln() - one / (two * k_half)
-        } else {
-            // Simple approximation
-            k_half.ln() - half / k_half
+        //
+        // Evaluated through log-gamma and a real digamma. The previous version
+        // formed `ln(2 * gamma_function(k/2))` from the Lanczos *gamma*
+        // approximation, which overflows to `inf` for k >= 284 and made the
+        // entropy `+inf` (same defect class as cool-japan/scirs#131); it also
+        // replaced the digamma by `ln(x) - 1/(2x)` (off by ~1/(12x^2)) and
+        // special-cased k = 2 to `1 + euler_gamma`, which is not this
+        // distribution's entropy (that is `1 + ln(2)`).
+        let df_f64: f64 = match NumCast::from(self.df) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        let scale_f64: f64 = match NumCast::from(self.scale) {
+            Some(value) => value,
+            None => return F::nan(),
         };
 
-        // The main formula
-        let gamma_k_half = gamma_function(k_half);
+        if df_f64.is_nan() || df_f64 <= 0.0 {
+            return F::nan();
+        }
 
-        (k_half) + (two * gamma_k_half).ln() + (one - k_half) * digamma_k_half + self.scale.ln()
+        let k_half = df_f64 / 2.0;
+        let entropy = k_half
+            + std::f64::consts::LN_2
+            + ln_gamma(k_half)
+            + (1.0 - k_half) * digamma(k_half)
+            + scale_f64.ln();
+
+        F::from(entropy).unwrap_or_else(F::nan)
     }
 }
 
@@ -628,7 +670,10 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ContinuousD
 impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ContinuousCDF<F>
     for ChiSquare<F>
 {
-    // Default implementations from trait are sufficient
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        ChiSquare::sf(self, x)
+    }
 }
 
 /// Implementation of SampleableDistribution for ChiSquare
@@ -819,5 +864,98 @@ mod tests {
         assert_relative_eq!(gamma_function(1.0), 1.0, epsilon = 1e-10);
         assert_relative_eq!(gamma_function(0.5), 1.772453850905516, epsilon = 1e-6);
         assert_relative_eq!(gamma_function(5.0), 24.0, epsilon = 1e-10);
+    }
+
+    /// Regression test for the numerical-stability defect class of
+    /// cool-japan/scirs#131. The density used to be assembled as
+    /// `x^(k/2-1) * exp(-x/2) / (2^(k/2) * gamma_function(k/2))`, and the
+    /// Lanczos `gamma_function` overflows to `inf` for k >= 284: the
+    /// normalization collapsed to 0 and the density silently returned 0 for
+    /// *every* x. Reference values computed independently with mpmath at 50
+    /// digits, NOT derived from this crate.
+    #[test]
+    fn test_chi_square_pdf_matches_reference_values_including_large_df() {
+        let cases: &[(f64, f64, f64)] = &[
+            (1.0, 1.0, 0.24197072451914335),
+            (2.0, 2.0, 0.18393972058572116),
+            (5.0, 3.0, 0.073224912809632436),
+            (283.0, 283.0, 0.016758922106072065),
+            (300.0, 300.0, 0.016277704728418276),
+            (280.0, 300.0, 0.012303189182262703),
+            (1000.0, 1000.0, 0.0089191339347558895),
+            (2500.0, 2500.0, 0.0056415197216338222),
+            (10.0, 300.0, 1.2394416585465248e-159),
+        ];
+
+        for &(x, df, expected) in cases {
+            let dist = ChiSquare::new(df, 0.0, 1.0).expect("test/example should not fail");
+            let pdf = dist.pdf(x);
+            assert!(pdf.is_finite(), "pdf({x}) for df = {df} is {pdf}");
+            assert!(pdf > 0.0, "pdf({x}) for df = {df} vanished: {pdf}");
+            let relative = ((pdf - expected) / expected).abs();
+            assert!(
+                relative < 1e-10,
+                "pdf({x}) for df = {df}: got {pdf:e}, want {expected:e} (relative {relative:e})"
+            );
+        }
+
+        // Outside the support and with a location/scale shift.
+        let shifted = ChiSquare::new(300.0, 5.0, 2.0).expect("test/example should not fail");
+        assert_eq!(shifted.pdf(5.0), 0.0);
+        let standard = ChiSquare::new(300.0, 0.0, 1.0).expect("test/example should not fail");
+        assert_relative_eq!(
+            shifted.pdf(5.0 + 2.0 * 300.0),
+            standard.pdf(300.0) / 2.0,
+            epsilon = 1e-14
+        );
+    }
+
+    /// `entropy` used to be `k/2 + ln(2*gamma_function(k/2)) + ...`, i.e.
+    /// `+inf` for k >= 284, used an approximate digamma everywhere else, and
+    /// special-cased k = 2 to `1 + euler_gamma` instead of `1 + ln(2)`.
+    /// References: `k/2 + ln(2*Gamma(k/2)) + (1-k/2)*psi(k/2)` in mpmath.
+    #[test]
+    fn test_chi_square_entropy_matches_reference_values() {
+        let cases: &[(f64, f64)] = &[
+            (1.0, 0.78375711047393366),
+            (2.0, 1.6931471805599453),
+            (3.0, 2.0541199559354118),
+            (5.0, 2.4230950900649997),
+            (10.0, 2.846730337180689),
+            (283.0, 4.5858756937658465),
+            (300.0, 4.6151774316111622),
+            (1000.0, 5.2187227628869585),
+        ];
+
+        for &(df, expected) in cases {
+            let dist = ChiSquare::new(df, 0.0, 1.0).expect("test/example should not fail");
+            let entropy = ScirsDist::entropy(&dist);
+            assert!(
+                entropy.is_finite(),
+                "entropy for df = {df} is not finite: {entropy}"
+            );
+            let relative = ((entropy - expected) / expected).abs();
+            assert!(
+                relative < 1e-12,
+                "entropy for df = {df}: got {entropy}, want {expected} (relative {relative:e})"
+            );
+        }
+
+        // chi-square with 2 df is Exp(mean 2), whose entropy is 1 + ln(2).
+        let chi2 = ChiSquare::new(2.0_f64, 0.0, 1.0).expect("test/example should not fail");
+        assert_relative_eq!(
+            ScirsDist::entropy(&chi2),
+            1.0 + std::f64::consts::LN_2,
+            epsilon = 1e-12
+        );
+
+        // Scaling shifts the entropy by ln(scale).
+        let scaled = ChiSquare::new(300.0, 0.0, 4.0).expect("test/example should not fail");
+        let standard = ChiSquare::new(300.0, 0.0, 1.0).expect("test/example should not fail");
+        assert_relative_eq!(
+            ScirsDist::entropy(&scaled),
+            ScirsDist::entropy(&standard) + 4.0_f64.ln(),
+            epsilon = 1e-12
+        );
     }
 }

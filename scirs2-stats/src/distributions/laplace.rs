@@ -4,7 +4,7 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use crate::traits::{ContinuousDistribution, Distribution as ScirsDist};
+use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution as ScirsDist};
 use scirs2_core::ndarray::Array1;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::{Distribution, Uniform as RandUniform};
@@ -126,6 +126,36 @@ impl<F: Float + NumCast + std::fmt::Display> Laplace<F> {
         } else {
             // CDF = 1 - (1/2) * exp(-(x-loc)/scale)
             F::one() - half * (-(x - self.loc) / self.scale).exp()
+        }
+    }
+
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let half = F::from(0.5).expect("Failed to convert constant to float");
+        if x < self.loc {
+            F::one() - half * ((x - self.loc) / self.scale).exp()
+        } else {
+            half * (-(x - self.loc) / self.scale).exp()
+        }
+    }
+
+    /// Inverse survival function: the `x` with `sf(x) = q`, in closed form.
+    pub fn isf(&self, q: F) -> StatsResult<F> {
+        if q < F::zero() || q > F::one() {
+            return Err(StatsError::DomainError(
+                "Probability must be between 0 and 1".to_string(),
+            ));
+        }
+        let half = F::from(0.5).expect("Failed to convert constant to float");
+        let two = F::from(2.0).expect("Failed to convert constant to float");
+        if q <= half {
+            Ok(self.loc - self.scale * (two * q).ln())
+        } else {
+            Ok(self.loc + self.scale * (two * (F::one() - q)).ln())
         }
     }
 
@@ -482,6 +512,20 @@ impl<F: Float + NumCast + std::fmt::Display> ContinuousDistribution<F> for Lapla
 
     fn ppf(&self, p: F) -> StatsResult<F> {
         self.ppf(p)
+    }
+}
+
+/// Tail-accurate survival functions for the `ContinuousCDF` helpers
+/// (`sf`, `isf`, `hazard`, `cumhazard`).
+impl<F: Float + NumCast + std::fmt::Display> ContinuousCDF<F> for Laplace<F> {
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        Laplace::sf(self, x)
+    }
+
+    /// Tail-accurate inverse survival function (see the inherent `isf`).
+    fn isf(&self, q: F) -> StatsResult<F> {
+        Laplace::isf(self, q)
     }
 }
 

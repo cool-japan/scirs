@@ -8,6 +8,8 @@ use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution as Scirs
 use scirs2_core::ndarray::Array1;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::{Distribution, Gamma as RandGamma};
+use statrs::function::gamma::gamma_ur;
+use statrs::function::gamma::{digamma, gamma_lr, ln_gamma};
 use std::fmt::Debug;
 
 /// Helper to convert f64 constants to generic Float type
@@ -114,20 +116,42 @@ impl<F: Float + NumCast + Debug + Send + Sync + 'static + std::fmt::Display> Gam
             return F::one() / self.scale; // rate = 1/scale
         }
 
-        // PDF = (1/(scale^shape * Gamma(shape))) * x^(shape-1) * exp(-x/scale)
-        let one = F::one();
+        // PDF = (1/(scale^shape * Gamma(shape))) * x^(shape-1) * exp(-x/scale),
+        // evaluated in log space:
+        // ln PDF = (shape-1)*ln(x) - x/scale - shape*ln(scale) - ln Gamma(shape)
+        //
+        // The direct form overflows for ordinary shape parameters: `gamma_fn`
+        // returns `inf` above ~171 (Lanczos evaluates `t.powf(z+0.5) *
+        // (-t).exp()` before combining the two, so it overflows sooner than
+        // the true Gamma function does), which zeroed the coefficient and
+        // made the density `0` for every x -- or `NaN` once `x^(shape-1)`
+        // overflowed too. Same defect class as cool-japan/scirs#131.
+        let x_f64: f64 = match NumCast::from(x_adj) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        let shape_f64: f64 = match NumCast::from(self.shape) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        let scale_f64: f64 = match NumCast::from(self.scale) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
 
-        // Calculate gamma function for the shape parameter
-        let gammashape = gamma_fn(self.shape);
+        if x_f64.is_nan() || shape_f64.is_nan() {
+            return F::nan();
+        }
+        if x_f64.is_infinite() {
+            return F::zero();
+        }
 
-        // Calculate the coefficient term
-        let coef = one / (self.scale.powf(self.shape) * gammashape);
+        let ln_pdf = (shape_f64 - 1.0) * x_f64.ln()
+            - x_f64 / scale_f64
+            - shape_f64 * scale_f64.ln()
+            - ln_gamma(shape_f64);
 
-        // Calculate the variable part of the formula
-        let x_term = x_adj.powf(self.shape - one);
-        let exp_term = (-x_adj / self.scale).exp();
-
-        coef * x_term * exp_term
+        F::from(ln_pdf.exp()).unwrap_or_else(F::nan)
     }
 
     /// Calculate the cumulative distribution function (CDF) at a given point
@@ -172,7 +196,51 @@ impl<F: Float + NumCast + Debug + Send + Sync + 'static + std::fmt::Display> Gam
 
         // CDF is the regularized lower incomplete gamma function
         // P(shape, x/scale) = γ(shape, x/scale) / Γ(shape)
-        lower_incomplete_gamma_regularized(self.shape, x_adj / self.scale)
+        //
+        // Delegated to `statrs::function::gamma::gamma_lr`, which evaluates
+        // the series/continued-fraction expansion together with a log-gamma
+        // prefactor. The previous hand-rolled version computed the same
+        // series but then divided by a direct `gamma_fn(shape)`, which
+        // overflows to `inf` above ~171 and turned the CDF into 0 for every
+        // x with `shape >= 172` (same defect class as cool-japan/scirs#131).
+        let shape_f64: f64 = match NumCast::from(self.shape) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        let arg_f64: f64 = match NumCast::from(x_adj / self.scale) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        if shape_f64.is_nan() || arg_f64.is_nan() {
+            return F::nan();
+        }
+        F::from(gamma_lr(shape_f64, arg_f64).clamp(0.0, 1.0)).unwrap_or_else(F::nan)
+    }
+
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let x_adj = x - self.loc;
+        let (Some(arg), Some(shape)) = (
+            <f64 as NumCast>::from(x_adj / self.scale),
+            <f64 as NumCast>::from(self.shape),
+        ) else {
+            return F::nan();
+        };
+        if arg.is_nan() || shape.is_nan() {
+            return F::nan();
+        }
+        if arg <= 0.0 {
+            return F::one();
+        }
+        if arg.is_infinite() || shape <= 0.0 {
+            return F::zero();
+        }
+        // P(X > x) = Q(shape, x/scale)
+        F::from(gamma_ur(shape, arg).clamp(0.0, 1.0)).unwrap_or_else(F::nan)
     }
 
     /// Inverse of the cumulative distribution function (quantile function)
@@ -386,61 +454,6 @@ fn gamma_fn<F: Float + NumCast>(x: F) -> F {
     sqrt_2pi * t.powf(z + half) * (-t).exp() * acc
 }
 
-// Implementation of the regularized lower incomplete gamma function
-#[allow(dead_code)]
-fn lower_incomplete_gamma_regularized<F: Float + NumCast>(s: F, x: F) -> F {
-    // For small x, use a series expansion
-    if x < s + F::one() {
-        let mut sum = F::zero();
-        let mut term = F::one() / s;
-        let mut n = F::one();
-
-        for _ in 0..100 {
-            sum = sum + term;
-            term = term * x / (s + n);
-            n = n + F::one();
-
-            if term < const_f64::<F>(1e-10) * sum {
-                break;
-            }
-        }
-
-        return sum * (-x).exp() * x.powf(s) / gamma_fn(s);
-    }
-
-    // For large x, use the continued fraction expansion
-    // (1 - regularized upper incomplete gamma)
-    F::one() - upper_incomplete_gamma_regularized(s, x)
-}
-
-// Implementation of the regularized upper incomplete gamma function
-#[allow(dead_code)]
-fn upper_incomplete_gamma_regularized<F: Float + NumCast>(s: F, x: F) -> F {
-    // Use a continued fraction representation
-    let mut a = F::one() - s;
-    let mut b = a + x + F::one();
-    let mut c = const_f64::<F>(1.0 / 1e-30);
-    let mut d = F::one() / b;
-    let mut h = d;
-
-    for i in 1..100 {
-        let i_f = const_f64::<F>(i as f64);
-        let _an = -i_f * (i_f - s);
-        a = a + const_f64::<F>(2.0);
-        b = b + const_f64::<F>(2.0);
-        d = F::one() / (a * d + b);
-        c = b + a / c;
-        let del = c * d;
-        h = h * del;
-
-        if (del - F::one()).abs() < const_f64::<F>(1e-10) {
-            break;
-        }
-    }
-
-    h * (-x).exp() * x.powf(s) / gamma_fn(s)
-}
-
 // Helper function to provide initial guess for gamma quantile
 #[allow(dead_code)]
 fn initial_gamma_quantile_guess<F: Float + NumCast>(p: F, shape: F, scale: F) -> F {
@@ -552,24 +565,30 @@ impl<F: Float + NumCast + Debug + Send + Sync + 'static + std::fmt::Display> Sci
     fn entropy(&self) -> F {
         // Entropy of Gamma distribution
         // = shape + ln(scale) + ln(Gamma(shape)) + (1-shape)*digamma(shape)
-        // We'll use a simplified approximation based on shape and scale
-        let shape = self.shape;
-        let scale = self.scale;
-
-        // Approximate ln(Gamma(shape)) using Stirling's approximation
-        let ln_gammashape = gamma_fn(shape).ln();
-
-        // Approximate digamma function
-        let digammashape = if shape > const_f64::<F>(8.0) {
-            // For large shape, digamma(x) ≈ ln(x) - 1/(2x)
-            shape.ln() - F::one() / (const_f64::<F>(2.0) * shape)
-        } else {
-            // For smaller values, use a simple approximation
-            // This is a very rough approximation
-            shape.ln() - F::one() / (shape * const_f64::<F>(2.0))
+        //
+        // `ln(Gamma(shape))` and `digamma(shape)` are now the real functions
+        // from statrs rather than `gamma_fn(shape).ln()` (`inf` above shape
+        // ~171, same defect class as cool-japan/scirs#131) and a `ln(x) -
+        // 1/(2x)` stand-in for digamma that was never more than a rough
+        // approximation even for the smaller shapes it claimed to handle.
+        let shape_f64: f64 = match NumCast::from(self.shape) {
+            Some(value) => value,
+            None => return F::nan(),
         };
+        let scale_f64: f64 = match NumCast::from(self.scale) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        if shape_f64.is_nan() {
+            return F::nan();
+        }
 
-        shape + scale.ln() + ln_gammashape + (F::one() - shape) * digammashape
+        let entropy = shape_f64
+            + scale_f64.ln()
+            + ln_gamma(shape_f64)
+            + (1.0 - shape_f64) * digamma(shape_f64);
+
+        F::from(entropy).unwrap_or_else(F::nan)
     }
 }
 
@@ -596,7 +615,10 @@ impl<F: Float + NumCast + Debug + Send + Sync + 'static + std::fmt::Display>
 impl<F: Float + NumCast + Debug + Send + Sync + 'static + std::fmt::Display> ContinuousCDF<F>
     for Gamma<F>
 {
-    // Default implementations from trait are sufficient
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        Gamma::sf(self, x)
+    }
 }
 
 /// Implementation of SampleableDistribution for Gamma
@@ -804,5 +826,94 @@ mod tests {
 
         // Cumulative hazard function
         assert!(gamma.cumhazard(1.0) > 0.0);
+    }
+
+    /// Regression test for the numerical-stability defect class of
+    /// cool-japan/scirs#131. `pdf`/`cdf` used to divide by (or take the log
+    /// of) a direct `gamma_fn(shape)`, which overflows to `inf` above ~171:
+    /// the density silently became 0 for every x with `shape >= 172` and the
+    /// CDF likewise via `lower_incomplete_gamma_regularized`. Reference
+    /// values computed independently with mpmath at 50 digits, NOT derived
+    /// from this crate.
+    #[test]
+    fn test_gamma_pdf_matches_reference_values_including_large_shape() {
+        let cases: &[(f64, f64, f64, f64)] = &[
+            (1.0, 2.0, 1.0, 0.36787944117144232),
+            (5.0, 3.0, 2.0, 0.12825781034984187),
+            (180.0, 200.0, 1.0, 0.010724156141534887),
+            (200.0, 200.0, 1.0, 0.028197727685920822),
+            (300.0, 300.0, 1.0, 0.023026546149187352),
+            (1000.0, 1000.0, 1.0, 0.0126146113487215),
+            (0.5, 0.5, 1.0, 0.4839414490382867),
+        ];
+
+        for &(x, shape, scale, expected) in cases {
+            let dist = Gamma::new(shape, scale, 0.0).expect("test/example should not fail");
+            let pdf = dist.pdf(x);
+            assert!(
+                pdf.is_finite() && pdf > 0.0,
+                "pdf({x}) for shape = {shape} is {pdf}"
+            );
+            let relative = ((pdf - expected) / expected).abs();
+            assert!(
+                relative < 1e-9,
+                "pdf({x}) for shape = {shape}: got {pdf:e}, want {expected:e} (relative {relative:e})"
+            );
+        }
+    }
+
+    #[test]
+    fn test_gamma_cdf_matches_reference_values_including_large_shape() {
+        let cases: &[(f64, f64, f64, f64)] = &[
+            (1.0, 2.0, 1.0, 0.26424111765711536),
+            (5.0, 3.0, 2.0, 0.45618688411667048),
+            (180.0, 200.0, 1.0, 0.074858034984159582),
+            (200.0, 200.0, 1.0, 0.50940341800723633),
+            (300.0, 300.0, 1.0, 0.5076777888862635),
+            (1000.0, 1000.0, 1.0, 0.50420524418021551),
+        ];
+
+        for &(x, shape, scale, expected) in cases {
+            let dist = Gamma::new(shape, scale, 0.0).expect("test/example should not fail");
+            let cdf = dist.cdf(x);
+            assert!(
+                cdf.is_finite() && (0.0..=1.0).contains(&cdf),
+                "cdf({x}) for shape = {shape} is {cdf}"
+            );
+            let relative = ((cdf - expected) / expected).abs();
+            assert!(
+                relative < 1e-9,
+                "cdf({x}) for shape = {shape}: got {cdf:e}, want {expected:e} (relative {relative:e})"
+            );
+        }
+    }
+
+    /// `entropy` used `gamma_fn(shape).ln()` (`inf` above shape ~171) and a
+    /// crude `ln(x) - 1/(2x)` digamma stand-in. References:
+    /// `shape + ln(scale) + ln Gamma(shape) + (1-shape)*psi(shape)` in mpmath.
+    #[test]
+    fn test_gamma_entropy_matches_reference_values_including_large_shape() {
+        let cases: &[(f64, f64, f64)] = &[
+            (2.0, 1.0, 1.5772156649015329),
+            (3.0, 2.0, 2.5407256909229563),
+            (200.0, 1.0, 4.0664284650950253),
+            (300.0, 1.0, 4.2697177330852444),
+            (1000.0, 1.0, 4.8724827560179718),
+            (0.5, 1.0, 0.090609929913988347),
+        ];
+
+        for &(shape, scale, expected) in cases {
+            let dist = Gamma::new(shape, scale, 0.0).expect("test/example should not fail");
+            let entropy = ScirsDist::entropy(&dist);
+            assert!(
+                entropy.is_finite(),
+                "entropy for shape = {shape} is not finite: {entropy}"
+            );
+            let relative = ((entropy - expected) / expected).abs();
+            assert!(
+                relative < 1e-9,
+                "entropy for shape = {shape}: got {entropy}, want {expected} (relative {relative:e})"
+            );
+        }
     }
 }

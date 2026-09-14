@@ -2,7 +2,7 @@
 mod tests {
     use crate::tests::homogeneity::{brown_forsythe, levene};
     use approx::assert_abs_diff_eq;
-    use scirs2_core::ndarray::array;
+    use scirs2_core::ndarray::{array, Array1};
 
     // Test data from SciPy documentation
     const A: [f64; 10] = [8.88, 9.12, 9.04, 8.98, 9.00, 9.08, 9.01, 8.85, 9.06, 8.99];
@@ -93,5 +93,37 @@ mod tests {
 
         let result = brown_forsythe(&samples);
         assert!(result.is_err());
+    }
+
+    /// `brown_forsythe` delegates to `levene(..., "median", ..)` and therefore
+    /// shares its F tail, which returned `NaN` for samples of 286 observations
+    /// or more (defect class of cool-japan/scirs#131). Reference p-value from
+    /// mpmath at 50 digits.
+    #[test]
+    fn test_brown_forsythe_large_sample_pvalue_is_finite() {
+        let a: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 17) as f64 * 0.1));
+        let b: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 23) as f64 * 0.25));
+        let c: Array1<f64> = Array1::from_iter((0..100).map(|i| (i % 11) as f64 * 0.5));
+        let samples = vec![a.view(), b.view(), c.view()];
+
+        let (statistic, p_value) = brown_forsythe(&samples).expect("Test: operation failed");
+
+        assert_abs_diff_eq!(statistic, 71.17399631112818, epsilon = 1e-8);
+        assert!(!p_value.is_nan(), "p-value evaluates to NaN");
+        let expected = 5.5879012840629727e-26;
+        let relative = ((p_value - expected) / expected).abs();
+        assert!(
+            relative < 1e-9,
+            "got {:e}, want {:e} (relative error {:e})",
+            p_value,
+            expected,
+            relative
+        );
+
+        // Identical to Levene with the median centre, as documented.
+        let (levene_stat, levene_p) =
+            levene(&samples, "median", 0.05).expect("Test: operation failed");
+        assert_abs_diff_eq!(statistic, levene_stat, epsilon = 0.0);
+        assert_abs_diff_eq!(p_value, levene_p, epsilon = 0.0);
     }
 }

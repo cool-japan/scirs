@@ -10,6 +10,7 @@ use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::{Distribution, StudentT as RandStudentT};
 use statrs::function::beta::{beta_reg, inv_beta_reg};
+use statrs::function::gamma::{digamma, ln_gamma};
 use std::f64::consts::PI;
 
 /// Helper to convert f64 constants to generic Float type
@@ -104,22 +105,47 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> StudentT<F>
         // Standardize the variable
         let x_std = (x - self.loc) / self.scale;
 
-        // Calculate gamma values for the PDF formula
-        let df_half = self.df / const_f64::<F>(2.0);
-        let df_plus_one_half = (self.df + F::one()) / const_f64::<F>(2.0);
+        // Evaluated in log space:
+        //   ln pdf = ln Γ((df+1)/2) - ln Γ(df/2) - ln(sqrt(df*pi))
+        //            - ((df+1)/2) * ln(1 + x^2/df) - ln(scale)
+        //
+        // The previous version formed the ratio Γ((df+1)/2) / Γ(df/2)
+        // explicitly from a recursive gamma approximation. Both gamma values
+        // overflow to `inf` for df >= 343, so the ratio became `inf` and then
+        // `inf / inf = NaN` for df >= 344, even though the density itself is
+        // perfectly well behaved there (it converges to the standard normal).
+        // Same defect class as cool-japan/scirs#131.
+        let x_f64: f64 = match NumCast::from(x_std) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        let df_f64: f64 = match NumCast::from(self.df) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        let scale_f64: f64 = match NumCast::from(self.scale) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
 
-        // Use the formula for the PDF
-        let one = F::one();
-        let pi = const_f64::<F>(PI);
+        if x_f64.is_nan() || df_f64.is_nan() {
+            return F::nan();
+        }
 
-        // Calculate the PDF value
-        let numerator = gamma_function(df_plus_one_half);
-        let denominator = gamma_function(df_half) * (self.df * pi).sqrt();
+        // The density vanishes in the tails.
+        if x_f64.is_infinite() {
+            return F::zero();
+        }
 
-        let factor = numerator / denominator / self.scale;
-        let exponent = -(df_plus_one_half) * (one + x_std * x_std / self.df).ln();
+        let df_half = df_f64 / 2.0;
+        // `ln_1p` keeps the last digits for |x| << sqrt(df).
+        let ln_pdf = ln_gamma(df_half + 0.5)
+            - ln_gamma(df_half)
+            - 0.5 * (df_f64 * PI).ln()
+            - (df_half + 0.5) * (x_f64 * x_f64 / df_f64).ln_1p()
+            - scale_f64.ln();
 
-        factor * exponent.exp()
+        F::from(ln_pdf.exp()).unwrap_or_else(F::nan)
     }
 
     /// Calculate the cumulative distribution function (CDF) at a given point
@@ -180,6 +206,44 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> StudentT<F>
         let result = if x_f64 <= 0.0 { ib } else { 1.0 - ib };
 
         const_f64::<F>(result)
+    }
+
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let (Some(t), Some(df)) = (
+            <f64 as NumCast>::from((x - self.loc) / self.scale),
+            <f64 as NumCast>::from(self.df),
+        ) else {
+            return F::nan();
+        };
+        if t.is_nan() || df.is_nan() {
+            return F::nan();
+        }
+        if t == f64::INFINITY {
+            return F::zero();
+        }
+        if t == f64::NEG_INFINITY {
+            return F::one();
+        }
+        // One tail is 0.5 * I_{df/(df+t^2)}(df/2, 1/2); take it directly for
+        // t > 0 and its complement (no cancellation: it is >= 0.5) otherwise.
+        let h = (df / (df + t * t)).clamp(0.0, 1.0);
+        let tail = 0.5 * beta_reg(df / 2.0, 0.5, h);
+        let sf = if t > 0.0 { tail } else { 1.0 - tail };
+        F::from(sf.clamp(0.0, 1.0)).unwrap_or_else(F::nan)
+    }
+
+    /// Inverse survival function: the `x` with `sf(x) = q`.
+    ///
+    /// By symmetry `isf(q) = 2*loc - ppf(q)`, which keeps full precision for
+    /// small `q` where `ppf(1 - q)` would round `1 - q` to 1.
+    pub fn isf(&self, q: F) -> StatsResult<F> {
+        let lower = <Self as ContinuousDistribution<F>>::ppf(self, q)?;
+        Ok(self.loc + self.loc - lower)
     }
 
     /// Generate random samples from the distribution as an Array1
@@ -268,49 +332,6 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> StudentT<F>
     }
 }
 
-/// Approximation of the gamma function for floating point types
-#[inline]
-#[allow(dead_code)]
-fn gamma_function<F: Float>(x: F) -> F {
-    if x == F::one() {
-        return F::one();
-    }
-
-    if x == const_f64::<F>(0.5) {
-        return const_f64::<F>(PI).sqrt();
-    }
-
-    // For integers and half-integers, use recurrence relation
-    if x > F::one() {
-        return (x - F::one()) * gamma_function(x - F::one());
-    }
-
-    // Use Lanczos approximation for other values
-    let p = [
-        const_f64::<F>(676.5203681218851),
-        const_f64::<F>(-1259.1392167224028),
-        const_f64::<F>(771.323_428_777_653_1),
-        const_f64::<F>(-176.615_029_162_140_6),
-        const_f64::<F>(12.507343278686905),
-        const_f64::<F>(-0.13857109526572012),
-        const_f64::<F>(9.984_369_578_019_572e-6),
-        const_f64::<F>(1.5056327351493116e-7),
-    ];
-
-    let x_adj = x - F::one();
-    let t = x_adj + const_f64::<F>(7.5);
-
-    let mut sum = F::zero();
-    for (i, &coef) in p.iter().enumerate() {
-        sum = sum + coef / (x_adj + const_f64::<F>((i + 1) as f64));
-    }
-
-    let pi = const_f64::<F>(PI);
-    let sqrt_2pi = (const_f64::<F>(2.0) * pi).sqrt();
-
-    sqrt_2pi * sum * t.powf(x_adj + const_f64::<F>(0.5)) * (-t).exp()
-}
-
 /// Implementation of Distribution trait for StudentT
 impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ScirsDist<F> for StudentT<F> {
     fn mean(&self) -> F {
@@ -342,32 +363,47 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ScirsDist<F
     }
 
     fn entropy(&self) -> F {
-        // Entropy of the t-distribution is complex
-        // For large df, it approaches the entropy of a normal distribution
-        let df = self.df;
-        let half = const_f64::<F>(0.5);
-        let one = F::one();
-
-        if df <= F::zero() {
+        // Differential entropy of the (scaled) t-distribution:
+        //
+        //   h = ((df+1)/2) * [psi((df+1)/2) - psi(df/2)]
+        //       + ln( sqrt(df) * B(df/2, 1/2) ) + ln(scale)
+        //
+        // with `ln B(df/2, 1/2) = lnΓ(df/2) + lnΓ(1/2) - lnΓ((df+1)/2)`.
+        // Evaluating it through log-gamma and digamma keeps it finite for
+        // every df: the previous code built `Γ(1/2) / Γ(df/2)` from a
+        // recursive gamma approximation, which overflows to `inf` for
+        // df >= 284 and therefore returned `-inf` for every df in
+        // [284, 1000] (a separate `df > 1000` branch hid the problem above
+        // that). It also dropped the digamma terms, which are what make the
+        // value converge to the normal entropy 0.5*ln(2*pi*e) as df -> inf.
+        // Same defect class as cool-japan/scirs#131.
+        if self.df <= F::zero() {
             return F::nan();
         }
 
-        // For very large df, use normal approximation
-        if df > const_f64::<F>(1000.0) {
-            let e = const_f64::<F>(std::f64::consts::E);
-            return half * (const_f64::<F>(2.0) * const_f64::<F>(std::f64::consts::PI) * e).ln()
-                + self.scale.ln();
+        let df_f64: f64 = match NumCast::from(self.df) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+        let scale_f64: f64 = match NumCast::from(self.scale) {
+            Some(value) => value,
+            None => return F::nan(),
+        };
+
+        if df_f64.is_nan() {
+            return F::nan();
         }
 
-        // For small df, use the full formula
-        let half_df_plus_half = (df + one) * half;
-        let half_df = df * half;
+        let df_half = df_f64 / 2.0;
+        let df_half_plus_half = df_half + 0.5;
 
-        let term1 = half_df_plus_half * (gamma_function(half) / gamma_function(half_df)).ln();
-        let term2 = half_df_plus_half;
-        let term3 = half * (df * const_f64::<F>(std::f64::consts::PI)).ln();
+        let ln_beta = ln_gamma(df_half) + ln_gamma(0.5) - ln_gamma(df_half_plus_half);
+        let entropy = df_half_plus_half * (digamma(df_half_plus_half) - digamma(df_half))
+            + 0.5 * df_f64.ln()
+            + ln_beta
+            + scale_f64.ln();
 
-        term1 + term2 + term3
+        F::from(entropy).unwrap_or_else(F::nan)
     }
 }
 
@@ -431,7 +467,15 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ContinuousD
 impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ContinuousCDF<F>
     for StudentT<F>
 {
-    // Default implementations from trait are sufficient
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        StudentT::sf(self, x)
+    }
+
+    /// Tail-accurate inverse survival function (see the inherent `isf`).
+    fn isf(&self, q: F) -> StatsResult<F> {
+        StudentT::isf(self, q)
+    }
 }
 
 /// Implementation of SampleableDistribution for StudentT
@@ -607,6 +651,131 @@ mod tests {
             t5.isf(0.95).expect("test/example should not fail"),
             dist.ppf(0.05).expect("test/example should not fail"),
             epsilon = 1e-6
+        );
+    }
+
+    /// Regression test for the numerical-stability defect class of
+    /// cool-japan/scirs#131. The density used to be assembled from an explicit
+    /// `Gamma((df+1)/2) / Gamma(df/2)` ratio built with a recursive gamma
+    /// approximation: that overflows to `inf` at df = 343 and to `inf / inf =
+    /// NaN` from df = 344 on, so `pdf` was unusable for large samples. It is
+    /// now evaluated in log space. Reference values computed independently
+    /// with mpmath at 50 digits, NOT derived from this crate.
+    #[test]
+    fn test_student_t_pdf_matches_reference_values_including_large_df() {
+        let cases: &[(f64, f64, f64)] = &[
+            (0.0, 1.0, 0.31830988618379067),
+            (2.0, 1.0, 0.063661977236758134),
+            (0.0, 5.0, 0.37960668982249443),
+            (1.5, 5.0, 0.12451734464635514),
+            (0.0, 343.0, 0.39865161249775365),
+            (0.5, 343.0, 0.35169668609708479),
+            (0.0, 400.0, 0.39869301963792928),
+            (2.0, 400.0, 0.054225452978854039),
+            (0.0, 1000.0, 0.39884255731385816),
+            (3.0, 10000.0, 0.0044387186123801527),
+            (0.0, 1_000_000.0, 0.39894218066587504),
+        ];
+
+        for &(x, df, expected) in cases {
+            let dist = StudentT::new(df, 0.0, 1.0).expect("test/example should not fail");
+            let pdf = dist.pdf(x);
+            assert!(
+                pdf.is_finite(),
+                "pdf({x}) for df = {df} is not finite: {pdf}"
+            );
+            // The tolerance leaves room for the cancellation in
+            // `ln_gamma(df/2 + 1/2) - ln_gamma(df/2)`: those two log-gammas
+            // grow like df*ln(df)/2 while their difference stays ~ln(df)/2, so
+            // the density keeps ~12 significant digits up to df = 1e4 and
+            // ~9 at the df = 1e6 stress point below (it used to be `NaN`
+            // for anything past df = 343).
+            let relative = ((pdf - expected) / expected).abs();
+            assert!(
+                relative < 1e-8,
+                "pdf({x}) for df = {df}: got {pdf:e}, want {expected:e} (relative {relative:e})"
+            );
+            // The density is symmetric about the location parameter.
+            assert_relative_eq!(dist.pdf(-x), pdf, epsilon = 1e-15);
+        }
+    }
+
+    /// Location/scale handling must survive the move to log space.
+    #[test]
+    fn test_student_t_pdf_location_scale_large_df() {
+        let dist = StudentT::new(500.0, 2.0, 3.0).expect("test/example should not fail");
+        let standard = StudentT::new(500.0, 0.0, 1.0).expect("test/example should not fail");
+
+        assert_relative_eq!(dist.pdf(2.0), standard.pdf(0.0) / 3.0, epsilon = 1e-14);
+        assert_relative_eq!(dist.pdf(5.0), standard.pdf(1.0) / 3.0, epsilon = 1e-14);
+        assert_eq!(dist.pdf(f64::INFINITY), 0.0);
+        assert!(dist.pdf(f64::NAN).is_nan());
+    }
+
+    /// `entropy` used to return `-inf` for every df in [284, 1000] (the
+    /// recursive gamma overflowing inside `ln(Gamma(1/2) / Gamma(df/2))`) and
+    /// omitted the digamma terms, so even the values it did produce were off.
+    /// Reference values: `((df+1)/2)*(psi((df+1)/2) - psi(df/2)) +
+    /// ln(sqrt(df)*B(df/2, 1/2))` at 50 digits in mpmath.
+    #[test]
+    fn test_student_t_entropy_matches_reference_values() {
+        let cases: &[(f64, f64)] = &[
+            (1.0, 2.5310242469692908),
+            (2.0, 1.960279229160082),
+            (5.0, 1.627502672414396),
+            (10.0, 1.5212624929756808),
+            (30.0, 1.4525433297872075),
+            (283.0, 1.4224752162638239),
+            (284.0, 1.4224627522535827),
+            (343.0, 1.4218561059255316),
+            (500.0, 1.420939531869349),
+            (1000.0, 1.4199387830378814),
+            (10000.0, 1.4190385357045061),
+            (1_000_000.0, 1.4189395332049227),
+        ];
+
+        for &(df, expected) in cases {
+            let dist = StudentT::new(df, 0.0, 1.0).expect("test/example should not fail");
+            let entropy = ScirsDist::entropy(&dist);
+            assert!(
+                entropy.is_finite(),
+                "entropy for df = {df} is not finite: {entropy}"
+            );
+            let relative = ((entropy - expected) / expected).abs();
+            assert!(
+                relative < 1e-10,
+                "entropy for df = {df}: got {entropy}, want {expected} (relative {relative:e})"
+            );
+        }
+
+        // The values decrease monotonically towards the standard normal
+        // entropy 0.5*ln(2*pi*e), which the t-distribution approaches as
+        // df -> infinity.
+        let normal_entropy = 0.5 * (2.0 * std::f64::consts::PI * std::f64::consts::E).ln();
+        let mut previous = f64::INFINITY;
+        for &(df, _) in cases {
+            let dist = StudentT::new(df, 0.0, 1.0).expect("test/example should not fail");
+            let entropy = ScirsDist::entropy(&dist);
+            assert!(
+                entropy < previous && entropy > normal_entropy,
+                "entropy for df = {df} ({entropy}) must lie between the previous value \
+                 ({previous}) and the normal limit ({normal_entropy})"
+            );
+            previous = entropy;
+        }
+        // df = 1e6 is already within 1e-6 of the limit. (Beyond ~1e9 the
+        // digamma difference psi(df/2 + 1/2) - psi(df/2) ~ 1/df is itself
+        // cancellation-limited, so the value stays finite and correct to a few
+        // digits rather than to full precision -- it used to be -inf.)
+        assert!((previous - normal_entropy).abs() < 2e-6, "got {previous}");
+
+        // Scaling shifts the entropy by ln(scale).
+        let scaled = StudentT::new(500.0, 0.0, 3.0).expect("test/example should not fail");
+        let standard = StudentT::new(500.0, 0.0, 1.0).expect("test/example should not fail");
+        assert_relative_eq!(
+            ScirsDist::entropy(&scaled),
+            ScirsDist::entropy(&standard) + 3.0_f64.ln(),
+            epsilon = 1e-12
         );
     }
 }

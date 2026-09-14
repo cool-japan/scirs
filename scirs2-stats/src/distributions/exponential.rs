@@ -209,6 +209,30 @@ impl<F: Float + NumCast + Debug + std::fmt::Display> Exponential<F> {
         F::one() - (-self.rate * x_adj).exp()
     }
 
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        let x_adj = x - self.loc;
+        if x_adj <= F::zero() {
+            return F::one();
+        }
+        (-self.rate * x_adj).exp()
+    }
+
+    /// Inverse survival function: the `x` with `sf(x) = q`, i.e.
+    /// `loc - ln(q) / rate`, exact for tiny `q`.
+    pub fn isf(&self, q: F) -> StatsResult<F> {
+        if q < F::zero() || q > F::one() {
+            return Err(StatsError::DomainError(
+                "Probability must be between 0 and 1".to_string(),
+            ));
+        }
+        Ok(self.loc - q.ln() / self.rate)
+    }
+
     /// Inverse of the cumulative distribution function (quantile function)
     ///
     /// # Arguments
@@ -383,7 +407,15 @@ impl<F: Float + NumCast + Debug + std::fmt::Display> ContinuousDistribution<F> f
 }
 
 impl<F: Float + NumCast + Debug + std::fmt::Display> ContinuousCDF<F> for Exponential<F> {
-    // Default implementations from trait are sufficient
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        Exponential::sf(self, x)
+    }
+
+    /// Tail-accurate inverse survival function (see the inherent `isf`).
+    fn isf(&self, q: F) -> StatsResult<F> {
+        Exponential::isf(self, q)
+    }
 }
 
 /// Implementation of SampleableDistribution for Exponential

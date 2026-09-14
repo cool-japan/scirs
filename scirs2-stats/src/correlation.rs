@@ -5,6 +5,8 @@
 
 // Import the intraclass correlation module
 pub mod intraclass;
+// Shared, numerically stable p-value evaluation for every coefficient below
+mod pvalue;
 
 use crate::error::StatsResult;
 use crate::error_standardization::ErrorMessages;
@@ -589,27 +591,17 @@ where
         }
     }
 
-    // Convert to t-statistic
-    // t = r * sqrt(df/(1-r^2))
-    // Calculate t-statistic (handle perfect correlations to avoid numerical issues)
-    let t_stat = if pr.abs() >= F::one() {
-        if pr > F::zero() {
-            const_f64::<F>(1e6) // Very large positive value
-        } else {
-            const_f64::<F>(-1e6) // Very large negative value
-        }
-    } else {
-        pr * (df / (F::one() - pr * pr)).sqrt()
-    };
-
-    // Calculate p-value based on t-distribution
+    // Calculate p-value from the t-distribution tail of
+    // t = r * sqrt(df/(1-r^2)). `pvalue` evaluates that tail directly from
+    // the coefficient, which stays finite for large samples and for perfect
+    // correlations (no `1e6` stand-in for an infinite t-statistic needed).
     let p_value = match alternative {
         "less" => {
             // One-sided test: correlation is negative (less than zero)
             if pr >= F::zero() {
                 F::one() // r is non-negative, so p-value = 1
             } else {
-                student_t_cdf(t_stat, df)
+                pvalue::tail_probability(pr, df)
             }
         }
         "greater" => {
@@ -617,12 +609,12 @@ where
             if pr <= F::zero() {
                 F::one() // r is non-positive, so p-value = 1
             } else {
-                F::one() - student_t_cdf(t_stat, df)
+                pvalue::tail_probability(pr, df)
             }
         }
         _ => {
             // Two-sided test: correlation is nonzero
-            const_f64::<F>(2.0) * (F::one() - student_t_cdf(t_stat.abs(), df))
+            pvalue::two_sided(pr, df)
         }
     };
 
@@ -965,21 +957,11 @@ where
         }
     }
 
-    // Convert to t-statistic
-    // The t-statistic for point-biserial correlation is calculated using the formula:
-    // t = r * sqrt((n-2)/(1-r^2))
+    // The t-statistic for point-biserial correlation is calculated using the
+    // formula t = r * sqrt((n-2)/(1-r^2)); `pvalue` evaluates its tail
+    // directly from the coefficient, which stays finite for large samples
+    // and for perfect correlations.
     let df = F::from(n - 2).expect("Failed to convert to float");
-
-    // Calculate t-statistic (handle perfect correlations to avoid numerical issues)
-    let t_stat = if rpb.abs() >= F::one() {
-        if rpb > F::zero() {
-            const_f64::<F>(1e6) // Very large positive value
-        } else {
-            const_f64::<F>(-1e6) // Very large negative value
-        }
-    } else {
-        rpb * (df / (F::one() - rpb * rpb)).sqrt()
-    };
 
     // Calculate p-value based on t-distribution
     let p_value = match alternative {
@@ -988,7 +970,7 @@ where
             if rpb >= F::zero() {
                 F::one() // r is non-negative, so p-value = 1
             } else {
-                student_t_cdf(t_stat, df)
+                pvalue::tail_probability(rpb, df)
             }
         }
         "greater" => {
@@ -996,12 +978,12 @@ where
             if rpb <= F::zero() {
                 F::one() // r is non-positive, so p-value = 1
             } else {
-                F::one() - student_t_cdf(t_stat, df)
+                pvalue::tail_probability(rpb, df)
             }
         }
         _ => {
             // Two-sided test: correlation is nonzero
-            const_f64::<F>(2.0) * (F::one() - student_t_cdf(t_stat.abs(), df))
+            pvalue::two_sided(rpb, df)
         }
     };
 
@@ -1251,6 +1233,183 @@ mod tests {
             pearsonr(&x_small.view(), &y_small.view(), "two-sided").expect("Test/example failed");
         assert_abs_diff_eq!(p, 1.0, epsilon = 1e-10);
     }
+
+    // ========================================================================
+    // Regression tests for cool-japan/scirs#131: the p-value of every
+    // correlation coefficient used to be built from a Lanczos *gamma*
+    // approximation of B(df/2, 1/2), which overflows to `inf` for df >= ~284.
+    // Every p-value for n >= 286 therefore came back `inf` or `NaN`, and the
+    // `2 * (1 - CDF)` formulation additionally flushed every p-value below
+    // ~1e-16 to exactly 0. Reference p-values below were computed
+    // independently with mpmath at 60 digits as `I_{1-r^2}((n-2)/2, 1/2)`,
+    // NOT derived from this crate.
+    // ========================================================================
+
+    /// Relative-error assertion; `assert_abs_diff_eq!` is useless for the deep
+    /// tail values (everything below 1e-16 is "equal" in absolute terms).
+    fn assert_relative_close(got: f64, want: f64, max_relative: f64) {
+        let relative = ((got - want) / want).abs();
+        assert!(
+            relative <= max_relative,
+            "got {got:e}, want {want:e}, relative error {relative:e} > {max_relative:e}"
+        );
+    }
+
+    /// `x = 0..n`, `y = x` plus an alternating +-0.1 perturbation: the exact
+    /// data from the issue report. `r` is just short of 1 and the true
+    /// two-sided p-value (~7e-1939) underflows f64, so the answer is 0.0 --
+    /// the value scipy reports as well -- and must never be `NaN`.
+    #[test]
+    fn test_issue_131_pearsonr_large_n_high_correlation() {
+        let n = 600;
+        let x: Array1<f64> = Array1::from_iter((0..n).map(|i| i as f64));
+        let y: Array1<f64> =
+            Array1::from_iter((0..n).map(|i| i as f64 + if i % 2 == 0 { 0.1 } else { -0.1 }));
+
+        let (r, p) = pearsonr(&x.view(), &y.view(), "two-sided").expect("Test/example failed");
+
+        assert!(
+            r > 0.999_999_8,
+            "expected a near-perfect correlation, got {r}"
+        );
+        assert!(!p.is_nan(), "p-value evaluates to NaN!");
+        assert!(
+            p.is_finite() && (0.0..=1.0).contains(&p),
+            "p-value {p} is not a probability"
+        );
+        assert_eq!(p, 0.0);
+    }
+
+    /// The failure was not limited to near-perfect correlations: *every*
+    /// non-zero correlation on a sample of 286 points or more was affected.
+    #[test]
+    fn test_issue_131_pearsonr_pvalue_finite_across_sample_sizes() {
+        for &n in &[50usize, 285, 286, 345, 500, 1000, 10000] {
+            for &noise in &[0.0_f64, 0.1, 60.0, 5000.0] {
+                let x: Array1<f64> = Array1::from_iter((0..n).map(|i| i as f64));
+                let y: Array1<f64> =
+                    Array1::from_iter((0..n).map(|i| i as f64 + noise * ((i % 7) as f64 - 3.0)));
+
+                for alternative in ["two-sided", "less", "greater"] {
+                    let (_, p) =
+                        pearsonr(&x.view(), &y.view(), alternative).expect("Test/example failed");
+                    assert!(
+                        p.is_finite() && (0.0..=1.0).contains(&p),
+                        "pearsonr(n = {n}, noise = {noise}, {alternative}) returned p = {p}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Accuracy of the rebuilt p-value path, including sample sizes where the
+    /// old implementation produced `NaN` (n = 345, n = 10000) and p-values far
+    /// below the 1e-16 floor the old `2 * (1 - CDF)` cancellation imposed.
+    #[test]
+    fn test_issue_131_pearsonr_matches_reference_pvalues() {
+        // n = 5, r = 0.9977227562128257
+        let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
+        let y = array![1.1, 2.2, 2.9, 4.1, 5.0];
+        let (_, p) = pearsonr(&x.view(), &y.view(), "two-sided").expect("Test/example failed");
+        assert_relative_close(p, 0.00013040665091495591, 1e-9);
+
+        // n = 345, r = 0.6413748231100375 (old code: NaN)
+        let n = 345;
+        let x: Array1<f64> = Array1::from_iter((0..n).map(|i| i as f64));
+        let y: Array1<f64> =
+            Array1::from_iter((0..n).map(|i| i as f64 + 60.0 * ((i % 7) as f64 - 3.0)));
+        let (_, p) = pearsonr(&x.view(), &y.view(), "two-sided").expect("Test/example failed");
+        assert_relative_close(p, 2.259990152722132e-41, 1e-9);
+
+        // n = 10000, r = 0.0021443821395874243, an ordinary p-value (old code: NaN)
+        let n = 10000;
+        let x: Array1<f64> = Array1::from_iter((0..n).map(|i| i as f64));
+        let y: Array1<f64> =
+            Array1::from_iter((0..n).map(|i| i as f64 + 500_000.0 * ((i % 13) as f64 - 6.0)));
+        let (_, p) = pearsonr(&x.view(), &y.view(), "two-sided").expect("Test/example failed");
+        assert_relative_close(p, 0.83022605430586989, 1e-9);
+    }
+
+    /// A strong *negative* correlation: the one-sided "less" test is the most
+    /// significant test there is for this data, so its p-value must be the
+    /// lower tail (half of the two-sided value), not ~1.
+    #[test]
+    fn test_issue_131_pearsonr_one_sided_negative_correlation() {
+        let n = 500;
+        let x: Array1<f64> = Array1::from_iter((0..n).map(|i| i as f64));
+        let y: Array1<f64> =
+            Array1::from_iter((0..n).map(|i| -(i as f64) + 30.0 * ((i % 5) as f64 - 2.0)));
+
+        let (r, p_two) = pearsonr(&x.view(), &y.view(), "two-sided").expect("Test/example failed");
+        assert!(r < -0.95, "expected a strong negative correlation, got {r}");
+        assert_relative_close(p_two, 2.325340919335836e-275, 1e-9);
+
+        let (_, p_less) = pearsonr(&x.view(), &y.view(), "less").expect("Test/example failed");
+        assert_relative_close(p_less, 2.325340919335836e-275 / 2.0, 1e-9);
+
+        // The data contradicts "correlation > 0".
+        let (_, p_greater) =
+            pearsonr(&x.view(), &y.view(), "greater").expect("Test/example failed");
+        assert_abs_diff_eq!(p_greater, 1.0, epsilon = 1e-12);
+    }
+
+    /// `spearmanr` shares the p-value path and was affected identically (as
+    /// the reporter suspected), including the rho = +-1 case, which is now
+    /// exactly 0 instead of a "large finite t-statistic" approximation.
+    #[test]
+    fn test_issue_131_spearmanr_large_n() {
+        // n = 345, rho = 0.6244010707376517 (old code: NaN)
+        let n = 345;
+        let x: Array1<f64> = Array1::from_iter((0..n).map(|i| i as f64));
+        let y: Array1<f64> =
+            Array1::from_iter((0..n).map(|i| i as f64 + 60.0 * ((i % 7) as f64 - 3.0)));
+        let (rho, p) = spearmanr(&x.view(), &y.view(), "two-sided").expect("Test/example failed");
+        assert_relative_close(rho, 0.6244010707376517, 1e-12);
+        assert_relative_close(p, 1.0856382684719633e-38, 1e-9);
+
+        // n = 600 with a perfectly monotonic relationship: rho = 1, p = 0.
+        let n = 600;
+        let x: Array1<f64> = Array1::from_iter((0..n).map(|i| i as f64));
+        let y: Array1<f64> =
+            Array1::from_iter((0..n).map(|i| i as f64 + if i % 2 == 0 { 0.1 } else { -0.1 }));
+        let (rho, p) = spearmanr(&x.view(), &y.view(), "two-sided").expect("Test/example failed");
+        assert_abs_diff_eq!(rho, 1.0, epsilon = 1e-12);
+        assert!(!p.is_nan(), "spearmanr p-value evaluates to NaN!");
+        assert_eq!(p, 0.0);
+    }
+
+    /// The remaining two consumers of the shared p-value path.
+    #[test]
+    fn test_issue_131_point_biserialr_and_partial_corrr_large_n() {
+        let n = 600;
+
+        let binary: Array1<f64> = Array1::from_iter((0..n).map(|i| (i % 2) as f64));
+        let continuous: Array1<f64> =
+            Array1::from_iter((0..n).map(|i| i as f64 + 50.0 * (i % 2) as f64));
+        for alternative in ["two-sided", "less", "greater"] {
+            let (rpb, p) = point_biserialr(&binary.view(), &continuous.view(), alternative)
+                .expect("Test/example failed");
+            assert!(rpb.is_finite());
+            assert!(
+                p.is_finite() && (0.0..=1.0).contains(&p),
+                "point_biserialr({alternative}) returned p = {p}"
+            );
+        }
+
+        let x: Array1<f64> = Array1::from_iter((0..n).map(|i| i as f64));
+        let y: Array1<f64> =
+            Array1::from_iter((0..n).map(|i| 2.0 * i as f64 + 40.0 * ((i % 9) as f64 - 4.0)));
+        let z = Array2::from_shape_fn((n, 1), |(i, _)| (i % 11) as f64);
+        for alternative in ["two-sided", "less", "greater"] {
+            let (pr, p) = partial_corrr(&x.view(), &y.view(), &z.view(), alternative)
+                .expect("Test/example failed");
+            assert!(pr.is_finite());
+            assert!(
+                p.is_finite() && (0.0..=1.0).contains(&p),
+                "partial_corrr({alternative}) returned p = {p}"
+            );
+        }
+    }
 }
 
 /// Calculates the Pearson correlation coefficient and p-value for testing non-correlation.
@@ -1355,12 +1514,11 @@ where
 
     // Calculate p-value
     // Under the null hypothesis of no correlation, the test statistic
-    // follows a t-distribution with n-2 degrees of freedom
-    let r_abs = r.abs();
+    // t = r * sqrt(df/(1-r^2)) follows a t-distribution with n-2 degrees of
+    // freedom. `pvalue` evaluates that tail directly from r through the
+    // regularized incomplete beta function, so it stays finite for large n
+    // and for |r| -> 1 (see cool-japan/scirs#131).
     let df = F::from(n - 2).expect("Failed to convert to float");
-
-    // Convert r to t-statistic
-    let t_stat = r_abs * (df / (F::one() - r_abs * r_abs)).sqrt();
 
     // Calculate p-value based on t-distribution
     let p_value = match alternative {
@@ -1369,7 +1527,7 @@ where
             if r >= F::zero() {
                 F::one() // r is non-negative, so p-value = 1
             } else {
-                student_t_cdf(t_stat, df)
+                pvalue::tail_probability(r, df)
             }
         }
         "greater" => {
@@ -1377,181 +1535,16 @@ where
             if r <= F::zero() {
                 F::one() // r is non-positive, so p-value = 1
             } else {
-                F::one() - student_t_cdf(t_stat, df)
+                pvalue::tail_probability(r, df)
             }
         }
         _ => {
             // Two-sided test: correlation is nonzero
-            const_f64::<F>(2.0) * (F::one() - student_t_cdf(t_stat, df))
+            pvalue::two_sided(r, df)
         }
     };
 
     Ok((r, p_value))
-}
-
-// Implementation of Student's t-distribution CDF
-#[allow(dead_code)]
-fn student_t_cdf<F: Float + NumCast>(t: F, df: F) -> F {
-    let t_f64 = <f64 as NumCast>::from(t).expect("Test/example failed");
-    let df_f64 = <f64 as NumCast>::from(df).expect("Test/example failed");
-
-    // Use the regularized incomplete beta function for the CDF
-    let x = df_f64 / (df_f64 + t_f64 * t_f64);
-
-    // P(T <= t) = 1 - 0.5 * I_x(df/2, 1/2) for t > 0
-    // P(T <= t) = 0.5 * I_x(df/2, 1/2) for t <= 0
-    let p = if t_f64 <= 0.0 {
-        0.5 * beta_cdf(x, df_f64 / 2.0, 0.5)
-    } else {
-        1.0 - 0.5 * beta_cdf(x, df_f64 / 2.0, 0.5)
-    };
-
-    F::from(p).expect("Failed to convert to float")
-}
-
-// Beta cumulative distribution function
-#[allow(dead_code)]
-fn beta_cdf(x: f64, a: f64, b: f64) -> f64 {
-    if x <= 0.0 {
-        return 0.0;
-    }
-    if x >= 1.0 {
-        return 1.0;
-    }
-
-    // Use the relationship with the regularized incomplete beta function
-    if x <= (a / (a + b)) {
-        // For x in the first half of the range
-        let beta_x = beta_incomplete(a, b, x);
-        let beta_full = beta_function(a, b);
-        beta_x / beta_full
-    } else {
-        // For x in the second half, use the symmetry relation
-        let beta_x = beta_incomplete(b, a, 1.0 - x);
-        let beta_full = beta_function(a, b);
-        1.0 - beta_x / beta_full
-    }
-}
-
-// Incomplete beta function
-#[allow(dead_code)]
-fn beta_incomplete(a: f64, b: f64, x: f64) -> f64 {
-    if x <= 0.0 {
-        return 0.0;
-    }
-    if x >= 1.0 {
-        return beta_function(a, b);
-    }
-
-    // Using a continued fraction expansion
-    if x < (a + 1.0) / (a + b + 2.0) {
-        // Use the continued fraction representation
-        let bt = beta_continued_fraction(a, b, x);
-        bt * x.powf(a) * (1.0 - x).powf(b) / a
-    } else {
-        // Use the symmetry relation
-        let bt = beta_continued_fraction(b, a, 1.0 - x);
-        beta_function(a, b) - bt * (1.0 - x).powf(b) * x.powf(a) / b
-    }
-}
-
-// Continued fraction for the incomplete beta function
-#[allow(dead_code)]
-fn beta_continued_fraction(a: f64, b: f64, x: f64) -> f64 {
-    let max_iter = 100;
-    let epsilon = 1e-10;
-
-    let qab = a + b;
-    let qap = a + 1.0;
-    let qam = a - 1.0;
-
-    let mut c = 1.0;
-    let mut d = 1.0 - qab * x / qap;
-    if d.abs() < epsilon {
-        d = epsilon;
-    }
-    d = 1.0 / d;
-    let mut h = d;
-
-    for m in 1..max_iter {
-        let m2 = 2 * m;
-
-        // Even step
-        let aa = m as f64 * (b - m as f64) * x / ((qam + m2 as f64) * (a + m2 as f64));
-        d = 1.0 + aa * d;
-        if d.abs() < epsilon {
-            d = epsilon;
-        }
-        c = 1.0 + aa / c;
-        if c.abs() < epsilon {
-            c = epsilon;
-        }
-        d = 1.0 / d;
-        h *= d * c;
-
-        // Odd step
-        let aa = -(a + m as f64) * (qab + m as f64) * x / ((a + m2 as f64) * (qap + m2 as f64));
-        d = 1.0 + aa * d;
-        if d.abs() < epsilon {
-            d = epsilon;
-        }
-        c = 1.0 + aa / c;
-        if c.abs() < epsilon {
-            c = epsilon;
-        }
-        d = 1.0 / d;
-        h *= d * c;
-
-        // Check for convergence
-        if (d * c - 1.0).abs() < epsilon {
-            break;
-        }
-    }
-
-    h
-}
-
-// Beta function
-#[allow(dead_code)]
-fn beta_function(a: f64, b: f64) -> f64 {
-    gamma_function(a) * gamma_function(b) / gamma_function(a + b)
-}
-
-// Gamma function approximation (Lanczos approximation)
-#[allow(dead_code)]
-fn gamma_function(x: f64) -> f64 {
-    if x <= 0.0 {
-        panic!("Gamma function not defined for non-positive values");
-    }
-
-    // For small values, use the reflection formula
-    if x < 0.5 {
-        return std::f64::consts::PI / ((std::f64::consts::PI * x).sin() * gamma_function(1.0 - x));
-    }
-
-    // Lanczos approximation for gamma function
-    let p = [
-        676.5203681218851,
-        -1259.1392167224028,
-        771.323428777653,
-        -176.61502916214,
-        12.507343278687,
-        -0.1385710952657,
-        9.984369578019e-6,
-        1.50563273515e-7,
-    ];
-
-    let z = x - 1.0;
-    let mut result = 0.9999999999998;
-
-    for (i, &value) in p.iter().enumerate() {
-        result += value / (z + (i + 1) as f64);
-    }
-
-    let t = z + p.len() as f64 - 0.5;
-
-    // sqrt(2*pi) = 2.506628274631000502415765284811
-    2.506628274631 * t.powf(z + 0.5) * (-t).exp() * result
 }
 
 /// Calculates the Spearman rank correlation coefficient and p-value.
@@ -1633,16 +1626,10 @@ where
     // This is an approximation that works well for n > 10
     // For large n, the t-statistic is approximately:
     // t = rho * sqrt((n-2)/(1-rho²))
-
-    let rho_abs = rho.abs();
+    // `pvalue` evaluates that t-distribution tail directly from rho, which
+    // handles rho = ±1 exactly (p = 0) instead of standing in for an
+    // infinite t-statistic with a large finite value.
     let df = F::from(n - 2).expect("Failed to convert to float");
-
-    // Calculate t-statistic (handles rho near ±1.0 to avoid numerical issues)
-    let t_stat = if rho_abs >= F::one() {
-        df.sqrt() * const_f64::<F>(1e6) // Large value simulating infinity
-    } else {
-        rho * (df / (F::one() - rho * rho)).sqrt()
-    };
 
     // Calculate p-value based on t-distribution
     let p_value = match alternative {
@@ -1651,7 +1638,7 @@ where
             if rho >= F::zero() {
                 F::one() // rho is non-negative, so p-value = 1
             } else {
-                student_t_cdf(t_stat, df)
+                pvalue::tail_probability(rho, df)
             }
         }
         "greater" => {
@@ -1659,12 +1646,12 @@ where
             if rho <= F::zero() {
                 F::one() // rho is non-positive, so p-value = 1
             } else {
-                F::one() - student_t_cdf(t_stat, df)
+                pvalue::tail_probability(rho, df)
             }
         }
         _ => {
             // Two-sided test: correlation is nonzero
-            const_f64::<F>(2.0) * (F::one() - student_t_cdf(t_stat.abs(), df))
+            pvalue::two_sided(rho, df)
         }
     };
 

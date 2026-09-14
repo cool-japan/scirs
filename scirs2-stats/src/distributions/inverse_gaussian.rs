@@ -232,6 +232,45 @@ where
         one
     }
 
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        if x <= F::zero() {
+            return F::one();
+        }
+        let (Some(x_f64), Some(mu), Some(lambda)) = (
+            <f64 as NumCast>::from(x),
+            <f64 as NumCast>::from(self.mu),
+            <f64 as NumCast>::from(self.lambda),
+        ) else {
+            return F::nan();
+        };
+        if x_f64.is_nan() || mu.is_nan() || lambda.is_nan() {
+            return F::nan();
+        }
+        if x_f64.is_infinite() {
+            return F::zero();
+        }
+        // SF = Phi(-z1) - exp(2 lambda/mu) * Phi(z2) with
+        // z1 = u (x/mu - 1), z2 = -u (x/mu + 1), u = sqrt(lambda/x).
+        // Both normal tails come from erfc, and the product is formed in
+        // log space so exp(2 lambda/mu) cannot overflow on its own.
+        let u = (lambda / x_f64).sqrt();
+        let z1 = u * (x_f64 / mu - 1.0);
+        let z2 = -u * (x_f64 / mu + 1.0);
+        let first = 0.5 * libm::erfc(z1 / std::f64::consts::SQRT_2);
+        let phi2 = 0.5 * libm::erfc(-z2 / std::f64::consts::SQRT_2);
+        let second = if phi2 > 0.0 {
+            (2.0 * lambda / mu + phi2.ln()).exp()
+        } else {
+            0.0
+        };
+        F::from((first - second).clamp(0.0, 1.0)).unwrap_or_else(F::nan)
+    }
+
     /// Inverse CDF via positive-aware bisection.
     ///
     /// Returns the unique `x > 0` such that `cdf(x) = q`. Uses 80 bisection
@@ -434,7 +473,15 @@ where
     }
 }
 
-impl<F> ContinuousCDF<F> for InverseGaussian<F> where F: Float + NumCast + std::fmt::Display {}
+impl<F> ContinuousCDF<F> for InverseGaussian<F>
+where
+    F: Float + NumCast + std::fmt::Display,
+{
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        InverseGaussian::sf(self, x)
+    }
+}
 
 impl<F> SampleableDistribution<F> for InverseGaussian<F>
 where

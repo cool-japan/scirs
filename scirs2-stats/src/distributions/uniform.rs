@@ -4,7 +4,7 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use crate::traits::{ContinuousDistribution, Distribution};
+use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution};
 use scirs2_core::ndarray::Array1;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::{Distribution as RandDistribution, Uniform as RandUniform};
@@ -118,6 +118,31 @@ impl<F: Float + NumCast + std::fmt::Display> Uniform<F> {
         }
     }
 
+    /// Survival function `P(X > x) = 1 - CDF(x)`, evaluated directly.
+    ///
+    /// Computing `1 - cdf(x)` loses every digit once the CDF rounds to 1
+    /// (e.g. beyond ~8 standard deviations for a normal), so the upper tail is
+    /// computed from its own closed or regularized form instead.
+    pub fn sf(&self, x: F) -> F {
+        if x <= self.low {
+            F::one()
+        } else if x >= self.high {
+            F::zero()
+        } else {
+            (self.high - x) / (self.high - self.low)
+        }
+    }
+
+    /// Inverse survival function: the `x` with `sf(x) = q`.
+    pub fn isf(&self, q: F) -> StatsResult<F> {
+        if q < F::zero() || q > F::one() {
+            return Err(StatsError::DomainError(
+                "Probability must be between 0 and 1".to_string(),
+            ));
+        }
+        Ok(self.high - q * (self.high - self.low))
+    }
+
     /// Inverse of the cumulative distribution function (quantile function)
     ///
     /// # Arguments
@@ -216,6 +241,20 @@ impl<F: Float + NumCast + std::fmt::Display> ContinuousDistribution<F> for Unifo
 
     fn ppf(&self, p: F) -> StatsResult<F> {
         self.ppf(p)
+    }
+}
+
+/// Tail-accurate survival functions for the `ContinuousCDF` helpers
+/// (`sf`, `isf`, `hazard`, `cumhazard`).
+impl<F: Float + NumCast + std::fmt::Display> ContinuousCDF<F> for Uniform<F> {
+    /// Direct upper tail (see the inherent `sf`), not `1 - cdf`.
+    fn sf(&self, x: F) -> F {
+        Uniform::sf(self, x)
+    }
+
+    /// Tail-accurate inverse survival function (see the inherent `isf`).
+    fn isf(&self, q: F) -> StatsResult<F> {
+        Uniform::isf(self, q)
     }
 }
 

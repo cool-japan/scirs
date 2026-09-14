@@ -32,60 +32,104 @@
 use crate::error::{StatsError, StatsResult};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
-use scirs2_core::random::Uniform as RandUniform;
+use scirs2_core::random::{Distribution, Uniform as RandUniform};
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Bessel function utilities
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// Modified Bessel function of the first kind I_ν(x) using a series expansion.
-/// Works well for moderate x and ν.
-fn bessel_i(nu: f64, x: f64) -> f64 {
-    if x < 0.0 {
+/// Natural logarithm of the modified Bessel function of the first kind,
+/// `ln I_ν(x)`, for `ν >= 0` and `x >= 0`.
+///
+/// Evaluates the ascending series
+/// `I_ν(x) = Σ_m (x/2)^(2m+ν) / (m! Γ(m+ν+1))` entirely in log space,
+/// centred on its largest term: the term ratio
+/// `t_{m+1}/t_m = (x/2)^2 / ((m+1)(m+1+ν))` crosses 1 at
+/// `m* = (sqrt(ν² + x²) - ν) / 2`, so `ln t_{m*}` is formed once from
+/// log-gammas and every other term is summed relative to it, walking outwards
+/// until the terms drop below 1e-17 of the peak. All terms are positive, so
+/// there is no cancellation, and nothing overflows for any `(ν, x)`: the
+/// result stays accurate where `I_ν(x)` itself is far outside the f64 range
+/// (large concentration κ, or the high dimensions of embedding spaces).
+///
+/// This replaces a direct series that started from `(x/2)^ν / Γ(ν+1)` --
+/// which under/overflows for ν ≳ 170 and silently returned 0 -- plus an
+/// `x > 30` branch using only `e^x/sqrt(2πx) * (1 - (4ν²-1)/(8x))`, which is
+/// not valid unless `x >> ν²` (for ν = 149, x = 40 it returned -4.1e18
+/// instead of 3.7e-66, so `log C_p` became NaN),
+/// and which computed a Γ(ν+1)-based term it then discarded.
+fn log_bessel_i(nu: f64, x: f64) -> f64 {
+    if x.is_nan() || nu.is_nan() || x < 0.0 || nu < 0.0 {
         return f64::NAN;
     }
     if x == 0.0 {
-        return if nu == 0.0 { 1.0 } else { 0.0 };
+        return if nu == 0.0 { 0.0 } else { f64::NEG_INFINITY };
+    }
+    if x.is_infinite() {
+        return f64::INFINITY;
     }
 
-    // Large-x asymptotic: I_ν(x) ≈ e^x / √(2πx) · Σ_k (-1)^k · (4ν²-1²)(4ν²-3²)…/ (k! · (8x)^k)
-    if x > 30.0 {
-        let half_x = x / 2.0;
-        let mut term = half_x.powf(nu) / gamma_fn(nu + 1.0) * (-x).exp().recip() * x.exp();
-        // Use asymptotic: I_ν(x) ≈ e^x / sqrt(2πx)
-        let leading = x.exp() / (2.0 * std::f64::consts::PI * x).sqrt();
-        // First-order correction
-        let mu = 4.0 * nu * nu;
-        let correction = 1.0 - (mu - 1.0) / (8.0 * x);
-        let _ = term; // suppress unused warning from earlier approach
-        return leading * correction;
-    }
+    let quarter_x2 = 0.25 * x * x;
+    let ln_half_x = (0.5 * x).ln();
 
-    // Series expansion: I_ν(x) = Σ_{m=0}^∞ (x/2)^{2m+ν} / (m! · Γ(m+ν+1))
-    let half_x = x / 2.0;
-    let mut sum = 0.0_f64;
-    let mut m = 0_u64;
-    let mut term = half_x.powf(nu) / gamma_fn(nu + 1.0);
+    // Index of the largest series term.
+    let peak = ((nu * nu + x * x).sqrt() - nu) * 0.5;
+    let m_peak = peak.floor().max(0.0);
+    let ln_peak_term =
+        (2.0 * m_peak + nu) * ln_half_x - ln_gamma(m_peak + 1.0) - ln_gamma(m_peak + nu + 1.0);
 
-    while term.abs() > 1e-15 * sum.abs().max(1e-300) && m < 200 {
+    // Relative tolerance on individual terms and a generous safety cap: the
+    // terms around the peak are roughly Gaussian in m with width ~sqrt(x), so
+    // even x = 1e8 needs only a few hundred thousand of them.
+    const REL_TOL: f64 = 1e-17;
+    const MAX_TERMS: usize = 1_000_000;
+
+    let mut sum = 1.0_f64;
+
+    // Upward from the peak: t_{m+1} = t_m * (x/2)^2 / ((m+1)(m+1+nu)).
+    let mut term = 1.0_f64;
+    let mut m = m_peak;
+    for _ in 0..MAX_TERMS {
+        term *= quarter_x2 / ((m + 1.0) * (m + 1.0 + nu));
         sum += term;
-        m += 1;
-        term *= (half_x * half_x) / (m as f64 * (m as f64 + nu));
+        m += 1.0;
+        if term < REL_TOL * sum {
+            break;
+        }
     }
-    sum
+
+    // Downward from the peak: t_{m-1} = t_m * m (m + nu) / (x/2)^2.
+    let mut term = 1.0_f64;
+    let mut m = m_peak;
+    for _ in 0..MAX_TERMS {
+        if m < 1.0 {
+            break;
+        }
+        term *= m * (m + nu) / quarter_x2;
+        sum += term;
+        m -= 1.0;
+        if term < REL_TOL * sum {
+            break;
+        }
+    }
+
+    ln_peak_term + sum.ln()
 }
 
 /// Ratio A_p(κ) = I_{p/2}(κ) / I_{p/2-1}(κ), the mean resultant length.
+///
+/// Formed as a difference of log-Bessel values so it stays finite for any κ
+/// (the plain quotient was `inf / inf` for κ ≳ 710).
 fn a_p(p: usize, kappa: f64) -> f64 {
     let half_p = p as f64 / 2.0;
-    bessel_i(half_p, kappa) / bessel_i(half_p - 1.0, kappa)
+    (log_bessel_i(half_p, kappa) - log_bessel_i(half_p - 1.0, kappa)).exp()
 }
 
 /// Log normalising constant log C_p(κ).
 fn log_c_p(p: usize, kappa: f64) -> f64 {
     let half_p = p as f64 / 2.0;
     let nu = half_p - 1.0;
-    let log_bessel = bessel_i(nu, kappa).ln();
+    let log_bessel = log_bessel_i(nu, kappa);
     (half_p - 1.0) * kappa.ln() - half_p * (2.0 * std::f64::consts::PI).ln() - log_bessel
 }
 
@@ -114,10 +158,6 @@ fn ln_gamma(x: f64) -> f64 {
     }
     let t = xm1 + 7.5; // g + 0.5
     0.5 * (2.0 * std::f64::consts::PI).ln() + (xm1 + 0.5) * t.ln() - t + s.ln()
-}
-
-fn gamma_fn(x: f64) -> f64 {
-    ln_gamma(x).exp()
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -190,9 +230,7 @@ impl VonMisesFisher {
         let log_nc = if kappa == 0.0 {
             // Uniform: log C_p(0) = -log surface_area(S^{p-1})
             // Surface area = 2 π^{p/2} / Γ(p/2)
-            0.5 * (p as f64) * std::f64::consts::PI.ln()
-                - ln_gamma(p as f64 / 2.0)
-                - (2.0_f64).ln()
+            0.5 * (p as f64) * std::f64::consts::PI.ln() - ln_gamma(p as f64 / 2.0) - (2.0_f64).ln()
         } else {
             log_c_p(p, kappa)
         };
@@ -219,7 +257,11 @@ impl VonMisesFisher {
         if x.len() != self.dim {
             return f64::NEG_INFINITY;
         }
-        let dot = x.iter().zip(self.mu.iter()).map(|(&xi, &mi)| xi * mi).sum::<f64>();
+        let dot = x
+            .iter()
+            .zip(self.mu.iter())
+            .map(|(&xi, &mi)| xi * mi)
+            .sum::<f64>();
         self.log_norm_const + self.kappa * dot
     }
 
@@ -301,7 +343,11 @@ impl VonMisesFisher {
             let c = self.kappa * (r - f_val);
 
             if c * (2.0 - c) - u2 >= 0.0 || c.ln() + 1.0 - c >= u2.ln() {
-                let theta = if u3 - 0.5 >= 0.0 { f_val.acos() } else { -f_val.acos() };
+                let theta = if u3 - 0.5 >= 0.0 {
+                    f_val.acos()
+                } else {
+                    -f_val.acos()
+                };
                 let angle = theta + mu_angle;
                 return Array1::from_vec(vec![angle.cos(), angle.sin()]);
             }
@@ -341,8 +387,7 @@ impl VonMisesFisher {
                     let v = u2;
                     let _ = (k1, k2, delta_bb, alpha_bb, beta_bb, gamma_bb);
                     // Simplified: use uniform approximation for Beta(a,a)
-                    let beta_sample =
-                        self.sample_beta_symmetric(a, rng);
+                    let beta_sample = self.sample_beta_symmetric(a, rng);
                     beta_sample
                 } else {
                     u1.powf(1.0 / a) / (u1.powf(1.0 / a) + u2.powf(1.0 / a))
@@ -351,7 +396,8 @@ impl VonMisesFisher {
 
             let w_candidate = (1.0 - (1.0 + b) * z) / (1.0 - (1.0 - b) * z);
             let u: f64 = self.uniform_distr.sample(rng);
-            let log_accept = kappa * w_candidate + (p as f64 - 1.0) * (1.0 - w_candidate * w_candidate).ln() - c;
+            let log_accept =
+                kappa * w_candidate + (p as f64 - 1.0) * (1.0 - w_candidate * w_candidate).ln() - c;
             if log_accept >= u.ln() {
                 break w_candidate;
             }
@@ -393,16 +439,14 @@ impl VonMisesFisher {
             let u1: f64 = self.uniform_distr.sample(rng);
             let u2: f64 = self.uniform_distr.sample(rng);
             // Box-Muller standard normal
-            let z = (-2.0 * u1.max(f64::EPSILON).ln()).sqrt()
-                * (2.0 * std::f64::consts::PI * u2).cos();
+            let z =
+                (-2.0 * u1.max(f64::EPSILON).ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             let v = (1.0 + c * z).powi(3);
             if v <= 0.0 {
                 continue;
             }
             let u3: f64 = self.uniform_distr.sample(rng);
-            if u3 < 1.0 - 0.0331 * z.powi(4)
-                || u3.ln() < 0.5 * z * z + d * (1.0 - v + v.ln())
-            {
+            if u3 < 1.0 - 0.0331 * z.powi(4) || u3.ln() < 0.5 * z * z + d * (1.0 - v + v.ln()) {
                 return d * v;
             }
         }
@@ -449,7 +493,11 @@ impl VonMisesFisher {
         }
 
         // H = I - 2·u·uᵀ / ‖u‖²
-        let dot = x.iter().zip(u.iter()).map(|(&xi, &ui)| xi * ui).sum::<f64>();
+        let dot = x
+            .iter()
+            .zip(u.iter())
+            .map(|(&xi, &ui)| xi * ui)
+            .sum::<f64>();
         let scale = 2.0 * dot / norm_u_sq;
 
         let mut result = x.clone();
@@ -511,7 +559,8 @@ impl VonMisesFisher {
 mod tests {
     use super::*;
     use scirs2_core::ndarray::array;
-    use scirs2_core::random::{SmallRng, SeedableRng};
+    use scirs2_core::random::rngs::SmallRng;
+    use scirs2_core::random::SeedableRng;
 
     #[test]
     fn test_log_pdf_at_mean() {
@@ -601,6 +650,74 @@ mod tests {
         assert!(dot > 0.9, "mean direction dot product too low: {}", dot);
 
         // kappa should be in the right ballpark
-        assert!(kappa_hat > 3.0 && kappa_hat < 20.0, "kappa_hat={}", kappa_hat);
+        assert!(
+            kappa_hat > 3.0 && kappa_hat < 20.0,
+            "kappa_hat={}",
+            kappa_hat
+        );
+    }
+
+    /// `ln I_nu(x)` against mpmath `log(besseli(nu, x))` at 50 digits, NOT
+    /// derived from this crate. Covers the old failure modes: the `x > 30`
+    /// branch (wrong -- even negative -- whenever nu is not << sqrt(x)), the
+    /// series underflow/overflow for large nu, and values of I far outside
+    /// the f64 range.
+    #[test]
+    fn test_log_bessel_i_matches_mpmath() {
+        let cases: &[(f64, f64, f64)] = &[
+            (0.0, 1.0, 0.23591435850717865),
+            (0.5, 10.0, 7.9297689182371508),
+            (1.0, 30.0, 27.367748089282408),
+            (1.5, 31.0, 28.331278041729763),
+            (10.0, 50.0, 46.120852067835629),
+            (149.0, 40.0, -151.00170840543492),
+            (149.0, 10.0, -360.03664678117797),
+            (150.0, 30.0, -197.32971991538815),
+            (0.0, 700.0, 695.80569999844345),
+            (0.0, 1000.0, 995.62730888986946),
+            (1.5, 10000.0, 9994.4757912758069),
+            (500.0, 1000.0, 872.9995486951398),
+            (1000.0, 5.0, -4995.8312028772177),
+            (0.5, 0.001, -3.6796688254691348),
+            (2.0, 1_000_000.0, 999992.17330431281),
+        ];
+        for &(nu, x, expected) in cases {
+            let got = log_bessel_i(nu, x);
+            assert!(got.is_finite(), "ln I_{nu}({x}) = {got}");
+            let tolerance = 1e-12 * expected.abs().max(1.0);
+            assert!(
+                (got - expected).abs() <= tolerance,
+                "ln I_{nu}({x}): got {got}, want {expected}"
+            );
+        }
+        assert_eq!(log_bessel_i(0.0, 0.0), 0.0);
+        assert_eq!(log_bessel_i(2.0, 0.0), f64::NEG_INFINITY);
+        assert!(log_bessel_i(1.0, -1.0).is_nan());
+    }
+
+    /// End-to-end: a 300-dimensional vMF (nu = 149, kappa = 40) used to get a
+    /// NaN normalising constant; A_p must also stay finite for large kappa.
+    #[test]
+    fn test_vmf_high_dimension_and_large_kappa() -> Result<(), Box<dyn std::error::Error>> {
+        let mut mu = Array1::<f64>::zeros(300);
+        mu[0] = 1.0;
+        let vmf = VonMisesFisher::new(mu.clone(), 40.0)?;
+        let log_pdf = vmf.log_pdf(&mu);
+        // mpmath: log C_300(40) + 40
+        assert!(
+            (log_pdf - 464.96318710700961).abs() < 1e-9,
+            "log_pdf = {log_pdf}"
+        );
+        let a = vmf.mean_resultant_length();
+        assert!((a - 0.1310578428306944).abs() < 1e-12, "A_p = {a}");
+
+        // p = 3: A_3(kappa) = coth(kappa) - 1/kappa.
+        let mu3 = Array1::from_vec(vec![0.0, 0.0, 1.0]);
+        let vmf3 = VonMisesFisher::new(mu3.clone(), 1000.0)?;
+        assert!((vmf3.mean_resultant_length() - 0.999).abs() < 1e-12);
+        assert!(vmf3.log_pdf(&mu3).is_finite());
+        let vmf5 = VonMisesFisher::new(mu3, 5.0)?;
+        assert!((vmf5.mean_resultant_length() - 0.80009080398201938).abs() < 1e-12);
+        Ok(())
     }
 }
