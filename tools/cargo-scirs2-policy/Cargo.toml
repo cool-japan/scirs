@@ -8,7 +8,7 @@ repository.workspace = true
 authors.workspace = true
 readme = "README.md"
 keywords = ["cargo", "policy", "lint", "cooljapan", "workspace"]
-categories = ["development-tools", "development-tools::cargo-plugins"]
+categories = ["development-tools::cargo-plugins"]
 
 [lib]
 name = "cargo_scirs2_policy"
