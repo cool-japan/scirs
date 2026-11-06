@@ -195,7 +195,7 @@ fn detect_fast(image: &[Vec<f32>], threshold: f32, edge: usize) -> Vec<(usize, u
                 .iter()
                 .filter(|&&(dr, dc)| image[(r as i32 + dr) as usize][(c as i32 + dc) as usize] < lo)
                 .count();
-            if n_above < 3 && n_below < 3 {
+            if n_above < 2 && n_below < 2 {
                 continue;
             }
 
@@ -238,9 +238,13 @@ fn compute_orientation(image: &[Vec<f32>], r: usize, c: usize, half_patch: usize
     let mut m01 = 0.0_f32;
     let mut m10 = 0.0_f32;
 
-    for dr in -(half_patch as i32)..=(half_patch as i32) {
+    let hp = half_patch as i32;
+    for dr in -hp..=hp {
         let rr = (r as i32 + dr).clamp(0, rows as i32 - 1) as usize;
-        for dc in -(half_patch as i32)..=(half_patch as i32) {
+        for dc in -hp..=hp {
+            if dr * dr + dc * dc > hp * hp {
+                continue;
+            }
             let cc = (c as i32 + dc).clamp(0, cols as i32 - 1) as usize;
             let v = image[rr][cc];
             m10 += dc as f32 * v;
@@ -257,8 +261,8 @@ fn compute_orientation(image: &[Vec<f32>], r: usize, c: usize, half_patch: usize
 fn rotate_pair(dy: i32, dx: i32, angle: f32) -> (i32, i32) {
     let cos_a = angle.cos();
     let sin_a = angle.sin();
-    let dy_r = (cos_a * dy as f32 - sin_a * dx as f32).round() as i32;
-    let dx_r = (sin_a * dy as f32 + cos_a * dx as f32).round() as i32;
+    let dy_r = (sin_a * dx as f32 + cos_a * dy as f32).round() as i32;
+    let dx_r = (cos_a * dx as f32 - sin_a * dy as f32).round() as i32;
     (dy_r, dx_r)
 }
 
@@ -270,7 +274,6 @@ fn compute_steered_brief(
     c: usize,
     angle: f32,
     pairs: &[((i32, i32), (i32, i32))],
-    half_patch: i32,
 ) -> ORBDescriptor {
     let rows = image.len();
     let cols = image.first().map_or(0, |r| r.len());
@@ -285,14 +288,9 @@ fn compute_steered_brief(
     };
 
     for (i, &((dy_p, dx_p), (dy_q, dx_q))) in pairs.iter().enumerate() {
-        // Rotate offsets and clamp.
         let (dy_p_r, dx_p_r) = rotate_pair(dy_p, dx_p, angle);
         let (dy_q_r, dx_q_r) = rotate_pair(dy_q, dx_q, angle);
-        let dy_p_c = dy_p_r.clamp(-half_patch, half_patch);
-        let dx_p_c = dx_p_r.clamp(-half_patch, half_patch);
-        let dy_q_c = dy_q_r.clamp(-half_patch, half_patch);
-        let dx_q_c = dx_q_r.clamp(-half_patch, half_patch);
-        if get(dy_p_c, dx_p_c) < get(dy_q_c, dx_q_c) {
+        if get(dy_p_r, dx_p_r) < get(dy_q_r, dx_q_r) {
             bits[i / 64] |= 1_u64 << (i % 64);
         }
     }
@@ -350,6 +348,7 @@ pub fn detect_orb(
     // Pre-generate test pairs once.
     let n_bits = 256_usize;
     let half_patch = (config.patch_size / 2) as i32;
+    let min_edge = (half_patch as f32 * std::f32::consts::SQRT_2).ceil() as usize + 1;
     let pairs = generate_test_pairs(
         n_bits,
         config.patch_size,
@@ -368,12 +367,16 @@ pub fn detect_orb(
         if current.is_empty() || current[0].is_empty() {
             break;
         }
-        let corners = detect_fast(&current, threshold, config.edge_threshold.max(4));
+        let corners = detect_fast(
+            &current,
+            threshold,
+            config.edge_threshold.max(min_edge).max(4),
+        );
         let selected = nms_keypoints(corners, kp_per_level, nms_radius);
 
         for (r, c, response) in selected {
             let angle = compute_orientation(&current, r, c, config.patch_size / 2);
-            let desc = compute_steered_brief(&current, r, c, angle, &pairs, half_patch);
+            let desc = compute_steered_brief(&current, r, c, angle, &pairs);
             let kp = ORBKeypoint {
                 x: c as f32 * scale,
                 y: r as f32 * scale,
@@ -480,5 +483,46 @@ mod tests {
         let out = downscale(&img, 2.0);
         assert_eq!(out.len(), 32);
         assert_eq!(out[0].len(), 32);
+    }
+
+    #[test]
+    fn test_steered_brief_rotation_invariant_90() {
+        let (rows, cols) = (96usize, 80usize);
+        let mut s: u32 = 12345;
+        let img: Vec<Vec<f32>> = (0..rows)
+            .map(|_| {
+                (0..cols)
+                    .map(|_| {
+                        s = s.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+                        (s >> 8) as f32 / 16_777_216.0
+                    })
+                    .collect()
+            })
+            .collect();
+
+        // Rotate 90° clockwise: point (r, c) moves to (c, rows - 1 - r).
+        let rot: Vec<Vec<f32>> = (0..cols)
+            .map(|i| (0..rows).map(|j| img[rows - 1 - j][i]).collect())
+            .collect();
+
+        let pairs = generate_test_pairs(256, 31, BRIEFPattern::Gaussian, 0x0EB31337);
+        let (r, c) = (48, 40);
+        let (rb, cb) = (c, rows - 1 - r);
+
+        let ang_a = compute_orientation(&img, r, c, 15);
+        let ang_b = compute_orientation(&rot, rb, cb, 15);
+        let da = compute_steered_brief(&img, r, c, ang_a, &pairs);
+        let db = compute_steered_brief(&rot, rb, cb, ang_b, &pairs);
+
+        let dist: u32 = da
+            .bits
+            .iter()
+            .zip(&db.bits)
+            .map(|(a, b)| (a ^ b).count_ones())
+            .sum();
+        assert!(
+            dist <= 16,
+            "descriptor changed under 90° rotation: hamming = {dist}"
+        );
     }
 }
