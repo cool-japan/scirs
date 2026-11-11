@@ -140,9 +140,9 @@ oxifft = { version = "0.4.2" }
 
 # OxiBLAS - Pure Rust BLAS/LAPACK implementation (replaces OpenBLAS)
 # Using crates.io 0.2 series for stable releases
-oxiblas-ndarray = { version = "0.2.2" }
-oxiblas-blas = { version = "0.2.2" }
-oxiblas-lapack = { version = "0.2.2" }
+oxiblas-ndarray = { version = "0.2.3" }
+oxiblas-blas = { version = "0.2.3" }
+oxiblas-lapack = { version = "0.2.3" }
 
 # OxiZ - Pure Rust SMT solver (powers scirs2-symbolic SMT-pruned regression in v0.4.5+)
 oxiz = { version = "0.3.4" }
