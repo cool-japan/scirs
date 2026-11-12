@@ -386,6 +386,6 @@ When adding new fusion patterns:
 
 ## License
 
-Copyright (C) 2026 COOLJAPAN OU (Team Kitasan)
+Copyright (C) 2026 COOLJAPAN OU (Team KitaSan)
 
 Part of the SciRS2 ecosystem.

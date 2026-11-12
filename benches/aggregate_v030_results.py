@@ -8,7 +8,7 @@ and generates summary reports, comparisons, and visualizations.
 Usage:
     python3 aggregate_v030_results.py [--output OUTPUT_DIR]
 
-Copyright: COOLJAPAN OU (Team Kitasan)
+Copyright: COOLJAPAN OU (Team KitaSan)
 License: Apache-2.0
 """
 

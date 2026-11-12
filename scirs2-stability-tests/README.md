@@ -77,4 +77,4 @@ Full SciRS2 documentation: <https://github.com/cool-japan/scirs>
 
 Licensed under [Apache-2.0](LICENSE).
 
-Copyright © COOLJAPAN OU (Team Kitasan)
+Copyright © COOLJAPAN OU (Team KitaSan)

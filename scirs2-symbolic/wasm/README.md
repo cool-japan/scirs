@@ -126,4 +126,4 @@ Licensed under the Apache License 2.0. See [LICENSE](../../LICENSE) for details.
 
 ## Authors
 
-COOLJAPAN OU (Team Kitasan)
+COOLJAPAN OU (Team KitaSan)

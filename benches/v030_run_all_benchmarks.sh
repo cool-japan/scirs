@@ -9,7 +9,7 @@
 # Options:
 #   --quick  Run quick benchmarks (reduced measurement time)
 #
-# Copyright: COOLJAPAN OU (Team Kitasan)
+# Copyright: COOLJAPAN OU (Team KitaSan)
 # License: Apache-2.0
 
 set -e  # Exit on error

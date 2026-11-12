@@ -944,7 +944,7 @@ Expected community effort (non-core team):
 
 ### Key Contributors to Vision
 
-- COOLJAPAN OU Team Kitasan (original architects)
+- COOLJAPAN OU Team KitaSan (original architects)
 - Community contributors and researchers
 - Academic advisors from partner institutions
 - Industry partners providing feedback
@@ -962,7 +962,7 @@ Roadmap inspired by:
 
 **Last Updated**: February 26, 2026
 **Next Review**: May 2026
-**Maintainer**: COOLJAPAN OU (Team Kitasan)
+**Maintainer**: COOLJAPAN OU (Team KitaSan)
 **License**: Apache 2.0
 **Contribution**: Roadmap maintained by community input and voting
 
@@ -1128,5 +1128,5 @@ Together, we're building the future of scientific computing in Rust.
 
 **Last Updated**: February 2026
 **Next Review**: May 2026
-**Maintainer**: COOLJAPAN OU (Team Kitasan)
+**Maintainer**: COOLJAPAN OU (Team KitaSan)
 **License**: Apache 2.0

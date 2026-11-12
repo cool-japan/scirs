@@ -317,4 +317,4 @@ For issues or questions:
 
 ## License
 
-Apache-2.0 - COOLJAPAN OU (Team Kitasan)
+Apache-2.0 - COOLJAPAN OU (Team KitaSan)

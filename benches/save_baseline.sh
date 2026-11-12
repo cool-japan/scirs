@@ -18,7 +18,7 @@
 #   git add benches/performance_baseline.json
 #   git commit -m "perf: update performance baseline $(date +%Y-%m-%d)"
 #
-# Copyright: COOLJAPAN OU (Team Kitasan)
+# Copyright: COOLJAPAN OU (Team KitaSan)
 # License: Apache-2.0
 
 set -euo pipefail

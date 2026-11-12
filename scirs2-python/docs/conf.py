@@ -9,8 +9,8 @@ import sys
 # ---------------------------------------------------------------------------
 
 project = "SciRS2 Python"
-copyright = "2026, COOLJAPAN OU (Team Kitasan)"
-author = "Team Kitasan"
+copyright = "2026, COOLJAPAN OU (Team KitaSan)"
+author = "Team KitaSan"
 
 # The short X.Y version
 version = "0.4"

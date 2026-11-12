@@ -284,4 +284,4 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines.
 
 Apache License 2.0. See [LICENSE](../LICENSE) for details.
 
-Copyright COOLJAPAN OU (Team Kitasan)
+Copyright COOLJAPAN OU (Team KitaSan)

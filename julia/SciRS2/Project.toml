@@ -1,6 +1,6 @@
 name = "SciRS2"
 uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-authors = ["COOLJAPAN OU (Team Kitasan)"]
+authors = ["COOLJAPAN OU (Team KitaSan)"]
 version = "0.4.0"
 
 [deps]
