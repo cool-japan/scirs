@@ -231,6 +231,9 @@ pub fn bollinger_bands<F: Float + Clone>(
 /// above 70 typically indicating overbought conditions and below 30 indicating
 /// oversold conditions.
 ///
+/// Average gains and losses use Wilder's smoothing, so the values match
+/// TA-Lib's `RSI` and most charting platforms.
+///
 /// # Arguments
 ///
 /// * `data` - Price data array
@@ -274,21 +277,28 @@ pub fn rsi<F: Float + Clone>(data: &Array1<F>, period: usize) -> Result<Array1<F
     let gains = changes.mapv(|x| if x > F::zero() { x } else { F::zero() });
     let losses = changes.mapv(|x| if x < F::zero() { -x } else { F::zero() });
 
-    // Calculate average gains and losses
-    let avg_gain = sma(&gains, period)?;
-    let avg_loss = sma(&losses, period)?;
+    // Wilder's smoothing (as in TA-Lib's RSI): the first average is the simple
+    // mean of the first `period` changes, then each new change is folded in
+    // with weight 1 / period.
+    let n = F::from(period).expect("Failed to convert period to float");
+    let mut avg_gain = gains.iter().take(period).fold(F::zero(), |a, &g| a + g) / n;
+    let mut avg_loss = losses.iter().take(period).fold(F::zero(), |a, &l| a + l) / n;
 
-    // Calculate RSI
-    let mut rsi = Array1::zeros(avg_gain.len());
     let hundred = F::from(100).expect("Failed to convert constant to float");
-
-    for i in 0..rsi.len() {
-        if avg_loss[i] == F::zero() {
-            rsi[i] = hundred;
+    let value = |avg_gain: F, avg_loss: F| {
+        if avg_loss == F::zero() {
+            hundred
         } else {
-            let rs = avg_gain[i] / avg_loss[i];
-            rsi[i] = hundred - (hundred / (F::one() + rs));
+            hundred - (hundred / (F::one() + avg_gain / avg_loss))
         }
+    };
+
+    let mut rsi = Array1::zeros(changes.len() - period + 1);
+    rsi[0] = value(avg_gain, avg_loss);
+    for i in period..changes.len() {
+        avg_gain = (avg_gain * (n - F::one()) + gains[i]) / n;
+        avg_loss = (avg_loss * (n - F::one()) + losses[i]) / n;
+        rsi[i - period + 1] = value(avg_gain, avg_loss);
     }
 
     Ok(rsi)
@@ -745,6 +755,28 @@ mod tests {
         // All values should be between 0 and 100
         for &value in rsi_values.iter() {
             assert!(value >= 0.0 && value <= 100.0);
+        }
+    }
+
+    #[test]
+    fn test_rsi_matches_wilder_and_talib() {
+        // Wilder's example closes; expected values are TA-Lib RSI(14) on the same data.
+        let data = arr1(&[
+            44.34, 44.09, 44.15, 43.61, 44.33, 44.83, 45.10, 45.42, 45.84, 46.08, 45.89, 46.03,
+            45.61, 46.28, 46.28, 46.00, 46.03, 46.41, 46.22, 45.64,
+        ]);
+        let result = rsi(&data, 14).expect("Operation failed");
+        let expected = [
+            70.46413502109704,
+            66.24961855355505,
+            66.48094183471265,
+            69.34685316290864,
+            66.29471265892623,
+            57.91502067008556,
+        ];
+        assert_eq!(result.len(), expected.len());
+        for (got, want) in result.iter().zip(expected) {
+            assert!((got - want).abs() < 1e-9, "{got} != {want}");
         }
     }
 
