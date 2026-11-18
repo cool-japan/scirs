@@ -653,12 +653,16 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand> Birch<F> {
     }
 
     /// Predict cluster labels for data
+    ///
+    /// Each point takes the cluster label of its nearest leaf entry.
     pub fn predict(&self, data: ArrayView2<F>) -> Result<Array1<i32>> {
         if self.leaf_entries.is_empty() {
             return Err(ClusteringError::InvalidInput(
                 "Model has not been fitted yet".to_string(),
             ));
         }
+
+        let (_, cf_labels) = self.extract_clusters()?;
 
         let n_samples = data.shape()[0];
         let mut labels = Array1::zeros(n_samples);
@@ -678,7 +682,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand> Birch<F> {
                 }
             }
 
-            labels[i] = closest_cf as i32;
+            labels[i] = cf_labels[closest_cf];
         }
 
         Ok(labels)
@@ -1103,6 +1107,55 @@ mod tests {
         let (centroids, labels) = result.expect("Should succeed");
         assert_eq!(centroids.shape()[0], 2);
         assert_eq!(labels.len(), 6);
+    }
+
+    #[test]
+    fn test_birch_labels_are_cluster_ids() {
+        let data = make_two_cluster_data();
+
+        let options = BirchOptions {
+            threshold: 0.01, // one leaf entry per point
+            n_clusters: Some(2),
+            ..Default::default()
+        };
+
+        let (_centroids, labels) = birch(data.view(), options).expect("Should succeed");
+        assert!(
+            labels.iter().all(|&l| l == 0 || l == 1),
+            "Labels should be cluster ids, got {:?}",
+            labels
+        );
+        assert_eq!(labels[0], labels[1]);
+        assert_eq!(labels[0], labels[2]);
+        assert_eq!(labels[3], labels[4]);
+        assert_eq!(labels[3], labels[5]);
+        assert_ne!(labels[0], labels[3]);
+    }
+
+    #[test]
+    fn test_birch_predict_returns_cluster_ids() {
+        let data = make_two_cluster_data();
+
+        let mut model = Birch::new(BirchOptions {
+            threshold: 0.01,
+            n_clusters: Some(2),
+            ..Default::default()
+        });
+        model.fit(data.view()).expect("Should fit");
+        let (centroids, _) = model.extract_clusters().expect("Should extract");
+
+        let new_data = Array2::from_shape_vec((2, 2), vec![1.1, 1.9, 4.1, 4.9])
+            .expect("Failed to create data");
+        let labels = model.predict(new_data.view()).expect("Should predict");
+
+        assert!(
+            labels.iter().all(|&l| l == 0 || l == 1),
+            "Labels should be cluster ids, got {:?}",
+            labels
+        );
+        assert_ne!(labels[0], labels[1]);
+        let near_first = centroids.row(labels[0] as usize);
+        assert!((near_first[0] - 1.0).abs() < 0.5 && (near_first[1] - 1.9).abs() < 0.5);
     }
 
     #[test]
