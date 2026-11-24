@@ -5,8 +5,18 @@
 //!
 //! ## Supported Formats
 //!
-//! - **FITS**: Flexible Image Transport System - standard format for astronomical data
+//! - **FITS**: Flexible Image Transport System - standard format for astronomical data.
+//!   Parsing and decoding are done by the pure-Rust [`fitsio_pure`] crate: images
+//!   (including tile-compressed images and gzip-compressed `.fits.gz` files) are
+//!   returned with BSCALE/BZERO applied, and table columns are read from the file.
 //! - **VOTable**: Virtual Observatory Table format for tabular astronomical data
+//!
+//! ## Image axis order
+//!
+//! 2D images are returned with shape `(NAXIS1, NAXIS2)` and indexed `[x, y]`, so
+//! `image[[x, y]]` is FITS pixel `(x + 1, y + 1)`. This is the transpose of the
+//! `(NAXIS2, NAXIS1)` row-major order used by astropy and fitsio.
+//! [`FitsWriter::write_image_2d`] uses the same order, so images round-trip.
 //!
 //! ## Examples
 //!
@@ -35,11 +45,19 @@
 
 use crate::error::{IoError, Result};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use scirs2_core::ndarray::Array2;
+use fitsio_pure::bintable::{self, BinaryColumnData, BinaryColumnType};
+use fitsio_pure::extension::{build_extension_header, ExtensionType};
+use fitsio_pure::hdu::{Hdu as RawHdu, HduInfo};
+use fitsio_pure::header::{serialize_header, Card};
+use fitsio_pure::table::{self, AsciiColumnData};
+use fitsio_pure::value::Value;
+use scirs2_core::ndarray::{Array2, ShapeBuilder};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// FITS file structure
 pub struct FitsFile {
@@ -54,10 +72,53 @@ pub struct HDU {
     pub hdu_type: HDUType,
     /// Header cards
     pub header: FitsHeader,
-    /// Data offset in file
+    /// Data offset in file (in the decompressed stream for `.fits.gz` files)
     pub data_offset: u64,
-    /// Data size in bytes
+    /// Data size in bytes, including any binary table heap
     pub data_size: usize,
+    /// Where the data unit is and how to decode it
+    raw: Arc<RawData>,
+}
+
+/// The data source and parsed layout of one HDU.
+#[derive(Debug)]
+struct RawData {
+    source: Arc<Source>,
+    hdu: RawHdu,
+}
+
+/// The bytes an HDU's data unit is read from.
+#[derive(Debug)]
+enum Source {
+    /// A plain FITS file, read on demand one data unit at a time.
+    File(PathBuf),
+    /// A decompressed `.fits.gz` file held in memory.
+    Memory(Vec<u8>),
+}
+
+impl RawData {
+    /// The data unit's bytes, with an HDU whose `data_start` indexes them.
+    fn data(&self) -> Result<(Cow<'_, [u8]>, RawHdu)> {
+        match self.source.as_ref() {
+            Source::Memory(bytes) => Ok((Cow::Borrowed(bytes), self.hdu.clone())),
+            Source::File(path) => {
+                let mut file = File::open(path)
+                    .map_err(|_e| IoError::FileNotFound(path.display().to_string()))?;
+                file.seek(SeekFrom::Start(self.hdu.data_start as u64))
+                    .map_err(|e| IoError::ParseError(format!("Failed to seek to data: {e}")))?;
+                let mut bytes = vec![0u8; self.hdu.data_len];
+                file.read_exact(&mut bytes)
+                    .map_err(|e| IoError::ParseError(format!("Failed to read data: {e}")))?;
+                let mut hdu = self.hdu.clone();
+                hdu.data_start = 0;
+                Ok((Cow::Owned(bytes), hdu))
+            }
+        }
+    }
+}
+
+fn fits_error(context: &str, e: fitsio_pure::Error) -> IoError {
+    IoError::ParseError(format!("{context}: {e}"))
 }
 
 /// HDU types
@@ -65,7 +126,7 @@ pub struct HDU {
 pub enum HDUType {
     /// Primary HDU (must be first)
     Primary,
-    /// Image extension
+    /// Image extension (including tile-compressed images)
     Image,
     /// ASCII table extension
     AsciiTable,
@@ -117,6 +178,51 @@ impl FitsHeader {
             cards: Vec::new(),
             card_map: HashMap::new(),
         }
+    }
+
+    /// Build a header from parsed cards, leaving out END.
+    ///
+    /// A `HIERARCH` card is keyed by its name without the prefix
+    /// (`ESO DET NDIT`), with its value; a long string continued on `CONTINUE`
+    /// cards is joined, and those cards are not kept separately.
+    fn from_cards(cards: &[Card]) -> Self {
+        let mut header = Self::new();
+        let mut in_hierarch_string = false;
+        for card in cards.iter().filter(|c| !c.is_end()) {
+            if in_hierarch_string && card.keyword_str() == "CONTINUE" {
+                continue;
+            }
+            let (keyword, value, comment) = match fitsio_pure::header::hierarch(card) {
+                Some((name, value, comment)) => {
+                    match fitsio_pure::header::find_hierarch(cards, name) {
+                        Some((value, comment)) => (name.to_string(), Some(value), comment),
+                        None => (name.to_string(), Some(value), comment),
+                    }
+                }
+                None => (
+                    card.keyword_str().to_string(),
+                    card.value.clone(),
+                    card.comment.clone(),
+                ),
+            };
+            in_hierarch_string =
+                card.keyword_str() == "HIERARCH" && matches!(value, Some(Value::String(_)));
+            let value = match value {
+                Some(Value::Logical(b)) => CardValue::Boolean(b),
+                Some(Value::Integer(i)) => CardValue::Integer(i),
+                Some(Value::Float(f)) => CardValue::Float(f),
+                Some(Value::String(s)) => CardValue::String(s),
+                Some(Value::ComplexInt(re, im)) => CardValue::Complex(re as f64, im as f64),
+                Some(Value::ComplexFloat(re, im)) => CardValue::Complex(re, im),
+                Some(Value::Undefined) | None => CardValue::None,
+            };
+            header.add_card(HeaderCard {
+                keyword,
+                value,
+                comment,
+            });
+        }
+        header
     }
 
     /// Add a card to the header
@@ -260,215 +366,77 @@ impl FitsDataType {
 }
 
 impl FitsFile {
-    /// Open a FITS file
+    /// Open a FITS file, plain or gzip-compressed.
+    ///
+    /// Only the headers are read here; a plain file's data units are read when
+    /// they are asked for. A gzip-compressed file is decompressed into memory.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let file_path = path.as_ref().to_string_lossy().to_string();
-        let mut file =
-            File::open(path.as_ref()).map_err(|_e| IoError::FileNotFound(file_path.clone()))?;
+        let path = path.as_ref();
+        let file_path = path.to_string_lossy().to_string();
+        let mut file = File::open(path).map_err(|_e| IoError::FileNotFound(file_path.clone()))?;
 
-        let mut hdus = Vec::new();
-        let mut offset = 0u64;
+        let mut magic = [0u8; 2];
+        let is_gzip = file.read_exact(&mut magic).is_ok() && fitsio_pure::gzip::is_gzip(&magic);
 
-        // Read all HDUs
-        loop {
-            file.seek(SeekFrom::Start(offset))
-                .map_err(|e| IoError::ParseError(format!("Failed to seek: {e}")))?;
+        let (source, parsed) = if is_gzip {
+            let mut compressed = Vec::new();
+            file.seek(SeekFrom::Start(0))
+                .and_then(|_| file.read_to_end(&mut compressed))
+                .map_err(|e| IoError::FileError(format!("Failed to read {file_path}: {e}")))?;
+            let bytes = fitsio_pure::gzip::decompress(&compressed)
+                .map_err(|e| IoError::DecompressionError(format!("{file_path}: {e}")))?;
+            let parsed = fitsio_pure::hdu::parse_fits(&bytes)
+                .map_err(|e| fits_error("Failed to parse FITS", e))?;
+            (Source::Memory(bytes), parsed)
+        } else {
+            let len = file
+                .metadata()
+                .map_err(|e| IoError::FileError(format!("Failed to stat {file_path}: {e}")))?
+                .len() as usize;
+            let parsed = fitsio_pure::hdu::parse_fits_headers(len, |offset, buf| {
+                file.seek(SeekFrom::Start(offset as u64))
+                    .and_then(|_| file.read_exact(buf))
+                    .map_err(fitsio_pure::Error::from)
+            })
+            .map_err(|e| fits_error("Failed to parse FITS", e))?;
+            (Source::File(path.to_path_buf()), parsed)
+        };
 
-            // Read header
-            let header = Self::readheader(&mut file)?;
-
-            // Determine HDU type
-            let hdu_type = if hdus.is_empty() {
-                HDUType::Primary
-            } else {
-                match header.get_string("XTENSION").ok().as_deref() {
-                    Some("IMAGE") => HDUType::Image,
-                    Some("TABLE") => HDUType::AsciiTable,
-                    Some("BINTABLE") => HDUType::BinaryTable,
+        let source = Arc::new(source);
+        let hdus = parsed
+            .hdus
+            .into_iter()
+            .enumerate()
+            .map(|(index, hdu)| {
+                let hdu_type = match hdu.info {
+                    _ if index == 0 => HDUType::Primary,
+                    HduInfo::AsciiTable { .. } => HDUType::AsciiTable,
+                    HduInfo::BinaryTable { .. } => HDUType::BinaryTable,
                     _ => HDUType::Image,
-                }
-            };
-
-            // Calculate data size
-            let data_size = Self::calculate_data_size(&header)?;
-            let header_blocks = ((header.cards.len() + 35) / 36) as u64; // 36 cards per 2880-byte block
-            let data_offset = offset + header_blocks * 2880;
-
-            hdus.push(HDU {
-                hdu_type,
-                header,
-                data_offset,
-                data_size,
-            });
-
-            // Move to next HDU
-            let data_blocks = ((data_size + 2879) / 2880) as u64;
-            offset = data_offset + data_blocks * 2880;
-
-            // Check for END
-            if hdus
-                .last()
-                .expect("Operation failed")
-                .header
-                .cards
-                .iter()
-                .any(|c| c.keyword == "END")
-            {
-                // Check if there's more data
-                if file.seek(SeekFrom::Start(offset)).is_err() {
-                    break;
-                }
-
-                let mut test_buf = [0u8; 80];
-                match file.read_exact(&mut test_buf) {
-                    Ok(_) => {
-                        let test_str = String::from_utf8_lossy(&test_buf);
-                        if test_str.trim().is_empty() {
-                            break;
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-        }
+                };
+                // A tile-compressed image is presented with the header of the
+                // image it holds, as cfitsio and astropy present it.
+                let header = match hdu.info {
+                    HduInfo::CompressedImage { .. } => FitsHeader::from_cards(
+                        &fitsio_pure::tiled::uncompressed_header(&hdu)
+                            .map_err(|e| fits_error("Failed to read compressed image header", e))?,
+                    ),
+                    _ => FitsHeader::from_cards(&hdu.cards),
+                };
+                Ok(HDU {
+                    hdu_type,
+                    header,
+                    data_offset: hdu.data_start as u64,
+                    data_size: hdu.data_len,
+                    raw: Arc::new(RawData {
+                        source: Arc::clone(&source),
+                        hdu,
+                    }),
+                })
+            })
+            .collect::<Result<Vec<HDU>>>()?;
 
         Ok(Self { file_path, hdus })
-    }
-
-    /// Read a header from the current file position
-    fn readheader<R: Read>(reader: &mut R) -> Result<FitsHeader> {
-        let mut header = FitsHeader::new();
-        let mut card_buf = [0u8; 80];
-
-        loop {
-            reader
-                .read_exact(&mut card_buf)
-                .map_err(|e| IoError::ParseError(format!("Failed to read header card: {e}")))?;
-
-            let cardstr = String::from_utf8_lossy(&card_buf);
-
-            // Parse card
-            if let Some(card) = Self::parseheader_card(&cardstr) {
-                if card.keyword == "END" {
-                    break;
-                }
-                header.add_card(card);
-            }
-        }
-
-        Ok(header)
-    }
-
-    /// Parse a single header card
-    fn parseheader_card(cardstr: &str) -> Option<HeaderCard> {
-        if cardstr.len() < 8 {
-            return None;
-        }
-
-        let keyword = cardstr[0..8].trim().to_string();
-
-        if keyword.is_empty() || keyword == "COMMENT" || keyword == "HISTORY" {
-            // Comment cards
-            return Some(HeaderCard {
-                keyword,
-                value: CardValue::None,
-                comment: Some(cardstr[8..].trim().to_string()),
-            });
-        }
-
-        if keyword == "END" {
-            return Some(HeaderCard {
-                keyword,
-                value: CardValue::None,
-                comment: None,
-            });
-        }
-
-        // Look for = at position 8
-        if cardstr.len() > 9 && &cardstr[8..9] == "=" {
-            let value_comment = &cardstr[10..];
-
-            // Parse value and comment
-            if let Some(slash_pos) = value_comment.find('/') {
-                let valuestr = value_comment[..slash_pos].trim();
-                let comment = value_comment[slash_pos + 1..].trim().to_string();
-                let value = Self::parse_card_value(valuestr);
-
-                Some(HeaderCard {
-                    keyword,
-                    value,
-                    comment: Some(comment),
-                })
-            } else {
-                let value = Self::parse_card_value(value_comment.trim());
-
-                Some(HeaderCard {
-                    keyword,
-                    value,
-                    comment: None,
-                })
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Parse a card value
-    fn parse_card_value(valuestr: &str) -> CardValue {
-        // Boolean
-        if valuestr == "T" {
-            return CardValue::Boolean(true);
-        }
-        if valuestr == "F" {
-            return CardValue::Boolean(false);
-        }
-
-        // String (quoted)
-        if valuestr.starts_with('\'') && valuestr.ends_with('\'') {
-            let s = valuestr[1..valuestr.len() - 1].trim().to_string();
-            return CardValue::String(s);
-        }
-
-        // Try parsing as number
-        if let Ok(i) = valuestr.parse::<i64>() {
-            return CardValue::Integer(i);
-        }
-
-        if let Ok(f) = valuestr.parse::<f64>() {
-            return CardValue::Float(f);
-        }
-
-        // Default to string
-        CardValue::String(valuestr.to_string())
-    }
-
-    /// Calculate data size from header
-    fn calculate_data_size(header: &FitsHeader) -> Result<usize> {
-        // For images
-        if let Ok(bitpix) = header.get_i64("BITPIX") {
-            let mut size = (bitpix.abs() / 8) as usize;
-
-            // Get NAXIS
-            let naxis = header.get_i64("NAXIS").unwrap_or(0) as usize;
-
-            for i in 1..=naxis {
-                let axis_key = format!("NAXIS{i}");
-                if let Ok(axis_size) = header.get_i64(&axis_key) {
-                    size *= axis_size as usize;
-                }
-            }
-
-            return Ok(size);
-        }
-
-        // For tables
-        if let Ok(naxis2) = header.get_i64("NAXIS2") {
-            if let Ok(naxis1) = header.get_i64("NAXIS1") {
-                return Ok((naxis1 * naxis2) as usize);
-            }
-        }
-
-        Ok(0)
     }
 
     /// Get primary header
@@ -493,7 +461,12 @@ impl FitsFile {
         self.readhdu_image(0)
     }
 
-    /// Read image from specific HDU
+    /// Read image from specific HDU, with BSCALE/BZERO applied and BLANK
+    /// pixels as NaN.
+    ///
+    /// The result has shape `(NAXIS1, NAXIS2)`, indexed `[x, y]` (see the
+    /// module documentation). Images with more than two axes are accepted
+    /// when every axis past the second has length 1.
     pub fn readhdu_image<T: FitsNumeric>(&self, hduindex: usize) -> Result<Array2<T>> {
         let hdu = self.gethdu(hduindex)?;
 
@@ -503,44 +476,34 @@ impl FitsFile {
             )));
         }
 
-        let bitpix = hdu.header.get_i64("BITPIX")?;
-        let naxis = hdu.header.get_i64("NAXIS")?;
-
-        if naxis != 2 {
+        let dims = self.image_dimensions(hduindex)?;
+        if dims.len() < 2 || dims[2..].iter().any(|&n| n != 1) {
             return Err(IoError::ParseError(format!(
-                "Expected 2D image, got {naxis}D"
+                "Expected 2D image, got dimensions {dims:?}"
             )));
         }
+        let (naxis1, naxis2) = (dims[0], dims[1]);
 
-        let naxis1 = hdu.header.get_i64("NAXIS1")? as usize;
-        let naxis2 = hdu.header.get_i64("NAXIS2")? as usize;
+        let (bytes, raw) = hdu.raw.data()?;
+        let physical = fitsio_pure::image::read_image_physical(&bytes, &raw)
+            .map_err(|e| fits_error("Failed to read image", e))?;
+        let values = physical
+            .into_iter()
+            .map(T::from_physical)
+            .collect::<Result<Vec<T>>>()?;
 
-        let mut file = File::open(&self.file_path)
-            .map_err(|_e| IoError::FileNotFound(self.file_path.clone()))?;
-
-        file.seek(SeekFrom::Start(hdu.data_offset))
-            .map_err(|e| IoError::ParseError(format!("Failed to seek to data: {e}")))?;
-
-        // Read data based on BITPIX
-        let datatype = FitsDataType::frombitpix(bitpix as i32)?;
-        let mut values = Vec::with_capacity(naxis1 * naxis2);
-
-        // FITS uses Fortran order (column-major), but we'll convert to row-major
-        for _ in 0..(naxis1 * naxis2) {
-            let value = T::read_fits(&mut file, datatype)?;
-            values.push(value);
-        }
-
-        // Reshape from FITS order to ndarray order
-        let array = Array2::from_shape_vec((naxis2, naxis1), values)
-            .map_err(|e| IoError::ParseError(format!("Failed to create array: {e}")))?;
-
-        Ok(array.t().to_owned())
+        // FITS stores NAXIS1 fastest, which is column-major for shape (NAXIS1, NAXIS2).
+        Array2::from_shape_vec((naxis1, naxis2).f(), values)
+            .map_err(|e| IoError::ParseError(format!("Failed to create array: {e}")))
     }
 
-    /// Get image dimensions
+    /// Get image dimensions (NAXIS1, NAXIS2, ...); for a tile-compressed image,
+    /// the dimensions of the image rather than of the table holding it.
     pub fn image_dimensions(&self, hduindex: usize) -> Result<Vec<usize>> {
         let hdu = self.gethdu(hduindex)?;
+        if let Ok(dims) = fitsio_pure::image::image_dimensions(&hdu.raw.hdu) {
+            return Ok(dims);
+        }
         let naxis = hdu.header.get_i64("NAXIS")? as usize;
 
         let mut dims = Vec::with_capacity(naxis);
@@ -558,6 +521,11 @@ impl FitsFile {
 pub trait FitsNumeric: Default + Clone {
     fn read_fits<R: Read>(reader: &mut R, datatype: FitsDataType) -> Result<Self>;
     fn write_fits<W: Write>(&self, writer: &mut W, datatype: FitsDataType) -> Result<()>;
+
+    /// Convert a physical pixel value (BSCALE/BZERO already applied).
+    fn from_physical(value: f64) -> Result<Self> {
+        Self::read_fits(&mut &value.to_be_bytes()[..], FitsDataType::Float64)
+    }
 }
 
 impl FitsNumeric for f32 {
@@ -646,58 +614,46 @@ impl FitsWriter {
         })
     }
 
-    /// Write a primary HDU with 2D image data
+    /// Write a 2D image HDU: the primary HDU first, then IMAGE extensions.
+    ///
+    /// `data` is indexed `[x, y]`: its shape `(n0, n1)` is written as
+    /// `NAXIS1 = n0`, `NAXIS2 = n1`, the order [`FitsFile::read_image`] returns.
     pub fn write_image_2d<T: FitsNumeric>(
         &mut self,
         data: &Array2<T>,
         datatype: FitsDataType,
     ) -> Result<()> {
-        let mut header = FitsHeader::new();
+        let (naxis1, naxis2) = data.dim();
+        let bitpix = datatype.bitpix() as i64;
+        let naxes = [naxis1, naxis2];
 
-        // Mandatory keywords
-        header.add_card(HeaderCard {
-            keyword: "SIMPLE".to_string(),
-            value: CardValue::Boolean(true),
-            comment: Some("Standard FITS format".to_string()),
-        });
+        let cards = if self.currenthdu == 0 {
+            let mut cards = fitsio_pure::primary::build_primary_header(bitpix, &naxes)
+                .map_err(|e| IoError::FileError(format!("Failed to build header: {e}")))?;
+            cards.push(
+                Card::new("EXTEND", Value::Logical(true))
+                    .map_err(|e| IoError::FileError(format!("Failed to build header: {e}")))?,
+            );
+            cards
+        } else {
+            build_extension_header(ExtensionType::Image, bitpix, &naxes, 0, 1)
+                .map_err(|e| IoError::FileError(format!("Failed to build header: {e}")))?
+        };
+        let header = serialize_header(&cards)
+            .map_err(|e| IoError::FileError(format!("Failed to build header: {e}")))?;
+        self.writer
+            .write_all(&header)
+            .map_err(|e| IoError::FileError(format!("Failed to write header: {e}")))?;
 
-        header.add_card(HeaderCard {
-            keyword: "BITPIX".to_string(),
-            value: CardValue::Integer(datatype.bitpix() as i64),
-            comment: Some("Number of bits per pixel".to_string()),
-        });
-
-        header.add_card(HeaderCard {
-            keyword: "NAXIS".to_string(),
-            value: CardValue::Integer(2),
-            comment: Some("Number of axes".to_string()),
-        });
-
-        let (rows, cols) = data.dim();
-        header.add_card(HeaderCard {
-            keyword: "NAXIS1".to_string(),
-            value: CardValue::Integer(cols as i64),
-            comment: Some("Length of axis 1".to_string()),
-        });
-
-        header.add_card(HeaderCard {
-            keyword: "NAXIS2".to_string(),
-            value: CardValue::Integer(rows as i64),
-            comment: Some("Length of axis 2".to_string()),
-        });
-
-        // Write header
-        self.writeheader(&header)?;
-
-        // Write data in FITS order (column-major)
-        for col in 0..cols {
-            for row in 0..rows {
-                data[[row, col]].write_fits(&mut self.writer, datatype)?;
+        // FITS order: NAXIS1 (x) varies fastest.
+        for y in 0..naxis2 {
+            for x in 0..naxis1 {
+                data[[x, y]].write_fits(&mut self.writer, datatype)?;
             }
         }
 
         // Pad to 2880-byte boundary
-        let data_bytes = rows * cols * datatype.byte_size();
+        let data_bytes = naxis1 * naxis2 * datatype.byte_size();
         let padding = (2880 - (data_bytes % 2880)) % 2880;
         if padding > 0 {
             let pad_bytes = vec![0u8; padding];
@@ -709,85 +665,6 @@ impl FitsWriter {
         self.currenthdu += 1;
 
         Ok(())
-    }
-
-    /// Write a header
-    fn writeheader(&mut self, header: &FitsHeader) -> Result<()> {
-        // Write header cards
-        for card in &header.cards {
-            self.writeheader_card(card)?;
-        }
-
-        // Write END card
-        self.writeheader_card(&HeaderCard {
-            keyword: "END".to_string(),
-            value: CardValue::None,
-            comment: None,
-        })?;
-
-        // Pad to 2880-byte boundary
-        let cards_written = header.cards.len() + 1; // +1 for END
-        let cards_per_block = 36;
-        let remaining = cards_per_block - (cards_written % cards_per_block);
-
-        if remaining < cards_per_block {
-            let blank_card = vec![b' '; 80];
-            for _ in 0..remaining {
-                self.writer
-                    .write_all(&blank_card)
-                    .map_err(|e| IoError::FileError(format!("Failed to write blank card: {e}")))?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Write a single header card
-    fn writeheader_card(&mut self, card: &HeaderCard) -> Result<()> {
-        let mut cardstr = String::with_capacity(80);
-
-        // Keyword (8 characters, left-justified)
-        cardstr.push_str(&format!("{:<8}", card.keyword));
-
-        // Value
-        match &card.value {
-            CardValue::Boolean(b) => {
-                cardstr.push_str(&format!("= {:>20}", if *b { "T" } else { "F" }));
-            }
-            CardValue::Integer(i) => {
-                cardstr.push_str(&format!("= {i:>20}"));
-            }
-            CardValue::Float(f) => {
-                cardstr.push_str(&format!("= {f:>20.10E}"));
-            }
-            CardValue::String(s) => {
-                cardstr.push_str(&format!("= '{s:<18}'"));
-            }
-            CardValue::None => {
-                // No equals sign for comment cards
-            }
-            _ => {}
-        }
-
-        // Comment
-        if let Some(comment) = &card.comment {
-            if cardstr.len() < 31 {
-                cardstr.push_str(&" ".repeat(31 - cardstr.len()));
-            }
-            cardstr.push_str(" / ");
-            cardstr.push_str(comment);
-        }
-
-        // Pad to 80 characters
-        match cardstr.len().cmp(&80) {
-            std::cmp::Ordering::Less => cardstr.push_str(&" ".repeat(80 - cardstr.len())),
-            std::cmp::Ordering::Greater => cardstr.truncate(80),
-            std::cmp::Ordering::Equal => {}
-        }
-
-        self.writer
-            .write_all(cardstr.as_bytes())
-            .map_err(|e| IoError::FileError(format!("Failed to write header card: {e}")))
     }
 
     /// Flush the writer
@@ -1042,6 +919,11 @@ impl GeoTransform {
 }
 
 /// World Coordinate System parameters
+///
+/// Pixel coordinates are 1-based FITS pixel coordinates. For `RA---TAN` /
+/// `DEC--TAN` axes the gnomonic (TAN) projection is applied with the default
+/// `LONPOLE`; other axis types are mapped linearly. SIP and other distortion
+/// terms are not applied.
 #[derive(Debug, Clone)]
 pub struct WCSTransform {
     /// Reference coordinate value at reference pixel (RA)
@@ -1056,7 +938,8 @@ pub struct WCSTransform {
     pub cdelt1: f64,
     /// Coordinate increment at reference pixel
     pub cdelt2: f64,
-    /// Coordinate transformation matrix
+    /// Linear transformation matrix (degrees per pixel): from CDi_j, or from
+    /// PCi_j or CROTA2 scaled by CDELTi. When `None`, `diag(cdelt1, cdelt2)`.
     pub cd_matrix: Option<[[f64; 2]; 2]>,
     /// Coordinate type (e.g., "RA---TAN", "DEC--TAN")
     pub ctype1: String,
@@ -1067,44 +950,130 @@ pub struct WCSTransform {
 impl WCSTransform {
     /// Create WCS transform from FITS header
     pub fn from_fitsheader(header: &FitsHeader) -> Result<Self> {
+        let cdelt1 = header.get_f64("CDELT1").unwrap_or(1.0);
+        let cdelt2 = header.get_f64("CDELT2").unwrap_or(1.0);
+        let matrix = |prefix: &str, identity: bool| {
+            let keys = [["1_1", "1_2"], ["2_1", "2_2"]];
+            if !keys
+                .iter()
+                .flatten()
+                .any(|k| header.has_keyword(&format!("{prefix}{k}")))
+            {
+                return None;
+            }
+            let mut m = [[0.0; 2]; 2];
+            for (i, row) in keys.iter().enumerate() {
+                for (j, k) in row.iter().enumerate() {
+                    let default = if identity && i == j { 1.0 } else { 0.0 };
+                    m[i][j] = header.get_f64(&format!("{prefix}{k}")).unwrap_or(default);
+                }
+            }
+            Some(m)
+        };
+        let cd_matrix = matrix("CD", false)
+            .or_else(|| {
+                matrix("PC", true).map(|pc| {
+                    [
+                        [cdelt1 * pc[0][0], cdelt1 * pc[0][1]],
+                        [cdelt2 * pc[1][0], cdelt2 * pc[1][1]],
+                    ]
+                })
+            })
+            .or_else(|| {
+                let rho = header.get_f64("CROTA2").ok()?.to_radians();
+                Some([
+                    [cdelt1 * rho.cos(), -cdelt2 * rho.sin()],
+                    [cdelt1 * rho.sin(), cdelt2 * rho.cos()],
+                ])
+            });
         Ok(Self {
             crval1: header.get_f64("CRVAL1").unwrap_or(0.0),
             crval2: header.get_f64("CRVAL2").unwrap_or(0.0),
             crpix1: header.get_f64("CRPIX1").unwrap_or(1.0),
             crpix2: header.get_f64("CRPIX2").unwrap_or(1.0),
-            cdelt1: header.get_f64("CDELT1").unwrap_or(1.0),
-            cdelt2: header.get_f64("CDELT2").unwrap_or(1.0),
-            cd_matrix: None, // Could be extracted from CD1_1, CD1_2, etc.
-            ctype1: header
-                .get_string("CTYPE1")
-                .unwrap_or("RA---TAN".to_string()),
-            ctype2: header
-                .get_string("CTYPE2")
-                .unwrap_or("DEC--TAN".to_string()),
+            cdelt1,
+            cdelt2,
+            cd_matrix,
+            ctype1: header.get_string("CTYPE1").unwrap_or_default(),
+            ctype2: header.get_string("CTYPE2").unwrap_or_default(),
         })
+    }
+
+    fn matrix(&self) -> [[f64; 2]; 2] {
+        self.cd_matrix
+            .unwrap_or([[self.cdelt1, 0.0], [0.0, self.cdelt2]])
+    }
+
+    fn is_tan(&self) -> bool {
+        self.ctype1.trim_end().ends_with("-TAN") && self.ctype2.trim_end().ends_with("-TAN")
+    }
+
+    /// Native longitude of the celestial pole: the default LONPOLE for a
+    /// zenithal projection.
+    fn lonpole(&self) -> f64 {
+        if self.crval2 >= 90.0 {
+            0.0
+        } else {
+            180.0
+        }
     }
 
     /// Convert pixel coordinates to world coordinates
     pub fn pixel_to_world(&self, px: f64, py: f64) -> (f64, f64) {
-        // Apply linear transformation
+        let m = self.matrix();
         let dx = px - self.crpix1;
         let dy = py - self.crpix2;
+        let x = m[0][0] * dx + m[0][1] * dy;
+        let y = m[1][0] * dx + m[1][1] * dy;
 
-        let ra = self.crval1 + dx * self.cdelt1;
-        let dec = self.crval2 + dy * self.cdelt2;
+        if !self.is_tan() {
+            return (self.crval1 + x, self.crval2 + y);
+        }
 
-        (ra, dec)
+        // Gnomonic projection (Calabretta & Greisen 2002, eqs. 54, 2).
+        let phi = x.atan2(-y);
+        let theta = (180.0 / std::f64::consts::PI).atan2(x.hypot(y));
+        let (dec0, ra0) = (self.crval2.to_radians(), self.crval1);
+        let dphi = phi - self.lonpole().to_radians();
+        let ra = ra0
+            + (-theta.cos() * dphi.sin())
+                .atan2(theta.sin() * dec0.cos() - theta.cos() * dec0.sin() * dphi.cos())
+                .to_degrees();
+        let dec = (theta.sin() * dec0.sin() + theta.cos() * dec0.cos() * dphi.cos())
+            .clamp(-1.0, 1.0)
+            .asin()
+            .to_degrees();
+        (ra.rem_euclid(360.0), dec)
     }
 
-    /// Convert world coordinates to pixel coordinates
+    /// Convert world coordinates to pixel coordinates. For a TAN projection,
+    /// points 90 degrees or more from the reference point give NaN.
     pub fn world_to_pixel(&self, ra: f64, dec: f64) -> (f64, f64) {
-        let dx = (ra - self.crval1) / self.cdelt1;
-        let dy = (dec - self.crval2) / self.cdelt2;
+        let (x, y) = if self.is_tan() {
+            let (ra, dec) = (ra.to_radians(), dec.to_radians());
+            let (ra0, dec0) = (self.crval1.to_radians(), self.crval2.to_radians());
+            let dra = ra - ra0;
+            // cos(theta) sin(phi - lonpole) and cos(theta) cos(phi - lonpole).
+            let a = -dec.cos() * dra.sin();
+            let b = dec.sin() * dec0.cos() - dec.cos() * dec0.sin() * dra.cos();
+            let phi = self.lonpole().to_radians() + a.atan2(b);
+            let sin_theta = dec.sin() * dec0.sin() + dec.cos() * dec0.cos() * dra.cos();
+            if sin_theta <= 0.0 {
+                return (f64::NAN, f64::NAN);
+            }
+            // hypot(a, b) keeps cos(theta) precise near the reference point.
+            let r = a.hypot(b) / sin_theta * (180.0 / std::f64::consts::PI);
+            (r * phi.sin(), -r * phi.cos())
+        } else {
+            (ra - self.crval1, dec - self.crval2)
+        };
 
-        let px = self.crpix1 + dx;
-        let py = self.crpix2 + dy;
+        let m = self.matrix();
+        let det = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+        let dx = (m[1][1] * x - m[0][1] * y) / det;
+        let dy = (-m[1][0] * x + m[0][0] * y) / det;
 
-        (px, py)
+        (self.crpix1 + dx, self.crpix2 + dy)
     }
 }
 
@@ -1122,51 +1091,200 @@ impl FitsTableReader {
         }
     }
 
-    /// Read a column by name
+    /// Read a column by name (matched exactly, then ignoring case).
+    ///
+    /// Each row gives one value, or a [`VOTableValue::Array`] for columns with a
+    /// repeat count above 1 and variable-length arrays. TSCALn/TZEROn are
+    /// applied, and integer values equal to TNULLn are [`VOTableValue::Null`].
+    /// Integer columns stay integers when the scaling keeps them integral
+    /// (e.g. unsigned columns stored with TZERO); otherwise scaled values are
+    /// [`VOTableValue::Double`]. Complex values are two-element arrays.
     pub fn read_column(&self, columnname: &str) -> Result<Vec<VOTableValue>> {
-        // Simplified implementation - would need full FITS table parsing
-        let mut values = Vec::new();
+        let names = self.get_columnnames()?;
+        let index = names
+            .iter()
+            .position(|n| n == columnname)
+            .or_else(|| {
+                names
+                    .iter()
+                    .position(|n| n.eq_ignore_ascii_case(columnname))
+            })
+            .ok_or_else(|| IoError::ParseError(format!("Column '{columnname}' not found")))?;
 
-        // Mock some data based on column _name
-        match columnname {
-            "FLUX" => {
-                for i in 0..100 {
-                    values.push(VOTableValue::Float(1000.0 + i as f64 * 10.0));
+        let (bytes, raw) = self.hdu.raw.data()?;
+        let cards = &raw.cards;
+        let number = index + 1;
+        let (tscal, tzero) = bintable::extract_column_scaling(cards, number);
+        let scaling = Scaling::new(tscal, tzero, column_tnull(cards, number));
+        let error =
+            |e: fitsio_pure::Error| fits_error(&format!("Failed to read column '{columnname}'"), e);
+
+        if self.hdu.hdu_type == HDUType::AsciiTable {
+            let data = table::read_ascii_column(&bytes, &raw, index).map_err(error)?;
+            return Ok(match data {
+                AsciiColumnData::Character(v) => v.into_iter().map(VOTableValue::String).collect(),
+                AsciiColumnData::Integer(v) => v.into_iter().map(|i| scaling.int(i)).collect(),
+                AsciiColumnData::Float(v) => {
+                    v.into_iter().map(|f| scaling.float(f, true)).collect()
                 }
-            }
-            "RA" => {
-                for i in 0..100 {
-                    values.push(VOTableValue::Double(180.0 + i as f64 * 0.01));
-                }
-            }
-            "DEC" => {
-                for i in 0..100 {
-                    values.push(VOTableValue::Double(45.0 + i as f64 * 0.005));
-                }
-            }
-            _ => {
-                return Err(IoError::ParseError(format!(
-                    "Column '{columnname}' not found"
-                )));
-            }
+            });
         }
 
-        Ok(values)
+        let (nrows, tfields) = match raw.info {
+            HduInfo::BinaryTable {
+                naxis2, tfields, ..
+            } => (naxis2, tfields),
+            _ => return Err(IoError::ParseError("HDU is not a binary table".to_string())),
+        };
+        let columns = bintable::parse_binary_table_columns(cards, tfields).map_err(error)?;
+        let column = &columns[index];
+        let repeat = column.repeat;
+        let data = match column.col_type {
+            BinaryColumnType::VarArrayP(_) | BinaryColumnType::VarArrayQ(_) => {
+                bintable::read_binary_column_vla(&bytes, &raw, index)
+            }
+            _ => bintable::read_binary_column(&bytes, &raw, index),
+        }
+        .map_err(error)?;
+
+        Ok(match data {
+            BinaryColumnData::Logical(v) => rows(v, repeat, nrows, VOTableValue::Boolean),
+            BinaryColumnData::Byte(v) => rows(v, repeat, nrows, |x| scaling.int(x as i64)),
+            BinaryColumnData::Short(v) => rows(v, repeat, nrows, |x| scaling.int(x as i64)),
+            BinaryColumnData::Int(v) => rows(v, repeat, nrows, |x| scaling.int(x as i64)),
+            BinaryColumnData::Long(v) => rows(v, repeat, nrows, |x| scaling.int(x)),
+            BinaryColumnData::Float(v) => {
+                rows(v, repeat, nrows, |x| scaling.float(x as f64, false))
+            }
+            BinaryColumnData::Double(v) => rows(v, repeat, nrows, |x| scaling.float(x, true)),
+            BinaryColumnData::ComplexFloat(v) => rows(v, repeat, nrows, |(re, im)| {
+                VOTableValue::Array(vec![
+                    VOTableValue::Float(re as f64),
+                    VOTableValue::Float(im as f64),
+                ])
+            }),
+            BinaryColumnData::ComplexDouble(v) => rows(v, repeat, nrows, |(re, im)| {
+                VOTableValue::Array(vec![VOTableValue::Double(re), VOTableValue::Double(im)])
+            }),
+            BinaryColumnData::Ascii(v) => v.into_iter().map(VOTableValue::String).collect(),
+            BinaryColumnData::Bit(v) => v
+                .into_iter()
+                .map(|bytes| {
+                    let bits: Vec<VOTableValue> = (0..repeat)
+                        .map(|b| VOTableValue::Boolean(bytes[b / 8] & (0x80 >> (b % 8)) != 0))
+                        .collect();
+                    single_or_array(bits, repeat)
+                })
+                .collect(),
+            BinaryColumnData::VarByte(v) => var_rows(v, |x| scaling.int(x as i64)),
+            BinaryColumnData::VarShort(v) => var_rows(v, |x| scaling.int(x as i64)),
+            BinaryColumnData::VarInt(v) => var_rows(v, |x| scaling.int(x as i64)),
+            BinaryColumnData::VarLong(v) => var_rows(v, |x| scaling.int(x)),
+            BinaryColumnData::VarFloat(v) => var_rows(v, |x| scaling.float(x as f64, false)),
+            BinaryColumnData::VarDouble(v) => var_rows(v, |x| scaling.float(x, true)),
+        })
     }
 
-    /// Get column names
+    /// Get column names (TTYPEn; empty for an unnamed column)
     pub fn get_columnnames(&self) -> Result<Vec<String>> {
-        // Would parse from FITS header keywords TTYPE1, TTYPE2, etc.
-        Ok(vec![
-            "FLUX".to_string(),
-            "RA".to_string(),
-            "DEC".to_string(),
-        ])
+        let tfields = self.hdu.header.get_i64("TFIELDS")?;
+        Ok((1..=tfields)
+            .map(|n| {
+                self.hdu
+                    .header
+                    .get_string(&format!("TTYPE{n}"))
+                    .map(|s| s.trim_end().to_string())
+                    .unwrap_or_default()
+            })
+            .collect())
     }
 
     /// Get number of rows
     pub fn get_row_count(&self) -> Result<usize> {
         self.hdu.header.get_i64("NAXIS2").map(|n| n as usize)
+    }
+}
+
+/// TSCALn/TZEROn/TNULLn of one column.
+struct Scaling {
+    tscal: f64,
+    tzero: f64,
+    tnull: Option<i64>,
+}
+
+impl Scaling {
+    fn new(tscal: f64, tzero: f64, tnull: Option<i64>) -> Self {
+        Self {
+            tscal,
+            tzero,
+            tnull,
+        }
+    }
+
+    /// An integer cell: kept as an integer when TSCAL is 1 and TZERO is a
+    /// whole number (the unsigned-integer convention) and the result fits.
+    fn int(&self, raw: i64) -> VOTableValue {
+        if self.tnull == Some(raw) {
+            return VOTableValue::Null;
+        }
+        if self.tscal == 1.0 && self.tzero.fract() == 0.0 && self.tzero.abs() <= 2f64.powi(64) {
+            if let Ok(v) = i64::try_from(raw as i128 + self.tzero as i128) {
+                return VOTableValue::Integer(v);
+            }
+        }
+        VOTableValue::Double(self.tzero + self.tscal * raw as f64)
+    }
+
+    /// A floating-point cell; single precision stays `Float` when unscaled.
+    fn float(&self, raw: f64, double: bool) -> VOTableValue {
+        if self.tscal == 1.0 && self.tzero == 0.0 {
+            if double {
+                VOTableValue::Double(raw)
+            } else {
+                VOTableValue::Float(raw)
+            }
+        } else {
+            VOTableValue::Double(self.tzero + self.tscal * raw)
+        }
+    }
+}
+
+fn column_tnull(cards: &[Card], number: usize) -> Option<i64> {
+    let keyword = format!("TNULL{number}");
+    cards
+        .iter()
+        .find(|c| c.keyword_str() == keyword)
+        .and_then(|c| match c.value {
+            Some(Value::Integer(n)) => Some(n),
+            _ => None,
+        })
+}
+
+/// One value per row, or an array of `repeat` values per row.
+fn rows<T, F: Fn(T) -> VOTableValue>(
+    values: Vec<T>,
+    repeat: usize,
+    nrows: usize,
+    f: F,
+) -> Vec<VOTableValue> {
+    let mut iter = values.into_iter();
+    (0..nrows)
+        .map(|_| single_or_array(iter.by_ref().take(repeat).map(&f).collect(), repeat))
+        .collect()
+}
+
+fn var_rows<T, F: Fn(T) -> VOTableValue>(values: Vec<Vec<T>>, f: F) -> Vec<VOTableValue> {
+    values
+        .into_iter()
+        .map(|row| VOTableValue::Array(row.into_iter().map(&f).collect()))
+        .collect()
+}
+
+fn single_or_array(mut row: Vec<VOTableValue>, repeat: usize) -> VOTableValue {
+    if repeat == 1 && row.len() == 1 {
+        row.remove(0)
+    } else {
+        VOTableValue::Array(row)
     }
 }
 

@@ -89,6 +89,7 @@ eventsource-client = { workspace = true, optional = true }
 tonic = { workspace = true, optional = true }
 # prost removed - not used in any source file
 url = { workspace = true }
+fitsio-pure = { workspace = true }  # Pure Rust FITS (COOLJAPAN Policy)
 
 [dev-dependencies]
 tokio-test = { workspace = true }
