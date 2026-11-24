@@ -232,6 +232,8 @@ kamadak-exif = "0.6"
 # Pure-Rust HDF5 (COOLJAPAN Pure Rust Policy — replaces the C-linked `hdf5` crate).
 oxih5 = "0.2.2"
 oxih5-core = "0.2.2"
+# Pure-Rust FITS (no cfitsio). Core reader/writer only: no compat/ndarray/rayon features.
+fitsio-pure = { version = "0.26.0", default-features = false, features = ["std"] }
 ureq = { version = "3.3", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots", "gzip"] }
 # PURE RUST BLOCKER (ureq): ureq's default "rustls" feature activates "_ring" (= rustls/ring, C/ASM crypto).
 # Changed to "rustls-no-provider" + "gzip" to remove ring from the default closure, plus
